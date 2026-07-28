@@ -10,8 +10,20 @@
     <link rel="shortcut icon" href="/logo_final_v4.jpg?v=4" />
     <link rel="apple-touch-icon" href="/logo_final_v4.jpg?v=4" />
   </head>
-  <body style="background-color: #0A1F44; margin: 0;">
-    <div id="root"></div>
+  <body style="background-color: #0A1F44; margin: 0; font-family: system-ui, -apple-system, sans-serif;">
+    <div id="root">
+      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; text-align: center; padding: 24px;">
+        <div style="width: 56px; height: 56px; border-radius: 16px; background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
+          <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #10B981; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        </div>
+        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
+        <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 8px 0; color: #ffffff;">TrackPack</h2>
+        <p style="font-size: 13px; color: #10B981; margin: 0 0 20px 0;">Loading app...</p>
+        <button onclick="if('caches' in window){caches.keys().then(n=>n.forEach(c=>caches.delete(c)))};if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()))};window.location.reload();" style="background-color: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #10B981; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
+          Taking too long? Reload
+        </button>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

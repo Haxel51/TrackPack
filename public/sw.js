@@ -1,7 +1,5 @@
-const CACHE_NAME = 'trackpack-cache-v4';
+const CACHE_NAME = 'trackpack-cache-v5';
 const urlsToCache = [
-  '/',
-  '/index.html',
   '/manifest.json'
 ];
 
@@ -36,27 +34,37 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Network first for HTML / navigation requests so updates are never stale
-  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+  const url = new URL(event.request.url);
+
+  // Network-first for HTML, JS, CSS, and main bundle assets so deployments are always up to date
+  if (
+    event.request.mode === 'navigate' ||
+    event.request.headers.get('accept')?.includes('text/html') ||
+    url.pathname.endsWith('.js') ||
+    url.pathname.endsWith('.css') ||
+    url.pathname.startsWith('/assets/')
+  ) {
     event.respondWith(
-      fetch(event.request).then(function(networkResponse) {
-        if (networkResponse && networkResponse.status === 200) {
-          const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then(function(cache) {
-            cache.put(event.request, responseToCache);
+      fetch(event.request)
+        .then(function(networkResponse) {
+          if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then(function(cache) {
+              cache.put(event.request, responseToCache);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(function() {
+          return caches.match(event.request).then(function(response) {
+            return response || caches.match('/index.html');
           });
-        }
-        return networkResponse;
-      }).catch(function() {
-        return caches.match(event.request).then(function(response) {
-          return response || caches.match('/index.html');
-        });
-      })
+        })
     );
     return;
   }
 
-  // Cache first with network fallback for static assets
+  // Cache-first for images and static media with network fallback
   event.respondWith(
     caches.match(event.request).then(function(response) {
       if (response) {
