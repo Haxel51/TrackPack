@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Platform Administrator credentials path
+    match /platform_admin/credentials {
+      allow read, write: if true;
+    }
+
+    // Allow anyone to read and write for rapid prototyping of TrackWay
+    match /{document=**} {
+      allow read, write: if true;
+    }
+  }
+}
