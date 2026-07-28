@@ -1,10 +1,8 @@
-const CACHE_NAME = 'trackpack-cache-v3';
+const CACHE_NAME = 'trackpack-cache-v4';
 const urlsToCache = [
   '/',
   '/index.html',
-  '/manifest.json',
-  '/icon-192.png',
-  '/icon-512.png'
+  '/manifest.json'
 ];
 
 self.addEventListener('install', function(event) {
@@ -33,23 +31,38 @@ self.addEventListener('activate', function(event) {
 });
 
 self.addEventListener('fetch', function(event) {
-  // Skip non-GET requests or API calls for offline cache
+  // Skip non-GET requests or API calls
   if (event.request.method !== 'GET' || event.request.url.includes('/api/')) {
     return;
   }
 
+  // Network first for HTML / navigation requests so updates are never stale
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request).then(function(networkResponse) {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(function() {
+        return caches.match(event.request).then(function(response) {
+          return response || caches.match('/index.html');
+        });
+      })
+    );
+    return;
+  }
+
+  // Cache first with network fallback for static assets
   event.respondWith(
     caches.match(event.request).then(function(response) {
       if (response) {
         return response;
       }
-      return fetch(event.request).then(function(networkResponse) {
-        return networkResponse;
-      }).catch(function() {
-        if (event.request.mode === 'navigate') {
-          return caches.match('/index.html');
-        }
-      });
+      return fetch(event.request);
     })
   );
 });

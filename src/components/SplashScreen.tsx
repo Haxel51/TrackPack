@@ -1,25 +1,31 @@
 import { motion } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [isVisible, setIsVisible] = useState(true);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    // Total splash duration: ~3.2 seconds
+    // Total splash duration: ~1.8 seconds for smooth entrance
     const timer = setTimeout(() => {
       setIsVisible(false);
-      setTimeout(onComplete, 500); // Allow fade-out transition duration
-    }, 3200);
+      setTimeout(() => {
+        onCompleteRef.current();
+      }, 400); // Allow fade-out transition
+    }, 1800);
 
     return () => clearTimeout(timer);
-  }, [onComplete]);
+  }, []); // Run ONCE on mount to prevent infinite resets
 
   return (
     <motion.div
       initial={{ opacity: 1 }}
       animate={{ opacity: isVisible ? 1 : 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#0A1F44] via-[#0d2a5c] to-[#0A1F44] text-white select-none overflow-hidden"
+      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#0A1F44] via-[#0d2a5c] to-[#0A1F44] text-white select-none overflow-hidden ${
+        isVisible ? '' : 'pointer-events-none'
+      }`}
     >
       {/* Background Soft Glow Effect */}
       <div className="absolute w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none animate-pulse" />

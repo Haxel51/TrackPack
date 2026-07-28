@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, useCallback } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuthStore } from './store';
 import { Layout } from './components/Layout';
@@ -36,9 +36,9 @@ function RequireAuth({ children, role }: { children: ReactNode, role?: string | 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
 
-  const handleSplashComplete = () => {
+  const handleSplashComplete = useCallback(() => {
     setShowSplash(false);
-  };
+  }, []);
 
   return (
     <BrowserRouter>
