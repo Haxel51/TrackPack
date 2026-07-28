@@ -37,7 +37,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
 
         <div className="relative w-24 h-24 rounded-3xl bg-white shadow-2xl p-3 border border-white/20 flex items-center justify-center mb-6">
           <img 
-            src="/icon-192.png?v=3" 
+            src="/logo_final_v4.jpg?v=4" 
             alt="TrackPack Logo" 
             referrerPolicy="no-referrer"
             className="w-full h-full rounded-2xl object-cover shadow-inner"

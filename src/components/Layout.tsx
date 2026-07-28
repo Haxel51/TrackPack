@@ -45,7 +45,7 @@ export function Layout() {
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer select-none" onClick={handleSecretTap}>
             <Link to={user ? `/${user.role}` : '/'} className="flex items-center gap-2.5">
-              <img src="/icon-192.png?v=3" alt="TrackPack Logo" referrerPolicy="no-referrer" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-emerald-500/30" />
+              <img src="/logo_final_v4.jpg?v=4" alt="TrackPack Logo" referrerPolicy="no-referrer" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-emerald-500/30" />
               <span className="font-bold text-xl tracking-tight text-navy">TrackPack</span>
             </Link>
           </div>
