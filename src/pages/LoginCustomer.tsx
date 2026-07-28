@@ -136,11 +136,19 @@ export function LoginCustomer() {
         <h1 className="text-2xl font-bold text-navy mb-1">
           {mode === 'login' ? 'Customer PIN Login' : 'Register 6-Digit PIN'}
         </h1>
-        <p className="text-gray-600 text-sm mb-6 leading-relaxed">
+        <p className="text-gray-600 text-sm mb-4 leading-relaxed">
           {mode === 'login' 
             ? 'Access your waybills securely using your phone number and 6-digit Secret PIN.' 
             : 'Set up a secure 6-digit PIN for your phone number to prevent unauthorized access.'}
         </p>
+
+        {/* Clear Notice on Customer Access Rules */}
+        <div className="bg-amber-50 border border-amber-200/80 p-3.5 rounded-xl text-xs text-amber-900 mb-6 flex items-start gap-2.5 shadow-2xs">
+          <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+          <p className="leading-snug font-medium">
+            <strong>Notice:</strong> The Customer Portal provides instant management of all waybills sent or received under your phone number. You can only log in or set up a PIN if your phone number is registered as sender or receiver on at least one waybill.
+          </p>
+        </div>
 
         {/* Mode Switch Tabs */}
         <div className="grid grid-cols-2 gap-1 bg-gray-100 p-1 rounded-xl mb-6 text-sm font-medium">

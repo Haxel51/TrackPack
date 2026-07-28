@@ -26,9 +26,13 @@ import {
   LogOut,
   Info,
   AlertTriangle,
-  RefreshCw
+  RefreshCw,
+  FileText,
+  Trash2,
+  CreditCard,
+  HelpCircle
 } from 'lucide-react';
-import { doc, onSnapshot, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 
 export function StaffPortalView() {
@@ -36,7 +40,8 @@ export function StaffPortalView() {
   
   // Navigation State
   const [mainTab, setMainTab] = useState<'outgoing' | 'incoming'>('outgoing');
-  const [subTab, setSubTab] = useState<'create' | 'dispatch' | 'store' | 'incoming-buses'>('create');
+  const [subTab, setSubTab] = useState<'create' | 'dispatch' | 'drafts' | 'store' | 'incoming-buses'>('create');
+  const [showStaffGuide, setShowStaffGuide] = useState(false);
 
   // Common State
   const [loading, setLoading] = useState(false);
@@ -81,6 +86,7 @@ export function StaffPortalView() {
 
   // OUTGOING - Dispatch Manifest State
   const [outgoingManifest, setOutgoingManifest] = useState<Waybill[]>([]);
+  const [draftWaybills, setDraftWaybills] = useState<Waybill[]>([]);
   const [driverInfo, setDriverInfo] = useState<Record<string, { name: string; phone: string }>>({});
 
   // INCOMING - Buses State
@@ -146,6 +152,20 @@ export function StaffPortalView() {
       } else if (subTab === 'store') {
         const storeData = await getArrivedWaybillsForPark(user.park);
         setStoreWaybills(storeData);
+      }
+
+      // Always load park drafts if on create, dispatch or drafts
+      if (subTab === 'drafts' || subTab === 'create' || subTab === 'dispatch') {
+        const qDraft = query(
+          collection(db, 'waybills'),
+          where('originPark', '==', user.park)
+        );
+        const draftSnap = await getDocs(qDraft);
+        const drafts = draftSnap.docs
+          .map(doc => ({ ...doc.data(), id: doc.id } as Waybill))
+          .filter(w => w.status === 'Draft' || w.paymentStatus === 'pending')
+          .sort((a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0));
+        setDraftWaybills(drafts);
       }
     } catch (err) {
       console.error('Error loading data for staff portal:', err);
@@ -346,20 +366,22 @@ export function StaffPortalView() {
   const handleDepartBus = async (busNo: string) => {
     if (!user?.park) return;
     const info = driverInfo[busNo] || { name: '', phone: '' };
-    if (info.phone) {
-      const normalizedDriverPhone = normalizeTo11Digits(info.phone);
-      if (normalizedDriverPhone.length !== 11) {
-        alert("Driver's phone number must be exactly 11 digits (e.g. 08012345678) if provided.");
-        return;
-      }
+    if (!info.phone || !info.phone.trim()) {
+      alert("Driver's phone number is REQUIRED before dispatching the bus so customers can call the driver during transit.");
+      return;
     }
-    await markBusDeparted(busNo, user.park, info.name || '', info.phone ? normalizeTo11Digits(info.phone) : '');
+    const normalizedDriverPhone = normalizeTo11Digits(info.phone);
+    if (normalizedDriverPhone.length !== 11) {
+      alert("Driver's phone number must be a valid 11-digit Nigerian phone number (e.g. 08012345678).");
+      return;
+    }
+    await markBusDeparted(busNo, user.park, info.name?.trim() || 'Bus Driver', normalizedDriverPhone);
     setDriverInfo((prev) => {
       const next = { ...prev };
       delete next[busNo];
       return next;
     });
-    setSuccessMsg(`Bus ${busNo} has departed successfully! Customers have been notified.`);
+    setSuccessMsg(`Bus ${busNo} departed! Driver phone (${normalizedDriverPhone}) saved and customers notified.`);
     setTimeout(() => setSuccessMsg(''), 4000);
     loadData();
   };
@@ -439,13 +461,77 @@ export function StaffPortalView() {
             <strong className="text-navy">{user?.name || 'Officer'}</strong>
           </p>
         </div>
-        <button
-          onClick={logout}
-          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition border border-red-200 w-fit self-start md:self-center"
-        >
-          <LogOut className="w-4 h-4" /> Sign Out
-        </button>
+        <div className="flex items-center gap-2 self-start md:self-center">
+          <button
+            onClick={() => setShowStaffGuide(!showStaffGuide)}
+            className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold text-navy bg-amber/20 hover:bg-amber/30 rounded-xl transition border border-amber/40"
+          >
+            <HelpCircle className="w-4 h-4 text-navy" /> {showStaffGuide ? 'Hide Staff Guide' : '📖 Operating Guide'}
+          </button>
+          <button
+            onClick={logout}
+            className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-bold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition border border-red-200"
+          >
+            <LogOut className="w-4 h-4" /> Sign Out
+          </button>
+        </div>
       </div>
+
+      {/* Interactive Staff Operating Guide Checklist */}
+      {showStaffGuide && (
+        <div className="bg-navy text-white p-6 rounded-2xl border border-navy/30 shadow-lg space-y-4 animate-fadeIn">
+          <div className="flex justify-between items-center pb-3 border-b border-white/10">
+            <div className="flex items-center gap-2">
+              <HelpCircle className="w-5 h-5 text-amber-400" />
+              <h3 className="font-bold text-lg text-white">Park Station Staff Operating Guide</h3>
+            </div>
+            <button
+              onClick={() => setShowStaffGuide(false)}
+              className="text-xs bg-white/10 hover:bg-white/20 text-white px-3 py-1 rounded-lg font-bold transition"
+            >
+              Close Guide ✕
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-gray-200">
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1.5">
+              <div className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                <span>1️⃣</span> Book Outgoing Package
+              </div>
+              <p className="leading-relaxed text-gray-300">
+                Fill parcel details, sender/receiver phones, and bus number. Generate Paystack Virtual Account or collect booking fee to activate tracking ID.
+              </p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1.5">
+              <div className="font-bold text-amber-400 text-sm flex items-center gap-1.5">
+                <span>2️⃣</span> Draft & Unpaid Recovery
+              </div>
+              <p className="leading-relaxed text-gray-300">
+                If payment is delayed or left uncompleted, the booking stays safely saved under <strong>Drafts</strong>. Open <em>3. Drafts / Pending Payment</em> anytime to resume and complete payment.
+              </p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1.5">
+              <div className="font-bold text-emerald-400 text-sm flex items-center gap-1.5">
+                <span>3️⃣</span> Dispatch Bus (Mark Departed)
+              </div>
+              <p className="leading-relaxed text-gray-300">
+                When the loaded bus leaves, enter the <strong>REQUIRED Driver Phone Number</strong> and click <em>Dispatch Bus & Notify Customers</em>. This moves packages to <strong>In Transit</strong> and enables the Call Driver button for customers.
+              </p>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 p-4 rounded-xl space-y-1.5">
+              <div className="font-bold text-emerald-400 text-sm flex items-center gap-1.5">
+                <span>4️⃣</span> Receive Bus & Hand Over
+              </div>
+              <p className="leading-relaxed text-gray-300">
+                When an incoming bus arrives at your park, click <em>Incoming Shipments ➔ Incoming Buses</em> and click <em>Mark Bus as Arrived</em>. When the receiver comes to collect, search their phone number and click <em>Hand Over Package</em>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Success Notification Alert */}
       {successMsg && (
@@ -508,6 +594,21 @@ export function StaffPortalView() {
               {outgoingManifest.length > 0 && (
                 <span className="bg-amber text-navy text-xs px-1.5 py-0.5 rounded-full font-bold">
                   {outgoingManifest.length}
+                </span>
+              )}
+            </button>
+            <button
+              onClick={() => setSubTab('drafts')}
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-2 ${
+                subTab === 'drafts'
+                  ? 'bg-navy text-white shadow-xs'
+                  : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
+              }`}
+            >
+              3. Drafts / Pending Payment
+              {draftWaybills.length > 0 && (
+                <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">
+                  {draftWaybills.length}
                 </span>
               )}
             </button>
@@ -866,13 +967,13 @@ export function StaffPortalView() {
                             />
                           </div>
                           <div>
-                            <label className="block text-xs font-bold uppercase tracking-wider text-gray-600 mb-1">
-                              Driver's Phone Number (Optional)
+                            <label className="block text-xs font-bold uppercase tracking-wider text-navy mb-1">
+                              Driver's Phone Number (REQUIRED)
                             </label>
                             <Input
                               type="tel"
                               value={currentDriver.phone}
-                              placeholder="E.g., 08012345678 (Optional)"
+                              placeholder="E.g., 08012345678 (Required for Call Button)"
                               onChange={(e) =>
                                 setDriverInfo((prev) => ({
                                   ...prev,
@@ -891,6 +992,101 @@ export function StaffPortalView() {
                       </div>
                     );
                   })}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-tab 3: Drafts & Pending Payment History */}
+          {subTab === 'drafts' && (
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-6">
+              <div>
+                <h3 className="text-lg font-bold text-navy flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-amber-600" />
+                  Draft & Pending Payment Waybills
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  Waybills booked at this park station where payment was interrupted or pending. Staff can resume and complete payment anytime.
+                </p>
+              </div>
+
+              {draftWaybills.length === 0 ? (
+                <div className="text-center py-12 text-gray-500 bg-bg-light rounded-xl border border-gray-200">
+                  <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-3" />
+                  <p className="font-semibold text-gray-800">No pending drafts!</p>
+                  <p className="text-sm text-gray-500">All waybills booked at this station have been paid and activated.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {draftWaybills.map((wb) => (
+                    <div key={wb.id} className="border border-amber-200 bg-amber-50/40 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-2xs">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full border border-amber-300">
+                            DRAFT / UNPAID
+                          </span>
+                          <span className="text-xs text-gray-500 font-mono">
+                            {new Date(wb.createdTimestamp).toLocaleString()}
+                          </span>
+                        </div>
+                        <p className="font-bold text-navy mt-1 text-base">{wb.itemDescription}</p>
+                        <div className="text-xs text-gray-700 mt-1 space-y-0.5">
+                          <p>
+                            <strong>Sender:</strong> {wb.senderName || 'Sender'} ({wb.senderPhone})
+                          </p>
+                          <p>
+                            <strong>Receiver:</strong> {wb.receiverName || 'Receiver'} ({wb.receiverPhone})
+                          </p>
+                          <p>
+                            <strong>Route:</strong> {wb.originPark} ➔ {wb.destinationPark} (Bus {wb.busNumber})
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                        <button
+                          type="button"
+                          onClick={() => handleRetryPayment(wb)}
+                          className="px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <CreditCard className="w-4 h-4" /> Resume & Pay
+                        </button>
+                        {deletingDraftId === wb.id ? (
+                          <div className="flex items-center gap-1.5 bg-red-100 p-1 rounded-lg border border-red-200">
+                            <span className="text-xs font-bold text-red-900 pl-1">Delete?</span>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                if (wb.id) {
+                                  await deleteWaybill(wb.id);
+                                  setDeletingDraftId(null);
+                                  loadData();
+                                }
+                              }}
+                              className="text-xs bg-red-600 text-white font-bold px-2 py-1 rounded"
+                            >
+                              Yes
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setDeletingDraftId(null)}
+                              className="text-xs bg-gray-200 text-gray-800 font-bold px-2 py-1 rounded"
+                            >
+                              No
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setDeletingDraftId(wb.id!)}
+                            className="px-3 py-2.5 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 font-bold text-xs rounded-xl transition flex items-center justify-center gap-1 cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" /> Delete Draft
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>

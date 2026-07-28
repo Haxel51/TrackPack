@@ -441,6 +441,15 @@ export function CustomerView() {
                     </button>
                   )}
 
+                  {!isDraft && wb.driverPhone && wb.status !== 'Collected' && wb.status !== 'Delivered' && (
+                    <a
+                      href={`tel:${wb.driverPhone}`}
+                      className="text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-3.5 py-2 rounded-xl flex items-center gap-1.5 transition shadow-xs cursor-pointer animate-pulse"
+                    >
+                      <Phone className="w-3.5 h-3.5" /> Call Driver ({wb.driverPhone})
+                    </a>
+                  )}
+
                   {!isDraft && (
                     <a
                       href={`https://wa.me/?text=${encodeURIComponent(`*TrackPack Waybill Tracking*\nTracking Code: *${wb.trackingCode}*\nReceiver Phone: *${wb.receiverPhone}*\nItem: ${wb.itemDescription}\nRoute: ${wb.originPark} ➔ ${wb.destinationPark}\nStatus: ${wb.status}\n\nTrack real-time here: ${window.location.origin}/track/${wb.trackingCode}`)}`}

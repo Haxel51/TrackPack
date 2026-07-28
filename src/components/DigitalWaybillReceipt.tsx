@@ -165,7 +165,7 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
         </div>
 
         {/* Assigned Vehicle & Driver Info */}
-        {waybill.driverPhone && (
+        {waybill.driverPhone && waybill.status !== 'Collected' && waybill.status !== 'Delivered' && (
           <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-900">Vehicle Driver Information</p>
@@ -174,7 +174,7 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
             </div>
             <a
               href={`tel:${waybill.driverPhone}`}
-              className="bg-navy hover:bg-navy-hover text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white px-3.5 py-2 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-sm transition animate-pulse"
             >
               <Phone className="w-3.5 h-3.5" /> Call Driver
             </a>

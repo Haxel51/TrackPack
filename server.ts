@@ -671,6 +671,19 @@ async function startServer() {
         });
       }
 
+      // Verify that this phone number is registered as sender or receiver on at least one waybill
+      const senderCheckQ = query(collection(db, 'waybills'), where('senderPhone', '==', normalizedPhone));
+      const receiverCheckQ = query(collection(db, 'waybills'), where('receiverPhone', '==', normalizedPhone));
+      const [senderCheckSnap, receiverCheckSnap] = await Promise.all([getDocs(senderCheckQ), getDocs(receiverCheckQ)]);
+
+      if (senderCheckSnap.empty && receiverCheckSnap.empty) {
+        return res.status(404).json({
+          status: 'error',
+          code: 'NO_WAYBILL_FOUND',
+          message: `No waybill registered under ${normalizedPhone}. Only phone numbers associated with a waybill (as sender or receiver) can access the Customer Portal.`
+        });
+      }
+
       const pinHash = hashPin(pinDigits);
       await setDoc(docRef, {
         phone: normalizedPhone,

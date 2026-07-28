@@ -197,9 +197,22 @@ export function PublicTrackView() {
           </div>
         </div>
         
-        <div className="bg-bg-light p-4 rounded-xl mb-6">
-          <p className="font-medium text-navy mb-1">{waybill.itemDescription}</p>
-          <p className="text-base text-gray-700">Bus: {waybill.busNumber}</p>
+        <div className="bg-bg-light p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div>
+            <p className="font-bold text-navy text-base">{waybill.itemDescription}</p>
+            <p className="text-xs text-gray-600 mt-0.5">Vehicle / Bus Number: <strong>{waybill.busNumber}</strong></p>
+            {waybill.driverName && (
+              <p className="text-xs text-gray-600">Driver: <strong>{waybill.driverName}</strong></p>
+            )}
+          </div>
+          {waybill.driverPhone && waybill.status !== 'Collected' && waybill.status !== 'Delivered' && (
+            <a
+              href={`tel:${waybill.driverPhone}`}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition animate-pulse shrink-0"
+            >
+              <Phone className="w-4 h-4" /> Call Driver ({waybill.driverPhone})
+            </a>
+          )}
         </div>
 
         {/* Receiver Phone Verification Banner */}
