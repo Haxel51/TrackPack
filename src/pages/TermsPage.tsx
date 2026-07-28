@@ -158,7 +158,7 @@ export function TermsPage() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-navy">10. Contact</h3>
               <p>
-                Questions about your data or these terms can be sent to: <strong className="text-navy">ndubuisis430@gmail.com / WhatsApp: 09031940521</strong>
+                Questions about your data or these terms can be sent to: <strong className="text-navy">trackpack701@gmail.com / WhatsApp: 09031940521</strong>
               </p>
             </div>
 
@@ -276,7 +276,7 @@ export function TermsPage() {
             <div className="space-y-2">
               <h3 className="text-lg font-bold text-navy">9. Contact</h3>
               <p>
-                Questions about data, payments, or this partnership can be sent to: <strong className="text-navy">ndubuisis430@gmail.com / WhatsApp: 09031940521</strong>
+                Questions about data, payments, or this partnership can be sent to: <strong className="text-navy">trackpack701@gmail.com / WhatsApp: 09031940521</strong>
               </p>
             </div>
 
