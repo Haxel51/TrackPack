@@ -1864,6 +1864,12 @@ async function startServer() {
     }
   });
 
+  // Static route for Google Search Console site verification
+  app.get('/google08c2075392d5f926.html', (req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.send('google-site-verification: google08c2075392d5f926.html');
+  });
+
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
       server: { middlewareMode: true },
