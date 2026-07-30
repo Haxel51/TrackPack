@@ -81,10 +81,12 @@ export function Layout() {
               Run a transport park? Partner with us
             </Link>
           )}
-          <div className="text-xs text-gray-500 pt-2 flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+          <div className="text-xs text-gray-500 pt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
             <span className="cursor-pointer select-none" onClick={handleSecretTap}>© {new Date().getFullYear()} TrackPack Systems</span>
             <span className="hidden sm:inline">•</span>
-            <Link to="/terms" className="text-navy font-bold underline hover:text-emerald-700 cursor-pointer active:scale-95 transition-transform inline-block p-2 -m-2">Terms & Conditions</Link>
+            <Link to="/faq" className="text-navy font-bold underline hover:text-emerald-700 cursor-pointer active:scale-95 transition-transform inline-block p-1">Waybill FAQs</Link>
+            <span>•</span>
+            <Link to="/terms" className="text-navy font-bold underline hover:text-emerald-700 cursor-pointer active:scale-95 transition-transform inline-block p-1">Terms & Conditions</Link>
           </div>
         </div>
       </footer>

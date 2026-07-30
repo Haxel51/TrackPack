@@ -13,6 +13,7 @@ import { CustomerView } from './pages/CustomerView';
 import { AdminView } from './pages/AdminView';
 import { PublicTrackView } from './pages/PublicTrackView';
 import { TermsPage } from './pages/TermsPage';
+import { FaqPage } from './pages/FaqPage';
 import { SplashScreen } from './components/SplashScreen';
 
 // Protected Route Wrapper
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="login/admin" element={<LoginAdmin />} />
           <Route path="track/:code" element={<PublicTrackView />} />
           <Route path="terms" element={<TermsPage />} />
+          <Route path="faq" element={<FaqPage />} />
           
           <Route path="sender" element={
             <RequireAuth role={["sender", "receiver"]}>

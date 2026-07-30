@@ -66,7 +66,7 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
           transition={{ delay: 0.5, duration: 0.5 }}
           className="text-xs text-emerald-300 font-medium tracking-wide mb-8"
         >
-          Real-Time Logistics & Waybills
+          Digital Waybill Tracking Platform
         </motion.p>
 
         {/* Thin animated progress indicator */}
