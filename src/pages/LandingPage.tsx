@@ -50,14 +50,14 @@ export function LandingPage() {
       </div>
 
       <div className="text-center space-y-4">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white shadow-md p-1.5 border border-gray-200">
-          <img src="/logo_final_v4.jpg?v=4" alt="TrackPack Logo" referrerPolicy="no-referrer" className="w-full h-full rounded-xl object-cover" />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+          <span className="text-base">🇳🇬</span> Built for Nigeria Interstate Motor Parks
         </div>
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-navy leading-tight">
           Never wonder where<br className="hidden sm:block" /> your waybill is again.
         </h1>
         <p className="text-gray-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-          TrackPack replaces paper waybills at transport parks with real-time status updates you can check anytime. Easily track your waybills and see your assigned driver instantly.
+          TrackPack replaces paper waybills at Nigerian transport parks (like Peace Mass, GUO, God is Good, Young Shall Grow, & local lines) with instant digital tracking codes & receipts.
         </p>
 
         {/* Steps on How the App is Used */}

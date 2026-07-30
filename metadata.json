@@ -1,6 +1,6 @@
 {
   "name": "TrackPack",
-  "description": "A waybill tracking app for transport parks.",
+  "description": "Nigeria's digital waybill tracking platform for motor park transport lines.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
