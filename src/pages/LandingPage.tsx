@@ -29,21 +29,54 @@ export function LandingPage() {
   };
 
   return (
-    <div className="flex flex-col gap-8 max-w-2xl mx-auto py-10 px-4">
+    <div className="flex flex-col gap-8 max-w-2xl mx-auto py-8 px-4">
       
+      {/* Primary Service Hero Banner */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-navy via-slate-900 to-navy text-white rounded-3xl p-6 sm:p-8 shadow-xl border border-slate-800">
+        <div className="absolute -top-12 -right-12 w-40 h-40 bg-amber/20 rounded-full blur-2xl pointer-events-none" />
+        <div className="absolute -bottom-12 -left-12 w-40 h-40 bg-emerald-500/20 rounded-full blur-2xl pointer-events-none" />
+        
+        <div className="relative z-10 space-y-4">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber/20 border border-amber/40 text-amber text-xs font-extrabold uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-amber" /> Core Service: Waybill Live Tracking
+          </div>
+
+          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight text-white leading-tight">
+            Nigeria's #1 Dedicated<br />
+            <span className="text-amber">Waybill Live Tracking</span> Platform
+          </h1>
+
+          <p className="text-gray-300 text-xs sm:text-sm leading-relaxed max-w-xl">
+            TrackPack specializes exclusively in <strong>real-time motor park waybill tracking</strong> for interstate shipments across Nigeria (Peace Mass, GUO, God is Good, Young Shall Grow, Goodness & Mercy, Romchi, and local transport lines).
+          </p>
+
+          <div className="pt-2 flex flex-wrap items-center gap-3 text-xs text-gray-200 font-medium">
+            <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Live Status Updates
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+              📦 Digital Waybill Receipts
+            </span>
+            <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+              🚌 Assigned Driver Info
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Warm Joke Welcome Banner */}
-      <div className="bg-gradient-to-r from-navy to-slate-900 text-white p-5 rounded-2xl shadow-md border border-slate-800 flex items-start gap-4">
-        <div className="w-12 h-12 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm text-xl font-bold">
+      <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 flex items-start gap-4">
+        <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 text-xl">
           😂
         </div>
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <h2 className="text-white font-bold text-base">Welcome to TrackPack!</h2>
-            <span className="text-[10px] bg-emerald-400/20 text-emerald-300 font-semibold px-2 py-0.5 rounded-full border border-emerald-400/30">
+            <h2 className="text-navy font-bold text-sm">Welcome to TrackPack!</h2>
+            <span className="text-[10px] bg-emerald-100 text-emerald-800 font-semibold px-2 py-0.5 rounded-full border border-emerald-200">
               Smile Guaranteed
             </span>
           </div>
-          <p className="text-gray-200 text-xs sm:text-sm leading-relaxed">
+          <p className="text-gray-600 text-xs leading-relaxed">
             "Relax! Your waybill moves faster than village gossip on market day. 🏃💨 Put your feet up, grab your coffee, and let TrackPack do the heavy lifting while your package flies home!"
           </p>
         </div>
@@ -57,7 +90,7 @@ export function LandingPage() {
           Never wonder where<br className="hidden sm:block" /> your waybill is again.
         </h1>
         <p className="text-gray-600 text-base sm:text-lg max-w-xl mx-auto leading-relaxed">
-          TrackPack replaces paper waybills at Nigerian transport parks (like Peace Mass, GUO, God is Good, Young Shall Grow, & local lines) with instant digital tracking codes & receipts.
+          TrackPack replaces paper waybills at Nigerian transport parks (like Peace Mass, GUO, God is Good, Young Shall Grow, Goodness & Mercy, Romchi, & local lines) with instant digital tracking codes & receipts.
         </p>
 
         {/* Steps on How the App is Used */}
