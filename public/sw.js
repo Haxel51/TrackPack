@@ -57,7 +57,12 @@ self.addEventListener('fetch', function(event) {
         })
         .catch(function() {
           return caches.match(event.request).then(function(response) {
-            return response || caches.match('/index.html');
+            if (response) return response;
+            // Only return index.html for page navigation, never for script/style assets!
+            if (event.request.mode === 'navigate' || (event.request.headers.get('accept') && event.request.headers.get('accept').includes('text/html'))) {
+              return caches.match('/index.html');
+            }
+            return new Response('Asset unavailable offline', { status: 404, statusText: 'Not Found' });
           });
         })
     );

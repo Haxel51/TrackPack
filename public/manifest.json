@@ -1,7 +1,7 @@
 {
   "name": "TrackPack",
   "short_name": "TrackPack",
-  "description": "Real-time waybill tracking and transport park logistics management",
+  "description": "Nigeria's digital waybill tracking platform for motor park transport lines",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0A1F44",
