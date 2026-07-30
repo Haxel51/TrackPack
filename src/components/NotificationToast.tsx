@@ -43,6 +43,13 @@ export function playNotificationChime() {
 
 export function triggerInAppNotificationToast(payload: ToastPayload) {
   playNotificationChime();
+  if ('vibrate' in navigator) {
+    try {
+      navigator.vibrate([200, 100, 200, 100, 300]);
+    } catch (e) {
+      // Ignore vibration unsupported errors
+    }
+  }
   const event = new CustomEvent('trackpack_notification_toast', {
     detail: { ...payload, id: payload.id || `toast_${Date.now()}` }
   });

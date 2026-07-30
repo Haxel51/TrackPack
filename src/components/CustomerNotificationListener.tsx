@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuthStore } from '../store';
@@ -53,22 +53,23 @@ export function CustomerNotificationListener() {
   const previousStatusesRef = useRef<Record<string, string>>({});
   const isFirstLoadRef = useRef(true);
 
+  // Phone resolution from logged in user or stored phone session
+  const activePhone = user?.phone || localStorage.getItem('tracked_phone') || localStorage.getItem('user_phone') || '';
+
+  const [showPermissionBanner, setShowPermissionBanner] = useState(false);
+
   useEffect(() => {
-    if (!user?.phone || user.role !== 'customer') return;
+    if (!activePhone) return;
 
-    const phone = user.phone;
+    // Check if browser notification permission is default (not asked yet) or denied
+    if ('Notification' in window && Notification.permission === 'default') {
+      setShowPermissionBanner(true);
+    } else if ('Notification' in window && Notification.permission === 'granted') {
+      registerPushNotification(activePhone).catch(() => {});
+    }
 
-    // Automatically attempt service worker push registration in background
-    registerPushNotification(phone).catch(() => {});
-
-    // Check if notifications are enabled
-    const isPushEnabled = () => {
-      const localPref = localStorage.getItem(`push_pref_${phone}`);
-      return localPref === 'true' && 'Notification' in window && Notification.permission === 'granted';
-    };
-
-    const senderQ = query(collection(db, 'waybills'), where('senderPhone', '==', phone));
-    const receiverQ = query(collection(db, 'waybills'), where('receiverPhone', '==', phone));
+    const senderQ = query(collection(db, 'waybills'), where('senderPhone', '==', activePhone));
+    const receiverQ = query(collection(db, 'waybills'), where('receiverPhone', '==', activePhone));
 
     const handleWaybillsUpdate = (waybills: Waybill[]) => {
       if (isFirstLoadRef.current) {
@@ -93,7 +94,7 @@ export function CustomerNotificationListener() {
           const targetStatuses = ['Booked', 'Departed', 'In Transit', 'Arrived', 'Collected'];
           if (targetStatuses.includes(newStatus)) {
             const bodyText = getWarmerStatusPhrase(newStatus, wb);
-            // 1. Always trigger instant live in-app notification toast with audio chime
+            // 1. Always trigger instant live in-app notification toast with audio chime & vibration
             triggerInAppNotificationToast({
               title: isNewBooking ? `New Shipment Booked! #${wb.trackingCode || ''}` : `Shipment Status: ${newStatus}`,
               body: bodyText,
@@ -147,7 +148,54 @@ export function CustomerNotificationListener() {
       unsubSender();
       unsubReceiver();
     };
-  }, [user?.phone, user?.role]);
+  }, [activePhone]);
 
-  return null;
+  const handleEnableNotifications = async () => {
+    if ('Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        if (perm === 'granted' && activePhone) {
+          await registerPushNotification(activePhone);
+          triggerInAppNotificationToast({
+            title: 'Phone Notifications Enabled! 🔔',
+            body: 'You will now receive instant alerts on your phone whenever your parcel moves or arrives.',
+            type: 'success'
+          });
+        }
+      } catch (err) {
+        console.warn('Error requesting notification permission:', err);
+      }
+    }
+    setShowPermissionBanner(false);
+  };
+
+  if (!showPermissionBanner) return null;
+
+  return (
+    <div className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 z-40 max-w-md bg-navy text-white p-4 rounded-2xl shadow-2xl border border-amber/40 animate-slideUp flex flex-col sm:flex-row items-center justify-between gap-3">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-amber/20 text-amber-400 flex items-center justify-center shrink-0">
+          🔔
+        </div>
+        <div>
+          <h4 className="text-sm font-bold text-white">Enable Phone Notifications</h4>
+          <p className="text-xs text-gray-300">Get instant alerts on your phone when your parcel is shipped or arrives at the park.</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+        <button
+          onClick={handleEnableNotifications}
+          className="px-3.5 py-1.5 bg-amber hover:bg-amber-400 text-navy font-extrabold text-xs rounded-xl shadow-xs transition cursor-pointer"
+        >
+          Enable Alerts 🔔
+        </button>
+        <button
+          onClick={() => setShowPermissionBanner(false)}
+          className="text-gray-400 hover:text-white text-xs px-2 py-1"
+        >
+          Dismiss
+        </button>
+      </div>
+    </div>
+  );
 }

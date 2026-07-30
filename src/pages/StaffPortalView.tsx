@@ -176,6 +176,20 @@ export function StaffPortalView() {
 
   useEffect(() => {
     loadData();
+
+    if (!user?.park) return;
+
+    // Real-time listener for waybills arriving at or departing from this park
+    const qOrigin = query(collection(db, 'waybills'), where('originPark', '==', user.park));
+    const qDest = query(collection(db, 'waybills'), where('destinationPark', '==', user.park));
+
+    const unsub1 = onSnapshot(qOrigin, () => loadData(), (err) => console.warn('Origin snapshot error:', err));
+    const unsub2 = onSnapshot(qDest, () => loadData(), (err) => console.warn('Dest snapshot error:', err));
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
   }, [user?.park, subTab]);
 
   // Handle Paystack Redirect Callback (e.g. ?payment_status=cancelled or ?payment_status=completed)
@@ -438,23 +452,32 @@ export function StaffPortalView() {
     );
   });
 
-  // Outgoing manifest grouped by bus number
-  const groupedManifest = outgoingManifest.reduce((acc, wb) => {
-    if (!acc[wb.busNumber]) acc[wb.busNumber] = [];
-    acc[wb.busNumber].push(wb);
-    return acc;
-  }, {} as Record<string, Waybill[]>);
+  // Work Item Counts & Red Glittering Indicators
+  const incomingBusesCount = Object.keys(incomingBuses).length;
+  const storeWaybillsCount = storeWaybills.length;
+  const outgoingManifestCount = outgoingManifest.length;
+  const draftWaybillsCount = draftWaybills.length;
+
+  const totalIncomingWork = incomingBusesCount + storeWaybillsCount;
+  const totalOutgoingWork = outgoingManifestCount + draftWaybillsCount;
+  const totalPendingWork = totalIncomingWork + totalOutgoingWork;
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Top Professional Portal Header */}
       <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <h1 className="text-2xl font-bold text-navy">Motor Park Waybill & Load Manager 🚌</h1>
             <span className="text-xs font-bold text-navy bg-amber/20 px-3 py-1 rounded-full border border-amber/40">
               Send & Receive Station 🔄
             </span>
+            {totalPendingWork > 0 && (
+              <span className="bg-red-600 text-white font-extrabold text-xs px-3 py-1 rounded-full animate-pulse shadow-md border border-red-400 flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-full bg-yellow-300 animate-ping"></span>
+                🔴 {totalPendingWork} Work Task{totalPendingWork > 1 ? 's' : ''} Pending
+              </span>
+            )}
           </div>
           <p className="text-gray-700 text-sm mt-1">
             Active Park Station: <strong className="text-navy">{user?.park}</strong> | Staff member:{' '}
@@ -476,6 +499,56 @@ export function StaffPortalView() {
           </button>
         </div>
       </div>
+
+      {/* RED GLITTERING WORK INDICATOR BANNER */}
+      {totalPendingWork > 0 && (
+        <div className="bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white p-4.5 rounded-2xl shadow-lg border border-red-400 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-5 w-5 shrink-0">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-300 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-5 w-5 bg-yellow-400 border-2 border-red-700 font-extrabold text-[10px] text-red-950 items-center justify-center">
+                !
+              </span>
+            </span>
+            <div>
+              <h4 className="font-black text-sm text-white flex items-center gap-2">
+                🔴 ATTENTION STAFF: {totalPendingWork} Pending Work Item{totalPendingWork > 1 ? 's' : ''} at {user?.park}
+              </h4>
+              <p className="text-xs text-red-100 mt-0.5 font-medium">
+                {storeWaybillsCount > 0 && `📦 ${storeWaybillsCount} package(s) in store awaiting collection `}
+                {incomingBusesCount > 0 && `🚌 ${incomingBusesCount} incoming bus(es) awaiting arrival mark `}
+                {outgoingManifestCount > 0 && `🚚 ${outgoingManifestCount} vehicle(s) awaiting dispatch`}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2 shrink-0">
+            {storeWaybillsCount > 0 && (
+              <button
+                onClick={() => { setMainTab('incoming'); setSubTab('store'); }}
+                className="px-3 py-1.5 bg-white text-red-700 font-extrabold text-xs rounded-xl hover:bg-red-50 transition cursor-pointer shadow-xs"
+              >
+                📦 Store ({storeWaybillsCount})
+              </button>
+            )}
+            {incomingBusesCount > 0 && (
+              <button
+                onClick={() => { setMainTab('incoming'); setSubTab('incoming-buses'); }}
+                className="px-3 py-1.5 bg-yellow-300 text-red-950 font-extrabold text-xs rounded-xl hover:bg-yellow-200 transition cursor-pointer shadow-xs"
+              >
+                🚌 Incoming Buses ({incomingBusesCount})
+              </button>
+            )}
+            {outgoingManifestCount > 0 && (
+              <button
+                onClick={() => { setMainTab('outgoing'); setSubTab('dispatch'); }}
+                className="px-3 py-1.5 bg-white text-navy font-extrabold text-xs rounded-xl hover:bg-slate-100 transition cursor-pointer shadow-xs"
+              >
+                🚚 Dispatch ({outgoingManifestCount})
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Interactive Staff Operating Guide Checklist */}
       {showStaffGuide && (
@@ -553,6 +626,11 @@ export function StaffPortalView() {
         >
           <Send className="w-4 h-4 text-navy" />
           Outgoing Shipments (Sending)
+          {totalOutgoingWork > 0 && (
+            <span className="bg-red-600 text-white font-black text-xs px-2 py-0.5 rounded-full shadow-sm animate-pulse border border-red-400">
+              {totalOutgoingWork}
+            </span>
+          )}
         </button>
         <button
           onClick={() => handleMainTabChange('incoming')}
@@ -564,6 +642,12 @@ export function StaffPortalView() {
         >
           <Package className="w-4 h-4 text-emerald-600" />
           Incoming Shipments (Receiving)
+          {totalIncomingWork > 0 && (
+            <span className="bg-red-600 text-white font-black text-xs px-2 py-0.5 rounded-full shadow-sm animate-pulse border border-red-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-300 animate-ping"></span>
+              {totalIncomingWork}
+            </span>
+          )}
         </button>
       </div>
 
@@ -571,7 +655,7 @@ export function StaffPortalView() {
       {mainTab === 'outgoing' && (
         <div className="space-y-6">
           {/* Sub-tabs Row */}
-          <div className="flex gap-2 border-b border-gray-200 pb-3">
+          <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
             <button
               onClick={() => setSubTab('create')}
               className={`px-4 py-2 text-sm font-bold rounded-lg transition ${
@@ -591,11 +675,11 @@ export function StaffPortalView() {
               }`}
             >
               2. Dispatch & Departures
-              {outgoingManifest.length > 0 && (
-                <span className="bg-amber text-navy text-xs px-1.5 py-0.5 rounded-full font-bold">
-                  {outgoingManifest.length}
+              {outgoingManifestCount > 0 ? (
+                <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-extrabold animate-pulse shadow-xs flex items-center gap-1">
+                  🔴 {outgoingManifestCount} to dispatch
                 </span>
-              )}
+              ) : null}
             </button>
             <button
               onClick={() => setSubTab('drafts')}
@@ -606,9 +690,9 @@ export function StaffPortalView() {
               }`}
             >
               3. Drafts / Pending Payment
-              {draftWaybills.length > 0 && (
+              {draftWaybillsCount > 0 && (
                 <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs px-2 py-0.5 rounded-full font-bold">
-                  {draftWaybills.length}
+                  {draftWaybillsCount}
                 </span>
               )}
             </button>
@@ -861,24 +945,32 @@ export function StaffPortalView() {
           )}
 
           {/* Sub-tab 2: Dispatch Manifest */}
-          {subTab === 'dispatch' && (
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-6">
-              <div>
-                <h3 className="text-lg font-bold text-navy">Pending Bus Dispatches</h3>
-                <p className="text-gray-600 text-sm">
-                  Waybills booked at your park waiting to leave. Enter driver info and mark the bus as departed.
-                </p>
-              </div>
+          {subTab === 'dispatch' && (() => {
+            const groupedManifest = outgoingManifest.reduce((acc, wb) => {
+              const bNo = wb.busNumber || 'UNASSIGNED';
+              if (!acc[bNo]) acc[bNo] = [];
+              acc[bNo].push(wb);
+              return acc;
+            }, {} as Record<string, Waybill[]>);
 
-              {Object.keys(groupedManifest).length === 0 ? (
-                <div className="text-center py-12 text-gray-600">
-                  <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                  <p className="font-semibold">All quiet right now</p>
-                  <p className="text-sm text-gray-500 mt-1">There are no pending waybill dispatches booked today.</p>
+            return (
+              <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-xs space-y-6">
+                <div>
+                  <h3 className="text-lg font-bold text-navy">Pending Bus Dispatches</h3>
+                  <p className="text-gray-600 text-sm">
+                    Waybills booked at your park waiting to leave. Enter driver info and mark the bus as departed.
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {(Object.entries(groupedManifest) as [string, Waybill[]][]).map(([busNo, items]) => {
+
+                {Object.keys(groupedManifest).length === 0 ? (
+                  <div className="text-center py-12 text-gray-600">
+                    <Truck className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                    <p className="font-semibold">All quiet right now</p>
+                    <p className="text-sm text-gray-500 mt-1">There are no pending waybill dispatches booked today.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {(Object.entries(groupedManifest) as [string, Waybill[]][]).map(([busNo, items]) => {
                     const currentDriver = driverInfo[busNo] || { name: '', phone: '' };
                     return (
                       <div key={busNo} className="border border-gray-200 rounded-2xl p-5 space-y-4 shadow-2xs">
@@ -995,7 +1087,8 @@ export function StaffPortalView() {
                 </div>
               )}
             </div>
-          )}
+          );
+        })()}
 
           {/* Sub-tab 3: Drafts & Pending Payment History */}
           {subTab === 'drafts' && (
@@ -1098,16 +1191,25 @@ export function StaffPortalView() {
       {mainTab === 'incoming' && (
         <div className="space-y-6">
           {/* Sub-tabs Row */}
-          <div className="flex gap-2 border-b border-gray-200 pb-3">
+          <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-3">
             <button
               onClick={() => setSubTab('store')}
-              className={`px-4 py-2 text-sm font-bold rounded-lg transition ${
+              className={`px-4 py-2 text-sm font-bold rounded-lg transition flex items-center gap-2 ${
                 subTab === 'store'
                   ? 'bg-navy text-white shadow-xs'
                   : 'text-gray-600 hover:bg-gray-100 hover:text-navy'
               }`}
             >
-              1. Waybill Store & Pickup ({storeWaybills.length})
+              1. Waybill Store & Pickup
+              {storeWaybillsCount > 0 ? (
+                <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-extrabold animate-pulse shadow-xs flex items-center gap-1">
+                  🔴 {storeWaybillsCount} in store
+                </span>
+              ) : (
+                <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">
+                  0
+                </span>
+              )}
             </button>
             <button
               onClick={() => setSubTab('incoming-buses')}
@@ -1118,9 +1220,13 @@ export function StaffPortalView() {
               }`}
             >
               2. Incoming Buses
-              {Object.keys(incomingBuses).length > 0 && (
-                <span className="bg-amber text-navy text-xs px-1.5 py-0.5 rounded-full font-bold">
-                  {Object.keys(incomingBuses).length}
+              {incomingBusesCount > 0 ? (
+                <span className="bg-red-600 text-white text-xs px-2 py-0.5 rounded-full font-extrabold animate-pulse shadow-xs flex items-center gap-1">
+                  🚌 {incomingBusesCount} arriving
+                </span>
+              ) : (
+                <span className="text-xs bg-gray-200 text-gray-700 px-2 py-0.5 rounded-full font-semibold">
+                  0
                 </span>
               )}
             </button>

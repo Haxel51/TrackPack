@@ -180,7 +180,7 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
         )}
 
         {/* Assigned Vehicle & Driver Info */}
-        {waybill.driverPhone && waybill.status !== 'Collected' && waybill.status !== 'Delivered' && (
+        {waybill.driverPhone && waybill.status !== 'Collected' && (
           <div className="bg-blue-50/70 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-wider text-blue-900">Vehicle Driver Information</p>

@@ -1,4 +1,4 @@
-import { Component, ErrorInfo, ReactNode } from 'react';
+import React, { Component, ErrorInfo, ReactNode } from 'react';
 
 interface Props {
   children: ReactNode;
@@ -10,8 +10,8 @@ interface State {
   showDetails: boolean;
 }
 
-export class ErrorBoundary extends Component<Props, State> {
-  public state: State = {
+export class ErrorBoundary extends React.Component<Props, State> {
+  state: State = {
     hasError: false,
     error: null,
     showDetails: false,
@@ -99,7 +99,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
           <div className="pt-4 border-t border-white/10 w-full max-w-md">
             <button
-              onClick={() => this.setState({ showDetails: !this.state.showDetails })}
+              onClick={() => (this as any).setState({ showDetails: !this.state.showDetails })}
               className="text-[11px] text-gray-400 hover:text-gray-200 underline cursor-pointer"
             >
               {this.state.showDetails ? 'Hide Diagnostics' : 'Show Technical Diagnostics'}
@@ -116,6 +116,6 @@ export class ErrorBoundary extends Component<Props, State> {
       );
     }
 
-    return this.props.children;
+    return (this as any).props.children;
   }
 }
