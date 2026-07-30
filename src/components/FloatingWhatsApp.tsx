@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 
 export function FloatingWhatsApp() {
   const [showTooltip, setShowTooltip] = useState(false);
-  const whatsappNumber = "2349031940521";
+  const whatsappNumber = "2348143778304";
   const defaultMessage = encodeURIComponent("Hello TrackPack Customer Support, I need assistance with my shipment / account.");
   const whatsappUrl = `https://wa.me/${whatsappNumber}?text=${defaultMessage}`;
 

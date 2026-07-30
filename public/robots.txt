@@ -1,0 +1,10 @@
+User-agent: *
+Allow: /
+Allow: /track/
+Allow: /terms
+Allow: /login
+Allow: /admin
+Allow: /staff
+Allow: /customer
+
+Sitemap: https://trackpack.onrender.com/sitemap.xml

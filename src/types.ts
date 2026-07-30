@@ -24,6 +24,8 @@ export interface Waybill {
   paymentMethod?: 'paystack_online' | 'cash_at_park' | 'bank_transfer';
   companyId?: string;
   companyName?: string;
+  statusNote?: string;
+  delayReason?: string;
   paymentStatus?: 'pending' | 'success' | 'expired' | null;
   paymentVirtualAccount?: {
     accountName: string;

@@ -186,6 +186,11 @@ export function PublicTrackView() {
           <div>
             <p className="text-base text-gray-700 mb-1">TRACKING CODE</p>
             <h1 className="text-3xl font-mono font-bold text-navy">{waybill.trackingCode}</h1>
+            {waybill.companyName && (
+              <p className="text-sm font-semibold text-navy mt-1">
+                Transport Line: <span className="text-gray-600">{waybill.companyName}</span>
+              </p>
+            )}
           </div>
           <div className="flex flex-col items-end gap-2">
             <Badge status={waybill.status}>{displayStatus}</Badge>
@@ -245,28 +250,51 @@ export function PublicTrackView() {
         )}
 
         {/* Share Tracking Code & Link with Receiver / Others */}
-        <div className="flex flex-col sm:flex-row gap-2.5 mb-6">
+        <div className="flex flex-col gap-2.5 mb-6">
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`*TrackPack Digital Waybill*\nTransport Company: *${waybill.companyName || 'Registered Transport Line'}*\nTracking Code: *${waybill.trackingCode}*\nReceiver Phone: *${waybill.receiverPhone}*\nItem: ${waybill.itemDescription}\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nStatus: ${waybill.status}\n\nTrack real-time here: ${window.location.origin}/track/${waybill.trackingCode}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+            >
+              <Share2 className="w-4 h-4" /> Share Tracking via WhatsApp
+            </a>
+
+            <Button
+              variant="secondary"
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/track/${waybill.trackingCode}`);
+                setCopiedLink(true);
+                setTimeout(() => setCopiedLink(false), 2000);
+              }}
+              className="flex-1 py-2.5 px-4 text-xs font-bold flex items-center justify-center gap-1.5 border border-gray-300 text-navy bg-white hover:bg-gray-50 cursor-pointer"
+            >
+              {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              {copiedLink ? 'Link Copied!' : 'Copy Tracking Link'}
+            </Button>
+          </div>
+          
           <a
-            href={`https://wa.me/?text=${encodeURIComponent(`*TrackPack Digital Waybill*\nTracking Code: *${waybill.trackingCode}*\nReceiver Phone: *${waybill.receiverPhone}*\nItem: ${waybill.itemDescription}\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nStatus: ${waybill.status}\n\nTrack real-time here: ${window.location.origin}/track/${waybill.trackingCode}`)}`}
+            href={`https://wa.me/2348143778304?text=${encodeURIComponent(`Hello TrackPack Customer Support, I am tracking Waybill ${waybill.trackingCode} with ${waybill.companyName || 'the transport line'}.\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nCurrent Status: ${waybill.status}\nItem: ${waybill.itemDescription}\n\nI want to make an inquiry regarding transit progress / delay.`)}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex-1 bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
+            className="w-full bg-amber hover:bg-amber-hover text-navy font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
           >
-            <Share2 className="w-4 h-4" /> Share Tracking via WhatsApp
+            <HelpCircle className="w-4 h-4" /> Report Delay / Contact Support on WhatsApp
           </a>
 
-          <Button
-            variant="secondary"
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/track/${waybill.trackingCode}`);
-              setCopiedLink(true);
-              setTimeout(() => setCopiedLink(false), 2000);
-            }}
-            className="py-2.5 px-4 text-xs font-bold flex items-center justify-center gap-1.5 border border-gray-300 text-navy bg-white hover:bg-gray-50 cursor-pointer"
-          >
-            {copiedLink ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-            {copiedLink ? 'Link Copied!' : 'Copy Tracking Link'}
-          </Button>
+          {/* Educational Transit & Delay Guidance Box */}
+          <div className="bg-amber/5 border border-amber/20 rounded-xl p-3.5 text-xs text-navy/90 space-y-1.5">
+            <p className="font-bold flex items-center gap-1.5 text-navy">
+              <Clock className="w-4 h-4 text-amber" /> Why might your shipment take longer?
+            </p>
+            <ul className="list-disc list-inside text-gray-700 space-y-1 text-[11px] leading-relaxed">
+              <li><strong>Park Loading Schedules:</strong> Buses depart after passenger/luggage boarding completes at the origin terminal.</li>
+              <li><strong>Interstate Highways & Traffic:</strong> Highway police checks, roadwork, or traffic can extend arrival times.</li>
+              <li><strong>Item Safety Guarantee:</strong> Waybills are safely locked inside the vehicle cargo compartment until scanned at the destination park.</li>
+            </ul>
+          </div>
         </div>
 
         {/* Live Background Push Notifications Card */}
@@ -282,11 +310,20 @@ export function PublicTrackView() {
           <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
             <Info className="w-5 h-5 animate-pulse" />
           </div>
-          <div>
+          <div className="flex-1">
             <p className="text-xs text-emerald-800 uppercase tracking-wider font-bold">Latest Shipment Update</p>
             <p className="font-semibold text-navy text-sm mt-0.5">
               {getWarmerStatusPhrase(waybill.status === 'Departed' ? 'In Transit' : waybill.status, waybill, historicalAverageHours, routeDistanceKm)}
             </p>
+
+            {(waybill.statusNote || waybill.delayReason) && (
+              <div className="mt-2.5 pt-2 border-t border-emerald-200/60 text-xs text-emerald-900 bg-white/60 p-2.5 rounded-lg border border-emerald-200/50">
+                <span className="font-bold text-navy flex items-center gap-1 mb-0.5">
+                  <Clock className="w-3.5 h-3.5 text-amber" /> Terminal Operations Note:
+                </span>
+                <span>{waybill.statusNote || waybill.delayReason}</span>
+              </div>
+            )}
           </div>
         </div>
 

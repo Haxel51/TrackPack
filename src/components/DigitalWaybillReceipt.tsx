@@ -14,7 +14,7 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
 
   const trackingUrl = `${window.location.origin}/track/${waybill.trackingCode}`;
 
-  const shareText = `*TrackPack Digital Waybill*\nTracking Code: *${waybill.trackingCode}*\nReceiver Phone: *${waybill.receiverPhone}*\nItem: ${waybill.itemDescription}\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nStatus: ${waybill.status}\n\nTrack real-time here: ${trackingUrl}`;
+  const shareText = `*TrackPack Digital Waybill*\nTransport Company: *${waybill.companyName || 'Registered Transport Line'}*\nTracking Code: *${waybill.trackingCode}*\nReceiver Phone: *${waybill.receiverPhone}*\nItem: ${waybill.itemDescription}\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nStatus: ${waybill.status}\n\nTrack real-time here: ${trackingUrl}`;
 
   const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareText)}`;
 
@@ -46,8 +46,12 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
             T
           </div>
           <div>
-            <h3 className="font-extrabold text-base tracking-tight text-white">TrackPack Official Receipt</h3>
-            <p className="text-[11px] text-gray-300">Digital Paperless Waybill System</p>
+            <h3 className="font-extrabold text-base tracking-tight text-white flex items-center gap-2">
+              TrackPack Official Receipt
+            </h3>
+            <p className="text-[11px] text-amber font-semibold">
+              {waybill.companyName ? `Transport Line: ${waybill.companyName}` : 'Digital Paperless Waybill System'}
+            </p>
           </div>
         </div>
         
@@ -157,12 +161,23 @@ export function DigitalWaybillReceipt({ waybill, onClose }: DigitalWaybillReceip
             </div>
 
             {waybill.companyName && (
-              <p className="text-xs text-gray-500 pt-2 border-t border-gray-100">
-                Transport Line: <strong className="text-navy">{waybill.companyName}</strong>
+              <p className="text-xs text-gray-700 pt-2 border-t border-gray-100 flex items-center justify-between">
+                <span>Transport Line:</span>
+                <strong className="text-navy font-bold text-xs bg-amber/20 px-2.5 py-0.5 rounded border border-amber/30">{waybill.companyName}</strong>
               </p>
             )}
           </div>
         </div>
+
+        {/* Live Status Note / Delay Advisory if present */}
+        {(waybill.statusNote || waybill.delayReason) && (
+          <div className="bg-amber/10 border border-amber/30 p-4 rounded-xl text-xs space-y-1">
+            <p className="font-bold text-navy uppercase text-[10px] tracking-wider flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-amber" /> Live Operations Note
+            </p>
+            <p className="text-gray-800 font-medium">{waybill.statusNote || waybill.delayReason}</p>
+          </div>
+        )}
 
         {/* Assigned Vehicle & Driver Info */}
         {waybill.driverPhone && waybill.status !== 'Collected' && waybill.status !== 'Delivered' && (

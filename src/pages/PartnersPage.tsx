@@ -114,7 +114,7 @@ export function PartnersPage() {
         <div className="pt-8 mt-8 border-t border-gray-100">
           <h2 className="text-sm font-bold text-gray-700 uppercase tracking-wider mb-4">Or Contact Us Directly</h2>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="https://wa.me/2349031940521" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-green-500 text-white font-medium hover:bg-green-600 transition-colors w-full sm:w-auto">
+            <a href="https://wa.me/2348143778304" target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center px-6 py-3 rounded-xl bg-green-500 text-white font-medium hover:bg-green-600 transition-colors w-full sm:w-auto">
               <MessageCircle className="w-5 h-5 mr-2" />
               Chat on WhatsApp
             </a>
