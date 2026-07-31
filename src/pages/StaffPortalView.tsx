@@ -64,12 +64,12 @@ export function StaffPortalView() {
   const [verifying, setVerifying] = useState(false);
 
   // Helper to verify payment status via server endpoint
-  const verifyWaybillPayment = async (waybillId: string, reference?: string, paymentStatus?: string, forceVerify?: boolean) => {
+  const verifyWaybillPayment = async (waybillId: string, reference?: string) => {
     try {
       const res = await fetch('/api/paystack/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ waybillId, reference, paymentStatus, forceVerify })
+        body: JSON.stringify({ waybillId, reference })
       });
       const data = await res.json();
       if (data.status === 'success' && data.trackingCode) {
@@ -77,6 +77,10 @@ export function StaffPortalView() {
         setPaymentDetails(null);
         setSuccessMsg(`Payment completed! Tracking Code generated: ${data.trackingCode}`);
         return true;
+      } else {
+        if (data.message) {
+          setErrorMsg(data.message);
+        }
       }
     } catch (err) {
       console.error('Verify Payment Error:', err);
@@ -213,7 +217,7 @@ export function StaffPortalView() {
     } else if (paymentStatus === 'completed' || paymentStatus === 'success' || reference || waybillId) {
       if (waybillId) {
         setLoading(true);
-        verifyWaybillPayment(waybillId, reference, paymentStatus || 'completed').finally(() => {
+        verifyWaybillPayment(waybillId, reference).finally(() => {
           setLoading(false);
           window.history.replaceState({}, document.title, window.location.pathname);
         });
@@ -799,10 +803,10 @@ export function StaffPortalView() {
                       onClick={async () => {
                         if (paymentDetails?.waybillId) {
                           setVerifying(true);
-                          const ok = await verifyWaybillPayment(paymentDetails.waybillId, paymentDetails.reference, undefined, true);
+                          const ok = await verifyWaybillPayment(paymentDetails.waybillId, paymentDetails.reference);
                           setVerifying(false);
                           if (!ok) {
-                            alert("Payment not confirmed on Paystack yet. If you just transferred, please wait a few seconds and try again.");
+                            alert("Payment not confirmed on Paystack yet. If you just transferred, please wait 10-30 seconds for Paystack to confirm and try clicking verify again.");
                           }
                         }
                       }}

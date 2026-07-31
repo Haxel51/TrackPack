@@ -47,19 +47,21 @@ export function CustomerView() {
   }, []);
 
   // Helper to verify payment status via server endpoint
-  const verifyWaybillPayment = async (waybillId: string, reference?: string, paymentStatus?: string, forceVerify?: boolean) => {
+  const verifyWaybillPayment = async (waybillId: string, reference?: string) => {
     try {
       setVerifyingId(waybillId);
       const res = await fetch('/api/paystack/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ waybillId, reference, paymentStatus, forceVerify })
+        body: JSON.stringify({ waybillId, reference })
       });
       const data = await res.json();
       if (data.status === 'success' && data.trackingCode) {
         setPaymentDetails(null);
         alert(`Payment verified successfully! Waybill is now active. Tracking Code: ${data.trackingCode}`);
         return true;
+      } else {
+        alert(data.message || 'Payment not confirmed on Paystack yet. If you just transferred, please wait 10-30 seconds for Paystack to confirm and try clicking verify again.');
       }
     } catch (err) {
       console.error('Verify Payment Error:', err);
@@ -94,7 +96,7 @@ export function CustomerView() {
       window.history.replaceState({}, document.title, window.location.pathname);
     } else if (paymentStatus === 'completed' || paymentStatus === 'success' || reference || waybillId) {
       if (waybillId) {
-        verifyWaybillPayment(waybillId, reference, paymentStatus || 'completed').finally(() => {
+        verifyWaybillPayment(waybillId, reference).finally(() => {
           window.history.replaceState({}, document.title, window.location.pathname);
         });
       } else {
@@ -278,10 +280,7 @@ export function CustomerView() {
               type="button"
               onClick={async () => {
                 if (paymentDetails?.waybillId) {
-                  const ok = await verifyWaybillPayment(paymentDetails.waybillId, paymentDetails.reference, undefined, true);
-                  if (!ok) {
-                    alert("Payment not confirmed on Paystack yet. If you just transferred, please wait a few seconds and try again.");
-                  }
+                  await verifyWaybillPayment(paymentDetails.waybillId, paymentDetails.reference);
                 }
               }}
               disabled={verifyingId === paymentDetails?.waybillId}
@@ -385,10 +384,7 @@ export function CustomerView() {
                           <button
                             onClick={async () => {
                               if (wb.id) {
-                                const ok = await verifyWaybillPayment(wb.id, wb.paystackReference, undefined, true);
-                                if (!ok) {
-                                  alert("Payment not confirmed on Paystack yet. If you paid, please wait a few seconds and try again.");
-                                }
+                                await verifyWaybillPayment(wb.id, wb.paystackReference);
                               }
                             }}
                             disabled={verifyingId === wb.id}

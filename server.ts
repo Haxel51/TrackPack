@@ -1191,7 +1191,7 @@ async function startServer() {
 
   app.post('/api/paystack/verify', async (req, res) => {
     try {
-      const { reference, waybillId, paymentStatus, forceVerify } = req.body;
+      const { reference, waybillId } = req.body;
       const paystackSecret = await getPaystackSecretKey();
 
       if (!waybillId) {
@@ -1211,7 +1211,7 @@ async function startServer() {
 
       const waybillData = waybillSnap.data();
 
-      // If already verified and active, return existing trackingCode immediately
+      // If already verified and active in database, return existing trackingCode immediately
       if (waybillData.paymentStatus === 'success' && waybillData.trackingCode && waybillData.status !== 'Draft') {
         return res.json({
           status: 'success',
@@ -1222,20 +1222,29 @@ async function startServer() {
       }
 
       const refToVerify = reference || req.body.trxref || waybillData.paystackReference;
+
+      if (!paystackSecret) {
+        return res.status(400).json({
+          status: 'error',
+          verified: false,
+          message: 'Paystack Secret Key is not configured on the server. Please configure your Paystack Secret Key in Platform Admin Settings.'
+        });
+      }
+
       let verifiedSuccess = false;
       let paystackResponseData: any = null;
 
-      // 1. Verify with Paystack API if reference is present
-      if (refToVerify && paystackSecret) {
+      // 1. Strictly verify with Paystack API using the transaction reference
+      if (refToVerify) {
         try {
           const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(refToVerify)}`, {
             headers: { Authorization: `Bearer ${paystackSecret}` }
           });
           const verifyData = await verifyRes.json();
-          console.log('[PAYSTACK VERIFY ENDPOINT RESULT]', verifyData);
+          console.log('[PAYSTACK VERIFY API RESPONSE]', verifyData);
           paystackResponseData = verifyData;
 
-          if (verifyData.status && verifyData.data && verifyData.data.status === 'success') {
+          if (verifyData.status === true && verifyData.data && verifyData.data.status === 'success') {
             verifiedSuccess = true;
           }
         } catch (verErr) {
@@ -1243,25 +1252,20 @@ async function startServer() {
         }
       }
 
-      // 2. If reference verify didn't return success, check if redirect callback status is 'completed' or 'success'
-      if (!verifiedSuccess && (paymentStatus === 'completed' || paymentStatus === 'success')) {
-        verifiedSuccess = true;
-      }
-
-      // 3. Fallback: Check Paystack's recent successful transactions list for matching metadata or reference
-      if (!verifiedSuccess && paystackSecret) {
+      // 2. Query Paystack recent successful transactions matching waybillId or reference
+      if (!verifiedSuccess) {
         try {
-          const listRes = await fetch(`https://api.paystack.co/transaction?perPage=25&status=success`, {
+          const listRes = await fetch(`https://api.paystack.co/transaction?perPage=50&status=success`, {
             headers: { Authorization: `Bearer ${paystackSecret}` }
           });
           const listData = await listRes.json();
-          if (listData.status && Array.isArray(listData.data)) {
+          if (listData.status === true && Array.isArray(listData.data)) {
             const match = listData.data.find((tx: any) => 
               tx.status === 'success' && 
               (tx.metadata?.waybillId === waybillId || (refToVerify && tx.reference === refToVerify))
             );
             if (match) {
-              console.log('[PAYSTACK LIST MATCH FOUND]', match);
+              console.log('[PAYSTACK TRANSACTION LIST MATCH FOUND]', match);
               verifiedSuccess = true;
             }
           }
@@ -1270,12 +1274,7 @@ async function startServer() {
         }
       }
 
-      // 4. Fallback for manual user confirmation when forceVerify is true (e.g. user paid live or clicked verify button)
-      if (!verifiedSuccess && forceVerify === true) {
-        console.log(`[FORCE VERIFY APPLIED] Marking waybill ${waybillId} as verified by user request.`);
-        verifiedSuccess = true;
-      }
-
+      // NO FORCED VERIFY OR UNVERIFIED FALLBACKS ALLOWED
       if (verifiedSuccess) {
         let trackingCode = waybillData.trackingCode;
         if (!trackingCode || trackingCode.length < 5) {
@@ -1313,7 +1312,7 @@ async function startServer() {
       return res.json({
         status: 'pending',
         verified: false,
-        message: paystackResponseData?.message || 'Payment has not been confirmed by Paystack yet. Please wait a few seconds and try again.'
+        message: paystackResponseData?.message || 'Payment has not been confirmed by Paystack yet. If you paid via transfer, please wait 10–30 seconds for Paystack to confirm and try clicking verify again.'
       });
     } catch (e: any) {
       console.error('[PAYSTACK VERIFY ROUTE ERROR]', e);
