@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { useAuthStore } from '../store';
 import { Button, Input, Badge } from '../components/ui';
-import { createWaybill, deleteWaybill, getCompanyById, getSenderManifest, markBusDeparted } from '../lib/api';
+import { createWaybill, deleteWaybill, getCompanyById, getSenderManifest, isSamePark, markBusDeparted } from '../lib/api';
 import { normalizeTo11Digits } from '../lib/helpers';
 import { Waybill } from '../types';
 import { Send, List, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -79,7 +79,7 @@ export function SenderView() {
           setCompanyStatusError("This transport company account is currently suspended or pending approval by platform administration. Waybill booking is disabled.");
         } else {
           setCompanyStatusError(null);
-          setParks(comp.parks.filter(p => p !== user.park));
+          setParks(comp.parks.filter(p => !isSamePark(p, user.park)));
         }
       });
     }
@@ -191,7 +191,7 @@ export function SenderView() {
       return;
     }
 
-    if (user.park && destinationPark && user.park.trim().toLowerCase() === destinationPark.trim().toLowerCase()) {
+    if (user.park && destinationPark && isSamePark(user.park, destinationPark)) {
       alert('Departure park and Destination park cannot be the same motor park! A waybill must travel to a different terminal.');
       setLoading(false);
       return;
@@ -499,18 +499,31 @@ export function SenderView() {
                 </div>
                 <div>
                   <label className="block text-base text-gray-700 mb-1">Destination Park</label>
-                  <Input 
-                    required
-                    list="parks-list"
-                    value={destinationPark} 
-                    onChange={e => setDestinationPark(e.target.value)}
-                    placeholder="Type or select park..."
-                  />
-                  <datalist id="parks-list">
-                    {parks.map(p => (
-                      <option key={p} value={p}>{p}</option>
-                    ))}
-                  </datalist>
+                  {parks.length > 0 ? (
+                    <select
+                      required
+                      value={destinationPark}
+                      onChange={e => setDestinationPark(e.target.value)}
+                      className="w-full h-10 px-3 py-2 border border-gray-300 rounded-md bg-white text-base focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium text-gray-900"
+                    >
+                      <option value="">-- Select Destination Motor Park --</option>
+                      {parks.map(p => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="space-y-1">
+                      <Input 
+                        required
+                        value={destinationPark} 
+                        onChange={e => setDestinationPark(e.target.value)}
+                        placeholder="Type destination park..."
+                      />
+                      <p className="text-[11px] text-amber-700 font-medium">
+                        ⚠️ Note: Select another park registered under your company.
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
 

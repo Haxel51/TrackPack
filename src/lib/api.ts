@@ -128,9 +128,22 @@ export async function addParkToCompany(companyId: string, parkName: string): Pro
   }
 }
 
+export function isSamePark(parkA?: string, parkB?: string): boolean {
+  if (!parkA || !parkB) return false;
+  const rawA = parkA.trim().toLowerCase();
+  const rawB = parkB.trim().toLowerCase();
+  if (rawA === rawB) return true;
+
+  const cleanA = rawA.replace(/\b(motor|park|terminal|station|branch)\b/gi, '').trim();
+  const cleanB = rawB.replace(/\b(motor|park|terminal|station|branch)\b/gi, '').trim();
+  
+  if (!cleanA || !cleanB) return rawA === rawB;
+  return cleanA === cleanB || cleanA.includes(cleanB) || cleanB.includes(cleanA);
+}
+
 // Waybills
 export async function createWaybill(waybill: Omit<Waybill, 'id'>): Promise<Waybill> {
-  if (waybill.originPark && waybill.destinationPark && waybill.originPark.trim().toLowerCase() === waybill.destinationPark.trim().toLowerCase()) {
+  if (isSamePark(waybill.originPark, waybill.destinationPark)) {
     throw new Error("Departure park and Destination park cannot be the same motor park.");
   }
   const docRef = await addDoc(collection(db, 'waybills'), waybill);
