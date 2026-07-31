@@ -20,8 +20,8 @@ export function FaqPage() {
       answer: "When a parcel is registered at a motor park desk (or booked online), TrackPack issues a unique tracking code (e.g. TRK-4821). Senders and receivers can enter this code anytime on TrackPack's website or click the tracking link sent to their phone to see the package's live journey—from 'Loaded at Park' and 'In Transit' to 'Arrived at Terminal' and 'Collected'."
     },
     {
-      question: "What should I do if my waybill shipment is taking longer or delayed?",
-      answer: "Interstate highway transit across Nigeria can sometimes experience delays due to park departure schedules, vehicle loading, highway checkpoints, or road traffic. If your shipment status is delayed, check the Live Operations Note on your tracking page or tap the 'Contact Support on WhatsApp' button to reach our dedicated customer helpline at 0814 377 8304."
+      question: "Why might your shipment take longer?",
+      answer: "Interstate highway transit across Nigeria depends on several real-world operational factors:\n\n• Park Loading Schedules: Buses depart after passenger and luggage boarding completes at the origin terminal.\n• Interstate Highways & Traffic: Highway police/security checkpoints, roadwork, or traffic congestion can extend arrival times.\n• Item Safety Guarantee: Waybills are safely locked inside the vehicle cargo compartment until scanned at the destination park terminal.\n\nIf you ever have specific questions about a delayed package, you can reach our customer support team on WhatsApp at 0814 377 8304."
     },
     {
       question: "How does the receiver claim their package at the destination park?",
@@ -84,7 +84,7 @@ export function FaqPage() {
               </button>
 
               {openFaq === idx && (
-                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-gray-600 leading-relaxed border-t border-gray-100">
+                <div className="px-5 pb-5 pt-1 text-xs sm:text-sm text-gray-600 leading-relaxed border-t border-gray-100 whitespace-pre-line">
                   {faq.answer}
                 </div>
               )}

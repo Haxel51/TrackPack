@@ -275,26 +275,7 @@ export function PublicTrackView() {
             </Button>
           </div>
           
-          <a
-            href={`https://wa.me/2348143778304?text=${encodeURIComponent(`Hello TrackPack Customer Support, I am tracking Waybill ${waybill.trackingCode} with ${waybill.companyName || 'the transport line'}.\nRoute: ${waybill.originPark} ➔ ${waybill.destinationPark}\nCurrent Status: ${waybill.status}\nItem: ${waybill.itemDescription}\n\nI want to make an inquiry regarding transit progress / delay.`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="w-full bg-amber hover:bg-amber-hover text-navy font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
-          >
-            <HelpCircle className="w-4 h-4" /> Report Delay / Contact Support on WhatsApp
-          </a>
 
-          {/* Educational Transit & Delay Guidance Box */}
-          <div className="bg-amber/5 border border-amber/20 rounded-xl p-3.5 text-xs text-navy/90 space-y-1.5">
-            <p className="font-bold flex items-center gap-1.5 text-navy">
-              <Clock className="w-4 h-4 text-amber" /> Why might your shipment take longer?
-            </p>
-            <ul className="list-disc list-inside text-gray-700 space-y-1 text-[11px] leading-relaxed">
-              <li><strong>Park Loading Schedules:</strong> Buses depart after passenger/luggage boarding completes at the origin terminal.</li>
-              <li><strong>Interstate Highways & Traffic:</strong> Highway police checks, roadwork, or traffic can extend arrival times.</li>
-              <li><strong>Item Safety Guarantee:</strong> Waybills are safely locked inside the vehicle cargo compartment until scanned at the destination park.</li>
-            </ul>
-          </div>
         </div>
 
         {/* Live Background Push Notifications Card */}
