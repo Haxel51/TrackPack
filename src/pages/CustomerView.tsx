@@ -229,14 +229,48 @@ export function CustomerView() {
               <p className="text-sm text-gray-600">Pay ₦{bookingFee} booking fee to activate tracking.</p>
             </div>
 
+            {/* Clear How to Pay Instructions */}
+            <div className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-xl text-left space-y-2.5">
+              <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                💳 HOW TO COMPLETE PAYMENT (₦{bookingFee})
+              </p>
+              <ul className="list-disc list-inside text-xs text-emerald-950 space-y-2 leading-relaxed">
+                <li>
+                  <strong>CUSTOMER MOBILE TRANSFER:</strong> Customer makes the <strong>BANK TRANSFER</strong> directly using their own mobile banking app on their phone.
+                </li>
+                <li>
+                  <strong>CASH OR POS AT COUNTER:</strong> If bringing cash, hand cash to staff. Staff will perform the transfer using their phone or park POS terminal.
+                </li>
+              </ul>
+              <p className="text-[11px] text-emerald-800 font-medium pt-1">
+                👇 Click the green button below to open Paystack Checkout and proceed with payment:
+              </p>
+            </div>
+
+            {/* Serious Red Warning Box */}
+            <div className="bg-red-50 border-2 border-red-500 p-4 rounded-xl text-left flex items-start gap-3 shadow-xs">
+              <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <p className="text-xs font-black text-red-700 uppercase tracking-wider flex items-center gap-1">
+                  ⚠️ CRITICAL PAYMENT WARNING ⚠️
+                </p>
+                <p className="text-xs font-black text-red-900 leading-snug">
+                  NEVER EVER SAVE ANY BANK ACCOUNT DETAILS DISPLAYED ON PAYSTACK CHECKOUT!
+                </p>
+                <p className="text-[11px] text-red-800 leading-relaxed font-medium">
+                  Every bank account number generated is for <strong>ONE-TIME USE ONLY</strong> for this specific waybill. If you save or transfer money to it again later, <strong>YOU WILL LOSE YOUR MONEY</strong> and TrackPack cannot recover or refund it!
+                </p>
+              </div>
+            </div>
+
             {paymentDetails.authorizationUrl && (
               <a
                 href={paymentDetails.authorizationUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-sm"
+                className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all text-sm cursor-pointer active:scale-98"
               >
-                💳 Pay Online via Paystack Checkout
+                💳 Proceed to Payment via Paystack Checkout
               </a>
             )}
 
@@ -251,24 +285,11 @@ export function CustomerView() {
                 }
               }}
               disabled={verifyingId === paymentDetails?.waybillId}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              className="w-full bg-navy hover:bg-navy-light text-white font-bold py-3 px-4 rounded-xl shadow-xs transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
             >
               <RefreshCw className={`w-4 h-4 ${verifyingId === paymentDetails?.waybillId ? 'animate-spin' : ''}`} />
               {verifyingId === paymentDetails?.waybillId ? 'Checking Paystack...' : 'I Have Paid — Verify Payment Now'}
             </button>
-
-            <div className="bg-blue-50 border border-blue-200 p-4 rounded-xl text-left space-y-2">
-              <p className="text-xs font-bold text-blue-900 uppercase">Paystack Virtual Account</p>
-              <p className="text-sm text-blue-800">Transfer <strong>₦{(paymentDetails.amount / 100).toFixed(2)}</strong> to:</p>
-              <p className="font-bold text-lg text-blue-900">{paymentDetails.bankName}</p>
-              <p className="font-bold text-2xl font-mono text-blue-900">{paymentDetails.accountNumber}</p>
-              <p className="text-sm font-semibold text-blue-900">{paymentDetails.accountName}</p>
-            </div>
-
-            <div className="bg-red-50 border border-red-200 p-3 rounded-xl flex items-start gap-2 text-xs text-red-800">
-              <AlertTriangle className="w-5 h-5 text-red-600 shrink-0" />
-              <span>Never save this virtual account number. It is unique for this draft payment only.</span>
-            </div>
 
             <Button variant="secondary" onClick={() => setPaymentDetails(null)} className="w-full">
               Close / Return

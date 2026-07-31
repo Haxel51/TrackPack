@@ -130,6 +130,9 @@ export async function addParkToCompany(companyId: string, parkName: string): Pro
 
 // Waybills
 export async function createWaybill(waybill: Omit<Waybill, 'id'>): Promise<Waybill> {
+  if (waybill.originPark && waybill.destinationPark && waybill.originPark.trim().toLowerCase() === waybill.destinationPark.trim().toLowerCase()) {
+    throw new Error("Departure park and Destination park cannot be the same motor park.");
+  }
   const docRef = await addDoc(collection(db, 'waybills'), waybill);
   const created = { ...waybill, id: docRef.id };
   if (created.status === 'Booked') {

@@ -288,6 +288,18 @@ export function StaffPortalView() {
       return;
     }
 
+    if (!destinationPark || !destinationPark.trim()) {
+      setErrorMsg('Please select a destination motor park.');
+      setLoading(false);
+      return;
+    }
+
+    if (user.park && destinationPark && user.park.trim().toLowerCase() === destinationPark.trim().toLowerCase()) {
+      setErrorMsg('Departure park and Destination park cannot be the same motor park! A waybill must travel to a different terminal.');
+      setLoading(false);
+      return;
+    }
+
     try {
       const waybillResult = await createWaybill({
         trackingCode: '',
@@ -736,15 +748,49 @@ export function StaffPortalView() {
                     </p>
                   </div>
 
-                  <div className="bg-blue-50 border border-blue-200 p-6 rounded-xl text-left max-w-sm mx-auto space-y-4">
+                  {/* Clear How to Pay Instructions */}
+                  <div className="bg-emerald-50/80 border border-emerald-200 p-4 rounded-xl text-left max-w-sm mx-auto space-y-2.5">
+                    <p className="text-xs font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                      💳 HOW TO COMPLETE PAYMENT (₦{(paymentDetails.amount / 100).toLocaleString()})
+                    </p>
+                    <ul className="list-disc list-inside text-xs text-emerald-950 space-y-2 leading-relaxed">
+                      <li>
+                        <strong>CUSTOMER MOBILE TRANSFER:</strong> Customer makes the <strong>BANK TRANSFER</strong> directly using their own mobile banking app on their phone.
+                      </li>
+                      <li>
+                        <strong>CASH OR POS AT COUNTER:</strong> If the customer brings cash, hand the cash to the staff. Staff will use their phone or park POS terminal to perform the transfer.
+                      </li>
+                    </ul>
+                    <p className="text-[11px] text-emerald-800 font-medium pt-1">
+                      👇 Click the green button below to open Paystack Checkout and proceed with payment:
+                    </p>
+                  </div>
+
+                  {/* Serious Red Warning Box */}
+                  <div className="bg-red-50 border-2 border-red-500 p-4 rounded-xl text-left max-w-sm mx-auto flex items-start gap-3 shadow-xs">
+                    <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="text-xs font-black text-red-700 uppercase tracking-wider flex items-center gap-1">
+                        ⚠️ CRITICAL PAYMENT WARNING ⚠️
+                      </p>
+                      <p className="text-xs font-black text-red-900 leading-snug">
+                        NEVER EVER SAVE ANY BANK ACCOUNT DETAILS DISPLAYED ON PAYSTACK CHECKOUT!
+                      </p>
+                      <p className="text-[11px] text-red-800 leading-relaxed font-medium">
+                        Every bank account number generated is for <strong>ONE-TIME USE ONLY</strong> for this specific waybill. If you save or transfer money to it again later, <strong>YOU WILL LOSE YOUR MONEY</strong> and TrackPack cannot recover or refund it!
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="max-w-sm mx-auto space-y-3">
                     {paymentDetails.authorizationUrl && (
                       <a
                         href={paymentDetails.authorizationUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-sm"
+                        className="block w-full text-center bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md transition-all text-sm cursor-pointer active:scale-98"
                       >
-                        💳 Pay Online via Paystack Checkout
+                        💳 Proceed to Payment via Paystack Checkout
                       </a>
                     )}
 
@@ -761,70 +807,11 @@ export function StaffPortalView() {
                         }
                       }}
                       disabled={verifying}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition-all text-sm flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="w-full bg-navy hover:bg-navy-light text-white font-bold py-3 px-4 rounded-xl shadow-xs transition-all text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       <RefreshCw className={`w-4 h-4 ${verifying ? 'animate-spin' : ''}`} />
                       {verifying ? 'Checking Paystack...' : 'I Have Paid — Verify Payment Now'}
                     </button>
-
-                    <p className="text-sm font-bold text-blue-900 uppercase tracking-wider pt-2">
-                      Paystack Virtual Account
-                    </p>
-                    <p className="text-sm text-blue-800 mb-2">
-                      Transfer <strong>₦{(paymentDetails.amount / 100).toLocaleString()}</strong> to activate:
-                    </p>
-
-                    <div className="space-y-3 mt-4">
-                      <div>
-                        <p className="text-xs text-blue-700 uppercase">Bank Name</p>
-                        <p className="font-bold text-lg text-blue-900">{paymentDetails.bankName}</p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-700 uppercase">Account Number</p>
-                        <p className="font-bold text-2xl font-mono text-blue-900 tracking-wider">
-                          {paymentDetails.accountNumber}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-blue-700 uppercase">Account Name</p>
-                        <p className="font-bold text-base text-blue-900">{paymentDetails.accountName}</p>
-                      </div>
-                    </div>
-
-                    <p className="text-xs text-blue-800 mt-6 bg-blue-100 p-3 rounded-lg">
-                      Expires at: {new Date(paymentDetails.expiresAt).toLocaleString()}
-                    </p>
-                  </div>
-
-                  {/* Sound Warning Box */}
-                  <div className="bg-red-50 border-2 border-red-500 p-4 rounded-xl text-left max-w-sm mx-auto flex items-start gap-3 shadow-xs">
-                    <AlertTriangle className="w-6 h-6 text-red-600 shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-xs font-black text-red-700 uppercase tracking-wider">⚠️ SOUND WARNING</p>
-                      <p className="text-xs font-black text-red-900 mt-1 leading-snug">
-                        NEVER EVER SAVE THIS BANK ACCOUNT NUMBER!
-                      </p>
-                      <p className="text-[11px] text-red-800 mt-1 leading-tight font-medium">
-                        This account is generated dynamically ONLY for this specific waybill payment. If you save or transfer money to it later, <strong>YOU WILL LOSE YOUR MONEY!</strong>
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="bg-gray-50 border border-gray-200 p-4 rounded-xl text-left max-w-sm mx-auto space-y-2">
-                    <p className="text-sm font-bold text-gray-900 uppercase tracking-wider">
-                      How to Complete Payment:
-                    </p>
-                    <ul className="list-disc list-inside text-sm text-gray-700 space-y-2">
-                      <li>
-                        <strong>Direct Bank Transfer:</strong> Transfer ₦
-                        {(paymentDetails.amount / 100).toLocaleString()} from your mobile banking app to the virtual
-                        account shown above.
-                      </li>
-                      <li>
-                        <strong>Cash at Counter:</strong> Hand ₦{(paymentDetails.amount / 100).toLocaleString()} cash
-                        to the staff. The staff will perform the transfer or use a POS machine on your behalf.
-                      </li>
-                    </ul>
                   </div>
 
                   <div className="flex flex-col items-center gap-3 justify-center text-sm text-gray-500 font-medium">
