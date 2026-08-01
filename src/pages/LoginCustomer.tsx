@@ -59,8 +59,8 @@ export function LoginCustomer() {
         }
       }
     } catch (err: any) {
-      console.error('PIN Login Error:', err);
-      setError('A network error occurred. Please try again.');
+      console.warn('PIN Login network error:', err);
+      setError('Network connection error. Please check your internet connection and try again.');
     } finally {
       setLoading(false);
     }

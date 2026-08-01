@@ -249,6 +249,8 @@ export function PlatformAdminDashboard() {
       });
       list.sort((a, b) => b.createdTimestamp - a.createdTimestamp);
       setWaybills(list);
+    }, (err) => {
+      console.warn("PlatformAdminDashboard waybills snapshot error:", err);
     });
     return () => unsub();
   }, [isLoggedIn]);

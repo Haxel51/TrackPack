@@ -64,6 +64,8 @@ export function SenderView() {
           }
         }
       }
+    }, (err) => {
+      console.warn("SenderView platform_config snapshot error:", err);
     });
     return () => unsubConfig();
   }, []);
@@ -136,6 +138,8 @@ export function SenderView() {
           setPaymentDetails(null); // Clear payment details to show success screen
         }
       }
+    }, (err) => {
+      console.warn("SenderView waybill payment snapshot error:", err);
     });
 
     return () => {

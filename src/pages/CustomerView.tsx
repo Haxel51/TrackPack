@@ -158,6 +158,8 @@ export function CustomerView() {
           setPaymentDetails(null);
         }
       }
+    }, (err) => {
+      console.warn("Payment waybill snapshot error:", err);
     });
 
     return () => {

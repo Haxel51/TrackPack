@@ -38,21 +38,50 @@
 
     <!-- Structured Data (Schema.org) for Google Search -->
     <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "WebApplication",
-        "name": "TrackPack",
-        "url": "https://trackpack.com.ng",
-        "logo": "https://trackpack.com.ng/logo_final_v4.jpg",
-        "description": "Digital waybill tracking software and receipt platform for Nigerian motor park transport lines and customers.",
-        "applicationCategory": "BusinessApplication",
-        "operatingSystem": "All",
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "NGN"
+      [
+        {
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          "name": "TrackPack Nigeria",
+          "url": "https://trackpack.com.ng",
+          "logo": "https://trackpack.com.ng/logo_final_v4.jpg",
+          "sameAs": [
+            "https://trackpack.com.ng"
+          ],
+          "contactPoint": {
+            "@type": "ContactPoint",
+            "telephone": "+2348000000000",
+            "contactType": "customer service",
+            "areaServed": "NG"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          "name": "TrackPack",
+          "url": "https://trackpack.com.ng",
+          "potentialAction": {
+            "@type": "SearchAction",
+            "target": "https://trackpack.com.ng/track?code={search_term_string}",
+            "query-input": "required name=search_term_string"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "TrackPack",
+          "url": "https://trackpack.com.ng",
+          "logo": "https://trackpack.com.ng/logo_final_v4.jpg",
+          "description": "Digital waybill tracking software and receipt platform for Nigerian motor park transport lines and customers.",
+          "applicationCategory": "BusinessApplication",
+          "operatingSystem": "All",
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "NGN"
+          }
         }
-      }
+      ]
     </script>
   </head>
   <body style="background-color: #0A1F44; margin: 0; font-family: system-ui, -apple-system, sans-serif;">

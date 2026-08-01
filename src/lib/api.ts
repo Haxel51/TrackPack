@@ -541,22 +541,62 @@ export async function registerPushNotification(phone: string): Promise<boolean> 
   return true;
 }
 
+// Safe OS Notification helper to prevent "Illegal constructor" error on Android/PWAs
+export async function showNativeNotification(title: string, options?: NotificationOptions): Promise<boolean> {
+  if (typeof window === 'undefined' || !('Notification' in window)) {
+    return false;
+  }
+
+  if (Notification.permission !== 'granted') {
+    return false;
+  }
+
+  // 1. Try ServiceWorker Registration showNotification first (Required for Chrome Android / PWAs)
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (reg && reg.showNotification) {
+        await reg.showNotification(title, options);
+        return true;
+      }
+    } catch (swErr) {
+      console.warn('[PUSH NOTIFICATION] ServiceWorker showNotification check skipped:', swErr);
+    }
+
+    try {
+      const readyReg = await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 500))
+      ]);
+      if (readyReg && readyReg.showNotification) {
+        await readyReg.showNotification(title, options);
+        return true;
+      }
+    } catch (swReadyErr) {
+      console.warn('[PUSH NOTIFICATION] ServiceWorker ready check skipped:', swReadyErr);
+    }
+  }
+
+  // 2. Fallback to standard Notification constructor (Desktop Browsers)
+  try {
+    new Notification(title, options);
+    return true;
+  } catch (err) {
+    console.warn('[PUSH NOTIFICATION] Standard Notification constructor fallback skipped:', err);
+    return false;
+  }
+}
+
 // Trigger a server-side test background push notification
 export async function sendTestPushNotification(phone: string): Promise<boolean> {
   if (!phone) return false;
   const normalized = normalizeTo11Digits(phone);
 
   // Fire a local browser desktop notification if permission is granted
-  if ('Notification' in window && Notification.permission === 'granted') {
-    try {
-      new Notification("TrackPack Test Alert", {
-        body: "Awesome! Your phone & browser push alerts are active and connected to TrackPack.",
-        icon: "/favicon.ico"
-      });
-    } catch (e) {
-      console.log('[CLIENT PUSH] Local notification fallback:', e);
-    }
-  }
+  showNativeNotification("TrackPack Test Alert", {
+    body: "Awesome! Your phone & browser push alerts are active and connected to TrackPack.",
+    icon: "/favicon.ico"
+  }).catch(() => {});
 
   try {
     const res = await fetch('/api/push/test', {

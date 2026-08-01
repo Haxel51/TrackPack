@@ -156,6 +156,8 @@ export function AdminView() {
       });
       list.sort((a, b) => b.createdTimestamp - a.createdTimestamp);
       setWaybills(list);
+    }, (err) => {
+      console.warn("AdminView waybills snapshot error:", err);
     });
     return () => unsub();
   }, [company]);

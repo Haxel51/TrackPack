@@ -116,6 +116,8 @@ export function StaffPortalView() {
           }
         }
       }
+    }, (err) => {
+      console.warn("StaffPortal platform_config snapshot error:", err);
     });
     return () => unsubConfig();
   }, []);
@@ -248,6 +250,8 @@ export function StaffPortalView() {
           setPaymentDetails(null); // Clear payment details to show success screen
         }
       }
+    }, (err) => {
+      console.warn("StaffPortal waybill payment snapshot error:", err);
     });
 
     return () => {

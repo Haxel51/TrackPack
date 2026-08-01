@@ -4,7 +4,7 @@ import { db } from '../lib/firebase';
 import { useAuthStore } from '../store';
 import { Waybill } from '../types';
 import { getRouteTransitInfo } from '../lib/eta';
-import { registerPushNotification } from '../lib/api';
+import { registerPushNotification, showNativeNotification } from '../lib/api';
 import { triggerInAppNotificationToast } from './NotificationToast';
 
 // Helper to get warm, human phrasing for shipment statuses
@@ -104,14 +104,13 @@ export function CustomerNotificationListener() {
 
             // 2. Trigger native OS desktop/mobile notification if permitted
             if ('Notification' in window && Notification.permission === 'granted') {
-              try {
-                new Notification(isNewBooking ? "New TrackPack Shipment Booked" : "TrackPack Shipment Update", {
+              showNativeNotification(
+                isNewBooking ? "New TrackPack Shipment Booked" : "TrackPack Shipment Update",
+                {
                   body: bodyText,
                   icon: "/favicon.ico"
-                });
-              } catch (err) {
-                console.error("Failed to trigger OS Notification:", err);
-              }
+                }
+              ).catch(() => {});
             }
           }
         }

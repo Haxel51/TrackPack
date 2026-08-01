@@ -5,6 +5,7 @@ import { useAuthStore } from '../store';
 import { Building, ArrowLeft, CheckCircle2, Upload, FileCheck, Image as ImageIcon, X, Eye, EyeOff, ShieldCheck, RefreshCw, AlertCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { normalizeTo11Digits } from '../lib/helpers';
+import { getCompanyByPhone } from '../lib/api';
 
 export function LoginAdmin() {
   const location = useLocation();
@@ -80,8 +81,39 @@ export function LoginAdmin() {
         setSuccessMsg(`Application is under review by Super Admin.`);
       }
     } catch (err) {
-      console.error('Check status error:', err);
-      setError('Failed to query verification status from server. Please try again.');
+      console.warn('Check status server error, attempting direct DB query:', err);
+      try {
+        const comp = await getCompanyByPhone(normalizedPhone);
+        if (comp) {
+          if (comp.approved && comp.status !== 'suspended') {
+            setStatusResult({
+              status: 'approved',
+              companyName: comp.name,
+              message: 'OFFICIALLY VERIFIED & APPROVED! Your transport company account has been verified and granted active operating status.'
+            });
+            setSuccessMsg(`Official Verification Confirmed! ${comp.name} is approved and active.`);
+          } else if (comp.status === 'suspended') {
+            setStatusResult({
+              status: 'suspended',
+              companyName: comp.name,
+              message: 'ACCOUNT SUSPENDED: Your company access has been temporarily suspended by the Super Admin.'
+            });
+          } else {
+            setStatusResult({
+              status: 'pending',
+              companyName: comp.name,
+              message: 'APPLICATION UNDER REVIEW: Your transport operator registration is currently being verified by the Super Admin.'
+            });
+          }
+        } else {
+          setStatusResult({
+            status: 'not_found',
+            message: 'No transport company registration found with this phone number.'
+          });
+        }
+      } catch (fErr) {
+        setError('Failed to query verification status. Please try again.');
+      }
     } finally {
       setCheckingStatus(false);
     }
@@ -147,7 +179,6 @@ export function LoginAdmin() {
           setMode('setup_password');
         } else if (data.code === 'APPROVAL_PENDING') {
           setError(data.message || 'Your company registration is pending approval by the Super Admin.');
-          // Query live status to populate tracker
           handleCheckStatus(normalizedPhone);
         } else if (data.code === 'ACCOUNT_SUSPENDED') {
           setError(data.message || 'Your company account has been suspended by the Super Admin.');
@@ -156,8 +187,56 @@ export function LoginAdmin() {
         }
       }
     } catch (err) {
-      console.error('Company Login Error:', err);
-      setError('A network error occurred. Please try again.');
+      console.warn('Company Login network request failed, falling back to direct database verification:', err);
+      try {
+        const company = await getCompanyByPhone(normalizedPhone);
+        if (!company) {
+          setError('Incorrect phone number or password.');
+          return;
+        }
+
+        if (company.approved !== true) {
+          setError('Your company registration is pending approval by the Super Admin.');
+          handleCheckStatus(normalizedPhone);
+          return;
+        }
+
+        if (company.status === 'suspended') {
+          setError('Your company account has been suspended by the Super Admin.');
+          return;
+        }
+
+        if (!company.passwordHash) {
+          setError('Your account has not been secured with a password yet. Please set up your security credentials below.');
+          setSuccessMsg('You can set up your secure password below.');
+          setMode('setup_password');
+          return;
+        }
+
+        // Verify password using SHA-256 Web Crypto API
+        const encoder = new TextEncoder();
+        const data = encoder.encode(`trackpack_admin_salt_${loginPassword}`);
+        const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+        const hashArray = Array.from(new Uint8Array(hashBuffer));
+        const computedHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+        if (computedHash === company.passwordHash) {
+          login({
+            role: 'admin',
+            phone: company.ownerPhone,
+            name: company.name,
+            companyId: company.id
+          });
+          navigate('/admin');
+          return;
+        } else {
+          setError('Incorrect phone number or password.');
+          return;
+        }
+      } catch (fallbackErr) {
+        console.error('Fallback company login error:', fallbackErr);
+        setError('Unable to log in. Please check your internet connection and try again.');
+      }
     } finally {
       setLoading(false);
     }

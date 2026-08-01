@@ -7,6 +7,7 @@ import { CustomerNotificationListener } from './CustomerNotificationListener';
 import { FloatingWhatsApp } from './FloatingWhatsApp';
 import { NotificationToastContainer } from './NotificationToast';
 import { BrandLogo } from './BrandLogo';
+import { NetworkStatusIndicator } from './NetworkStatusIndicator';
 
 export function Layout() {
   const { user, logout } = useAuthStore();
@@ -39,6 +40,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-bg-light flex flex-col font-sans relative">
+      <NetworkStatusIndicator />
       <NotificationToastContainer />
       <CustomerNotificationListener />
       <FloatingWhatsApp />
