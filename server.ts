@@ -1872,7 +1872,7 @@ async function startServer() {
   // Robots.txt for Search Engines
   app.get('/robots.txt', (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
-    res.send(`User-agent: *\nAllow: /\nAllow: /track/\nAllow: /terms\nAllow: /login\nAllow: /admin\nAllow: /staff\nAllow: /customer\n\nSitemap: https://trackpack.com.ng/sitemap.xml`);
+    res.send(`User-agent: *\nAllow: /\n\nSitemap: https://trackpack.com.ng/sitemap.xml\n`);
   });
 
   // Sitemap.xml for Google Indexing
