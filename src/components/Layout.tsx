@@ -6,6 +6,7 @@ import { Package, ShieldCheck, Phone } from 'lucide-react';
 import { CustomerNotificationListener } from './CustomerNotificationListener';
 import { FloatingWhatsApp } from './FloatingWhatsApp';
 import { NotificationToastContainer } from './NotificationToast';
+import { BrandLogo } from './BrandLogo';
 
 export function Layout() {
   const { user, logout } = useAuthStore();
@@ -45,7 +46,7 @@ export function Layout() {
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2 cursor-pointer select-none" onClick={handleSecretTap}>
             <Link to={user ? `/${user.role}` : '/'} className="flex items-center gap-2.5">
-              <img src="/logo_final_v4.jpg?v=4" alt="TrackPack Logo" referrerPolicy="no-referrer" className="w-8 h-8 rounded-lg object-cover shadow-sm border border-emerald-500/30" />
+              <BrandLogo className="w-8 h-8 rounded-lg" iconSizeClassName="w-4 h-4" />
               <span className="font-bold text-xl tracking-tight text-navy">TrackPack</span>
             </Link>
           </div>

@@ -1,12 +1,19 @@
-const CACHE_NAME = 'trackpack-cache-v5';
+const CACHE_NAME = 'trackpack-cache-v6';
 const urlsToCache = [
-  '/manifest.json'
+  '/',
+  '/manifest.json',
+  '/logo_final_v4.jpg',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/favicon.svg'
 ];
 
 self.addEventListener('install', function(event) {
   event.waitUntil(
     caches.open(CACHE_NAME).then(function(cache) {
-      return cache.addAll(urlsToCache);
+      return cache.addAll(urlsToCache).catch(function(err) {
+        console.warn('SW pre-cache warning:', err);
+      });
     })
   );
   self.skipWaiting();
@@ -69,13 +76,23 @@ self.addEventListener('fetch', function(event) {
     return;
   }
 
-  // Cache-first for images and static media with network fallback
+  // Cache-first for images and static media with network fallback & offline logo safety
   event.respondWith(
-    caches.match(event.request).then(function(response) {
+    caches.match(event.request, { ignoreSearch: true }).then(function(response) {
       if (response) {
         return response;
       }
-      return fetch(event.request);
+      return fetch(event.request).then(function(networkResponse) {
+        if (networkResponse && networkResponse.status === 200) {
+          const responseToCache = networkResponse.clone();
+          caches.open(CACHE_NAME).then(function(cache) {
+            cache.put(event.request, responseToCache);
+          });
+        }
+        return networkResponse;
+      }).catch(function() {
+        return caches.match('/logo_final_v4.jpg');
+      });
     })
   );
 });

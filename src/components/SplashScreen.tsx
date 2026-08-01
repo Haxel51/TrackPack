@@ -1,5 +1,6 @@
 import { motion } from 'motion/react';
 import { useEffect, useState, useRef } from 'react';
+import { BrandLogo } from './BrandLogo';
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
   const [isVisible, setIsVisible] = useState(true);
@@ -41,13 +42,8 @@ export function SplashScreen({ onComplete }: { onComplete: () => void }) {
         {/* Soft glowing aura behind logo */}
         <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-xl animate-ping opacity-75" />
 
-        <div className="relative w-24 h-24 rounded-3xl bg-white shadow-2xl p-3 border border-white/20 flex items-center justify-center mb-6">
-          <img 
-            src="/logo_final_v4.jpg?v=4" 
-            alt="TrackPack Logo" 
-            referrerPolicy="no-referrer"
-            className="w-full h-full rounded-2xl object-cover shadow-inner"
-          />
+        <div className="relative w-24 h-24 rounded-3xl bg-white shadow-2xl p-2 border border-white/20 flex items-center justify-center mb-6">
+          <BrandLogo className="w-full h-full rounded-2xl" iconSizeClassName="w-10 h-10" />
         </div>
 
         {/* App Name */}
