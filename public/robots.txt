@@ -7,4 +7,4 @@ Allow: /admin
 Allow: /staff
 Allow: /customer
 
-Sitemap: https://trackpack.onrender.com/sitemap.xml
+Sitemap: https://trackpack.com.ng/sitemap.xml

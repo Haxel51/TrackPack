@@ -1872,7 +1872,7 @@ async function startServer() {
   // Robots.txt for Search Engines
   app.get('/robots.txt', (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
-    res.send(`User-agent: *\nAllow: /\nAllow: /track/\nAllow: /terms\nAllow: /login\nAllow: /admin\nAllow: /staff\nAllow: /customer\n\nSitemap: https://trackpack.onrender.com/sitemap.xml`);
+    res.send(`User-agent: *\nAllow: /\nAllow: /track/\nAllow: /terms\nAllow: /login\nAllow: /admin\nAllow: /staff\nAllow: /customer\n\nSitemap: https://trackpack.com.ng/sitemap.xml`);
   });
 
   // Sitemap.xml for Google Indexing
@@ -1881,27 +1881,27 @@ async function startServer() {
     res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://trackpack.onrender.com/</loc>
+    <loc>https://trackpack.com.ng/</loc>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://trackpack.onrender.com/track</loc>
-    <changefreq>always</changefreq>
+    <loc>https://trackpack.com.ng/track</loc>
+    <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://trackpack.onrender.com/terms</loc>
+    <loc>https://trackpack.com.ng/terms</loc>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://trackpack.onrender.com/customer</loc>
+    <loc>https://trackpack.com.ng/customer</loc>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://trackpack.onrender.com/login</loc>
+    <loc>https://trackpack.com.ng/login</loc>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>

@@ -1,4 +1,4 @@
-export type WaybillStatus = 'Draft' | 'Booked' | 'Departed' | 'Arrived' | 'Collected';
+export type WaybillStatus = 'Draft' | 'Booked' | 'Departed' | 'In Transit' | 'Arrived' | 'Collected' | 'Delivered';
 
 export interface Waybill {
   id?: string;
@@ -27,6 +27,7 @@ export interface Waybill {
   statusNote?: string;
   delayReason?: string;
   paymentStatus?: 'pending' | 'success' | 'expired' | null;
+  paystackReference?: string;
   paymentVirtualAccount?: {
     accountName: string;
     accountNumber: string;
@@ -42,6 +43,7 @@ export interface Company {
   name: string;
   parks: string[];
   ownerPhone: string;
+  cacNumber?: string;
   kycNumber?: string;
   bankName?: string;
   accountNumber?: string;
