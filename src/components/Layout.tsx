@@ -8,6 +8,7 @@ import { FloatingWhatsApp } from './FloatingWhatsApp';
 import { NotificationToastContainer } from './NotificationToast';
 import { BrandLogo } from './BrandLogo';
 import { NetworkStatusIndicator } from './NetworkStatusIndicator';
+import { PWAInstallModal } from './PWAInstallModal';
 
 export function Layout() {
   const { user, logout } = useAuthStore();
@@ -40,6 +41,7 @@ export function Layout() {
 
   return (
     <div className="min-h-screen bg-bg-light flex flex-col font-sans relative">
+      <PWAInstallModal />
       <NetworkStatusIndicator />
       <NotificationToastContainer />
       <CustomerNotificationListener />
