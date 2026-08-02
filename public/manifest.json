@@ -5,12 +5,23 @@
   "description": "Nigeria's #1 digital waybill tracking platform for motor park transport lines",
   "start_url": "/",
   "scope": "/",
+  "dir": "ltr",
+  "lang": "en",
   "display": "standalone",
   "orientation": "portrait",
   "background_color": "#0A1F44",
   "theme_color": "#0A1F44",
   "prefer_related_applications": false,
   "categories": ["business", "utilities", "logistics"],
+  "shortcuts": [
+    {
+      "name": "Track Waybill",
+      "short_name": "Track",
+      "description": "Track a parcel waybill",
+      "url": "/",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
+    }
+  ],
   "icons": [
     {
       "src": "/icon-192.png",
