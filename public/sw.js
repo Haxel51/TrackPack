@@ -1,6 +1,7 @@
 const CACHE_NAME = 'trackpack-cache-v6';
 const urlsToCache = [
   '/',
+  '/index.html',
   '/manifest.json',
   '/logo_final_v4.jpg',
   '/icon-192.png',
