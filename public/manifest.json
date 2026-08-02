@@ -51,18 +51,18 @@
   ],
   "screenshots": [
     {
-      "src": "/logo_final_v4.jpg",
-      "sizes": "1080x1080",
-      "type": "image/jpeg",
+      "src": "/screenshot-mobile.png",
+      "sizes": "1080x1920",
+      "type": "image/png",
       "form_factor": "narrow",
-      "label": "TrackPack Waybill Tracker"
+      "label": "TrackPack Waybill Tracker Mobile"
     },
     {
-      "src": "/logo_premium.jpg",
-      "sizes": "1080x1080",
-      "type": "image/jpeg",
+      "src": "/screenshot-desktop.png",
+      "sizes": "1920x1080",
+      "type": "image/png",
       "form_factor": "wide",
-      "label": "Motor Park Logistics"
+      "label": "TrackPack Motor Park Logistics Desktop"
     }
   ]
 }
