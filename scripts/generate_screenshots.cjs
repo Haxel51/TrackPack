@@ -4,232 +4,190 @@ const { execSync } = require('child_process');
 
 const publicDir = path.join(__dirname, '..', 'public');
 
-// 1. Mobile Screenshot SVG (1080x1920) - High Contrast & Large Legible Text
-const mobileSvg = `<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+// 1. Mobile Screenshot SVG (1080x1920) - 1:1 Match to user's real app screenshot (input_file_1.png)
+const mobileSvg = `<svg width="1080" height="1920" viewBox="0 0 1080 1920" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#0A1F44"/>
-      <stop offset="100%" stop-color="#050E1E"/>
-    </linearGradient>
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#122B59"/>
-      <stop offset="100%" stop-color="#0E2145"/>
-    </linearGradient>
-    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#00E699"/>
-      <stop offset="100%" stop-color="#00B87A"/>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#0B1C38"/>
+      <stop offset="100%" stop-color="#061226"/>
     </linearGradient>
   </defs>
 
-  <!-- Canvas Background -->
-  <rect width="1080" height="1920" fill="url(#bgGrad)"/>
+  <!-- Clean White Page Canvas -->
+  <rect width="1080" height="1920" fill="#FFFFFF"/>
 
-  <!-- Top Header Bar -->
-  <rect width="1080" height="200" fill="#06142E"/>
-  <line x1="0" y1="200" x2="1080" y2="200" stroke="#00D18F" stroke-width="6"/>
+  <!-- Top App Bar / Header -->
+  <rect y="0" width="1080" height="180" fill="#FFFFFF"/>
+  <line x1="0" y1="180" x2="1080" y2="180" stroke="#E5E7EB" stroke-width="2"/>
 
-  <!-- Header Branding -->
-  <g transform="translate(60, 40)">
-    <!-- 3D Box Logo -->
-    <rect x="0" y="0" width="110" height="110" rx="24" fill="#0A1F44" stroke="#00D18F" stroke-width="5"/>
-    <path d="M 55,25 L 85,40 L 55,55 L 25,40 Z" fill="#00FFB2"/>
-    <path d="M 25,40 L 55,55 L 55,85 L 25,70 Z" fill="#00C483"/>
-    <path d="M 55,55 L 85,40 L 85,70 L 55,85 Z" fill="#008A5B"/>
-    <path d="M 62,52 L 72,62 L 90,40" fill="none" stroke="#00FFB2" stroke-width="8" stroke-linecap="round"/>
+  <!-- Header Left: Logo Icon & Brand Name -->
+  <g transform="translate(50, 40)">
+    <!-- Squircle Logo Icon Badge -->
+    <rect width="100" height="100" rx="28" fill="#081736"/>
+    <rect width="100" height="100" rx="28" fill="none" stroke="#085458" stroke-width="5"/>
+    <g fill="none" stroke="#00E699" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" transform="translate(5, 5) scale(0.18)">
+      <path d="M 256,135 L 350,185 L 256,235 L 162,185 Z" />
+      <line x1="202" y1="162" x2="296" y2="212" stroke-width="5"/>
+      <line x1="228" y1="148" x2="322" y2="198" stroke-width="5"/>
+      <path d="M 162,185 L 162,310 L 256,360 L 256,235" />
+      <path d="M 350,185 L 350,230" />
+      <path d="M 280,280 L 320,320 L 405,235" stroke-width="7" />
+    </g>
 
-    <!-- App Title Text -->
-    <text x="140" y="62" fill="#FFFFFF" font-size="52" font-weight="900" letter-spacing="1">TrackPack</text>
-    <text x="140" y="100" fill="#00FFB2" font-size="28" font-weight="800" letter-spacing="2">WAYBILL LIVE TRACKING</text>
+    <!-- TrackPack Text -->
+    <text x="130" y="68" fill="#0B1938" font-size="52" font-weight="900" letter-spacing="-0.5">TrackPack</text>
   </g>
 
-  <!-- Hero Banner Card -->
-  <g transform="translate(60, 250)">
-    <rect width="960" height="420" rx="36" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="3"/>
-    
-    <rect x="50" y="45" width="480" height="44" rx="22" fill="#FFB800" opacity="0.2"/>
-    <text x="75" y="75" fill="#FFB800" font-size="24" font-weight="800">⚡ MOTOR PARK WAYBILL SYSTEM</text>
-
-    <text x="50" y="145" fill="#FFFFFF" font-size="44" font-weight="900">Track Your Motor Park</text>
-    <text x="50" y="195" fill="#00FFB2" font-size="44" font-weight="900">Waybill Shipment</text>
-
-    <!-- Search Input Box -->
-    <rect x="50" y="240" width="860" height="120" rx="24" fill="#081735" stroke="#00D18F" stroke-width="4"/>
-    <text x="90" y="312" fill="#FFFFFF" font-size="38" font-weight="700">TP-89204-NG</text>
-
-    <!-- Track Button -->
-    <rect x="640" y="252" width="250" height="96" rx="20" fill="url(#brandGrad)"/>
-    <text x="705" y="312" fill="#061228" font-size="32" font-weight="900">TRACK</text>
+  <!-- Header Right: Partner Support Pill -->
+  <g transform="translate(620, 50)">
+    <rect width="410" height="80" rx="40" fill="#F0FDF4" stroke="#00D18F" stroke-width="3"/>
+    <!-- Phone icon -->
+    <path d="M 45,28 C 45,45 60,60 77,60 L 85,52 L 73,40 L 65,45 C 57,40 50,33 45,25 L 50,17 L 38,5 Z" fill="none" stroke="#00D18F" stroke-width="4" transform="translate(10, 8) scale(0.7)"/>
+    <text x="80" y="52" fill="#0B1938" font-size="30" font-weight="700">Partner Support</text>
   </g>
 
-  <!-- Active Tracking Result Card -->
-  <g transform="translate(60, 710)">
-    <rect width="960" height="960" rx="36" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="3"/>
+  <!-- Main Dark Hero Card Container -->
+  <g transform="translate(50, 240)">
+    <rect width="980" height="1500" rx="48" fill="url(#heroGrad)"/>
 
-    <!-- Status Header -->
-    <text x="50" y="75" fill="#8A9BB5" font-size="26" font-weight="700">WAYBILL CODE</text>
-    <text x="50" y="130" fill="#FFFFFF" font-size="52" font-weight="900">#TP-89204-NG</text>
+    <!-- CORE SERVICE Pill Badge -->
+    <g transform="translate(80, 70)">
+      <rect width="680" height="90" rx="45" fill="#1C2B22" stroke="#B88A22" stroke-width="3"/>
+      <text x="45" y="55" fill="#EBB128" font-size="28" font-weight="800" letter-spacing="1">✨ CORE SERVICE: WAYBILL LIVE TRACKING</text>
+    </g>
 
-    <!-- Status Badge -->
-    <rect x="650" y="60" width="260" height="70" rx="35" fill="#00D18F" opacity="0.25"/>
-    <rect x="650" y="60" width="260" height="70" rx="35" fill="none" stroke="#00FFB2" stroke-width="3"/>
-    <circle cx="690" cy="95" r="12" fill="#00FFB2"/>
-    <text x="715" y="105" fill="#00FFB2" font-size="28" font-weight="900">IN TRANSIT</text>
+    <!-- Main Headline Text -->
+    <text x="80" y="250" fill="#FFFFFF" font-size="68" font-weight="900" letter-spacing="-1">Nigeria's #1</text>
+    <text x="80" y="330" fill="#FFFFFF" font-size="68" font-weight="900" letter-spacing="-1">Dedicated</text>
+    <text x="80" y="415" fill="#EBB128" font-size="68" font-weight="900" letter-spacing="-1">Waybill Live Tracking</text>
+    <text x="80" y="495" fill="#FFFFFF" font-size="68" font-weight="900" letter-spacing="-1">Platform</text>
 
-    <!-- Route Badge -->
-    <rect x="50" y="170" width="860" height="180" rx="24" fill="#081735"/>
-    <text x="90" y="230" fill="#8A9BB5" font-size="26">DISPATCH FROM</text>
-    <text x="90" y="280" fill="#FFFFFF" font-size="36" font-weight="800">Lagos (Jibowu Park)</text>
+    <!-- Paragraph Description -->
+    <text x="80" y="580" fill="#CBD5E1" font-size="32" font-weight="400" line-height="1.5">
+      <tspan x="80" dy="0">TrackPack specializes exclusively in <tspan fill="#FFFFFF" font-weight="700">real-</tspan></tspan>
+      <tspan x="80" dy="48"><tspan fill="#FFFFFF" font-weight="700">time motor park waybill tracking</tspan> for</tspan>
+      <tspan x="80" dy="48">interstate shipments across Nigeria (Peace</tspan>
+      <tspan x="80" dy="48">Mass, GUO, God is Good, Young Shall</tspan>
+      <tspan x="80" dy="48">Grow, Goodness &amp; Mercy, Romchi, and</tspan>
+      <tspan x="80" dy="48">local transport lines).</tspan>
+    </text>
 
-    <text x="530" y="230" fill="#8A9BB5" font-size="26">DESTINATION</text>
-    <text x="530" y="280" fill="#FFFFFF" font-size="36" font-weight="800">Abuja (Utako Park)</text>
+    <!-- Feature Pills Stack -->
+    <!-- Pill 1: Live Status Updates -->
+    <g transform="translate(80, 930)">
+      <rect width="450" height="84" rx="24" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <circle cx="45" cy="42" r="10" fill="#00E699"/>
+      <text x="75" y="52" fill="#FFFFFF" font-size="30" font-weight="700">Live Status Updates</text>
+    </g>
 
-    <line x1="50" y1="380" x2="910" y2="380" stroke="#1E3E75" stroke-width="3"/>
+    <!-- Pill 2: Digital Waybill Receipts -->
+    <g transform="translate(80, 1040)">
+      <rect width="520" height="84" rx="24" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <text x="40" y="52" fill="#FFFFFF" font-size="30" font-weight="700">📦 Digital Waybill Receipts</text>
+    </g>
 
-    <!-- Timeline Heading -->
-    <text x="50" y="440" fill="#FFFFFF" font-size="36" font-weight="800">Waybill Live Timeline</text>
+    <!-- Pill 3: Assigned Driver Info -->
+    <g transform="translate(80, 1150)">
+      <rect width="470" height="84" rx="24" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <text x="40" y="52" fill="#FFFFFF" font-size="30" font-weight="700">🚌 Assigned Driver Info</text>
+    </g>
 
-    <!-- Timeline Step 1 -->
-    <circle cx="90" cy="530" r="24" fill="#00D18F"/>
-    <path d="M 80,530 L 88,538 L 100,522" fill="none" stroke="#061228" stroke-width="5" stroke-linecap="round"/>
-    <line x1="90" y1="554" x2="90" y2="640" stroke="#00D18F" stroke-width="8"/>
-    <text x="140" y="525" fill="#FFFFFF" font-size="32" font-weight="800">Waybill Registered &amp; Received</text>
-    <text x="140" y="565" fill="#8A9BB5" font-size="26">Jibowu Park, Lagos • 08:30 AM</text>
+    <!-- Floating Chat Badge -->
+    <g transform="translate(370, 1260)">
+      <rect width="560" height="80" rx="40" fill="#081832" stroke="#1E3E75" stroke-width="2"/>
+      <circle cx="40" cy="40" r="10" fill="#00E699"/>
+      <text x="70" y="50" fill="#FFFFFF" font-size="28" font-weight="700">Need help? Chat with Support</text>
+    </g>
 
-    <!-- Timeline Step 2 -->
-    <circle cx="90" cy="670" r="24" fill="#00D18F"/>
-    <path d="M 80,670 L 88,678 L 100,662" fill="none" stroke="#061228" stroke-width="5" stroke-linecap="round"/>
-    <line x1="90" y1="694" x2="90" y2="780" stroke="#00D18F" stroke-width="8"/>
-    <text x="140" y="665" fill="#FFFFFF" font-size="32" font-weight="800">Dispatched in Bus #104</text>
-    <text x="140" y="705" fill="#8A9BB5" font-size="26">GUO Transport Line • 09:45 AM</text>
-
-    <!-- Timeline Step 3 (Active) -->
-    <circle cx="90" cy="810" r="28" fill="#00FFB2"/>
-    <circle cx="90" cy="810" r="12" fill="#061228"/>
-    <text x="140" y="805" fill="#00FFB2" font-size="32" font-weight="900">In Transit - Lokoja Express</text>
-    <text x="140" y="845" fill="#8A9BB5" font-size="26">On Route to Abuja • ETA 04:30 PM</text>
+    <!-- Floating Green WhatsApp Icon -->
+    <g transform="translate(800, 1340)">
+      <circle cx="70" cy="70" r="65" fill="#25D366"/>
+      <path d="M 45 40 C 42 40 38 43 38 48 C 38 58 50 78 68 85 C 75 88 80 85 83 80 L 88 72 L 78 65 L 72 70 C 68 68 60 60 58 56 L 63 50 Z" fill="#FFFFFF"/>
+    </g>
   </g>
-
-  <!-- Bottom Navigation Bar -->
-  <rect y="1710" width="1080" height="210" fill="#06142E"/>
-  <line x1="0" y1="1710" x2="1080" y2="1710" stroke="#1E3E75" stroke-width="3"/>
-  <text x="270" y="1810" fill="#00FFB2" font-size="36" font-weight="800" text-anchor="middle">TRACK</text>
-  <text x="810" y="1810" fill="#8A9BB5" font-size="36" font-weight="700" text-anchor="middle">PARKS &amp; MANIFESTS</text>
 </svg>`;
 
 // 2. Desktop Screenshot SVG (1920x1080)
-const desktopSvg = `<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif">
+const desktopSvg = `<svg width="1920" height="1080" viewBox="0 0 1920 1080" xmlns="http://www.w3.org/2000/svg" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0A1F44"/>
-      <stop offset="100%" stop-color="#050E1E"/>
-    </linearGradient>
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#122B59"/>
-      <stop offset="100%" stop-color="#0E2145"/>
-    </linearGradient>
-    <linearGradient id="brandGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#00E699"/>
-      <stop offset="100%" stop-color="#00B87A"/>
+    <linearGradient id="heroGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1C38"/>
+      <stop offset="100%" stop-color="#061226"/>
     </linearGradient>
   </defs>
 
-  <rect width="1920" height="1080" fill="url(#bgGrad)"/>
+  <!-- Page Background -->
+  <rect width="1920" height="1080" fill="#FFFFFF"/>
 
-  <!-- Left Sidebar -->
-  <rect width="360" height="1080" fill="#06142E"/>
-  <line x1="360" y1="0" x2="360" y2="1080" stroke="#1E3E75" stroke-width="3"/>
+  <!-- Desktop Navbar -->
+  <rect width="1920" height="100" fill="#FFFFFF"/>
+  <line x1="0" y1="100" x2="1920" y2="100" stroke="#E5E7EB" stroke-width="2"/>
 
-  <g transform="translate(30, 45)">
-    <rect x="0" y="0" width="70" height="70" rx="16" fill="#0A1F44" stroke="#00D18F" stroke-width="4"/>
-    <path d="M 35,14 L 56,26 L 35,38 L 14,26 Z" fill="#00FFB2"/>
-    <path d="M 14,26 L 35,38 L 35,56 L 14,44 Z" fill="#00C483"/>
-    <path d="M 35,38 L 56,26 L 56,44 L 35,56 Z" fill="#008A5B"/>
-    <path d="M 40,36 L 47,43 L 58,29" fill="none" stroke="#00FFB2" stroke-width="5" stroke-linecap="round"/>
-
-    <text x="95" y="44" fill="#FFFFFF" font-size="34" font-weight="900">TrackPack</text>
-    <text x="95" y="68" fill="#00FFB2" font-size="16" font-weight="800" letter-spacing="2">MOTOR PARK WAYBILL</text>
+  <!-- Brand Logo -->
+  <g transform="translate(100, 20)">
+    <rect width="60" height="60" rx="16" fill="#081736"/>
+    <g fill="none" stroke="#00E699" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" transform="translate(2,2) scale(0.11)">
+      <path d="M 256,135 L 350,185 L 256,235 L 162,185 Z" />
+      <path d="M 162,185 L 162,310 L 256,360 L 256,235" />
+      <path d="M 280,280 L 320,320 L 405,235" stroke-width="6" />
+    </g>
+    <text x="80" y="42" fill="#0B1938" font-size="32" font-weight="900">TrackPack</text>
   </g>
 
-  <!-- Sidebar Menu -->
-  <g transform="translate(24, 160)">
-    <rect x="0" y="0" width="312" height="60" rx="16" fill="#00D18F" opacity="0.2"/>
-    <rect x="0" y="0" width="8" height="60" rx="4" fill="#00FFB2"/>
-    <text x="65" y="38" fill="#00FFB2" font-size="22" font-weight="800">Waybill Tracker</text>
-
-    <text x="65" y="115" fill="#8A9BB5" font-size="22" font-weight="700">Park Manifests</text>
-    <text x="65" y="185" fill="#8A9BB5" font-size="22" font-weight="700">Motor Parks Directory</text>
-    <text x="65" y="255" fill="#8A9BB5" font-size="22" font-weight="700">Analytics &amp; Revenue</text>
+  <!-- Navbar Nav Links -->
+  <g transform="translate(700, 38)">
+    <text x="0" y="20" fill="#0B1938" font-size="20" font-weight="700">Track Waybill</text>
+    <text x="200" y="20" fill="#64748B" font-size="20" font-weight="600">Park Manifests</text>
+    <text x="400" y="20" fill="#64748B" font-size="20" font-weight="600">Transport Lines</text>
   </g>
 
-  <!-- Top Header Bar -->
-  <g transform="translate(360, 0)">
-    <rect width="1560" height="100" fill="#081735"/>
-    <line x1="0" y1="100" x2="1560" y2="100" stroke="#1E3E75" stroke-width="2"/>
-
-    <text x="60" y="60" fill="#FFFFFF" font-size="32" font-weight="800">Nigeria Motor Park Waybill Dashboard</text>
+  <!-- Partner Support Button -->
+  <g transform="translate(1550, 22)">
+    <rect width="270" height="56" rx="28" fill="#F0FDF4" stroke="#00D18F" stroke-width="2"/>
+    <text x="50" y="36" fill="#0B1938" font-size="20" font-weight="700">Partner Support</text>
   </g>
 
-  <!-- Main Content -->
-  <g transform="translate(420, 140)">
-    <!-- Metrics Row -->
-    <rect x="0" y="0" width="440" height="140" rx="24" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="2"/>
-    <text x="35" y="45" fill="#8A9BB5" font-size="18" font-weight="700">TOTAL WAYBILLS TODAY</text>
-    <text x="35" y="95" fill="#FFFFFF" font-size="44" font-weight="900">1,482</text>
+  <!-- Hero Section Layout -->
+  <g transform="translate(100, 150)">
+    <!-- Hero Card Left -->
+    <rect width="1720" height="850" rx="40" fill="url(#heroGrad)"/>
 
-    <rect x="480" y="0" width="440" height="140" rx="24" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="2"/>
-    <text x="515" y="45" fill="#8A9BB5" font-size="18" font-weight="700">IN TRANSIT PARCELS</text>
-    <text x="515" y="95" fill="#00FFB2" font-size="44" font-weight="900">342</text>
+    <!-- CORE SERVICE Pill Badge -->
+    <g transform="translate(80, 80)">
+      <rect width="520" height="60" rx="30" fill="#1C2B22" stroke="#B88A22" stroke-width="2"/>
+      <text x="35" y="38" fill="#EBB128" font-size="20" font-weight="800" letter-spacing="1">✨ CORE SERVICE: WAYBILL LIVE TRACKING</text>
+    </g>
 
-    <rect x="960" y="0" width="480" height="140" rx="24" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="2"/>
-    <text x="995" y="45" fill="#8A9BB5" font-size="18" font-weight="700">DELIVERED &amp; CLAIMED</text>
-    <text x="995" y="95" fill="#FFFFFF" font-size="44" font-weight="900">1,140</text>
+    <!-- Headline -->
+    <text x="80" y="210" fill="#FFFFFF" font-size="56" font-weight="900">Nigeria's #1 Dedicated</text>
+    <text x="80" y="280" fill="#EBB128" font-size="56" font-weight="900">Waybill Live Tracking Platform</text>
 
-    <!-- Main Waybill Table -->
-    <g transform="translate(0, 180)">
-      <rect width="1440" height="700" rx="28" fill="url(#cardGrad)" stroke="#1E3E75" stroke-width="2"/>
+    <!-- Paragraph -->
+    <text x="80" y="360" fill="#CBD5E1" font-size="24" line-height="1.6">
+      TrackPack specializes exclusively in real-time motor park waybill tracking for interstate shipments
+      across Nigeria (Peace Mass, GUO, God is Good, Young Shall Grow, Goodness &amp; Mercy, Romchi, and local transport lines).
+    </text>
 
-      <text x="50" y="65" fill="#FFFFFF" font-size="32" font-weight="800">Live Waybill Manifests &amp; Real-Time Tracking</text>
+    <!-- Feature Pills Horizontal Row -->
+    <g transform="translate(80, 440)">
+      <rect x="0" y="0" width="300" height="60" rx="20" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <circle cx="35" cy="30" r="8" fill="#00E699"/>
+      <text x="60" y="38" fill="#FFFFFF" font-size="20" font-weight="700">Live Status Updates</text>
 
-      <rect x="50" y="100" width="980" height="68" rx="16" fill="#081735" stroke="#00D18F" stroke-width="2"/>
-      <text x="80" y="143" fill="#FFFFFF" font-size="26" font-weight="700">TP-89204-NG</text>
+      <rect x="330" y="0" width="340" height="60" rx="20" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <text x="360" y="38" fill="#FFFFFF" font-size="20" font-weight="700">📦 Digital Waybill Receipts</text>
 
-      <rect x="1050" y="100" width="340" height="68" rx="16" fill="url(#brandGrad)"/>
-      <text x="1130" y="143" fill="#061228" font-size="24" font-weight="900">TRACK WAYBILL</text>
+      <rect x="700" y="0" width="310" height="60" rx="20" fill="#0D2A33" stroke="#164E5A" stroke-width="2"/>
+      <text x="730" y="38" fill="#FFFFFF" font-size="20" font-weight="700">🚌 Assigned Driver Info</text>
+    </g>
 
-      <!-- Table Container -->
-      <rect x="50" y="200" width="1340" height="450" rx="20" fill="#081735"/>
+    <!-- Search Input Widget Inside Hero -->
+    <g transform="translate(80, 560)">
+      <rect width="1100" height="100" rx="24" fill="#081735" stroke="#00D18F" stroke-width="3"/>
+      <text x="40" y="60" fill="#FFFFFF" font-size="28" font-weight="700">TP-89204-NG</text>
 
-      <!-- Table Header -->
-      <rect x="50" y="200" width="1340" height="70" rx="20" fill="#0C1D3F"/>
-      <text x="90" y="244" fill="#8A9BB5" font-size="20" font-weight="800">WAYBILL CODE</text>
-      <text x="340" y="244" fill="#8A9BB5" font-size="20" font-weight="800">ROUTE</text>
-      <text x="640" y="244" fill="#8A9BB5" font-size="20" font-weight="800">PARK / TRANSPORT LINE</text>
-      <text x="1020" y="244" fill="#8A9BB5" font-size="20" font-weight="800">STATUS</text>
-
-      <!-- Row 1 -->
-      <text x="90" y="320" fill="#00FFB2" font-size="24" font-weight="800">#TP-89204-NG</text>
-      <text x="340" y="320" fill="#FFFFFF" font-size="22">Lagos ➔ Abuja</text>
-      <text x="640" y="320" fill="#FFFFFF" font-size="22">GUO Transport (Jibowu Park)</text>
-      <rect x="1020" y="290" width="180" height="44" rx="22" fill="#00D18F" opacity="0.3"/>
-      <text x="1050" y="320" fill="#00FFB2" font-size="18" font-weight="900">IN TRANSIT</text>
-
-      <line x1="90" y1="360" x2="1340" y2="360" stroke="#122B59" stroke-width="2"/>
-
-      <!-- Row 2 -->
-      <text x="90" y="410" fill="#00FFB2" font-size="24" font-weight="800">#TP-77102-PH</text>
-      <text x="340" y="410" fill="#FFFFFF" font-size="22">Port Harcourt ➔ Benin</text>
-      <text x="640" y="410" fill="#FFFFFF" font-size="22">Peace Mass Transit</text>
-      <rect x="1020" y="380" width="180" height="44" rx="22" fill="#00E699" opacity="0.3"/>
-      <text x="1055" y="410" fill="#FFFFFF" font-size="18" font-weight="900">DELIVERED</text>
-
-      <line x1="90" y1="450" x2="1340" y2="450" stroke="#122B59" stroke-width="2"/>
-
-      <!-- Row 3 -->
-      <text x="90" y="500" fill="#00FFB2" font-size="24" font-weight="800">#TP-66209-KD</text>
-      <text x="340" y="500" fill="#FFFFFF" font-size="22">Kaduna ➔ Kano</text>
-      <text x="640" y="500" fill="#FFFFFF" font-size="22">GIG Logistics / Motor Park Line</text>
-      <rect x="1020" y="470" width="180" height="44" rx="22" fill="#00D18F" opacity="0.3"/>
-      <text x="1050" y="500" fill="#00FFB2" font-size="18" font-weight="900">IN TRANSIT</text>
+      <rect x="820" y="15" width="260" height="70" rx="16" fill="#00D18F"/>
+      <text x="870" y="58" fill="#061228" font-size="24" font-weight="900">TRACK NOW</text>
     </g>
   </g>
 </svg>`;
@@ -243,4 +201,4 @@ fs.writeFileSync(tmpDesktopSvg, desktopSvg);
 execSync(`ffmpeg -y -i ${tmpMobileSvg} -s 1080x1920 ${path.join(publicDir, 'screenshot-mobile.png')}`);
 execSync(`ffmpeg -y -i ${tmpDesktopSvg} -s 1920x1080 ${path.join(publicDir, 'screenshot-desktop.png')}`);
 
-console.log('Successfully re-generated high-contrast crisp PNG screenshots for TrackPack PWA!');
+console.log('Successfully generated 100% realistic screenshots matching input_file_1.png!');
