@@ -262,7 +262,7 @@ export function PWAInstallModal() {
                         <Share className="w-4 h-4 text-amber-700" />
                         <span>For iPhone / iPad (Safari):</span>
                       </div>
-                      <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-gray-700 pl-1">
+                      <ol className="list-decimal list-inside space-y-2 text-[11px] text-gray-700 pl-1">
                         <li>Tap the <strong>Share button</strong> <Share className="inline w-3.5 h-3.5 text-blue-600" /> at the bottom of Safari.</li>
                         <li>Scroll down and select <strong>'Add to Home Screen'</strong> <PlusSquare className="inline w-3.5 h-3.5 text-emerald-600" />.</li>
                         <li>Tap <strong>'Add'</strong> in top right corner.</li>
@@ -272,15 +272,25 @@ export function PWAInstallModal() {
                     <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3.5 text-xs text-gray-800 space-y-3">
                       <div className="flex items-center gap-2 font-bold text-emerald-900">
                         <Smartphone className="w-4 h-4 text-emerald-700" />
-                        <span>For Android (Chrome):</span>
+                        <span>How to Install on Android in 3 Seconds:</span>
                       </div>
-                      <ol className="list-decimal list-inside space-y-1.5 text-[11px] text-gray-700 pl-1">
-                        <li>Tap <strong>'Install App'</strong> when Chrome displays the prompt.</li>
-                        <li>If opening in another app (like WhatsApp), tap <strong>3 dots (⋮)</strong> and choose <strong>'Open in Chrome'</strong>.</li>
-                        <li>In Chrome menu (⋮), tap <strong>'Install app'</strong>.</li>
+                      <ol className="list-decimal list-inside space-y-2 text-[11px] text-gray-700 pl-1">
+                        <li>Tap the <strong>3 dots menu (⋮)</strong> at the very top-right of your Chrome browser screen.</li>
+                        <li>Select <strong>'Install app'</strong> or <strong>'Add to Home screen'</strong> from the Chrome menu list.</li>
+                        <li>Tap <strong>'Install'</strong> — TrackPack icon will immediately appear on your phone home screen!</li>
                       </ol>
                     </div>
                   )}
+
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-[11px] text-blue-900 flex items-start gap-2.5">
+                    <Download className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Want a standalone Android APK / Google Play Store App?</p>
+                      <p className="text-[10.5px] text-blue-800 mt-0.5">
+                        You can convert <strong>trackpack.com.ng</strong> into a native Android <strong>.APK</strong> file in 1 minute using <strong>PWABuilder.com</strong>!
+                      </p>
+                    </div>
+                  </div>
 
                   <div className="space-y-2">
                     <button
