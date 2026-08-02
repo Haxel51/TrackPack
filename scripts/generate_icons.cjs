@@ -88,5 +88,7 @@ function createIcon(size) {
 const publicDir = path.join(__dirname, '..', 'public');
 fs.writeFileSync(path.join(publicDir, 'icon-192.png'), createIcon(192));
 fs.writeFileSync(path.join(publicDir, 'icon-512.png'), createIcon(512));
+fs.writeFileSync(path.join(publicDir, 'icon-maskable-192.png'), createIcon(192));
+fs.writeFileSync(path.join(publicDir, 'icon-maskable-512.png'), createIcon(512));
 
-console.log('Successfully generated clean 192x192 and 512x512 PNG icons!');
+console.log('Successfully generated clean 192x192, 512x512, and maskable PNG icons!');
