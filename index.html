@@ -38,10 +38,22 @@
     <meta name="apple-mobile-web-app-title" content="TrackPack" />
     
     <script>
+      window.deferredInstallPrompt = null;
       window.addEventListener('beforeinstallprompt', function(e) {
         e.preventDefault();
         window.deferredInstallPrompt = e;
+        console.log('[PWA] beforeinstallprompt event captured');
       });
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js', { scope: '/' })
+          .then(function(reg) {
+            console.log('[PWA] ServiceWorker registered with scope:', reg.scope);
+          })
+          .catch(function(err) {
+            console.warn('[PWA] ServiceWorker registration error:', err);
+          });
+      }
     </script>
     
     <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />

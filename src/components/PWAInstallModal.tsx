@@ -69,39 +69,59 @@ export function PWAInstallModal() {
   const handleInstallClick = async () => {
     setIsTriggering(true);
 
-    if (deferredPrompt) {
+    // 1. Check if prompt is available in state or global window object
+    const activePrompt = deferredPrompt || (window as unknown as { deferredInstallPrompt?: BeforeInstallPromptEvent | null }).deferredInstallPrompt;
+
+    if (activePrompt) {
       try {
-        // Trigger native Chrome/Android Install App prompt directly!
-        await deferredPrompt.prompt();
-        const choice = await deferredPrompt.userChoice;
+        await activePrompt.prompt();
+        const choice = await activePrompt.userChoice;
         if (choice.outcome === 'accepted') {
           setInstalled(true);
           setShowModal(false);
           setDeferredPrompt(null);
-        } else {
-          setIsTriggering(false);
+          (window as unknown as { deferredInstallPrompt?: null }).deferredInstallPrompt = null;
         }
       } catch (err) {
         console.warn('Install prompt execution error:', err);
+      } finally {
         setIsTriggering(false);
+      }
+      return;
+    }
+
+    // 2. If prompt isn't immediately present, poll aggressively for 2 seconds
+    let attempts = 0;
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      const latePrompt = (window as unknown as { deferredInstallPrompt?: BeforeInstallPromptEvent | null }).deferredInstallPrompt;
+      
+      if (latePrompt) {
+        clearInterval(pollInterval);
+        try {
+          await latePrompt.prompt();
+          const choice = await latePrompt.userChoice;
+          if (choice.outcome === 'accepted') {
+            setInstalled(true);
+            setShowModal(false);
+            setDeferredPrompt(null);
+            (window as unknown as { deferredInstallPrompt?: null }).deferredInstallPrompt = null;
+          }
+        } catch (err) {
+          console.warn('Late install prompt error:', err);
+        } finally {
+          setIsTriggering(false);
+        }
+        return;
+      }
+
+      if (attempts >= 8) {
+        clearInterval(pollInterval);
+        setIsTriggering(false);
+        // Show step-by-step guide if browser won't expose direct prompt event
         setShowGuide(true);
       }
-    } else {
-      // If beforeinstallprompt hasn't fired yet or browser doesn't support direct trigger
-      // Wait briefly up to 1.5 seconds in case beforeinstallprompt fires late
-      setTimeout(async () => {
-        if ((window as unknown as { deferredInstallPrompt?: BeforeInstallPromptEvent }).deferredInstallPrompt) {
-          const promptEvent = (window as unknown as { deferredInstallPrompt?: BeforeInstallPromptEvent }).deferredInstallPrompt;
-          if (promptEvent) {
-            await promptEvent.prompt();
-            setIsTriggering(false);
-            return;
-          }
-        }
-        setIsTriggering(false);
-        setShowGuide(true);
-      }, 1200);
-    }
+    }, 250);
   };
 
   const handleClose = () => {
@@ -262,19 +282,32 @@ export function PWAInstallModal() {
                     </div>
                   )}
 
-                  <div className="flex gap-2">
+                  <div className="space-y-2">
                     <button
-                      onClick={() => setShowGuide(false)}
-                      className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-3 rounded-xl text-xs transition"
+                      onClick={() => {
+                        setShowGuide(false);
+                        handleInstallClick();
+                      }}
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow transition"
                     >
-                      Back
+                      <Download className="w-3.5 h-3.5" />
+                      <span>TRY AUTOMATIC INSTALL AGAIN</span>
                     </button>
-                    <button
-                      onClick={handleClose}
-                      className="flex-1 bg-navy hover:bg-navy-light text-white font-bold py-2 px-3 rounded-xl text-xs transition"
-                    >
-                      Done
-                    </button>
+
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => setShowGuide(false)}
+                        className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-3 rounded-xl text-xs transition"
+                      >
+                        Back
+                      </button>
+                      <button
+                        onClick={handleClose}
+                        className="flex-1 bg-navy hover:bg-navy-light text-white font-bold py-2 px-3 rounded-xl text-xs transition"
+                      >
+                        Close
+                      </button>
+                    </div>
                   </div>
                 </div>
               )}
