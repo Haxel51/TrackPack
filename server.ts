@@ -1869,6 +1869,19 @@ async function startServer() {
     res.send('google-site-verification: google08c2075392d5f926.html');
   });
 
+  // Manifest.json for PWA Installability
+  app.get('/manifest.json', (req, res) => {
+    res.type('application/manifest+json');
+    res.sendFile(path.join(process.cwd(), 'public', 'manifest.json'));
+  });
+
+  // Service Worker for PWA
+  app.get('/sw.js', (req, res) => {
+    res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(path.join(process.cwd(), 'public', 'sw.js'));
+  });
+
   // Robots.txt for Search Engines
   app.get('/robots.txt', (req, res) => {
     res.setHeader('Content-Type', 'text/plain');
