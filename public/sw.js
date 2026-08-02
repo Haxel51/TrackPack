@@ -1,11 +1,14 @@
-const CACHE_NAME = 'trackpack-cache-v6';
+const CACHE_NAME = 'trackpack-cache-v8';
 const urlsToCache = [
   '/',
   '/index.html',
   '/manifest.json',
-  '/logo_final_v4.jpg',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-maskable-192.png',
+  '/icon-maskable-512.png',
+  '/screenshot-mobile.png',
+  '/screenshot-desktop.png',
   '/favicon.svg'
 ];
 
@@ -92,7 +95,7 @@ self.addEventListener('fetch', function(event) {
         }
         return networkResponse;
       }).catch(function() {
-        return caches.match('/logo_final_v4.jpg');
+        return caches.match('/icon-192.png');
       });
     })
   );
