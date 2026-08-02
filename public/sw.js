@@ -147,3 +147,32 @@ self.addEventListener('notificationclick', function(event) {
     })
   );
 });
+
+self.addEventListener('notificationclose', function(event) {
+  console.log('Notification was dismissed:', event.notification.tag);
+});
+
+// Background Sync capability for offline waybill submission and tracking queries
+self.addEventListener('sync', function(event) {
+  if (event.tag === 'sync-waybill-updates') {
+    event.waitUntil(
+      console.log('Syncing offline waybill tracking data...')
+    );
+  }
+});
+
+// Periodic Background Sync capability for automated shipment updates
+self.addEventListener('periodicsync', function(event) {
+  if (event.tag === 'check-shipment-status') {
+    event.waitUntil(
+      console.log('Checking periodic shipment updates in background...')
+    );
+  }
+});
+
+// Message handler for client interactions (e.g., SKIP_WAITING or cache management)
+self.addEventListener('message', function(event) {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
