@@ -52,10 +52,13 @@ async function startServer() {
     next();
   });
 
-  // Serve static files from public directory with CORS
+  // Serve static files from public directory with CORS and no-cache for PWA assets
   app.use(express.static(path.join(process.cwd(), 'public'), {
-    setHeaders: (res) => {
+    setHeaders: (res, filePath) => {
       res.setHeader('Access-Control-Allow-Origin', '*');
+      if (filePath.endsWith('manifest.json') || filePath.endsWith('sw.js') || filePath.includes('icon') || filePath.includes('screenshot')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      }
     }
   }));
 
@@ -1964,7 +1967,14 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    app.use(express.static(distPath, {
+      setHeaders: (res, filePath) => {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        if (filePath.endsWith('manifest.json') || filePath.endsWith('sw.js') || filePath.includes('icon') || filePath.includes('screenshot')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        }
+      }
+    }));
     app.get('*', (req, res) => {
       res.sendFile(path.join(distPath, 'index.html'));
     });
