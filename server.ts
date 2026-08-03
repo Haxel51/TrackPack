@@ -844,7 +844,7 @@ async function startServer() {
       const htmlContent = `
         <div style="font-family: Arial, sans-serif; max-width: 500px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px; background-color: #ffffff;">
           <div style="text-align: center; margin-bottom: 20px;">
-            <h2 style="color: #0d1f3e; margin: 0; font-size: 22px;">TrackPack Logistics</h2>
+            <h2 style="color: #0d1f3e; margin: 0; font-size: 22px;">TrackPack Waybill Systems</h2>
             <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">Super Administrator Authentication</p>
           </div>
           <div style="background-color: #f8fafc; padding: 20px; border-radius: 8px; text-align: center; margin-bottom: 20px;">
@@ -859,7 +859,7 @@ async function startServer() {
           </p>
           <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 20px 0;" />
           <p style="color: #9ca3af; font-size: 11px; text-align: center; margin: 0;">
-            © ${new Date().getFullYear()} TrackPack Systems • Transport Logistics Platform
+            © ${new Date().getFullYear()} TrackPack Systems • Nigeria Interstate Waybill Tracking Platform
           </p>
         </div>
       `;
@@ -1030,11 +1030,11 @@ async function startServer() {
         }
       }
 
-      let cleanEmail = `customer_${Date.now()}@trackpacklogistics.com`;
+      let cleanEmail = `customer_${Date.now()}@trackpack.com.ng`;
       if (email && typeof email === 'string') {
         const phoneOrUser = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
         if (phoneOrUser) {
-          cleanEmail = `c_${phoneOrUser}@trackpacklogistics.com`;
+          cleanEmail = `c_${phoneOrUser}@trackpack.com.ng`;
         }
       }
 
@@ -1165,7 +1165,7 @@ async function startServer() {
           directBankTransfer = {
             accountNumber: chargeData.data.account_number,
             bankName: chargeData.data.bank?.name || chargeData.data.bank_name || 'Wema Bank / Paystack',
-            accountName: chargeData.data.account_name || chargeData.data.bank?.account_name || 'TrackPack Logistics',
+            accountName: chargeData.data.account_name || chargeData.data.bank?.account_name || 'TrackPack Waybill Systems',
             expiresAt: chargeData.data.account_expires_at || new Date(Date.now() + 30 * 60 * 1000).toISOString()
           };
         }
@@ -1191,7 +1191,7 @@ async function startServer() {
           data: {
             reference: initTxData.data.reference,
             authorizationUrl: initTxData.data.authorization_url,
-            accountName: directBankTransfer?.accountName || 'TrackPack Logistics',
+            accountName: directBankTransfer?.accountName || 'TrackPack Waybill Systems',
             accountNumber: directBankTransfer?.accountNumber || 'Click "Pay Online" link above',
             bankName: directBankTransfer?.bankName || 'Paystack Checkout (Bank Transfer / Card)',
             expiresAt: directBankTransfer?.expiresAt || new Date(Date.now() + 60 * 60 * 1000).toISOString(),
