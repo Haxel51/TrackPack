@@ -52,6 +52,31 @@ async function startServer() {
     next();
   });
 
+  // Dedicated routes for robots.txt and sitemap.xml to guarantee 200 OK for search crawlers
+  app.get('/robots.txt', (req, res) => {
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    const robotsPath = path.join(process.cwd(), 'public', 'robots.txt');
+    if (fs.existsSync(robotsPath)) {
+      res.sendFile(robotsPath);
+    } else {
+      res.send("User-agent: *\nAllow: /\n\nSitemap: https://trackpack.com.ng/sitemap.xml\n");
+    }
+  });
+
+  app.get('/sitemap.xml', (req, res) => {
+    res.setHeader('Content-Type', 'application/xml; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    const sitemapPath = path.join(process.cwd(), 'public', 'sitemap.xml');
+    if (fs.existsSync(sitemapPath)) {
+      res.sendFile(sitemapPath);
+    } else {
+      res.status(404).send('Sitemap not found');
+    }
+  });
+
   // Serve static files from public directory with CORS and no-cache for PWA assets
   app.use(express.static(path.join(process.cwd(), 'public'), {
     setHeaders: (res, filePath) => {
