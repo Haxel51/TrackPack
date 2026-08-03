@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import crypto from 'crypto';
@@ -39,6 +40,7 @@ if (firebaseConfig.firestoreDatabaseId) {
 
 async function startServer() {
   const app = express();
+  app.use(compression());
   const PORT = Number(process.env.PORT) || 3000;
 
   // Global CORS Middleware for PWABuilder and external tools
@@ -1993,10 +1995,13 @@ async function startServer() {
   } else {
     const distPath = path.join(process.cwd(), 'dist');
     app.use(express.static(distPath, {
+      maxAge: '1y',
       setHeaders: (res, filePath) => {
         res.setHeader('Access-Control-Allow-Origin', '*');
         if (filePath.endsWith('manifest.json') || filePath.endsWith('sw.js') || filePath.includes('icon') || filePath.includes('screenshot')) {
           res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.includes('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         }
       }
     }));

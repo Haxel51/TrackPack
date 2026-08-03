@@ -3,21 +3,45 @@ import { useEffect, useState, useRef } from 'react';
 import { BrandLogo } from './BrandLogo';
 
 export function SplashScreen({ onComplete }: { onComplete: () => void }) {
-  const [isVisible, setIsVisible] = useState(true);
+  const [isVisible, setIsVisible] = useState(() => {
+    try {
+      if (typeof window !== 'undefined' && sessionStorage.getItem('tp_splash_shown')) {
+        return false;
+      }
+    } catch (e) {
+      // ignore
+    }
+    return true;
+  });
+
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    // Total splash duration: ~1.8 seconds for smooth entrance
+    try {
+      if (typeof window !== 'undefined') {
+        if (sessionStorage.getItem('tp_splash_shown')) {
+          onCompleteRef.current();
+          return;
+        }
+        sessionStorage.setItem('tp_splash_shown', 'true');
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Fast 500ms duration for high performance and swift LCP
     const timer = setTimeout(() => {
       setIsVisible(false);
       setTimeout(() => {
         onCompleteRef.current();
-      }, 400); // Allow fade-out transition
-    }, 1800);
+      }, 250); // Fast fade-out
+    }, 500);
 
     return () => clearTimeout(timer);
-  }, []); // Run ONCE on mount to prevent infinite resets
+  }, []);
+
+  if (!isVisible) return null;
 
   return (
     <motion.div
