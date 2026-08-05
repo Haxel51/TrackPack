@@ -76,12 +76,14 @@ export const StaffLogin: React.FC = () => {
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* PIN Field */}
           <div className="space-y-1.5">
-            <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">4-Digit PIN</label>
+            <label htmlFor="staff-pin" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">4-Digit PIN</label>
             <div className="relative">
               <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                 <Shield className="w-4 h-4" />
               </span>
               <input
+                id="staff-pin"
+                name="pin"
                 type={showPin ? 'text' : 'password'}
                 maxLength={4}
                 placeholder="••••"
@@ -89,6 +91,7 @@ export const StaffLogin: React.FC = () => {
                 onChange={(e) => setPin(e.target.value)}
                 disabled={loading}
                 className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-12 text-lg font-bold placeholder-slate-400 tracking-widest outline-none transition-all disabled:opacity-50"
+                aria-label="Enter your 4-digit staff PIN"
               />
               <button
                 type="button"

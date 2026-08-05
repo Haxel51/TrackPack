@@ -1,0 +1,15 @@
+User-agent: *
+Allow: /
+Allow: /login/customer
+Allow: /login/staff
+Allow: /login/company
+Allow: /login/admin
+
+# Disallow authenticated terminal/dashboard sections to avoid crawl errors
+Disallow: /customer/dashboard
+Disallow: /staff/dashboard
+Disallow: /company/dashboard
+Disallow: /admin/dashboard
+
+# Sitemap link
+Sitemap: https://trackpack.com.ng/sitemap.xml

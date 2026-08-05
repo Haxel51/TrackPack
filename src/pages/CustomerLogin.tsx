@@ -251,18 +251,21 @@ export const CustomerLogin: React.FC = () => {
           <form onSubmit={handleLoginSubmit} className="space-y-5">
             {/* Phone Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Phone Number</label>
+              <label htmlFor="customer-phone-login" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Phone Number</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                   <Phone className="w-4 h-4" />
                 </span>
                 <input
+                  id="customer-phone-login"
+                  name="phone"
                   type="tel"
                   placeholder="e.g. 08012345678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
+                  aria-label="Customer Phone Number"
                 />
               </div>
             </div>
@@ -270,7 +273,7 @@ export const CustomerLogin: React.FC = () => {
             {/* PIN Field */}
             <div className="space-y-1.5">
               <div className="flex justify-between items-center">
-                <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">6-Digit PIN</label>
+                <label htmlFor="customer-pin-login" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">6-Digit PIN</label>
                 <button
                   type="button"
                   onClick={() => {
@@ -289,6 +292,8 @@ export const CustomerLogin: React.FC = () => {
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
+                  id="customer-pin-login"
+                  name="pin"
                   type={showPin ? 'text' : 'password'}
                   maxLength={6}
                   placeholder="••••••"
@@ -296,6 +301,7 @@ export const CustomerLogin: React.FC = () => {
                   onChange={(e) => setPin(e.target.value)}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-12 text-base font-medium placeholder-slate-400 tracking-widest outline-none transition-all disabled:opacity-50"
+                  aria-label="Customer 6-Digit PIN"
                 />
                 <button
                   type="button"
@@ -352,30 +358,35 @@ export const CustomerLogin: React.FC = () => {
           <form onSubmit={handleSignupSubmit} className="space-y-4">
             {/* Phone Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Phone Number</label>
+              <label htmlFor="customer-phone-signup" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Phone Number</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                   <Phone className="w-4 h-4" />
                 </span>
                 <input
+                  id="customer-phone-signup"
+                  name="phone"
                   type="tel"
                   placeholder="e.g. 08012345678"
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
+                  aria-label="Customer Phone Number Signup"
                 />
               </div>
             </div>
 
             {/* PIN Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Create Strong 6-Digit PIN</label>
+              <label htmlFor="customer-pin-signup" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Create Strong 6-Digit PIN</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
+                  id="customer-pin-signup"
+                  name="pin"
                   type={showPin ? 'text' : 'password'}
                   maxLength={6}
                   placeholder="••••••"
@@ -383,6 +394,7 @@ export const CustomerLogin: React.FC = () => {
                   onChange={(e) => setPin(e.target.value)}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-base font-medium placeholder-slate-400 tracking-widest outline-none transition-all disabled:opacity-50"
+                  aria-label="Create 6-Digit PIN"
                 />
                 <button
                   type="button"
@@ -393,18 +405,20 @@ export const CustomerLogin: React.FC = () => {
                 </button>
               </div>
               <p className="text-[11px] text-slate-500">
-                🔒 Security requirement: Must be 6 digits. Avoid weak patterns like 123456 or 111111.
+                <span role="img" aria-label="padlock">🔒</span> Security requirement: Must be 6 digits. Avoid weak patterns like 123456 or 111111.
               </p>
             </div>
 
             {/* Confirm PIN Field */}
             <div className="space-y-1.5">
-              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Confirm 6-Digit PIN</label>
+              <label htmlFor="customer-pin-confirm" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Confirm 6-Digit PIN</label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                   <Lock className="w-4 h-4" />
                 </span>
                 <input
+                  id="customer-pin-confirm"
+                  name="confirmPin"
                   type={showPin ? 'text' : 'password'}
                   maxLength={6}
                   placeholder="••••••"
@@ -412,6 +426,7 @@ export const CustomerLogin: React.FC = () => {
                   onChange={(e) => setConfirmPin(e.target.value)}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-base font-medium placeholder-slate-400 tracking-widest outline-none transition-all disabled:opacity-50"
+                  aria-label="Confirm 6-Digit PIN"
                 />
               </div>
             </div>

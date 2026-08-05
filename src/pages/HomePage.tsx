@@ -84,7 +84,8 @@ export const HomePage: React.FC = () => {
             <div className="flex items-center gap-2 font-extrabold text-xl tracking-wider">
               <span>TrackPack</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
-                <svg className="w-6 h-4" viewBox="0 0 3 2">
+                <svg className="w-6 h-4" viewBox="0 0 3 2" role="img" aria-label="Nigeria Flag">
+                  <title>Nigeria Flag</title>
                   <rect width="1" height="2" x="0" fill="#008751" />
                   <rect width="1" height="2" x="1" fill="#FFFFFF" />
                   <rect width="1" height="2" x="2" fill="#008751" />
@@ -100,7 +101,7 @@ export const HomePage: React.FC = () => {
         {/* Intro */}
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold shadow-xs">
-            <span>🇳🇬</span>
+            <span role="img" aria-label="Nigeria Flag">🇳🇬</span>
             <span>Built for Nigeria Interstate Motor Parks</span>
           </div>
           
@@ -119,13 +120,13 @@ export const HomePage: React.FC = () => {
           {/* Feature highlights pill badges */}
           <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-[#0A1F44]">
             <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              ⚡ Live Status Updates
+              <span role="img" aria-label="lightning bolt">⚡</span> Live Status Updates
             </span>
             <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              📦 Digital Waybill Receipts
+              <span role="img" aria-label="package">📦</span> Digital Waybill Receipts
             </span>
             <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              🚌 Assigned Driver Info
+              <span role="img" aria-label="bus">🚌</span> Assigned Driver Info
             </span>
           </div>
         </div>
@@ -137,20 +138,25 @@ export const HomePage: React.FC = () => {
           </h2>
           
           <form onSubmit={handleTrackSubmit} className="relative">
+            <label htmlFor="tracking-code-input" className="sr-only">Waybill Tracking Code</label>
             <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
               <Search className="w-5 h-5" />
             </span>
             <input
+              id="tracking-code-input"
+              name="trackingCode"
               type="text"
               placeholder="Enter waybill tracking code..."
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
               className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4.5 pl-12 pr-28 text-base font-semibold placeholder-slate-400 outline-none uppercase transition-all"
+              aria-label="Enter waybill tracking code to track your package"
             />
             <button
               type="submit"
               disabled={isTracking}
               className="absolute right-2 top-2 bottom-2 bg-[#F2A93B] hover:bg-[#d9922b] disabled:bg-amber-300 text-[#0A1F44] font-extrabold px-5 rounded-xl text-sm transition-all shadow-sm active:scale-[0.97] cursor-pointer flex items-center justify-center"
+              aria-label="Track Waybill"
             >
               {isTracking ? 'Tracking...' : 'Track'}
             </button>
