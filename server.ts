@@ -40,6 +40,7 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:; " +
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
       "frame-src 'self' https://*.paystack.co; " +
+      "frame-ancestors 'none'; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self';"
@@ -55,6 +56,7 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:; " +
       "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
       "frame-src 'self' https://*.paystack.co; " +
+      "frame-ancestors 'none'; " +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self';"
@@ -66,6 +68,9 @@ app.use((req, res, next) => {
 
   // Mitigate clickjacking attacks (PageSpeed / Lighthouse best practice)
   res.setHeader("X-Frame-Options", "DENY");
+
+  // Enforce proper origin isolation (COOP) to protect against speculative side-channel attacks (Lighthouse Best Practice)
+  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
 
   // Mitigate reflective XSS attacks
   res.setHeader("X-XSS-Protection", "1; mode=block");
