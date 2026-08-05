@@ -1,102 +1,109 @@
-import { motion } from 'motion/react';
-import { useEffect, useState, useRef } from 'react';
-import { BrandLogo } from './BrandLogo';
+import React, { useState, useEffect } from 'react';
+import { Package } from 'lucide-react';
 
-export function SplashScreen({ onComplete }: { onComplete: () => void }) {
-  const [isVisible, setIsVisible] = useState(() => {
-    try {
-      if (typeof window !== 'undefined' && sessionStorage.getItem('tp_splash_shown')) {
-        return false;
-      }
-    } catch (e) {
-      // ignore
-    }
-    return true;
-  });
+interface SplashScreenProps {
+  onComplete?: () => void;
+  duration?: number; // total ms before fade out
+}
 
-  const onCompleteRef = useRef(onComplete);
-  onCompleteRef.current = onComplete;
+export const SplashScreen: React.FC<SplashScreenProps> = ({
+  onComplete,
+  duration = 3500
+}) => {
+  const [show, setShow] = useState(true);
+  const [fadingOut, setFadingOut] = useState(false);
+  const [phase, setPhase] = useState<'logo' | 'text' | 'glow'>('logo');
 
   useEffect(() => {
-    try {
-      if (typeof window !== 'undefined') {
-        if (sessionStorage.getItem('tp_splash_shown')) {
-          onCompleteRef.current();
-          return;
-        }
-        sessionStorage.setItem('tp_splash_shown', 'true');
-      }
-    } catch (e) {
-      // ignore
-    }
+    // Step 1: Text animation phase
+    const textTimer = setTimeout(() => {
+      setPhase('text');
+    }, 350);
 
-    // Fast 500ms duration for high performance and swift LCP
-    const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(() => {
-        onCompleteRef.current();
-      }, 250); // Fast fade-out
-    }, 500);
+    // Step 2: Glow / pulse progress phase
+    const glowTimer = setTimeout(() => {
+      setPhase('glow');
+    }, 700);
 
-    return () => clearTimeout(timer);
-  }, []);
+    // Step 3: Trigger fade out transition
+    const fadeOutTimer = setTimeout(() => {
+      setFadingOut(true);
+    }, duration - 400);
 
-  if (!isVisible) return null;
+    // Step 4: Hide completely
+    const completeTimer = setTimeout(() => {
+      setShow(false);
+      if (onComplete) onComplete();
+    }, duration);
+
+    return () => {
+      clearTimeout(textTimer);
+      clearTimeout(glowTimer);
+      clearTimeout(fadeOutTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [duration, onComplete]);
+
+  if (!show) return null;
 
   return (
-    <motion.div
-      initial={{ opacity: 1 }}
-      animate={{ opacity: isVisible ? 1 : 0 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className={`fixed inset-0 z-50 flex flex-col items-center justify-center bg-gradient-to-b from-[#0A1F44] via-[#0d2a5c] to-[#0A1F44] text-white select-none overflow-hidden ${
-        isVisible ? '' : 'pointer-events-none'
+    <div
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-[#0A1F44] via-[#0F2952] to-[#1E3B70] text-white transition-opacity duration-500 ease-out ${
+        fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
+      style={{
+        WebkitFontSmoothing: 'antialiased'
+      }}
     >
-      {/* Background Soft Glow Effect */}
-      <div className="absolute w-72 h-72 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none animate-pulse" />
-      <div className="absolute w-64 h-64 bg-blue-400/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="flex flex-col items-center text-center space-y-6 px-6 max-w-sm">
+        {/* Animated Shield / Logo Icon Container */}
+        <div className="relative">
+          {/* Subtle Outer Glow Ring */}
+          <div
+            className={`absolute -inset-4 rounded-3xl bg-[#F2A93B]/20 blur-xl transition-all duration-700 ${
+              phase === 'glow' ? 'opacity-100 scale-110' : 'opacity-0 scale-95'
+            }`}
+          />
 
-      {/* Logo container with pulse & scale-up entrance */}
-      <motion.div
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-        className="relative flex flex-col items-center"
-      >
-        {/* Soft glowing aura behind logo */}
-        <div className="absolute inset-0 bg-emerald-500/20 rounded-3xl blur-xl animate-ping opacity-75" />
-
-        <div className="relative w-24 h-24 rounded-3xl bg-white shadow-2xl p-2 border border-white/20 flex items-center justify-center mb-6">
-          <BrandLogo className="w-full h-full rounded-2xl" iconSizeClassName="w-10 h-10" />
+          <div
+            className={`relative w-20 h-20 bg-[#0A1F44] border-2 border-[#F2A93B]/60 rounded-3xl flex items-center justify-center shadow-2xl transition-all duration-500 ease-out transform ${
+              phase !== 'logo' ? 'scale-100 opacity-100' : 'scale-90 opacity-90'
+            }`}
+          >
+            <Package className="w-10 h-10 text-[#F2A93B] drop-shadow-md" />
+          </div>
         </div>
 
-        {/* App Name */}
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.5, ease: 'easeOut' }}
-          className="text-3xl font-extrabold tracking-wider text-white mb-2"
+        {/* Brand Name & Tagline */}
+        <div
+          className={`space-y-2 transition-all duration-500 ease-out transform ${
+            phase === 'text' || phase === 'glow'
+              ? 'opacity-100 translate-y-0'
+              : 'opacity-0 translate-y-2'
+          }`}
         >
-          TrackPack
-        </motion.h1>
+          <h1 className="text-3xl font-black tracking-wider text-white flex items-center justify-center gap-2 flex-wrap">
+            <span>Track<span className="text-[#F2A93B]">Pack</span></span>
+            <span className="inline-flex items-center text-xl font-black px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500/50 shadow-md">
+              <span className="text-emerald-400">NI</span>
+              <span className="text-white">GER</span>
+              <span className="text-emerald-400">IA</span>
+            </span>
+          </h1>
+          <p className="text-xs font-bold text-slate-300 tracking-widest uppercase">
+            Digital waybill Tracking platform
+          </p>
+        </div>
 
-        <motion.p
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-          className="text-xs text-emerald-300 font-medium tracking-wide mb-8"
-        >
-          Digital Waybill Tracking Platform
-        </motion.p>
-
-        {/* Thin animated progress indicator */}
-        <motion.div 
-          initial={{ width: 0 }}
-          animate={{ width: '120px' }}
-          transition={{ delay: 0.4, duration: 1.2, ease: 'easeInOut' }}
-          className="h-1 bg-gradient-to-r from-emerald-500 to-teal-300 rounded-full overflow-hidden shadow-sm"
-        />
-      </motion.div>
-    </motion.div>
+        {/* Animated Gold Loading Indicator */}
+        <div className="w-28 h-1 bg-white/10 rounded-full overflow-hidden relative mt-2">
+          <div
+            className={`h-full bg-gradient-to-r from-[#F2A93B] to-amber-300 rounded-full transition-all duration-2500 ease-in-out ${
+              phase === 'glow' ? 'w-full' : 'w-1/4'
+            }`}
+          />
+        </div>
+      </div>
+    </div>
   );
-}
+};

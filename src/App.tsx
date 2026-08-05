@@ -1,103 +1,80 @@
-import { ReactNode, useState, useCallback, lazy, Suspense } from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { useAuthStore } from './store';
-import { Layout } from './components/Layout';
-import { LandingPage } from './pages/LandingPage';
+import { AuthProvider } from './context/AuthContext';
+import { ProtectedRoute } from './components/ProtectedRoute';
 import { SplashScreen } from './components/SplashScreen';
+import { IosInstallBanner } from './components/IosInstallBanner';
 
-// Lazy load secondary route pages to optimize initial bundle size & mobile performance
-const PartnersPage = lazy(() => import('./pages/PartnersPage').then(m => ({ default: m.PartnersPage })));
-const PlatformAdminDashboard = lazy(() => import('./pages/PlatformAdminDashboard').then(m => ({ default: m.PlatformAdminDashboard })));
-const LoginStaff = lazy(() => import('./pages/LoginStaff').then(m => ({ default: m.LoginStaff })));
-const LoginCustomer = lazy(() => import('./pages/LoginCustomer').then(m => ({ default: m.LoginCustomer })));
-const LoginAdmin = lazy(() => import('./pages/LoginAdmin').then(m => ({ default: m.LoginAdmin })));
-const StaffPortalView = lazy(() => import('./pages/StaffPortalView').then(m => ({ default: m.StaffPortalView })));
-const CustomerView = lazy(() => import('./pages/CustomerView').then(m => ({ default: m.CustomerView })));
-const AdminView = lazy(() => import('./pages/AdminView').then(m => ({ default: m.AdminView })));
-const PublicTrackView = lazy(() => import('./pages/PublicTrackView').then(m => ({ default: m.PublicTrackView })));
-const TermsPage = lazy(() => import('./pages/TermsPage').then(m => ({ default: m.TermsPage })));
-const FaqPage = lazy(() => import('./pages/FaqPage').then(m => ({ default: m.FaqPage })));
+// Pages
+import { HomePage } from './pages/HomePage';
+import { CustomerLogin } from './pages/CustomerLogin';
+import { StaffLogin } from './pages/StaffLogin';
+import { CompanyLogin } from './pages/CompanyLogin';
+import { AdminLogin } from './pages/AdminLogin';
 
-// Fallback Loader for Suspense
-function PageFallback() {
-  return (
-    <div className="min-h-[60vh] flex items-center justify-center p-6">
-      <div className="flex items-center gap-3 text-emerald-400 font-medium">
-        <div className="w-6 h-6 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
-        <span>Loading...</span>
-      </div>
-    </div>
-  );
-}
-
-// Protected Route Wrapper
-function RequireAuth({ children, role }: { children: ReactNode, role?: string | string[] }) {
-  const { user } = useAuthStore();
-  
-  if (!user) {
-    return <Navigate to="/" replace />;
-  }
-  
-  if (role) {
-    const roles = Array.isArray(role) ? role : [role];
-    if (!roles.includes(user.role as string)) {
-      return <Navigate to={`/${user.role}`} replace />;
-    }
-  }
-  
-  return <>{children}</>;
-}
+// Dashboards (Protected)
+import { CustomerDashboard } from './pages/CustomerDashboard';
+import { StaffDashboard } from './pages/StaffDashboard';
+import { CompanyDashboard } from './pages/CompanyDashboard';
+import { AdminDashboard } from './pages/AdminDashboard';
 
 export default function App() {
-  const [showSplash, setShowSplash] = useState(true);
-
-  const handleSplashComplete = useCallback(() => {
-    setShowSplash(false);
-  }, []);
+  const [splashFinished, setSplashFinished] = useState(false);
 
   return (
-    <BrowserRouter>
-      {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
-      <Suspense fallback={<PageFallback />}>
+    <AuthProvider>
+      {!splashFinished && (
+        <SplashScreen onComplete={() => setSplashFinished(true)} duration={3500} />
+      )}
+      <IosInstallBanner />
+      <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Layout />}>
-            <Route index element={<LandingPage />} />
-            <Route path="partners" element={<PartnersPage />} />
-            <Route path="admin/leads" element={<Navigate to="/platform-admin" replace />} />
-            <Route path="platform-admin" element={<PlatformAdminDashboard />} />
-            <Route path="login/staff" element={<LoginStaff />} />
-            <Route path="login/customer" element={<LoginCustomer />} />
-            <Route path="login/admin" element={<LoginAdmin />} />
-            <Route path="track/:code" element={<PublicTrackView />} />
-            <Route path="terms" element={<TermsPage />} />
-            <Route path="faq" element={<FaqPage />} />
-            
-            <Route path="sender" element={
-              <RequireAuth role={["sender", "receiver"]}>
-                <StaffPortalView />
-              </RequireAuth>
-            } />
-            
-            <Route path="receiver" element={
-              <RequireAuth role={["sender", "receiver"]}>
-                <StaffPortalView />
-              </RequireAuth>
-            } />
-            
-            <Route path="customer" element={
-              <RequireAuth role="customer">
-                <CustomerView />
-              </RequireAuth>
-            } />
-            
-            <Route path="admin" element={
-              <RequireAuth role="admin">
-                <AdminView />
-              </RequireAuth>
-            } />
-          </Route>
+          {/* Public Routes */}
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login/customer" element={<CustomerLogin />} />
+          <Route path="/login/staff" element={<StaffLogin />} />
+          <Route path="/login/company" element={<CompanyLogin />} />
+          <Route path="/login/admin" element={<AdminLogin />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/customer/dashboard"
+            element={
+              <ProtectedRoute allowedRole="customer">
+                <CustomerDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/staff/dashboard"
+            element={
+              <ProtectedRoute allowedRole="staff">
+                <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/company/dashboard"
+            element={
+              <ProtectedRoute allowedRole="company">
+                <CompanyDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/dashboard"
+            element={
+              <ProtectedRoute allowedRole="admin">
+                <AdminDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Fallback Catch-all -> Homepage */}
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Suspense>
-    </BrowserRouter>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
+

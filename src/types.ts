@@ -1,90 +1,56 @@
-export type WaybillStatus = 'Draft' | 'Booked' | 'Departed' | 'In Transit' | 'Arrived' | 'Collected' | 'Delivered';
+export interface User {
+  id?: string;
+  phone_number?: string;
+  email?: string;
+  name?: string;
+  company_name?: string;
+  company_id?: string;
+  park_location?: string;
+  approved?: boolean;
+  active?: boolean;
+}
+
+export interface AuthState {
+  token: string | null;
+  user: User | null;
+  role: 'customer' | 'company' | 'staff' | 'admin' | null;
+}
+
+export interface Bus {
+  id: string;
+  bus_number: string;
+  origin_park: string;
+  destination_park: string;
+  company_id: string;
+  driver_name: string | null;
+  driver_phone: string;
+  status: 'loading' | 'departed' | 'arrived';
+  departed_at: string | null;
+  arrived_at: string | null;
+  created_by_staff_id: string;
+  created_at: string;
+  waybills?: Waybill[];
+}
 
 export interface Waybill {
-  id?: string;
-  trackingCode: string;
-  senderName: string;
-  senderPhone: string;
-  receiverName: string;
-  receiverPhone: string;
-  itemDescription: string;
-  busNumber: string;
-  originPark: string;
-  destinationPark: string;
-  status: WaybillStatus;
-  createdTimestamp: number;
-  departedTimestamp?: number;
-  arrivedTimestamp?: number;
-  collectedTimestamp?: number;
-  pickupCode: string;
-  driverName?: string;
-  driverPhone?: string;
-  liveTrackingActive?: boolean;
-  deliveryFee?: number;
-  paymentMethod?: 'paystack_online' | 'cash_at_park' | 'bank_transfer';
-  companyId?: string;
-  companyName?: string;
-  statusNote?: string;
-  delayReason?: string;
-  paymentStatus?: 'pending' | 'success' | 'expired' | null;
-  paystackReference?: string;
-  paymentVirtualAccount?: {
-    accountName: string;
-    accountNumber: string;
-    bankName: string;
-    reference: string;
-    expiresAt: string;
-    amount: number;
-  };
-}
-
-export interface Company {
-  id?: string;
-  name: string;
-  parks: string[];
-  ownerPhone: string;
-  cacNumber?: string;
-  kycNumber?: string;
-  bankName?: string;
-  accountNumber?: string;
-  accountName?: string;
-  bankAccount?: string;
-  paystackSubaccountCode?: string;
-  approved?: boolean;
-  status?: 'active' | 'suspended';
-  commissionRate?: number;
-  contactEmail?: string;
-  cacDocumentUrl?: string;
-  kycDocumentUrl?: string;
-  passwordHash?: string;
-}
-
-export interface Staff {
-  id?: string;
-  name: string;
-  park: string;
-  pin: string;
-  companyId: string;
-  role: 'sender' | 'receiver';
-  isActive?: boolean;
-}
-
-export interface Lead {
-  id?: string;
-  name: string;
-  phone: string;
-  companyName: string;
-  parkLocation: string;
-  timestamp: number;
-}
-
-export type UserRole = 'sender' | 'receiver' | 'customer' | 'admin' | null;
-
-export interface SessionUser {
-  role: UserRole;
-  phone?: string;
-  pin?: string;
-  park?: string;
-  companyId?: string;
-  name?: string;
+  id: string;
+  tracking_code: string;
+  sender_name: string;
+  sender_phone: string;
+  receiver_name: string;
+  receiver_phone: string;
+  item_description: string;
+  bus_id: string;
+  bus_number: string;
+  origin_park: string;
+  destination_park: string;
+  company_id: string;
+  status: 'booked' | 'in_transit' | 'arrived' | 'collected';
+  tracking_active: boolean;
+  booked_at: string;
+  departed_at: string | null;
+  arrived_at: string | null;
+  collected_at: string | null;
+  collected_by: string | null;
+  created_at: string;
 }

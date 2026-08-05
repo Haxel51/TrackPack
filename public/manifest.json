@@ -1,68 +1,21 @@
 {
-  "id": "ng.com.trackpack.app",
   "name": "TrackPack Nigeria",
   "short_name": "TrackPack",
-  "description": "Nigeria's #1 digital waybill tracking platform for motor park transport lines",
+  "description": "Real-time digital waybills for commercial transport motor parks in Nigeria.",
   "start_url": "/",
-  "scope": "/",
-  "dir": "ltr",
-  "lang": "en",
   "display": "standalone",
-  "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
-  "orientation": "portrait",
   "background_color": "#0A1F44",
   "theme_color": "#0A1F44",
-  "prefer_related_applications": false,
-  "categories": ["business", "utilities", "transport"],
-  "shortcuts": [
-    {
-      "name": "Track Waybill",
-      "short_name": "Track",
-      "description": "Track a parcel waybill",
-      "url": "/",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    }
-  ],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-maskable-192.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "maskable"
+      "type": "image/png"
     },
     {
       "src": "/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any"
-    },
-    {
-      "src": "/icon-maskable-512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "maskable"
-    }
-  ],
-  "screenshots": [
-    {
-      "src": "/screenshot-mobile.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "TrackPack Waybill Tracker Mobile"
-    },
-    {
-      "src": "/screenshot-desktop.png",
-      "sizes": "1920x1080",
-      "type": "image/png",
-      "form_factor": "wide",
-      "label": "TrackPack Motor Park Waybill Platform Desktop"
+      "type": "image/png"
     }
   ]
 }

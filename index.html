@@ -2,129 +2,28 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TrackPack - Nigeria's #1 Digital Interstate Waybill Tracking Platform</title>
-    
-    <!-- Primary SEO Meta Tags -->
-    <meta name="description" content="TrackPack is Nigeria's dedicated digital waybill tracking platform for interstate motor park transport lines, parcel senders, and receivers." />
-    <meta name="keywords" content="TrackPack, waybill tracking Nigeria, motor park waybill, interstate parcel tracking, Nigeria transport waybill, waybill receipt, park waybill tracking" />
-    <meta name="author" content="TrackPack Nigeria" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://trackpack.com.ng/" />
-
-    <!-- Google Search Console Site Verification -->
-    <meta name="google-site-verification" content="google08c2075392d5f926" />
-
-    <!-- Open Graph / Facebook / WhatsApp -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://trackpack.com.ng/" />
-    <meta property="og:title" content="TrackPack - Nigeria's #1 Digital Interstate Waybill Tracker" />
-    <meta property="og:description" content="Track your motor park waybills across Nigerian transport lines in real time with TrackPack." />
-    <meta property="og:image" content="https://trackpack.com.ng/logo_final_v4.jpg" />
-    <meta property="og:site_name" content="TrackPack Nigeria" />
-
-    <!-- Twitter -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:url" content="https://trackpack.com.ng/" />
-    <meta name="twitter:title" content="TrackPack - Nigeria's #1 Digital Interstate Waybill Tracker" />
-    <meta name="twitter:description" content="Track your motor park waybills in real time across Nigerian transport lines with TrackPack." />
-    <meta name="twitter:image" content="https://trackpack.com.ng/logo_final_v4.jpg" />
-
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>TrackPack Nigeria — Motor Park Digital Waybills</title>
     <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="theme-color" content="#0A1F44" />
-    <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="TrackPack" />
-    
+    <meta name="apple-mobile-web-app-title" content="TrackPack Nigeria" />
     <script>
-      window.deferredInstallPrompt = null;
-      window.addEventListener('beforeinstallprompt', function(e) {
-        e.preventDefault();
-        window.deferredInstallPrompt = e;
-        console.log('[PWA] beforeinstallprompt event captured');
-      });
-
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('/sw.js', { scope: '/' })
-          .then(function(reg) {
-            console.log('[PWA] ServiceWorker registered with scope:', reg.scope);
-          })
-          .catch(function(err) {
-            console.warn('[PWA] ServiceWorker registration error:', err);
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('TrackPack ServiceWorker registered: ', reg.scope);
+          }).catch(function(err) {
+            console.log('TrackPack ServiceWorker registration failed: ', err);
           });
+        });
       }
     </script>
-    
-    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
-    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
-    <link rel="icon" type="image/jpeg" href="/logo_final_v4.jpg?v=4" />
-    <link rel="shortcut icon" href="/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
-
-    <!-- Structured Data (Schema.org) for Google Search -->
-    <script type="application/ld+json">
-      [
-        {
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          "name": "TrackPack Nigeria",
-          "url": "https://trackpack.com.ng",
-          "logo": "https://trackpack.com.ng/logo_final_v4.jpg",
-          "sameAs": [
-            "https://trackpack.com.ng"
-          ],
-          "contactPoint": {
-            "@type": "ContactPoint",
-            "telephone": "+2348000000000",
-            "contactType": "customer service",
-            "areaServed": "NG"
-          }
-        },
-        {
-          "@context": "https://schema.org",
-          "@type": "WebSite",
-          "name": "TrackPack",
-          "url": "https://trackpack.com.ng",
-          "potentialAction": {
-            "@type": "SearchAction",
-            "target": "https://trackpack.com.ng/track?code={search_term_string}",
-            "query-input": "required name=search_term_string"
-          }
-        },
-        {
-          "@context": "https://schema.org",
-          "@type": "WebApplication",
-          "name": "TrackPack",
-          "url": "https://trackpack.com.ng",
-          "logo": "https://trackpack.com.ng/logo_final_v4.jpg",
-          "description": "Digital waybill tracking software and receipt platform for Nigerian motor park transport lines and customers.",
-          "applicationCategory": "BusinessApplication",
-          "operatingSystem": "All",
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "NGN"
-          }
-        }
-      ]
-    </script>
   </head>
-  <body style="background-color: #0A1F44; margin: 0; font-family: system-ui, -apple-system, sans-serif;">
-    <div id="root">
-      <div style="min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; color: #ffffff; text-align: center; padding: 24px;">
-        <div style="width: 56px; height: 56px; border-radius: 16px; background-color: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 16px;">
-          <div style="width: 24px; height: 24px; border: 3px solid rgba(255,255,255,0.2); border-top-color: #10B981; border-radius: 50%; animation: spin 1s linear infinite;"></div>
-        </div>
-        <style>@keyframes spin { to { transform: rotate(360deg); } }</style>
-        <h2 style="font-size: 20px; font-weight: 700; margin: 0 0 8px 0; color: #ffffff;">TrackPack</h2>
-        <p style="font-size: 13px; color: #10B981; margin: 0 0 20px 0;">Loading app...</p>
-        <button onclick="if('caches' in window){caches.keys().then(n=>n.forEach(c=>caches.delete(c)))};if('serviceWorker' in navigator){navigator.serviceWorker.getRegistrations().then(r=>r.forEach(s=>s.unregister()))};window.location.reload();" style="background-color: rgba(16, 185, 129, 0.2); border: 1px solid rgba(16, 185, 129, 0.4); color: #10B981; padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer;">
-          Taking too long? Reload
-        </button>
-      </div>
-    </div>
+  <body class="bg-[#0A1F44] text-slate-900 m-0 font-sans antialiased">
+    <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
-

@@ -13,7 +13,7 @@ export default defineConfig(() => {
     },
     build: {
       target: 'es2020',
-      minify: 'esbuild',
+      minify: 'esbuild' as const,
       cssCodeSplit: true,
       rollupOptions: {
         output: {
