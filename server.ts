@@ -24,6 +24,58 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Security Headers Middleware (HSTS, Content Security Policy, and clickjacking/XSS mitigation)
+app.use((req, res, next) => {
+  // Enforce HTTP Strict Transport Security (HSTS) - 1 year, subdomains, and preloaded
+  res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+
+  // Content Security Policy (CSP) - Strictly protect against XSS and injection
+  if (process.env.NODE_ENV === "production") {
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
+      "frame-src 'self' https://*.paystack.co; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self';"
+    );
+  } else {
+    // Development CSP (allows Vite hot reloads, inline scripts, evals, and local web sockets)
+    res.setHeader(
+      "Content-Security-Policy",
+      "default-src 'self'; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+      "font-src 'self' https://fonts.gstatic.com; " +
+      "img-src 'self' data: https:; " +
+      "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
+      "frame-src 'self' https://*.paystack.co; " +
+      "object-src 'none'; " +
+      "base-uri 'self'; " +
+      "form-action 'self';"
+    );
+  }
+
+  // Prevent MIME type sniffing
+  res.setHeader("X-Content-Type-Options", "nosniff");
+
+  // Mitigate clickjacking attacks (PageSpeed / Lighthouse best practice)
+  res.setHeader("X-Frame-Options", "DENY");
+
+  // Mitigate reflective XSS attacks
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+
+  // Refined Referrer-Policy
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  next();
+});
+
 // Helper for cryptographic token generation
 function generateSessionToken(): string {
   return crypto.randomBytes(32).toString("hex");
