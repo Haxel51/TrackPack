@@ -26,11 +26,19 @@ app.use(express.json());
 
 // Security Headers Middleware (HSTS, Content Security Policy, and clickjacking/XSS mitigation)
 app.use((req, res, next) => {
+  const host = req.headers.host || "";
+  const isPreview = host.includes("run.app") || host.includes("localhost") || host.includes("127.0.0.1");
+
   // Enforce HTTP Strict Transport Security (HSTS) - 1 year, subdomains, and preloaded
   res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
 
   // Content Security Policy (CSP) - Strictly protect against XSS and injection
-  if (process.env.NODE_ENV === "production") {
+  // We use dynamic frame-ancestors to allow Google AI Studio's iframes to display the preview during development and testing
+  const frameAncestors = isPreview 
+    ? "frame-ancestors 'self' https://*.google.com https://*.googleusercontent.com https://*.run.app; " 
+    : "frame-ancestors 'none'; ";
+
+  if (process.env.NODE_ENV === "production" && !isPreview) {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
@@ -40,13 +48,15 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:; " +
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
       "frame-src 'self' https://*.paystack.co; " +
-      "frame-ancestors 'none'; " +
+      frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
-      "form-action 'self';"
+      "form-action 'self'; " +
+      "require-trusted-types-for 'script'; " +
+      "trusted-types *;"
     );
   } else {
-    // Development CSP (allows Vite hot reloads, inline scripts, evals, and local web sockets)
+    // Development/Preview CSP (allows Vite hot reloads, inline scripts, evals, and local web sockets)
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
@@ -56,10 +66,12 @@ app.use((req, res, next) => {
       "img-src 'self' data: https:; " +
       "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co; " +
       "frame-src 'self' https://*.paystack.co; " +
-      "frame-ancestors 'none'; " +
+      frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
-      "form-action 'self';"
+      "form-action 'self'; " +
+      "require-trusted-types-for 'script'; " +
+      "trusted-types *;"
     );
   }
 
@@ -67,10 +79,13 @@ app.use((req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
 
   // Mitigate clickjacking attacks (PageSpeed / Lighthouse best practice)
-  res.setHeader("X-Frame-Options", "DENY");
-
-  // Enforce proper origin isolation (COOP) to protect against speculative side-channel attacks (Lighthouse Best Practice)
-  res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  if (!isPreview) {
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+  } else {
+    // On preview environment, allow framing from Google AI Studio / Cloud Run Preview
+    res.setHeader("Cross-Origin-Opener-Policy", "same-origin-allow-popups");
+  }
 
   // Mitigate reflective XSS attacks
   res.setHeader("X-XSS-Protection", "1; mode=block");
