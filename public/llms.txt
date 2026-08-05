@@ -1,0 +1,19 @@
+# TrackPack Nigeria
+
+> Nigeria's #1 Dedicated Waybill Live Tracking Platform for interstate motor parks and commercial transport companies.
+
+Track and manage interstate parcels sent through major transit lines like Peace Mass, GUO, GIGM, Young Shall Grow, Romchi, and other Nigerian motor parks in real-time.
+
+## Key Features
+
+- **Live Waybill Tracking**: Search and verify transit status of interstate parcels in real-time.
+- **Digital Waybills & Receipts**: Secure digital receipts with assigned driver, vehicle details, and route progress.
+- **Local Persistence**: Full account histories, tracking updates, and custom profile details securely persisted.
+
+## Main Entry Points
+
+- [Waybill Search Console](https://trackpack.com.ng/) - Real-time tracking and live status console.
+- [Customer Login & Signup](https://trackpack.com.ng/login/customer) - Customer terminal to view dispatch history and current packages.
+- [Staff Terminal Login](https://trackpack.com.ng/login/staff) - Loading officer portal to register and update parcels.
+- [Company Admin Portal](https://trackpack.com.ng/login/company) - Transport line admin dashboard to monitor parks, staff, and drivers.
+- [Super Admin Panel](https://trackpack.com.ng/login/admin) - Platform administration, metrics, and billing settings.
