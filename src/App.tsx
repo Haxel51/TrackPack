@@ -11,6 +11,7 @@ import { CustomerLogin } from './pages/CustomerLogin';
 import { StaffLogin } from './pages/StaffLogin';
 import { CompanyLogin } from './pages/CompanyLogin';
 import { AdminLogin } from './pages/AdminLogin';
+import { ResetPassword } from './pages/ResetPassword';
 
 // Dashboards (Protected)
 import { CustomerDashboard } from './pages/CustomerDashboard';
@@ -35,6 +36,7 @@ export default function App() {
           <Route path="/login/staff" element={<StaffLogin />} />
           <Route path="/login/company" element={<CompanyLogin />} />
           <Route path="/login/admin" element={<AdminLogin />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected Routes */}
           <Route

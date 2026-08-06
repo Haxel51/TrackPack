@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { RecoveryTabContent } from '../components/admin/RecoveryTabContent';
 import {
   Shield,
   LogOut,
@@ -32,7 +33,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery'>('overview');
 
   // Unified company detail view state
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
@@ -381,7 +382,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'shipments', 'revenue', 'disputes'] as const).map(tab => (
+            {(['overview', 'companies', 'shipments', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -395,7 +396,7 @@ export const AdminDashboard: React.FC = () => {
                 }`}
                 id={`tab-btn-${tab}`}
               >
-                {tab}
+                {tab === 'recovery' ? 'Account Recovery' : tab}
               </button>
             ))}
           </nav>
@@ -856,14 +857,14 @@ export const AdminDashboard: React.FC = () => {
                               <span className="text-[10px] font-extrabold text-slate-500 uppercase block">Total Commission Share</span>
                               <span className="text-lg font-black text-[#0A1F44]">₦{selectedCompanyDetails.earnings?.platform_share ?? 0}</span>
                               <span className="text-[9px] text-slate-400 font-bold block mt-1">
-                                Platform Share ({(100 - (selectedCompanyDetails.company?.split_percentage ?? 70))}%) from ₦{selectedCompanyDetails.earnings?.total_earnings ?? 0} total fees
+                                Platform Share ({(100 - (selectedCompanyDetails.company?.split_percentage ?? 30))}%) from ₦{selectedCompanyDetails.earnings?.total_earnings ?? 0} total fees
                               </span>
                             </div>
                             <div className="text-right">
                               <span className="text-[10px] font-extrabold text-slate-500 uppercase block">Operator Share</span>
                               <span className="text-sm font-black text-[#0A1F44]">₦{selectedCompanyDetails.earnings?.company_share ?? 0}</span>
                               <span className="text-[9px] text-slate-500 font-bold block mt-1">
-                                Operator ({(selectedCompanyDetails.company?.split_percentage ?? 70)}%)
+                                Operator ({(selectedCompanyDetails.company?.split_percentage ?? 30)}%)
                               </span>
                             </div>
                           </div>
@@ -877,9 +878,9 @@ export const AdminDashboard: React.FC = () => {
                                   min="0"
                                   max="100"
                                   id="operator-split-input"
-                                  defaultValue={selectedCompanyDetails.company?.split_percentage ?? 70}
-                                  key={selectedCompanyDetails.company?.id + '-' + (selectedCompanyDetails.company?.split_percentage ?? 70)}
-                                  placeholder="70"
+                                  defaultValue={selectedCompanyDetails.company?.split_percentage ?? 30}
+                                  key={selectedCompanyDetails.company?.id + '-' + (selectedCompanyDetails.company?.split_percentage ?? 30)}
+                                  placeholder="30"
                                   className="w-full bg-white border border-slate-200 rounded-xl py-2 px-3 text-xs font-black text-[#0A1F44] pr-8 focus:border-blue-500 focus:outline-none"
                                 />
                                 <span className="absolute right-3.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 font-bold">%</span>
@@ -1424,6 +1425,10 @@ export const AdminDashboard: React.FC = () => {
 
             </div>
           </div>
+        )}
+
+        {activeTab === 'recovery' && (
+          <RecoveryTabContent token={token} />
         )}
 
       </main>

@@ -2,20 +2,20 @@ import { User } from '../types';
 
 const API_BASE = '/api';
 
-export async function loginCustomer(phoneNumber: string, pin: string) {
+export async function loginCustomer(phoneNumber: string, pin: string, captchaToken?: string) {
   const res = await fetch(`${API_BASE}/auth/customer/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, pin }),
+    body: JSON.stringify({ phone_number: phoneNumber, pin, captcha_token: captchaToken }),
   });
   return res.json();
 }
 
-export async function registerCustomer(phoneNumber: string, pin: string, confirmPin?: string) {
+export async function registerCustomer(phoneNumber: string, pin: string, confirmPin?: string, captchaToken?: string) {
   const res = await fetch(`${API_BASE}/auth/customer/register`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin }),
+    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin, captcha_token: captchaToken }),
   });
   return res.json();
 }
@@ -75,11 +75,11 @@ export async function loginStaff(pin: string) {
   return res.json();
 }
 
-export async function loginCompany(phoneNumber: string, password: string) {
+export async function loginCompany(phoneNumber: string, password: string, captchaToken?: string) {
   const res = await fetch(`${API_BASE}/auth/company/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, password }),
+    body: JSON.stringify({ phone_number: phoneNumber, password, captcha_token: captchaToken }),
   });
   return res.json();
 }
@@ -90,6 +90,7 @@ export async function registerCompany(data: {
   password: string;
   park_name: string;
   park_location: string;
+  captcha_token?: string;
 }) {
   const res = await fetch(`${API_BASE}/auth/company/register`, {
     method: 'POST',

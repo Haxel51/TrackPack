@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCompany, registerCompany, requestCompanyPasswordReset, resetCompanyPassword } from '../lib/api';
+import { getReCaptchaToken } from '../lib/recaptcha';
 import { Building2, Phone, Lock, Eye, EyeOff, ChevronLeft, MapPin, CheckCircle2, ArrowRight, KeyRound } from 'lucide-react';
 
 export const CompanyLogin: React.FC = () => {
@@ -56,7 +57,8 @@ export const CompanyLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await loginCompany(phone.trim(), password.trim());
+      const captchaToken = await getReCaptchaToken('company_login');
+      const res = await loginCompany(phone.trim(), password.trim(), captchaToken);
       if (res.success) {
         login(res.token, res.user, 'company');
         navigate('/company/dashboard', { replace: true });
@@ -107,12 +109,14 @@ export const CompanyLogin: React.FC = () => {
 
     setLoading(true);
     try {
+      const captchaToken = await getReCaptchaToken('company_register');
       const res = await registerCompany({
         company_name: companyName.trim(),
         owner_phone: ownerPhone.trim(),
         password: regPassword.trim(),
         park_name: parkName.trim(),
         park_location: parkLocation.trim(),
+        captcha_token: captchaToken
       });
 
       if (res.success) {
@@ -144,7 +148,7 @@ export const CompanyLogin: React.FC = () => {
     try {
       const res = await requestCompanyPasswordReset(ownerPhone.trim());
       if (res.success) {
-        setOtpNotice(res.otp ? `Verification Code: ${res.otp}` : null);
+        setOtpNotice('initiated');
         setSuccessMsg(res.message);
         setResetStep(2);
       } else {
@@ -555,144 +559,53 @@ export const CompanyLogin: React.FC = () => {
           </form>
         ) : (
           /* FORGOT PASSWORD FORM */
-          <div className="space-y-4">
-            {resetStep === 1 ? (
-              <form onSubmit={handleForgotPasswordRequest} className="space-y-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Registered Owner Phone Number</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                      <Phone className="w-4 h-4" />
-                    </span>
-                    <input
-                      type="tel"
-                      placeholder="e.g. 08012345678"
-                      value={ownerPhone}
-                      onChange={(e) => setOwnerPhone(e.target.value)}
-                      disabled={loading}
-                      className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
-                    />
-                  </div>
+          <div className="space-y-6">
+            <div className="bg-slate-50 border border-slate-100 p-6 rounded-3xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#25D366]/10 rounded-2xl flex items-center justify-center text-[#25D366]">
+                  <Phone className="w-5 h-5" />
                 </div>
+                <h3 className="text-sm font-black text-[#0A1F44]">
+                  Assisted Password Reset
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Forgot your password? Message us on WhatsApp with your registered phone number and we'll help you reset it.
+              </p>
 
-                {error && (
-                  <div className="bg-red-50 border border-red-100 text-red-700 p-3.5 rounded-2xl text-xs font-bold">
-                    {error}
-                  </div>
-                )}
+              <a
+                href="https://wa.me/2348030000000?text=Hello%20TrackPack%20Support,%20I%20forgot%20my%20company%20owner%20access%20and%20need%20assistance%20with%20a%20reset%20code."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"
+              >
+                <span>Message on WhatsApp</span>
+              </a>
+            </div>
 
+            <div className="space-y-3 pt-2 text-center">
+              <div className="text-xs text-slate-400 font-bold">
+                Have a reset code?{' '}
                 <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#0A1F44] hover:bg-[#143265] text-white font-extrabold py-4 px-4 rounded-2xl text-base tracking-wide transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
+                  type="button"
+                  onClick={() => navigate('/reset-password')}
+                  className="text-[#F2A93B] hover:underline cursor-pointer font-black"
                 >
-                  {loading ? 'Sending Code...' : 'Request Reset Code'}
+                  Tap here
                 </button>
+              </div>
 
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('login');
-                      setError(null);
-                    }}
-                    className="text-xs font-bold text-slate-500 hover:text-[#0A1F44] transition-colors cursor-pointer"
-                  >
-                    Back to Partner Sign In
-                  </button>
-                </div>
-              </form>
-            ) : (
-              <form onSubmit={handleForgotPasswordReset} className="space-y-4">
-                {otpNotice && (
-                  <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs font-bold space-y-1">
-                    <div className="font-extrabold text-amber-800">🔑 Verification Reset Code:</div>
-                    <div className="text-lg font-mono tracking-widest text-[#0A1F44]">{otpNotice}</div>
-                    <div className="text-[10px] text-amber-700 font-normal">Use this code to set a new password.</div>
-                  </div>
-                )}
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Verification Code</label>
-                  <input
-                    type="text"
-                    placeholder="Enter 6-digit code"
-                    value={resetCode}
-                    onChange={(e) => setResetCode(e.target.value)}
-                    disabled={loading}
-                    className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 px-4 text-base font-mono tracking-widest outline-none transition-all disabled:opacity-50"
-                  />
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">New Strong Password</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </span>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="At least 8 chars (letters + numbers)"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      disabled={loading}
-                      className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-[#0A1F44] cursor-pointer"
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">Confirm New Password</label>
-                  <div className="relative">
-                    <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-                      <Lock className="w-4 h-4" />
-                    </span>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Confirm password"
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      disabled={loading}
-                      className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
-                    />
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border border-red-100 text-red-700 p-3.5 rounded-2xl text-xs font-bold">
-                    {error}
-                  </div>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="w-full bg-[#0A1F44] hover:bg-[#143265] text-white font-extrabold py-4 px-4 rounded-2xl text-base tracking-wide transition-all shadow-md active:scale-[0.98] cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                >
-                  {loading ? 'Resetting Password...' : 'Save New Password & Sign In'}
-                </button>
-
-                <div className="text-center pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setMode('login');
-                      setError(null);
-                    }}
-                    className="text-xs font-bold text-slate-500 hover:text-[#0A1F44] transition-colors cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </form>
-            )}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError(null);
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-[#0A1F44] transition-colors cursor-pointer"
+              >
+                Back to Partner Sign In
+              </button>
+            </div>
           </div>
         )}
       </div>

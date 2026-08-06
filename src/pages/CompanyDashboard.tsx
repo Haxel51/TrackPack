@@ -432,12 +432,15 @@ export const CompanyDashboard: React.FC = () => {
   // 1. Create New Park
   const handleCreatePark = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newParkModal.name.trim() || !newParkModal.location.trim()) {
-      setNewParkModal(prev => ({ ...prev, error: 'All fields are required.' }));
+    if (!newParkModal.location.trim()) {
+      setNewParkModal(prev => ({ ...prev, error: 'Branch location is required.' }));
       return;
     }
     setNewParkModal(prev => ({ ...prev, submitting: true, error: null }));
     try {
+      const locationVal = newParkModal.location.trim();
+      const generatedName = `${locationVal} Branch`;
+
       const response = await fetch('/api/company/parks', {
         method: 'POST',
         headers: {
@@ -445,8 +448,8 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          park_name: newParkModal.name,
-          park_location: newParkModal.location
+          park_name: generatedName,
+          park_location: locationVal
         })
       });
       const data = await response.json();
@@ -1570,18 +1573,6 @@ export const CompanyDashboard: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreatePark} className="space-y-4">
-              
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Branch Terminal Name</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Goodness Branch"
-                  value={newParkModal.name}
-                  onChange={e => setNewParkModal(prev => ({ ...prev, name: e.target.value }))}
-                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-                  required
-                />
-              </div>
 
               <div className="space-y-1.5">
                 <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Branch Location / State / Town</label>
