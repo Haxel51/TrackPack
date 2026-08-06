@@ -1577,7 +1577,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className={`absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full ${
                     selectedWaybill.collected_at ? 'bg-indigo-500' : 'bg-slate-300'
                   }`} />
-                  <p className="text-xs font-extrabold text-slate-700">Package Collected</p>
+                  <p className="text-xs font-extrabold text-slate-700">Waybill Collected</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.collected_at ? new Date(selectedWaybill.collected_at).toLocaleString() : 'Not Collected'}</p>
                 </div>
 

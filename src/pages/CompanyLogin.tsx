@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCompany, registerCompany, requestCompanyPasswordReset, resetCompanyPassword } from '../lib/api';
-import { getReCaptchaToken } from '../lib/recaptcha';
 import { Building2, Phone, Lock, Eye, EyeOff, ChevronLeft, MapPin, CheckCircle2, ArrowRight, KeyRound } from 'lucide-react';
 
 export const CompanyLogin: React.FC = () => {
@@ -63,8 +62,7 @@ export const CompanyLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const captchaToken = await getReCaptchaToken('company_login');
-      const res = await loginCompany(phone.trim(), password.trim(), captchaToken);
+      const res = await loginCompany(phone.trim(), password.trim());
       if (res.success) {
         login(res.token, res.user, 'company');
         navigate('/company/dashboard', { replace: true });
@@ -121,14 +119,12 @@ export const CompanyLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const captchaToken = await getReCaptchaToken('company_register');
       const res = await registerCompany({
         company_name: companyName.trim(),
         owner_phone: ownerPhone.trim(),
         password: regPassword.trim(),
         park_name: parkName.trim(),
-        park_location: parkLocation.trim(),
-        captcha_token: captchaToken
+        park_location: parkLocation.trim()
       });
 
       if (res.success) {

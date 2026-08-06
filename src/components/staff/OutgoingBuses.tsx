@@ -146,7 +146,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
               : 'border-transparent text-slate-400 hover:text-slate-600'
           }`}
         >
-          Unassigned Packages ({unassignedWaybills.length})
+          Unassigned Waybills ({unassignedWaybills.length})
           {unassignedWaybills.length > 0 && (
             <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full">
               {unassignedWaybills.length}
@@ -245,13 +245,13 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
                         <Sparkles className="w-3.5 h-3.5 text-[#F2A93B]" />
-                        Unassigned Packages bound for {bus.destination_park} ({destinationUnassigned.length})
+                        Unassigned Waybills bound for {bus.destination_park} ({destinationUnassigned.length})
                       </h4>
                     </div>
 
                     {destinationUnassigned.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50/50 rounded-2xl p-4">
-                        No unassigned packages currently waiting for {bus.destination_park}.
+                        No unassigned waybills currently waiting for {bus.destination_park}.
                       </p>
                     ) : (
                       <div className="space-y-2 max-h-56 overflow-y-auto pr-1">

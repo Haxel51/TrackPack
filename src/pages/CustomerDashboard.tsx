@@ -280,7 +280,7 @@ export const CustomerDashboard: React.FC = () => {
                 <Bell className="w-6 h-6 text-[#0A1F44]" />
               </div>
               <div>
-                <h3 className="font-black text-base sm:text-lg">Get notified the moment your package moves 📦</h3>
+                <h3 className="font-black text-base sm:text-lg">Get notified the moment your waybill moves 📦</h3>
                 <p className="text-xs font-semibold opacity-90 mt-0.5">Receive instant alerts on your device when your shipments depart, arrive, or are delivered.</p>
               </div>
             </div>
@@ -323,7 +323,7 @@ export const CustomerDashboard: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-extrabold text-emerald-900">Notifications enabled</p>
-                <p className="text-[11px] text-emerald-700">You will receive instant push notifications when your packages move.</p>
+                <p className="text-[11px] text-emerald-700">You will receive instant push notifications when your waybills move.</p>
               </div>
             </div>
             <button
@@ -370,7 +370,7 @@ export const CustomerDashboard: React.FC = () => {
                 </div>
                 <div className="text-xs text-amber-950 leading-relaxed font-medium">
                   <strong className="font-extrabold text-amber-900 block mb-0.5">Looking for a waybill?</strong>
-                  Make sure the terminal staff registered your package using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
+                  Make sure the terminal staff registered your waybill using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
                 </div>
               </div>
             </div>

@@ -43,7 +43,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
           </h3>
 
           <p className="text-sm font-semibold text-slate-600 leading-relaxed max-w-xs mx-auto">
-            Get notified the moment your package moves — from dispatch to delivery at your destination motor park.
+            Get notified the moment your waybill moves — from dispatch to delivery at your destination motor park.
           </p>
         </div>
 

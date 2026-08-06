@@ -83,7 +83,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           }`}
         >
           <h1 className="text-3xl font-black tracking-wider text-white flex items-center justify-center gap-2 flex-wrap">
-            <span>Track<span className="text-[#F2A93B]">Pack</span></span>
+            <span>Way<span className="text-[#F2A93B]">billa</span></span>
             <span className="inline-flex items-center text-xl font-black px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500/50 shadow-md">
               <span className="text-emerald-400">NI</span>
               <span className="text-white">GER</span>

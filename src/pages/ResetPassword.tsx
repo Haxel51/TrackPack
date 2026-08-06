@@ -14,7 +14,6 @@ import {
   Building2,
   AlertCircle
 } from 'lucide-react';
-import { getReCaptchaToken } from '../lib/recaptcha';
 
 export const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
@@ -52,16 +51,12 @@ export const ResetPassword: React.FC = () => {
     setError(null);
 
     try {
-      // Fetch reCAPTCHA Token
-      const token = await getReCaptchaToken('reset_validate_code');
-
       const res = await fetch('/api/auth/reset-password/validate-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone_number: phone.trim(),
-          code: code.trim(),
-          captcha_token: token
+          code: code.trim()
         })
       });
 
@@ -122,17 +117,13 @@ export const ResetPassword: React.FC = () => {
     setError(null);
 
     try {
-      // Fetch reCAPTCHA Token
-      const token = await getReCaptchaToken('reset_submit');
-
       const res = await fetch('/api/auth/reset-password/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           phone_number: phone.trim(),
           code: code.trim(),
-          new_password: newPassword,
-          captcha_token: token
+          new_password: newPassword
         })
       });
 

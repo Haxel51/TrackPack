@@ -160,17 +160,17 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
   const getWarmStatusText = () => {
     switch (status) {
       case 'booked':
-        return `We've got your package! ${origin_park} is taking care of it.`;
+        return `We've got your waybill! ${origin_park} is taking care of it.`;
       case 'departed':
-        return `Your package just left ${origin_park}, riding on Bus ${bus_number}.`;
+        return `Your waybill just left ${origin_park}, riding on Bus ${bus_number}.`;
       case 'in_transit':
         return `On the way! Expected between ${expectedTimeRange}.`;
       case 'arrived':
-        return `Good news — your package just reached ${destination_park}!`;
+        return `Good news — your waybill just reached ${destination_park}!`;
       case 'collected':
-        return `Delivered! Your package made it safely. ✓`;
+        return `Delivered! Your waybill made it safely. ✓`;
       default:
-        return `Processing package at ${origin_park}.`;
+        return `Processing waybill at ${origin_park}.`;
     }
   };
 
@@ -344,7 +344,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                We've got your package! {origin_park} is taking care of it.
+                We've got your waybill! {origin_park} is taking care of it.
               </p>
             </div>
           </div>
@@ -369,7 +369,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 {departed_at 
-                  ? `Your package just left ${origin_park} on Bus ${bus_number}.`
+                  ? `Your waybill just left ${origin_park} on Bus ${bus_number}.`
                   : `Awaiting dispatch from ${origin_park}.`
                 }
               </p>
@@ -420,7 +420,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 {arrived_at
-                  ? `Good news — your package has reached ${destination_park}!`
+                  ? `Good news — your waybill has reached ${destination_park}!`
                   : `Will be sorted on arrival at ${destination_park}.`
                 }
               </p>
@@ -447,7 +447,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 {collected_at
-                  ? `Delivered! Your package made it safely. ✓ (${collected_by === 'receiver' ? 'confirmed by receiver' : 'confirmed by staff'})`
+                  ? `Delivered! Your waybill made it safely. ✓ (${collected_by === 'receiver' ? 'confirmed by receiver' : 'confirmed by staff'})`
                   : `Awaiting collection by receiver at ${destination_park}.`
                 }
               </p>
@@ -518,7 +518,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       {status === 'collected' && showConfirmButton && (
         <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 p-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
           <ShieldCheck className="w-5 h-5 text-emerald-600" />
-          Package Collected & Receipt Confirmed ✓
+          Waybill Collected & Receipt Confirmed ✓
         </div>
       )}
 

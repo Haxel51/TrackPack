@@ -134,7 +134,7 @@ export const HomePage: React.FC = () => {
         {/* Track Box Section */}
         <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg space-y-4">
           <h2 className="text-sm font-extrabold text-[#0A1F44] uppercase tracking-wider">
-            Track a Package
+            Track a Waybill
           </h2>
           
           <form onSubmit={handleTrackSubmit} className="relative">
@@ -150,7 +150,7 @@ export const HomePage: React.FC = () => {
               value={trackingCode}
               onChange={(e) => setTrackingCode(e.target.value)}
               className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4.5 pl-12 pr-28 text-base font-semibold placeholder-slate-400 outline-none uppercase transition-all"
-              aria-label="Enter waybill tracking code to track your package"
+              aria-label="Enter waybill tracking code to track your waybill"
             />
             <button
               type="submit"

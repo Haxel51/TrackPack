@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCustomer, registerCustomer, requestCustomerPinReset, resetCustomerPin } from '../lib/api';
-import { getReCaptchaToken } from '../lib/recaptcha';
 import { Package, Phone, Lock, Eye, EyeOff, ChevronLeft, UserPlus, ArrowRight, KeyRound, CheckCircle2, Info } from 'lucide-react';
 
 export const CustomerLogin: React.FC = () => {
@@ -55,8 +54,7 @@ export const CustomerLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const captchaToken = await getReCaptchaToken('customer_login');
-      const res = await loginCustomer(phone.trim(), pin.trim(), captchaToken);
+      const res = await loginCustomer(phone.trim(), pin.trim());
       if (res.success) {
         login(res.token, res.user, 'customer');
         navigate('/customer/dashboard', { replace: true });
@@ -102,8 +100,7 @@ export const CustomerLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const captchaToken = await getReCaptchaToken('customer_register');
-      const res = await registerCustomer(phone.trim(), pin.trim(), confirmPin.trim(), captchaToken);
+      const res = await registerCustomer(phone.trim(), pin.trim(), confirmPin.trim());
       if (res.success) {
         login(res.token, res.user, 'customer');
         navigate('/customer/dashboard', { replace: true });
@@ -266,7 +263,7 @@ export const CustomerLogin: React.FC = () => {
               </div>
               <div className="text-xs text-amber-950 leading-relaxed font-medium">
                 <strong className="font-extrabold text-amber-900 block mb-0.5">Important Waybill Notice:</strong>
-                Please log in or sign up using the <strong>exact phone number</strong> registered during waybill booking at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>. All packages linked to your phone number will automatically appear in your portal.
+                Please log in or sign up using the <strong>exact phone number</strong> registered during waybill booking at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>. All waybills linked to your phone number will automatically appear in your portal.
               </div>
             </div>
           </>

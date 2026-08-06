@@ -302,7 +302,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                 Staff Verification Protocol:
               </p>
               <p className="text-amber-800">
-                Please ask the person taking the package (<span className="font-bold">{verifyingWaybill.receiver_name}</span>) to call out the receiver phone number. Enter it below to authorize release.
+                Please ask the person taking the waybill (<span className="font-bold">{verifyingWaybill.receiver_name}</span>) to call out the receiver phone number. Enter it below to authorize release.
               </p>
             </div>
 

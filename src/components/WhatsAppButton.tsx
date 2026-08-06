@@ -4,7 +4,7 @@ import { MessageSquare, X } from 'lucide-react';
 export function WhatsAppButton() {
   const [showTooltip, setShowTooltip] = useState(false);
   const phoneNumber = "2349031940521";
-  const message = encodeURIComponent("Hello Waybilla Customer Support, I need assistance with my waybill/package.");
+  const message = encodeURIComponent("Hello Waybilla Customer Support, I need assistance with my waybill.");
   const whatsappUrl = `https://wa.me/${phoneNumber}?text=${message}`;
 
   return (

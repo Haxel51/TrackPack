@@ -52,18 +52,16 @@ app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' https://www.google.com https://www.gstatic.com; " +
+      "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://www.google.com https://recaptcha.google.com; " +
+      "frame-src 'self' https://*.paystack.co https://www.google.com; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
-      "form-action 'self'; " +
-      "require-trusted-types-for 'script'; " +
-      "trusted-types *;"
+      "form-action 'self';"
     );
   } else {
     // Development/Preview CSP (allows Vite hot reloads, inline scripts, evals, and local web sockets)
@@ -75,13 +73,11 @@ app.use((req, res, next) => {
       "font-src 'self' https://fonts.gstatic.com; " +
       "img-src 'self' data: https:; " +
       "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://www.google.com https://recaptcha.google.com; " +
+      "frame-src 'self' https://*.paystack.co https://www.google.com; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
-      "form-action 'self'; " +
-      "require-trusted-types-for 'script'; " +
-      "trusted-types *;"
+      "form-action 'self';"
     );
   }
 
@@ -111,35 +107,6 @@ function generateSessionToken(): string {
   return crypto.randomBytes(32).toString("hex");
 }
 
-// Google reCAPTCHA v3 verification helper
-async function verifyReCaptcha(token: string | undefined): Promise<boolean> {
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-  if (!secretKey) {
-    console.log(`[reCAPTCHA Sandbox] No RECAPTCHA_SECRET_KEY defined. Automatically validating token: ${token}`);
-    return true;
-  }
-  if (!token) {
-    return false;
-  }
-  try {
-    const verifyUrl = `https://www.google.com/recaptcha/api/siteverify`;
-    const params = new URLSearchParams();
-    params.append("secret", secretKey);
-    params.append("response", token);
-    
-    const response = await fetch(verifyUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString()
-    });
-    const data = (await response.json()) as any;
-    console.log("[reCAPTCHA Server Validation] response:", data);
-    return !!data.success;
-  } catch (err) {
-    console.error("[reCAPTCHA Server Validation] error:", err);
-    return false;
-  }
-}
 
 // Check lockout helper
 async function checkLockout(lockedUntilStr: string | null | undefined): Promise<{ locked: boolean; timeLeftMinutes: number }> {
@@ -413,19 +380,13 @@ async function validateSession(token: string) {
 
 // 1. Customer Login Route
 app.post("/api/auth/customer/login", async (req, res) => {
-  const { phone_number, pin, captcha_token } = req.body;
+  const { phone_number, pin } = req.body;
   if (!phone_number || !pin) {
     return res.status(400).json({ error: "Phone number and PIN are required." });
   }
 
   if (!isValid11DigitPhone(phone_number)) {
     return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
-  }
-
-  // Check CAPTCHA
-  const isHuman = await verifyReCaptcha(captcha_token);
-  if (!isHuman) {
-    return res.status(400).json({ error: "Bot detection challenge failed. Please try again." });
   }
 
   try {
@@ -621,15 +582,9 @@ Message: "${message}"
 
 // 1b. Customer Register Route
 app.post("/api/auth/customer/register", async (req, res) => {
-  const { phone_number, pin, confirm_pin, captcha_token } = req.body;
+  const { phone_number, pin, confirm_pin } = req.body;
   if (!phone_number || !pin) {
     return res.status(400).json({ error: "Phone number and 6-digit PIN are required." });
-  }
-
-  // Check CAPTCHA
-  const isHuman = await verifyReCaptcha(captcha_token);
-  if (!isHuman) {
-    return res.status(400).json({ error: "Bot detection challenge failed. Please try again." });
   }
 
   if (confirm_pin && pin !== confirm_pin) {
@@ -880,19 +835,13 @@ app.post("/api/auth/staff/login", async (req, res) => {
 
 // 3. Company Owner Login Route
 app.post("/api/auth/company/login", async (req, res) => {
-  const { phone_number, password, captcha_token } = req.body;
+  const { phone_number, password } = req.body;
   if (!phone_number || !password) {
     return res.status(400).json({ error: "Phone number and password are required." });
   }
 
   if (!isValid11DigitPhone(phone_number)) {
     return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
-  }
-
-  // Check CAPTCHA
-  const isHuman = await verifyReCaptcha(captcha_token);
-  if (!isHuman) {
-    return res.status(400).json({ error: "Bot detection challenge failed. Please try again." });
   }
 
   try {
@@ -962,17 +911,11 @@ app.post("/api/auth/company/login", async (req, res) => {
 
 // 3b. Company Owner Registration Route
 app.post("/api/auth/company/register", async (req, res) => {
-  const { company_name, owner_phone, password, park_name, park_location, captcha_token } = req.body;
+  const { company_name, owner_phone, password, park_name, park_location } = req.body;
   if (!company_name || !owner_phone || !password || !park_name || !park_location) {
     return res.status(400).json({
       error: "All fields are required: Company Name, Owner Phone, Password, Park Name, and Park Location."
     });
-  }
-
-  // Check CAPTCHA
-  const isHuman = await verifyReCaptcha(captcha_token);
-  if (!isHuman) {
-    return res.status(400).json({ error: "Bot detection challenge failed. Please try again." });
   }
 
   const cleanPhone = owner_phone.replace(/\D/g, "");
@@ -1956,15 +1899,15 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
     
     let body = "";
     if (status === "booked") {
-      body = `We've got your package! ${origin_park} is taking care of it.`;
+      body = `We've got your waybill! ${origin_park} is taking care of it.`;
     } else if (status === "departed" || status === "in_transit") {
-      body = `Your package just left ${origin_park}, riding on Bus ${bus_number}.`;
+      body = `Your waybill just left ${origin_park}, riding on Bus ${bus_number}.`;
     } else if (status === "arrived") {
-      body = `Good news — your package just reached ${destination_park}!`;
+      body = `Good news — your waybill just reached ${destination_park}!`;
     } else if (status === "collected") {
-      body = `Delivered! Your package made it safely. ✓`;
+      body = `Delivered! Your waybill made it safely. ✓`;
     } else {
-      body = `Package ${tracking_code || ""} status updated to ${status}.`;
+      body = `Waybill ${tracking_code || ""} status updated to ${status}.`;
     }
 
     const title = `Waybilla Shipment Alert`;
@@ -2303,7 +2246,7 @@ app.post("/api/staff/waybills/:id/collect", async (req, res) => {
 
     if (providedPhone !== expectedPhone) {
       return res.status(400).json({ 
-        error: "Verification failed! The entered phone number does not match the receiver phone number on record for this waybill. Ask the person taking the package to call out the correct receiver phone number." 
+        error: "Verification failed! The entered phone number does not match the receiver phone number on record for this waybill. Ask the person taking the waybill to call out the correct receiver phone number." 
       });
     }
 
@@ -2882,19 +2825,13 @@ app.post("/api/admin/recovery/generate-code", async (req, res) => {
 // 1d. Reset Password API - Validate Code
 app.post("/api/auth/reset-password/validate-code", async (req, res) => {
   try {
-    const { phone_number, code, captcha_token } = req.body;
+    const { phone_number, code } = req.body;
     if (!phone_number || !code) {
       return res.status(400).json({ error: "Phone number and reset code are required." });
     }
 
     if (!isValid11DigitPhone(phone_number)) {
       return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
-    }
-
-    // reCAPTCHA check
-    const isHuman = await verifyReCaptcha(captcha_token);
-    if (!isHuman) {
-      return res.status(400).json({ error: "Failed bot detection verification. Please try again." });
     }
 
     const cleanPhone = phone_number.trim();
@@ -2939,19 +2876,13 @@ app.post("/api/auth/reset-password/validate-code", async (req, res) => {
 // 1e. Reset Password API - Submit New Password
 app.post("/api/auth/reset-password/submit", async (req, res) => {
   try {
-    const { phone_number, code, new_password, captcha_token } = req.body;
+    const { phone_number, code, new_password } = req.body;
     if (!phone_number || !code || !new_password) {
       return res.status(400).json({ error: "Phone number, code, and new password are required." });
     }
 
     if (!isValid11DigitPhone(phone_number)) {
       return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
-    }
-
-    // reCAPTCHA check
-    const isHuman = await verifyReCaptcha(captcha_token);
-    if (!isHuman) {
-      return res.status(400).json({ error: "Failed bot detection verification. Please try again." });
     }
 
     const cleanPhone = phone_number.trim();
@@ -3693,8 +3624,8 @@ async function confirmPayment(paymentId: string, payment: any, paystackFeeKobo?:
       const wbData = updatedWbSnap.data();
       sendPushNotificationForWaybill({ ...wbData, tracking_code }, "booked");
       
-      const senderMsg = `[Waybilla] Shipment Booked! Tracking Code: ${tracking_code}. Package for ${wbData.receiver_name} (${wbData.destination_park}). Track online at waybilla.com.ng`;
-      const receiverMsg = `[Waybilla] Package Alert! ${wbData.sender_name} sent you a package via Waybilla (${wbData.origin_park} to ${wbData.destination_park}). Tracking Code: ${tracking_code}. Track online at waybilla.com.ng`;
+      const senderMsg = `[Waybilla] Shipment Booked! Tracking Code: ${tracking_code}. Waybill for ${wbData.receiver_name} (${wbData.destination_park}). Track online at waybilla.com.ng`;
+      const receiverMsg = `[Waybilla] Waybill Alert! ${wbData.sender_name} sent you a waybill via Waybilla (${wbData.origin_park} to ${wbData.destination_park}). Tracking Code: ${tracking_code}. Track online at waybilla.com.ng`;
 
       if (wbData.sender_phone) {
         sendRealWorldSMS(wbData.sender_phone, senderMsg).catch(e => console.error("[SMS Error Sender Booked]:", e));
