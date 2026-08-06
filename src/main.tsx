@@ -3,13 +3,13 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Register TrackPack ServiceWorker
+// Register Waybilla ServiceWorker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((reg) => {
-      console.log('TrackPack ServiceWorker registered: ', reg.scope);
+      console.log('Waybilla ServiceWorker registered: ', reg.scope);
     }).catch((err) => {
-      console.log('TrackPack ServiceWorker registration failed: ', err);
+      console.log('Waybilla ServiceWorker registration failed: ', err);
     });
   });
 }

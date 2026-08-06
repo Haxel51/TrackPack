@@ -111,7 +111,7 @@ export const ResetPassword: React.FC = () => {
         setError('Password must contain both letters and numbers for security.');
         return;
       }
-      const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "00000000"];
+      const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "waybilla", "00000000"];
       if (commonPwds.some(p => newPassword.toLowerCase().includes(p))) {
         setError('Password contains common weak patterns. Please choose a stronger password.');
         return;

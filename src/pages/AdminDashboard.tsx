@@ -285,7 +285,7 @@ export const AdminDashboard: React.FC = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `trackpack_shipments_export_${new Date().toISOString().split('T')[0]}.csv`);
+    link.setAttribute('download', `waybilla_shipments_export_${new Date().toISOString().split('T')[0]}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -375,7 +375,7 @@ export const AdminDashboard: React.FC = () => {
               <Shield className="text-[#F2A93B] w-5 h-5" />
             </div>
             <div>
-              <span className="font-extrabold text-base tracking-wide block">TrackPack Admin</span>
+              <span className="font-extrabold text-base tracking-wide block">Waybilla Admin</span>
               <span className="text-[10px] text-amber-400 font-black tracking-widest uppercase block">Internal Control Room</span>
             </div>
           </div>
@@ -1596,7 +1596,7 @@ export const AdminDashboard: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-100 mt-6" id="admin-footer">
-        &copy; {new Date().getFullYear()} TrackPack Systems Panel. All rights reserved.
+        &copy; {new Date().getFullYear()} Waybilla Systems Panel. All rights reserved.
       </footer>
     </div>
   );

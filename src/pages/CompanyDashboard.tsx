@@ -637,7 +637,7 @@ export const CompanyDashboard: React.FC = () => {
             </div>
             <div>
               <span className="font-extrabold text-xs text-slate-400 tracking-wider block leading-none">COMPANY OWNER</span>
-              <span className="font-extrabold text-base tracking-wider text-white block mt-1">{user?.company_name || 'TrackPack Partner'}</span>
+              <span className="font-extrabold text-base tracking-wider text-white block mt-1">{user?.company_name || 'Waybilla Partner'}</span>
             </div>
           </div>
 
@@ -1550,7 +1550,7 @@ export const CompanyDashboard: React.FC = () => {
 
       {/* FOOTER */}
       <footer className="py-6 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
-        &copy; {new Date().getFullYear()} TrackPack Partner Portal. All rights reserved.
+        &copy; {new Date().getFullYear()} Waybilla Partner Portal. All rights reserved.
       </footer>
 
       {/* --- POPUPS & MODALS --- */}

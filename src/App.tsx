@@ -4,6 +4,7 @@ import { AuthProvider } from './context/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SplashScreen } from './components/SplashScreen';
 import { IosInstallBanner } from './components/IosInstallBanner';
+import { WhatsAppButton } from './components/WhatsAppButton';
 
 // Pages
 import { HomePage } from './pages/HomePage';
@@ -28,6 +29,7 @@ export default function App() {
         <SplashScreen onComplete={() => setSplashFinished(true)} duration={3500} />
       )}
       <IosInstallBanner />
+      <WhatsAppButton />
       <BrowserRouter>
         <Routes>
           {/* Public Routes */}

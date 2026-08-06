@@ -6,7 +6,7 @@ export const IosInstallBanner: React.FC = () => {
 
   useEffect(() => {
     // 1. Check if user already dismissed banner
-    const isDismissed = localStorage.getItem('trackpack_ios_pwa_dismissed');
+    const isDismissed = localStorage.getItem('waybilla_ios_pwa_dismissed');
     if (isDismissed === 'true') return;
 
     // 2. Detect iOS environment
@@ -25,7 +25,7 @@ export const IosInstallBanner: React.FC = () => {
   }, []);
 
   const handleDismiss = () => {
-    localStorage.setItem('trackpack_ios_pwa_dismissed', 'true');
+    localStorage.setItem('waybilla_ios_pwa_dismissed', 'true');
     setShowBanner(false);
   };
 
@@ -39,7 +39,7 @@ export const IosInstallBanner: React.FC = () => {
             📱
           </div>
           <div className="space-y-0.5">
-            <p className="font-extrabold text-[#F2A93B] text-xs">Install TrackPack</p>
+            <p className="font-extrabold text-[#F2A93B] text-xs">Install Waybilla</p>
             <p className="text-slate-200 font-medium leading-tight">
               Tap the <Share className="w-3.5 h-3.5 inline mx-0.5 text-blue-300" /> Share icon below, then{' '}
               <strong className="text-white font-extrabold">'Add to Home Screen'</strong>{' '}

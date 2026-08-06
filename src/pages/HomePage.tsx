@@ -78,11 +78,11 @@ export const HomePage: React.FC = () => {
           <div 
             onClick={handleSecretTap}
             className="flex items-center gap-2 cursor-pointer select-none"
-            title="TrackPack Nigeria"
+            title="Waybilla Nigeria"
           >
             <Package className="text-[#F2A93B] w-7 h-7" />
             <div className="flex items-center gap-2 font-extrabold text-xl tracking-wider">
-              <span>TrackPack</span>
+              <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
                 <svg className="w-6 h-4" viewBox="0 0 3 2" role="img" aria-label="Nigeria Flag">
                   <title>Nigeria Flag</title>
@@ -114,7 +114,7 @@ export const HomePage: React.FC = () => {
           </p>
 
           <p className="text-xs sm:text-sm text-slate-700 max-w-md mx-auto leading-relaxed">
-            TrackPack specializes exclusively in real-time motor park waybill tracking for interstate shipments across Nigeria (Peace Mass, GUO, God is Good, Young Shall Grow, Goodness & Mercy, Romchi, and local transport lines).
+            Waybilla specializes exclusively in real-time motor park waybill tracking for interstate shipments across Nigeria (Peace Mass, GUO, God is Good, Young Shall Grow, Goodness & Mercy, Romchi, and local transport lines).
           </p>
 
           {/* Feature highlights pill badges */}
@@ -237,7 +237,7 @@ export const HomePage: React.FC = () => {
       {/* Footer */}
       <footer className="py-6 px-6 text-center border-t border-slate-100 bg-white">
         <p className="text-xs font-semibold text-slate-600">
-          &copy; {new Date().getFullYear()} TrackPack Nigeria. Robust motor park tracking solutions.
+          &copy; {new Date().getFullYear()} Waybilla Nigeria. Robust motor park tracking solutions.
         </p>
       </footer>
     </div>

@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Main Home Page (Waybill Live Tracking Search Console) -->
   <url>
-    <loc>https://trackpack.com.ng/</loc>
+    <loc>https://waybilla.com.ng/</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
@@ -10,7 +10,7 @@
   
   <!-- Customer Login Portal -->
   <url>
-    <loc>https://trackpack.com.ng/login/customer</loc>
+    <loc>https://waybilla.com.ng/login/customer</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.80</priority>
@@ -18,7 +18,7 @@
 
   <!-- Staff Terminal Portal -->
   <url>
-    <loc>https://trackpack.com.ng/login/staff</loc>
+    <loc>https://waybilla.com.ng/login/staff</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.70</priority>
@@ -26,7 +26,7 @@
 
   <!-- Transport Company Admin Portal -->
   <url>
-    <loc>https://trackpack.com.ng/login/company</loc>
+    <loc>https://waybilla.com.ng/login/company</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.60</priority>
@@ -34,7 +34,7 @@
 
   <!-- Super Admin Control Panel -->
   <url>
-    <loc>https://trackpack.com.ng/login/admin</loc>
+    <loc>https://waybilla.com.ng/login/admin</loc>
     <lastmod>2026-08-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.50</priority>

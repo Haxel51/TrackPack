@@ -24,6 +24,16 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// 301 Permanent Redirect from legacy domain (trackpack.com.ng) to new primary domain (waybilla.com.ng)
+app.use((req, res, next) => {
+  const host = (req.headers.host || "").toLowerCase();
+  if (host.includes("trackpack.com.ng")) {
+    const targetUrl = `https://waybilla.com.ng${req.originalUrl || req.url}`;
+    return res.redirect(301, targetUrl);
+  }
+  next();
+});
+
 // Security Headers Middleware (HSTS, Content Security Policy, and clickjacking/XSS mitigation)
 app.use((req, res, next) => {
   const host = req.headers.host || "";
@@ -509,7 +519,7 @@ function isWeakPassword(password: string): { weak: boolean; reason?: string } {
     return { weak: true, reason: "Password must contain both letters and numbers." };
   }
 
-  const commonPasswords = ["password", "12345678", "admin123", "company123", "trackpack", "00000000"];
+  const commonPasswords = ["password", "12345678", "admin123", "company123", "trackpack", "waybilla", "00000000"];
   if (commonPasswords.some(p => password.toLowerCase().includes(p))) {
     return { weak: true, reason: "Password contains common weak patterns. Please choose a stronger password." };
   }
@@ -533,7 +543,7 @@ function normalizePhoneForSMS(phone: string): string {
 
 async function sendRealWorldSMS(toPhone: string, message: string): Promise<{ success: boolean; provider?: string; error?: string }> {
   const termiiApiKey = process.env.TERMII_API_KEY;
-  const termiiSenderId = process.env.TERMII_SENDER_ID || "TrackPack";
+  const termiiSenderId = process.env.TERMII_SENDER_ID || "Waybilla";
   
   const twilioSid = process.env.TWILIO_ACCOUNT_SID;
   const twilioAuthToken = process.env.TWILIO_AUTH_TOKEN;
@@ -708,7 +718,7 @@ app.post("/api/auth/customer/forgot-pin/request", async (req, res) => {
 
     console.log(`[FORGOT PIN] OTP for customer ${phone_number}: ${otpCode}`);
 
-    const smsMessage = `[TrackPack] Your customer account security PIN reset code is: ${otpCode}. It expires in 15 minutes.`;
+    const smsMessage = `[Waybilla] Your customer account security PIN reset code is: ${otpCode}. It expires in 15 minutes.`;
     const smsResult = await sendRealWorldSMS(phone_number, smsMessage);
 
     res.json({
@@ -1041,7 +1051,7 @@ app.post("/api/auth/company/forgot-password/request", async (req, res) => {
 
     console.log(`[FORGOT PASSWORD] OTP for company owner ${owner_phone}: ${otpCode}`);
 
-    const smsMessage = `[TrackPack] Your owner account password reset verification code is: ${otpCode}. It expires in 15 minutes.`;
+    const smsMessage = `[Waybilla] Your owner account password reset verification code is: ${otpCode}. It expires in 15 minutes.`;
     const smsResult = await sendRealWorldSMS(owner_phone, smsMessage);
 
     res.json({
@@ -1167,7 +1177,7 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
       <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">TrackPack Nigeria</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla Nigeria</h1>
         <p style="color: #F2A93B; margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Super Admin Console Security</p>
       </div>
       
@@ -1188,7 +1198,7 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
       
       <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-        &copy; ${new Date().getFullYear()} TrackPack Nigeria. Motor Park Digital Waybills.
+        &copy; ${new Date().getFullYear()} Waybilla Nigeria. Motor Park Digital Waybills.
       </p>
     </div>
   `;
@@ -1204,7 +1214,7 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
       const response = await resend.emails.send({
         from: "onboarding@resend.dev",
         to: recipient,
-        subject: `🔑 ${otpCode} is your TrackPack Admin Verification Code (${email})`,
+        subject: `🔑 ${otpCode} is your Waybilla Admin Verification Code (${email})`,
         html: htmlContent
       });
 
@@ -1957,7 +1967,7 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
       body = `Package ${tracking_code || ""} status updated to ${status}.`;
     }
 
-    const title = `TrackPack Shipment Alert`;
+    const title = `Waybilla Shipment Alert`;
     const targetPhones = [sender_phone, receiver_phone].filter(Boolean);
 
     console.log(`[FCM Notification Trigger] Waybill: ${tracking_code}, Status: ${status}, Target Phones matched:`, targetPhones);
@@ -1971,6 +1981,15 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
       target_phones: targetPhones,
       created_at: new Date().toISOString()
     });
+
+    // Send Automated SMS Notification to Sender and Receiver
+    const smsContent = `[Waybilla] Tracking ${tracking_code || ""}: ${body}`;
+    if (sender_phone) {
+      sendRealWorldSMS(sender_phone, smsContent).catch(e => console.error("[SMS Dispatch Error - Sender]:", e));
+    }
+    if (receiver_phone && receiver_phone !== sender_phone) {
+      sendRealWorldSMS(receiver_phone, smsContent).catch(e => console.error("[SMS Dispatch Error - Receiver]:", e));
+    }
 
     // Check for customer FCM tokens and log push dispatch
     for (const phone of targetPhones) {
@@ -3658,13 +3677,35 @@ async function confirmPayment(paymentId: string, payment: any, paystackFeeKobo?:
   });
 
   // 5. Update waybill document
-  await updateDoc(doc(db, "waybills", payment.waybill_id), {
+  const waybillRef = doc(db, "waybills", payment.waybill_id);
+  await updateDoc(waybillRef, {
     tracking_code,
     tracking_active: true,
     status: "booked",
     paid: true,
     payment_reference: payment.paystack_reference
   });
+
+  // 6. Send instant push & SMS notifications to Sender & Receiver
+  try {
+    const updatedWbSnap = await getDoc(waybillRef);
+    if (updatedWbSnap.exists()) {
+      const wbData = updatedWbSnap.data();
+      sendPushNotificationForWaybill({ ...wbData, tracking_code }, "booked");
+      
+      const senderMsg = `[Waybilla] Shipment Booked! Tracking Code: ${tracking_code}. Package for ${wbData.receiver_name} (${wbData.destination_park}). Track online at waybilla.com.ng`;
+      const receiverMsg = `[Waybilla] Package Alert! ${wbData.sender_name} sent you a package via Waybilla (${wbData.origin_park} to ${wbData.destination_park}). Tracking Code: ${tracking_code}. Track online at waybilla.com.ng`;
+
+      if (wbData.sender_phone) {
+        sendRealWorldSMS(wbData.sender_phone, senderMsg).catch(e => console.error("[SMS Error Sender Booked]:", e));
+      }
+      if (wbData.receiver_phone && wbData.receiver_phone !== wbData.sender_phone) {
+        sendRealWorldSMS(wbData.receiver_phone, receiverMsg).catch(e => console.error("[SMS Error Receiver Booked]:", e));
+      }
+    }
+  } catch (err) {
+    console.error("Error triggering initial SMS/Push for confirmed waybill:", err);
+  }
 
   return { success: true, tracking_code };
 }

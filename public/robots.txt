@@ -12,4 +12,4 @@ Disallow: /company/dashboard
 Disallow: /admin/dashboard
 
 # Sitemap link
-Sitemap: https://trackpack.com.ng/sitemap.xml
+Sitemap: https://waybilla.com.ng/sitemap.xml

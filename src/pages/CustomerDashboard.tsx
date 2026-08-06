@@ -14,7 +14,8 @@ import {
   ArrowRight,
   Bell,
   BellOff,
-  Loader2
+  Loader2,
+  Info
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
@@ -192,7 +193,7 @@ export const CustomerDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <Package className="text-[#F2A93B] w-6 h-6" />
             <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
-              <span>TrackPack</span>
+              <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
                 <svg className="w-5 h-3.5" viewBox="0 0 3 2">
                   <rect width="1" height="2" x="0" fill="#008751" />
@@ -356,13 +357,22 @@ export const CustomerDashboard: React.FC = () => {
               </button>
             </div>
           ) : waybills.length === 0 ? (
-            <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center shadow-sm space-y-4">
+            <div className="bg-white border border-slate-100 rounded-3xl p-10 text-center shadow-sm space-y-4">
               <div className="w-14 h-14 bg-slate-50 text-slate-300 rounded-full flex items-center justify-center mx-auto">
                 <Package className="w-7 h-7" />
               </div>
-              <p className="text-sm font-bold text-slate-500 max-w-xs mx-auto">
-                No shipments yet. Your tracking history will appear here.
+              <p className="text-sm font-bold text-slate-600 max-w-xs mx-auto">
+                No active shipments found for {user?.phone_number || 'your account'}.
               </p>
+              <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-left flex items-start gap-3 max-w-md mx-auto">
+                <div className="p-1.5 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+                  <Info className="w-4 h-4" />
+                </div>
+                <div className="text-xs text-amber-950 leading-relaxed font-medium">
+                  <strong className="font-extrabold text-amber-900 block mb-0.5">Looking for a waybill?</strong>
+                  Make sure the terminal staff registered your package using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
+                </div>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3.5">
@@ -457,7 +467,7 @@ export const CustomerDashboard: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-6 text-center text-xs text-slate-400 bg-white border-t border-slate-100 mt-12">
-        &copy; {new Date().getFullYear()} TrackPack. All rights reserved.
+        &copy; {new Date().getFullYear()} Waybilla. All rights reserved.
       </footer>
     </div>
   );

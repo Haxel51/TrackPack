@@ -1,4 +1,4 @@
-const CACHE_NAME = 'trackpack-cache-v1';
+const CACHE_NAME = 'waybilla-cache-v1';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',

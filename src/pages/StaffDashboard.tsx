@@ -302,7 +302,7 @@ export const StaffDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-6 h-6" />
             <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
-              <span>TrackPack</span>
+              <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
                 <svg className="w-5 h-3.5" viewBox="0 0 3 2">
                   <rect width="1" height="2" x="0" fill="#008751" />
@@ -346,7 +346,7 @@ export const StaffDashboard: React.FC = () => {
 
       {/* Footer */}
       <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
-        &copy; {new Date().getFullYear()} TrackPack Operations Hub. All rights reserved.
+        &copy; {new Date().getFullYear()} Waybilla Operations Hub. All rights reserved.
       </footer>
     </div>
   );

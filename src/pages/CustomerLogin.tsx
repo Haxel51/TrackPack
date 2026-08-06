@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCustomer, registerCustomer, requestCustomerPinReset, resetCustomerPin } from '../lib/api';
 import { getReCaptchaToken } from '../lib/recaptcha';
-import { Package, Phone, Lock, Eye, EyeOff, ChevronLeft, UserPlus, ArrowRight, KeyRound, CheckCircle2 } from 'lucide-react';
+import { Package, Phone, Lock, Eye, EyeOff, ChevronLeft, UserPlus, ArrowRight, KeyRound, CheckCircle2, Info } from 'lucide-react';
 
 export const CustomerLogin: React.FC = () => {
   const { token, role, login } = useAuth();
@@ -227,36 +227,49 @@ export const CustomerLogin: React.FC = () => {
 
         {/* Mode Toggle Tabs (Only shown for login/signup) */}
         {mode !== 'forgot_pin' && (
-          <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('login');
-                setError(null);
-                setSuccessMsg(null);
-                setIsExisting(false);
-              }}
-              className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-                mode === 'login' ? 'bg-white text-[#0A1F44] shadow-sm' : 'text-slate-500 hover:text-[#0A1F44]'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode('signup');
-                setError(null);
-                setSuccessMsg(null);
-                setIsExisting(false);
-              }}
-              className={`py-2.5 rounded-xl transition-all cursor-pointer ${
-                mode === 'signup' ? 'bg-white text-[#0A1F44] shadow-sm' : 'text-slate-500 hover:text-[#0A1F44]'
-              }`}
-            >
-              Sign Up
-            </button>
-          </div>
+          <>
+            <div className="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl text-xs font-bold">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('login');
+                  setError(null);
+                  setSuccessMsg(null);
+                  setIsExisting(false);
+                }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+                  mode === 'login' ? 'bg-white text-[#0A1F44] shadow-sm' : 'text-slate-500 hover:text-[#0A1F44]'
+                }`}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signup');
+                  setError(null);
+                  setSuccessMsg(null);
+                  setIsExisting(false);
+                }}
+                className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+                  mode === 'signup' ? 'bg-white text-[#0A1F44] shadow-sm' : 'text-slate-500 hover:text-[#0A1F44]'
+                }`}
+              >
+                Sign Up
+              </button>
+            </div>
+
+            {/* Waybill Matching Explanation Notice */}
+            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-start gap-3">
+              <div className="p-1.5 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+                <Info className="w-4 h-4" />
+              </div>
+              <div className="text-xs text-amber-950 leading-relaxed font-medium">
+                <strong className="font-extrabold text-amber-900 block mb-0.5">Important Waybill Notice:</strong>
+                Please log in or sign up using the <strong>exact phone number</strong> registered during waybill booking at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>. All packages linked to your phone number will automatically appear in your portal.
+              </div>
+            </div>
+          </>
         )}
 
         {/* Success Banner */}
@@ -522,7 +535,7 @@ export const CustomerLogin: React.FC = () => {
               </p>
 
               <a
-                href="https://wa.me/2348030000000?text=Hello%20TrackPack%20Support,%20I%20forgot%20my%20account%20access%20and%20need%20assistance%20with%20a%20reset%20code."
+                href="https://wa.me/2349031940521?text=Hello%20Waybilla%20Support,%20I%20forgot%20my%20account%20access%20and%20need%20assistance%20with%20a%20reset%20code."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"

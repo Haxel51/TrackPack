@@ -371,7 +371,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           <div className="space-y-2.5 text-[11px] font-bold leading-relaxed text-left text-rose-900">
             <p>
               <strong className="text-rose-700 underline uppercase tracking-wide">Rule 1: No Direct Bank Transfers</strong> — 
-              NEVER pay or transfer money to any individual bank account details. TrackPack will NOT refund or assist you if you pay into any external or manual bank account. All payments must be processed strictly online through the secure Paystack portal by clicking the button below.
+              NEVER pay or transfer money to any individual bank account details. Waybilla will NOT refund or assist you if you pay into any external or manual bank account. All payments must be processed strictly online through the secure Paystack portal by clicking the button below.
             </p>
             <div className="h-px bg-rose-200" />
             <p>
@@ -398,7 +398,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </div>
             <div>
               <span className="text-slate-400 font-bold block uppercase tracking-wider text-[10px]">Recipient Name</span>
-              <span className="text-slate-600 font-semibold block text-[11px]">TrackPack / Paystack</span>
+              <span className="text-slate-600 font-semibold block text-[11px]">Waybilla / Paystack</span>
             </div>
           </div>
 

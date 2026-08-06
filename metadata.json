@@ -1,6 +1,6 @@
 {
-  "name": "TrackPack",
-  "description": "A fresh application workspace, ready for a new build.",
+  "name": "Waybilla Nigeria",
+  "description": "Waybilla Nigeria - Motor Park Digital Waybill Live Tracking System",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

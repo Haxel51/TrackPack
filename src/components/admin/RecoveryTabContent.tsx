@@ -295,7 +295,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
                     </p>
                     
                     <a
-                      href={`https://wa.me/${account.phone_number.replace(/\D/g, '')}?text=Hi,%20this%20is%20TrackPack%20Admin.%20Here%20is%20your%20temporary%20account%20recovery%20code:%20${generatedCode}.%20It%20expires%20in%2030%20minutes.%20You%20can%20reset%20your%20password/PIN%20here:%20https://trackpack.com.ng/reset-password`}
+                      href={`https://wa.me/${account.phone_number.replace(/\D/g, '')}?text=Hi,%20this%20is%20Waybilla%20Admin.%20Here%20is%20your%20temporary%20account%20recovery%20code:%20${generatedCode}.%20It%20expires%20in%2030%20minutes.%20You%20can%20reset%20your%20password/PIN%20here:%20https://waybilla.com.ng/reset-password`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold text-xs py-2.5 px-4 rounded-xl transition-all shadow-sm cursor-pointer mt-1"

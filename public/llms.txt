@@ -1,4 +1,4 @@
-# TrackPack Nigeria
+# Waybilla Nigeria
 
 > Nigeria's #1 Dedicated Waybill Live Tracking Platform for interstate motor parks and commercial transport companies.
 
@@ -12,8 +12,8 @@ Track and manage interstate parcels sent through major transit lines like Peace 
 
 ## Main Entry Points
 
-- [Waybill Search Console](https://trackpack.com.ng/) - Real-time tracking and live status console.
-- [Customer Login & Signup](https://trackpack.com.ng/login/customer) - Customer terminal to view dispatch history and current packages.
-- [Staff Terminal Login](https://trackpack.com.ng/login/staff) - Loading officer portal to register and update parcels.
-- [Company Admin Portal](https://trackpack.com.ng/login/company) - Transport line admin dashboard to monitor parks, staff, and drivers.
-- [Super Admin Panel](https://trackpack.com.ng/login/admin) - Platform administration, metrics, and billing settings.
+- [Waybill Search Console](https://waybilla.com.ng/) - Real-time tracking and live status console.
+- [Customer Login & Signup](https://waybilla.com.ng/login/customer) - Customer terminal to view dispatch history and current packages.
+- [Staff Terminal Login](https://waybilla.com.ng/login/staff) - Loading officer portal to register and update parcels.
+- [Company Admin Portal](https://waybilla.com.ng/login/company) - Transport line admin dashboard to monitor parks, staff, and drivers.
+- [Super Admin Panel](https://waybilla.com.ng/login/admin) - Platform administration, metrics, and billing settings.

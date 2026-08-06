@@ -204,7 +204,7 @@ export const CompanyLogin: React.FC = () => {
       return;
     }
 
-    const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "00000000"];
+    const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "waybilla", "00000000"];
     if (commonPwds.some(p => newPassword.toLowerCase().includes(p))) {
       setError('Password contains common weak patterns. Please choose a stronger password.');
       return;
@@ -263,7 +263,7 @@ export const CompanyLogin: React.FC = () => {
             {mode === 'login'
               ? 'Log in to manage your motor parks, register transport staff, and audit transit operations.'
               : mode === 'register'
-              ? 'Apply to join TrackPack Nigeria. Once approved by Super Admin, you can manage your parks and staff.'
+              ? 'Apply to join Waybilla Nigeria. Once approved by Super Admin, you can manage your parks and staff.'
               : 'Recover access to your company account by verifying your registered owner phone number.'}
           </p>
         </div>
@@ -610,7 +610,7 @@ export const CompanyLogin: React.FC = () => {
               </p>
 
               <a
-                href="https://wa.me/2348030000000?text=Hello%20TrackPack%20Support,%20I%20forgot%20my%20company%20owner%20access%20and%20need%20assistance%20with%20a%20reset%20code."
+                href="https://wa.me/2349031940521?text=Hello%20Waybilla%20Support,%20I%20forgot%20my%20company%20owner%20access%20and%20need%20assistance%20with%20a%20reset%20code."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"
