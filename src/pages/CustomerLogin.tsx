@@ -42,6 +42,12 @@ export const CustomerLogin: React.FC = () => {
       return;
     }
 
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('Phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
     if (pin.length !== 6 || !/^\d+$/.test(pin)) {
       setError('PIN must be a 6-digit number.');
       return;
@@ -75,6 +81,12 @@ export const CustomerLogin: React.FC = () => {
 
     if (!phone.trim() || !pin.trim() || !confirmPin.trim()) {
       setError('Please fill out all fields.');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('Phone number must be exactly 11 digits (e.g. 08012345678).');
       return;
     }
 
@@ -116,6 +128,12 @@ export const CustomerLogin: React.FC = () => {
 
     if (!phone.trim()) {
       setError('Please enter your registered phone number.');
+      return;
+    }
+
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('Phone number must be exactly 11 digits (e.g. 08012345678).');
       return;
     }
 
@@ -263,9 +281,10 @@ export const CustomerLogin: React.FC = () => {
                   id="customer-phone-login"
                   name="phone"
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
                   aria-label="Customer Phone Number"
@@ -370,9 +389,10 @@ export const CustomerLogin: React.FC = () => {
                   id="customer-phone-signup"
                   name="phone"
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
                   aria-label="Customer Phone Number Signup"

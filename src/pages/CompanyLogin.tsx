@@ -55,6 +55,12 @@ export const CompanyLogin: React.FC = () => {
       return;
     }
 
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('Phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
     setLoading(true);
     try {
       const captchaToken = await getReCaptchaToken('company_login');
@@ -89,6 +95,12 @@ export const CompanyLogin: React.FC = () => {
       !parkLocation.trim()
     ) {
       setError('Please fill out all required fields.');
+      return;
+    }
+
+    const cleanOwnerPhone = ownerPhone.replace(/\D/g, '');
+    if (cleanOwnerPhone.length !== 11) {
+      setError('Owner phone number must be exactly 11 digits (e.g. 08012345678).');
       return;
     }
 
@@ -144,6 +156,12 @@ export const CompanyLogin: React.FC = () => {
       return;
     }
 
+    const cleanOwnerPhone = ownerPhone.replace(/\D/g, '');
+    if (cleanOwnerPhone.length !== 11) {
+      setError('Owner phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await requestCompanyPasswordReset(ownerPhone.trim());
@@ -173,6 +191,22 @@ export const CompanyLogin: React.FC = () => {
 
     if (confirmNewPassword && newPassword !== confirmNewPassword) {
       setError('New Password and Confirm Password do not match.');
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+
+    if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+      setError('Password must contain both letters and numbers for security.');
+      return;
+    }
+
+    const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "00000000"];
+    if (commonPwds.some(p => newPassword.toLowerCase().includes(p))) {
+      setError('Password contains common weak patterns. Please choose a stronger password.');
       return;
     }
 
@@ -307,9 +341,10 @@ export const CompanyLogin: React.FC = () => {
                 </span>
                 <input
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-4 text-base font-medium placeholder-slate-400 outline-none transition-all disabled:opacity-50"
                 />
@@ -426,9 +461,10 @@ export const CompanyLogin: React.FC = () => {
                 </span>
                 <input
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={ownerPhone}
-                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  onChange={(e) => setOwnerPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   disabled={loading}
                   className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-xl py-3 pl-10 pr-3 text-sm font-medium placeholder-slate-400 outline-none"
                 />

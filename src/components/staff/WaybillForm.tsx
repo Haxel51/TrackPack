@@ -150,6 +150,18 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
       return;
     }
 
+    const cleanSender = senderPhone.replace(/\D/g, '');
+    if (cleanSender.length !== 11) {
+      setError('Sender phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
+    const cleanReceiver = receiverPhone.replace(/\D/g, '');
+    if (cleanReceiver.length !== 11) {
+      setError('Receiver phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
     setSubmitLoading(true);
     setError(null);
 
@@ -594,9 +606,10 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 <input
                   type="tel"
                   required
+                  maxLength={11}
                   placeholder="e.g. 08031112222"
                   value={senderPhone}
-                  onChange={(e) => setSenderPhone(e.target.value)}
+                  onChange={(e) => setSenderPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   className="w-full border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
                 />
               </div>
@@ -627,9 +640,10 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 <input
                   type="tel"
                   required
+                  maxLength={11}
                   placeholder="e.g. 08032223333"
                   value={receiverPhone}
-                  onChange={(e) => setReceiverPhone(e.target.value)}
+                  onChange={(e) => setReceiverPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                   className="w-full border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
                 />
               </div>

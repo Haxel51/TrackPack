@@ -42,6 +42,12 @@ export const ResetPassword: React.FC = () => {
       return;
     }
 
+    const cleanPhone = phone.replace(/\D/g, '');
+    if (cleanPhone.length !== 11) {
+      setError('Phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -93,6 +99,21 @@ export const ResetPassword: React.FC = () => {
       const isDigits = /^\d{6}$/.test(newPassword);
       if (!isDigits) {
         setError('PIN must be exactly 6 numeric digits.');
+        return;
+      }
+    } else {
+      // Company password checks
+      if (newPassword.length < 8) {
+        setError('Password must be at least 8 characters long.');
+        return;
+      }
+      if (!/[A-Za-z]/.test(newPassword) || !/\d/.test(newPassword)) {
+        setError('Password must contain both letters and numbers for security.');
+        return;
+      }
+      const commonPwds = ["password", "12345678", "admin123", "company123", "trackpack", "00000000"];
+      if (commonPwds.some(p => newPassword.toLowerCase().includes(p))) {
+        setError('Password contains common weak patterns. Please choose a stronger password.');
         return;
       }
     }
@@ -180,9 +201,10 @@ export const ResetPassword: React.FC = () => {
                   </span>
                   <input
                     type="tel"
+                    maxLength={11}
                     placeholder="e.g. 08012345678"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 11))}
                     disabled={loading}
                     className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-4 text-xs font-semibold placeholder-slate-400 outline-none transition-all disabled:opacity-50"
                   />

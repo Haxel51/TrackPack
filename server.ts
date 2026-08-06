@@ -408,6 +408,10 @@ app.post("/api/auth/customer/login", async (req, res) => {
     return res.status(400).json({ error: "Phone number and PIN are required." });
   }
 
+  if (!isValid11DigitPhone(phone_number)) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
+  }
+
   // Check CAPTCHA
   const isHuman = await verifyReCaptcha(captcha_token);
   if (!isHuman) {
@@ -511,6 +515,12 @@ function isWeakPassword(password: string): { weak: boolean; reason?: string } {
   }
 
   return { weak: false };
+}
+
+function isValid11DigitPhone(phone: string): boolean {
+  if (!phone) return false;
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11;
 }
 
 function normalizePhoneForSMS(phone: string): string {
@@ -617,8 +627,8 @@ app.post("/api/auth/customer/register", async (req, res) => {
   }
 
   const cleanPhone = phone_number.replace(/\D/g, "");
-  if (cleanPhone.length < 10) {
-    return res.status(400).json({ error: "Please enter a valid phone number." });
+  if (cleanPhone.length !== 11) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   const pinVal = isWeakPin(pin, 6);
@@ -676,6 +686,10 @@ app.post("/api/auth/customer/forgot-pin/request", async (req, res) => {
     return res.status(400).json({ error: "Phone number is required." });
   }
 
+  if (!isValid11DigitPhone(phone_number)) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
+  }
+
   try {
     const q = query(collection(db, "customers"), where("phone_number", "==", phone_number.trim()), limit(1));
     const snap = await getDocs(q);
@@ -716,6 +730,10 @@ app.post("/api/auth/customer/forgot-pin/reset", async (req, res) => {
   const { phone_number, code, new_pin, confirm_pin } = req.body;
   if (!phone_number || !code || !new_pin) {
     return res.status(400).json({ error: "Phone number, verification code, and new PIN are required." });
+  }
+
+  if (!isValid11DigitPhone(phone_number)) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   if (confirm_pin && new_pin !== confirm_pin) {
@@ -857,6 +875,10 @@ app.post("/api/auth/company/login", async (req, res) => {
     return res.status(400).json({ error: "Phone number and password are required." });
   }
 
+  if (!isValid11DigitPhone(phone_number)) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
+  }
+
   // Check CAPTCHA
   const isHuman = await verifyReCaptcha(captcha_token);
   if (!isHuman) {
@@ -944,8 +966,8 @@ app.post("/api/auth/company/register", async (req, res) => {
   }
 
   const cleanPhone = owner_phone.replace(/\D/g, "");
-  if (cleanPhone.length < 10) {
-    return res.status(400).json({ error: "Please enter a valid owner phone number." });
+  if (cleanPhone.length !== 11) {
+    return res.status(400).json({ error: "Owner phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   const passVal = isWeakPassword(password);
@@ -997,6 +1019,10 @@ app.post("/api/auth/company/forgot-password/request", async (req, res) => {
     return res.status(400).json({ error: "Owner phone number is required." });
   }
 
+  if (!isValid11DigitPhone(owner_phone)) {
+    return res.status(400).json({ error: "Owner phone number must be exactly 11 digits (e.g. 08012345678)." });
+  }
+
   try {
     const q = query(collection(db, "companies"), where("owner_phone", "==", owner_phone.trim()), limit(1));
     const snap = await getDocs(q);
@@ -1037,6 +1063,10 @@ app.post("/api/auth/company/forgot-password/reset", async (req, res) => {
   const { owner_phone, code, new_password, confirm_password } = req.body;
   if (!owner_phone || !code || !new_password) {
     return res.status(400).json({ error: "Owner phone number, verification code, and new password are required." });
+  }
+
+  if (!isValid11DigitPhone(owner_phone)) {
+    return res.status(400).json({ error: "Owner phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   if (confirm_password && new_password !== confirm_password) {
@@ -1712,6 +1742,10 @@ app.post("/api/staff/buses", async (req, res) => {
       return res.status(400).json({ error: "Bus number, destination park, and driver phone are required." });
     }
 
+    if (!isValid11DigitPhone(driver_phone)) {
+      return res.status(400).json({ error: "Driver phone number must be exactly 11 digits (e.g. 08012345678)." });
+    }
+
     const newBus = {
       bus_number,
       origin_park: park_location,
@@ -1744,6 +1778,14 @@ app.post("/api/staff/waybills", async (req, res) => {
 
     if (!sender_name || !sender_phone || !receiver_name || !receiver_phone || !item_description || !destination_park) {
       return res.status(400).json({ error: "All fields are required." });
+    }
+
+    if (!isValid11DigitPhone(sender_phone)) {
+      return res.status(400).json({ error: "Sender phone number must be exactly 11 digits (e.g. 08012345678)." });
+    }
+
+    if (!isValid11DigitPhone(receiver_phone)) {
+      return res.status(400).json({ error: "Receiver phone number must be exactly 11 digits (e.g. 08012345678)." });
     }
 
     let busData = null;
@@ -2826,6 +2868,10 @@ app.post("/api/auth/reset-password/validate-code", async (req, res) => {
       return res.status(400).json({ error: "Phone number and reset code are required." });
     }
 
+    if (!isValid11DigitPhone(phone_number)) {
+      return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
+    }
+
     // reCAPTCHA check
     const isHuman = await verifyReCaptcha(captcha_token);
     if (!isHuman) {
@@ -2877,6 +2923,10 @@ app.post("/api/auth/reset-password/submit", async (req, res) => {
     const { phone_number, code, new_password, captcha_token } = req.body;
     if (!phone_number || !code || !new_password) {
       return res.status(400).json({ error: "Phone number, code, and new password are required." });
+    }
+
+    if (!isValid11DigitPhone(phone_number)) {
+      return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
     }
 
     // reCAPTCHA check
