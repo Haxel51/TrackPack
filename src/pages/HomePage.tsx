@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt } from 'lucide-react';
+import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
+import { triggerOSNotification } from '../utils/notifications';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -24,6 +25,40 @@ export const HomePage: React.FC = () => {
       performTrack(codeParam);
     }
   }, []);
+
+  useEffect(() => {
+    if (!trackedWaybill || !trackedWaybill.tracking_code) return;
+
+    let eventSource: EventSource | null = null;
+    const code = trackedWaybill.tracking_code;
+
+    try {
+      eventSource = new EventSource(`/api/notifications/stream?code=${encodeURIComponent(code)}`);
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'WAYBILL_UPDATE') {
+            console.log('[SSE Public Tracking Update Received]:', data);
+            triggerOSNotification(data.title || 'Waybilla Shipment Update 🚚', {
+              body: data.body || 'Status updated on your tracked waybill.',
+              tag: code
+            });
+            performTrack(code);
+          }
+        } catch (e) {
+          // ignore
+        }
+      };
+    } catch (e) {
+      console.error('Public tracking SSE error:', e);
+    }
+
+    return () => {
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [trackedWaybill?.tracking_code]);
 
   const performTrack = async (code: string) => {
     const cleanCode = code.trim().toUpperCase();

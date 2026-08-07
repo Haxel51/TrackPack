@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
+import { triggerOSNotification } from '../utils/notifications';
 
 export const CustomerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -61,26 +62,19 @@ export const CustomerDashboard: React.FC = () => {
         fetchedWaybills.forEach((wb) => {
           const oldStatus = prevWaybillStatuses.current[wb.id];
           if (oldStatus && oldStatus !== wb.status) {
-            // Status changed! Trigger OS browser notification if granted
-            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-              let notifBody = `Waybill ${wb.tracking_code} status is now ${wb.status}.`;
-              if (wb.status === 'departed' || wb.status === 'in_transit') {
-                notifBody = `Your waybill ${wb.tracking_code} just departed ${wb.origin_park}!`;
-              } else if (wb.status === 'arrived') {
-                notifBody = `Good news! Your waybill ${wb.tracking_code} arrived at ${wb.destination_park}.`;
-              } else if (wb.status === 'collected') {
-                notifBody = `Waybill ${wb.tracking_code} delivered and collected safely.`;
-              }
-              try {
-                new Notification('Waybilla Shipment Update 🚚', {
-                  body: notifBody,
-                  icon: '/icon.png',
-                  tag: wb.tracking_code
-                });
-              } catch (e) {
-                console.error('Failed to show native browser notification:', e);
-              }
+            // Status changed! Trigger OS browser notification via ServiceWorker
+            let notifBody = `Waybill ${wb.tracking_code} status is now ${wb.status}.`;
+            if (wb.status === 'departed' || wb.status === 'in_transit') {
+              notifBody = `Your waybill ${wb.tracking_code} just departed ${wb.origin_park}!`;
+            } else if (wb.status === 'arrived') {
+              notifBody = `Good news! Your waybill ${wb.tracking_code} arrived at ${wb.destination_park}.`;
+            } else if (wb.status === 'collected') {
+              notifBody = `Waybill ${wb.tracking_code} delivered and collected safely.`;
             }
+            triggerOSNotification('Waybilla Shipment Update 🚚', {
+              body: notifBody,
+              tag: wb.tracking_code
+            });
           }
           // Update ref tracking
           prevWaybillStatuses.current[wb.id] = wb.status;
@@ -104,13 +98,42 @@ export const CustomerDashboard: React.FC = () => {
       }
     }
 
-    // Set up real-time background polling every 12 seconds
+    // Connect to real-time instant SSE stream for instant updates
+    let eventSource: EventSource | null = null;
+    const userPhone = user?.phone_number || '';
+    try {
+      eventSource = new EventSource(`/api/notifications/stream?phone=${encodeURIComponent(userPhone)}`);
+      eventSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'WAYBILL_UPDATE') {
+            console.log('[SSE Push Received]:', data);
+            triggerOSNotification(data.title || 'Waybilla Shipment Alert 🚚', {
+              body: data.body || 'Your waybill status was updated.',
+              tag: data.tracking_code || 'waybilla'
+            });
+            fetchWaybills(true);
+          }
+        } catch (e) {
+          // ignore non-json messages
+        }
+      };
+    } catch (e) {
+      console.error('SSE connection error:', e);
+    }
+
+    // Set up real-time background polling as robust fallback every 10 seconds
     const interval = setInterval(() => {
       fetchWaybills(true);
-    }, 12000);
+    }, 10000);
 
-    return () => clearInterval(interval);
-  }, [token]);
+    return () => {
+      clearInterval(interval);
+      if (eventSource) {
+        eventSource.close();
+      }
+    };
+  }, [token, user]);
 
   const handleEnableNotifications = async () => {
     setIsRequestingNotif(true);
@@ -118,15 +141,11 @@ export const CustomerDashboard: React.FC = () => {
       try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          // Trigger test notification to prove OS notifications are active
-          try {
-            new Notification('Waybilla Push Alerts Active 🔔', {
-              body: 'Push notifications are enabled! You will get alerts when your waybill updates.',
-              icon: '/icon.png'
-            });
-          } catch (e) {
-            console.error('Test notification error:', e);
-          }
+          // Trigger test notification to prove OS notifications are active on device status bar
+          await triggerOSNotification('Waybilla Push Alerts Active 🔔', {
+            body: 'Push notifications are enabled! You will get instant alerts on your phone notification bar when your waybill status updates.',
+            tag: 'waybilla-welcome'
+          });
 
           const deviceToken = `fcm_web_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           await fetch('/api/customer/fcm-token', {

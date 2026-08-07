@@ -2012,6 +2012,46 @@ app.post("/api/staff/waybills/:waybillId/assign", async (req, res) => {
 
 // ---------------- STAGE 7 PUSH NOTIFICATION & ROUTE LEARNING HELPERS ----------------
 
+interface SSEClient {
+  id: string;
+  res: express.Response;
+  phone?: string;
+  trackingCode?: string;
+}
+
+let sseClients: SSEClient[] = [];
+
+// SSE Notification Stream Endpoint for Instant Live Alerts
+app.get("/api/notifications/stream", (req, res) => {
+  const phone = typeof req.query.phone === 'string' ? req.query.phone.trim() : '';
+  const trackingCode = typeof req.query.code === 'string' ? req.query.code.trim().toUpperCase() : '';
+
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.setHeader("X-Accel-Buffering", "no");
+  res.flushHeaders();
+
+  const clientId = `sse_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+  const newClient: SSEClient = { id: clientId, res, phone, trackingCode };
+  sseClients.push(newClient);
+
+  res.write(`data: ${JSON.stringify({ type: "INIT", message: "Connected to Waybilla Live Notification Stream" })}\n\n`);
+
+  const heartbeat = setInterval(() => {
+    try {
+      res.write(`: heartbeat\n\n`);
+    } catch (e) {
+      clearInterval(heartbeat);
+    }
+  }, 15000);
+
+  req.on("close", () => {
+    clearInterval(heartbeat);
+    sseClients = sseClients.filter(c => c.id !== clientId);
+  });
+});
+
 async function sendPushNotificationForWaybill(waybill: any, status: string) {
   try {
     const { origin_park, destination_park, bus_number, sender_phone, receiver_phone, tracking_code } = waybill;
@@ -2020,7 +2060,7 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
     if (status === "booked") {
       body = `We've got your waybill! ${origin_park} is taking care of it.`;
     } else if (status === "departed" || status === "in_transit") {
-      body = `Your waybill just left ${origin_park}, riding on Bus ${bus_number}.`;
+      body = `Your waybill just left ${origin_park}, riding on Bus ${bus_number || ''}.`;
     } else if (status === "arrived") {
       body = `Good news — your waybill just reached ${destination_park}!`;
     } else if (status === "collected") {
@@ -2051,6 +2091,30 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
     }
     if (receiver_phone && receiver_phone !== sender_phone) {
       sendRealWorldSMS(receiver_phone, smsContent).catch(e => console.error("[SMS Dispatch Error - Receiver]:", e));
+    }
+
+    // Broadcast live SSE notification to connected browsers
+    const waybillTrackingCode = (tracking_code || "").toUpperCase();
+    for (const client of sseClients) {
+      const matchPhone = client.phone && targetPhones.includes(client.phone);
+      const matchCode = client.trackingCode && client.trackingCode === waybillTrackingCode;
+      const isGeneral = !client.phone && !client.trackingCode;
+
+      if (matchPhone || matchCode || isGeneral) {
+        try {
+          client.res.write(`data: ${JSON.stringify({
+            type: "WAYBILL_UPDATE",
+            status,
+            tracking_code: waybillTrackingCode,
+            title,
+            body,
+            waybill,
+            timestamp: new Date().toISOString()
+          })}\n\n`);
+        } catch (e) {
+          console.error("[SSE Dispatch Error]:", e);
+        }
+      }
     }
 
     // Check for customer FCM tokens and log push dispatch
