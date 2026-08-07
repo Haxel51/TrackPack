@@ -268,3 +268,14 @@ export async function assignWaybillToBus(token: string, waybillId: string, busId
   });
   return res.json();
 }
+
+export async function getStaffHistory(token: string) {
+  const res = await fetch(`${API_BASE}/staff/history`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}

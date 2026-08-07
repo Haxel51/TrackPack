@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles } from 'lucide-react';
+import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles, Receipt } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
 import { OutgoingBuses } from '../components/staff/OutgoingBuses';
 import { IncomingBuses } from '../components/staff/IncomingBuses';
+import { WaybillHistory } from '../components/staff/WaybillHistory';
 import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
 
-type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming';
+type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history';
 
 export const StaffDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -108,10 +109,18 @@ export const StaffDashboard: React.FC = () => {
             onBackToMenu={() => setScreen('menu')}
           />
         );
+      case 'history':
+        return (
+          <WaybillHistory
+            token={token}
+            originPark={originPark}
+            onBackToMenu={() => setScreen('menu')}
+          />
+        );
       case 'menu':
       default:
         return (
-          <div className="max-w-4xl mx-auto space-y-8">
+          <div className="max-w-5xl mx-auto space-y-8">
             {/* Header info block */}
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -218,7 +227,7 @@ export const StaffDashboard: React.FC = () => {
             )}
 
             {/* Quick Action Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
               {/* Card 1: Create Waybill */}
               <button
                 id="staff-create-waybill-btn"
@@ -293,6 +302,26 @@ export const StaffDashboard: React.FC = () => {
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
                     Track inbound dispatches, mark arrivals, and manage individual waybill collections.
+                  </p>
+                </div>
+              </button>
+
+              {/* Card 4: History & Receipts */}
+              <button
+                id="staff-waybill-history-tab"
+                onClick={() => setScreen('history')}
+                className="bg-white border border-slate-100 rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[180px]"
+              >
+                <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-[#F2A93B]" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
+                    Waybill History 🧾
+                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    View, search, or print receipts for every successful waybill sent or received.
                   </p>
                 </div>
               </button>

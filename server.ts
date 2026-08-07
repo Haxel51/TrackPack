@@ -1719,6 +1719,42 @@ app.get("/api/staff/buses/incoming", async (req, res) => {
   }
 });
 
+// 4. Get Staff Waybill History & Receipts
+app.get("/api/staff/history", async (req, res) => {
+  try {
+    const session = await validateSessionFromHeader(req, res);
+    if (!session || session.userRole !== "staff") {
+      return res.status(401).json({ error: "Unauthorized session." });
+    }
+    const { company_id, park_location } = session.userData;
+    if (!company_id) {
+      return res.status(400).json({ error: "Company profile missing for staff." });
+    }
+
+    const qW = query(
+      collection(db, "waybills"),
+      where("company_id", "==", company_id)
+    );
+    const snapW = await getDocs(qW);
+    let waybills = snapW.docs.map(docObj => ({
+      id: docObj.id,
+      ...docObj.data()
+    })) as any[];
+
+    // Sort by created_at or booked_at descending
+    waybills.sort((a, b) => new Date(b.created_at || b.booked_at || 0).getTime() - new Date(a.created_at || a.booked_at || 0).getTime());
+
+    res.json({
+      success: true,
+      park_location,
+      waybills
+    });
+  } catch (err) {
+    console.error("Error fetching staff waybill history:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // GET /api/staff/company-parks - Fetch all company branches/parks for dropdown selection
 app.get("/api/staff/company-parks", async (req, res) => {
   try {

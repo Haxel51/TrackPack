@@ -10,14 +10,26 @@ interface WaybillFormProps {
   onCreateNewBus: () => void;
 }
 
+const WAYBILL_DRAFT_KEY = 'waybilla_staff_waybill_draft';
+
+const getSavedDraft = () => {
+  try {
+    const raw = sessionStorage.getItem(WAYBILL_DRAFT_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return null;
+};
+
 export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onBackToMenu, onCreateNewBus }) => {
-  const [senderName, setSenderName] = useState('');
-  const [senderPhone, setSenderPhone] = useState('');
-  const [receiverName, setReceiverName] = useState('');
-  const [receiverPhone, setReceiverPhone] = useState('');
-  const [itemDescription, setItemDescription] = useState('');
-  const [busId, setBusId] = useState('');
-  const [destinationPark, setDestinationPark] = useState('');
+  const initialDraft = getSavedDraft();
+
+  const [senderName, setSenderName] = useState(initialDraft?.senderName || '');
+  const [senderPhone, setSenderPhone] = useState(initialDraft?.senderPhone || '');
+  const [receiverName, setReceiverName] = useState(initialDraft?.receiverName || '');
+  const [receiverPhone, setReceiverPhone] = useState(initialDraft?.receiverPhone || '');
+  const [itemDescription, setItemDescription] = useState(initialDraft?.itemDescription || '');
+  const [busId, setBusId] = useState(initialDraft?.busId || '');
+  const [destinationPark, setDestinationPark] = useState(initialDraft?.destinationPark || '');
 
   const [parks, setParks] = useState<{ id: string; park_name: string; park_location: string }[]>([]);
   const [availableBuses, setAvailableBuses] = useState<Bus[]>([]);
@@ -41,6 +53,28 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     success: boolean;
     trackingCode: string | null;
   } | null>(null);
+
+  // Automatically save form state into sessionStorage draft so no typed details are lost when switching screens
+  useEffect(() => {
+    if (!activePayment?.success) {
+      const draft = {
+        senderName,
+        senderPhone,
+        receiverName,
+        receiverPhone,
+        itemDescription,
+        busId,
+        destinationPark
+      };
+      try {
+        sessionStorage.setItem(WAYBILL_DRAFT_KEY, JSON.stringify(draft));
+      } catch (e) {}
+    } else {
+      try {
+        sessionStorage.removeItem(WAYBILL_DRAFT_KEY);
+      } catch (e) {}
+    }
+  }, [senderName, senderPhone, receiverName, receiverPhone, itemDescription, busId, destinationPark, activePayment]);
 
   // Timer countdown helper
   const [timeLeft, setTimeLeft] = useState<number>(0); // in seconds
@@ -123,15 +157,21 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         setParks(parkList);
       }
 
-      // Priority 1: If there is an active loading bus, default to its destination & select it!
-      if (available.length > 0) {
-        const activeBus = available[0];
-        setDestinationPark(activeBus.destination_park);
-        setBusId(activeBus.id);
-      } else if (parkList.length > 0) {
-        const initialDest = parkList[0].park_location || parkList[0].park_name;
-        setDestinationPark(initialDest);
-        setBusId('');
+      // Respect saved draft destinationPark if present, or existing state
+      const saved = getSavedDraft();
+      const targetDest = destinationPark || saved?.destinationPark || (available.length > 0 ? available[0].destination_park : (parkList.length > 0 ? (parkList[0].park_location || parkList[0].park_name) : ''));
+      
+      if (targetDest) {
+        setDestinationPark(targetDest);
+        const matchingBuses = available.filter(b => isSamePark(b.destination_park, targetDest));
+        const preferredBusId = busId || saved?.busId;
+        if (preferredBusId && matchingBuses.some(b => b.id === preferredBusId)) {
+          setBusId(preferredBusId);
+        } else if (matchingBuses.length > 0) {
+          setBusId(matchingBuses[0].id);
+        } else {
+          setBusId('');
+        }
       } else {
         setDestinationPark('');
         setBusId('');
@@ -164,6 +204,9 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   };
 
   const handleReset = () => {
+    try {
+      sessionStorage.removeItem(WAYBILL_DRAFT_KEY);
+    } catch (e) {}
     setSenderName('');
     setSenderPhone('');
     setReceiverName('');
