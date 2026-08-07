@@ -89,6 +89,13 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     return () => clearInterval(pollInterval);
   }, [activePayment, token]);
 
+  const isSamePark = (p1: string, p2: string) => {
+    const s1 = (p1 || '').toLowerCase().trim();
+    const s2 = (p2 || '').toLowerCase().trim();
+    if (!s1 || !s2) return false;
+    return s1 === s2 || s1.includes(s2) || s2.includes(s1);
+  };
+
   const fetchMetadata = async () => {
     setLoadingData(true);
     try {
@@ -97,24 +104,37 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         getStaffCompanyParks(token)
       ]);
 
-      let initialDest = '';
-      if (parksRes.success && parksRes.parks) {
-        const filteredParks = parksRes.parks.filter((p: any) => p.park_location !== originPark);
-        setParks(filteredParks);
-        if (filteredParks.length > 0) {
-          initialDest = filteredParks[0].park_location;
-          setDestinationPark(initialDest);
-        }
+      let available: Bus[] = [];
+      if (busesRes.success && Array.isArray(busesRes.buses)) {
+        available = busesRes.buses;
+        setAvailableBuses(available);
       }
 
-      if (busesRes.success && busesRes.buses) {
-        setAvailableBuses(busesRes.buses);
-        const matchingBuses = busesRes.buses.filter((b: any) => b.destination_park === initialDest);
-        if (matchingBuses.length > 0) {
-          setBusId(matchingBuses[0].id);
-        } else {
-          setBusId('');
-        }
+      let parkList: { id: string; park_name: string; park_location: string }[] = [];
+      if (parksRes.success && Array.isArray(parksRes.parks)) {
+        const normOrigin = (originPark || '').toLowerCase().trim();
+        // Exclude parks that match the current origin terminal
+        parkList = parksRes.parks.filter((p: any) => {
+          const loc = (p.park_location || '').toLowerCase().trim();
+          const name = (p.park_name || '').toLowerCase().trim();
+          if (!normOrigin) return true;
+          return !isSamePark(loc, normOrigin) && !isSamePark(name, normOrigin);
+        });
+        setParks(parkList);
+      }
+
+      // Priority 1: If there is an active loading bus, default to its destination & select it!
+      if (available.length > 0) {
+        const activeBus = available[0];
+        setDestinationPark(activeBus.destination_park);
+        setBusId(activeBus.id);
+      } else if (parkList.length > 0) {
+        const initialDest = parkList[0].park_location || parkList[0].park_name;
+        setDestinationPark(initialDest);
+        setBusId('');
+      } else {
+        setDestinationPark('');
+        setBusId('');
       }
     } catch (err) {
       console.error('Error fetching waybill metadata:', err);
@@ -131,7 +151,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const dest = e.target.value;
     setDestinationPark(dest);
-    const matchingBuses = availableBuses.filter(b => b.destination_park === dest);
+    const matchingBuses = availableBuses.filter(b => isSamePark(b.destination_park, dest));
     if (matchingBuses.length > 0) {
       setBusId(matchingBuses[0].id);
     } else {
@@ -537,21 +557,33 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               <label className="block text-xs font-bold text-[#0A1F44] uppercase tracking-wider mb-2">
                 Select Destination Park <span className="text-red-500">*</span>
               </label>
-              {parks.length === 0 ? (
+              {parks.length === 0 && availableBuses.length === 0 ? (
                 <div className="text-xs text-red-500 py-2">
-                  No other parks registered for your company. Please configure parks in the Admin Partner portal first.
+                  No other parks or active buses registered for your company. Please register a bus or configure parks in the Admin Partner portal first.
                 </div>
               ) : (
                 <select
                   value={destinationPark}
                   onChange={handleDestinationChange}
-                  className="w-full bg-white border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
+                  className="w-full bg-white border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-[#0A1F44]"
                 >
+                  <option value="" disabled>-- Select Destination Terminal --</option>
+                  {/* Render registered company parks */}
                   {parks.map((p, idx) => (
-                    <option key={`park-opt-${p.id || idx}-${idx}`} value={p.park_location}>
+                    <option key={`park-opt-${p.id || idx}-${idx}`} value={p.park_location || p.park_name}>
                       {p.park_name} ({p.park_location})
                     </option>
                   ))}
+                  {/* Also render any active bus destinations that aren't in parkList */}
+                  {availableBuses
+                    .filter(b => !parks.some(p => isSamePark(p.park_location, b.destination_park) || isSamePark(p.park_name, b.destination_park)))
+                    .reduce((acc: string[], b) => acc.includes(b.destination_park) ? acc : [...acc, b.destination_park], [])
+                    .map((destName, idx) => (
+                      <option key={`bus-dest-opt-${idx}`} value={destName}>
+                        {destName} (Active Loading Bus Route)
+                      </option>
+                    ))
+                  }
                 </select>
               )}
             </div>
@@ -567,7 +599,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               <button
                 type="button"
                 onClick={onCreateNewBus}
-                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs"
+                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Register New Bus
@@ -578,7 +610,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               Every waybill must be assigned to an active loading bus before taking customer payment. Select the bus/driver departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
             </p>
 
-            {availableBuses.filter(b => b.destination_park === destinationPark).length > 0 ? (
+            {availableBuses.filter(b => isSamePark(b.destination_park, destinationPark)).length > 0 ? (
               <select
                 value={busId}
                 onChange={handleBusChange}
@@ -587,13 +619,53 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               >
                 <option value="" disabled>-- Select Active Bus / Driver --</option>
                 {availableBuses
-                  .filter(b => b.destination_park === destinationPark)
+                  .filter(b => isSamePark(b.destination_park, destinationPark))
                   .map((bus, index) => (
                     <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
                       Bus {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
                     </option>
                   ))}
               </select>
+            ) : availableBuses.length > 0 ? (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 space-y-3">
+                <div>
+                  <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
+                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                    No Active Bus Currently Loading for {destinationPark || 'Selected Destination'}
+                  </p>
+                  <p className="text-[11px] text-amber-700 leading-relaxed">
+                    You have active loading buses for other routes. Click below to select an active bus or register a new one:
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-900 block">Available Active Buses Loading:</span>
+                  <div className="flex flex-wrap gap-2">
+                    {availableBuses.map((bus) => (
+                      <button
+                        key={`quick-bus-${bus.id}`}
+                        type="button"
+                        onClick={() => {
+                          setDestinationPark(bus.destination_park);
+                          setBusId(bus.id);
+                        }}
+                        className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                      >
+                        ⚡ Select Bus {bus.bus_number} &rarr; {bus.destination_park}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={onCreateNewBus}
+                  className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer mt-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  Register & Launch New Bus for {destinationPark}
+                </button>
+              </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
                 <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">

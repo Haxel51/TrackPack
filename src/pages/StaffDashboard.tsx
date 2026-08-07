@@ -399,7 +399,7 @@ export const StaffDashboard: React.FC = () => {
                   <span>Step 2: Create Waybill & Take Payment 💳</span>
                 </div>
                 <p className="leading-relaxed">
-                  Click <strong>Create New Waybill</strong>. Enter the Sender & Receiver <strong>11-digit phone numbers</strong> accurately. Pick the destination park and assign it to the loading bus. Present the Paystack QR code/link to customer to pay.
+                  Click <strong>Create New Waybill</strong>. Enter the Sender & Receiver <strong>11-digit phone numbers</strong> accurately. Pick the destination park and assign it to the loading bus. Open the secure Paystack checkout portal so the customer can choose their preferred payment method (Bank Transfer, Card, USSD, or Bank Account) to complete payment.
                 </p>
                 <div className="bg-white/80 p-2 rounded-xl text-[11px] font-bold text-amber-900 border border-amber-200">
                   💡 Tip: The customer will receive an SMS containing their Waybill Tracking Code and 6-digit Secret Pickup PIN.
@@ -436,18 +436,18 @@ export const StaffDashboard: React.FC = () => {
               <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-purple-950 text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">5</span>
-                  <span>Step 5: Verify Receiver Phone & Mark Collected 🎁</span>
+                  <span>Step 5: Verify Receiver & Mark Collected 🎁</span>
                 </div>
                 <p className="leading-relaxed">
                   When the receiver comes to collect their waybill:
                 </p>
                 <ol className="list-disc pl-5 space-y-1 text-[11px] font-semibold text-slate-700">
-                  <li>Ask receiver for their <strong>Receiver Phone Number</strong>.</li>
+                  <li>Ask receiver for their <strong>Receiver Phone Number</strong> OR <strong>6-digit Secret Pickup PIN</strong>.</li>
                   <li>Verify the waybill details on your screen under Incoming Waybills.</li>
                   <li>Click <strong>Mark Collected</strong> and hand over the waybill! 🎁</li>
                 </ol>
                 <div className="bg-white/80 p-2 rounded-xl text-[11px] font-bold text-purple-900 border border-purple-200">
-                  🤣 Simple as ABC! No friction, no stress!
+                  🤣 Simple as ABC! Flexible verification with zero friction or stress!
                 </div>
               </div>
             </div>
