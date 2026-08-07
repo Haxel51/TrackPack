@@ -526,29 +526,23 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
         </div>
       )}
 
-      {/* Confirm Received CTA Button (if permitted and visible) */}
-      {showConfirmButton && status === 'arrived' && (
-        <div className="pt-2">
-          <button
-            id="customer-confirm-btn"
-            onClick={onConfirmReceived}
-            disabled={isConfirming}
-            className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-extrabold py-4 px-6 rounded-2xl transition-all shadow-sm active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-sm"
-          >
-            {isConfirming ? (
-              <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <UserCheck className="w-5 h-5" />
-            )}
-            Confirm Received (Delivered)
-          </button>
+      {/* Collection Status Guidance */}
+      {status === 'arrived' && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs space-y-1 shadow-xs">
+          <p className="font-extrabold flex items-center gap-1.5 text-amber-800">
+            <ShieldCheck className="w-4 h-4 text-amber-600" />
+            Ready for Pickup at Motor Park
+          </p>
+          <p className="text-amber-700">
+            Your shipment has safely arrived at <strong>{waybill.destination_park || 'the destination motor park'}</strong>. Please present your secret Pickup PIN to the park counter staff to inspect and collect your package.
+          </p>
         </div>
       )}
 
-      {status === 'collected' && showConfirmButton && (
-        <div className="bg-emerald-50 border border-emerald-100 text-emerald-800 p-4 rounded-xl text-xs font-bold text-center flex items-center justify-center gap-2">
-          <ShieldCheck className="w-5 h-5 text-emerald-600" />
-          Waybill Collected & Receipt Confirmed ✓
+      {status === 'collected' && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 p-4 rounded-2xl text-xs font-bold flex items-center gap-2.5 shadow-xs">
+          <ShieldCheck className="w-5 h-5 text-emerald-600 shrink-0" />
+          <span>Package Successfully Handed Over & Collected at Motor Park Counter ✓</span>
         </div>
       )}
 
@@ -591,11 +585,11 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 {/* Transaction Overview Grid */}
                 <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
                   <div>
-                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Terminal</span>
+                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Park</span>
                     <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{origin_park}</span>
                   </div>
                   <div>
-                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Terminal</span>
+                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Park</span>
                     <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{destination_park}</span>
                   </div>
                   <div className="col-span-2 pt-2 border-t border-slate-200">
@@ -607,14 +601,14 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 {/* Parties Involved */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                   <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignor (Sender)</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Sender</span>
                     <p className="font-extrabold text-slate-800 text-sm">{waybill.sender_name}</p>
                     <p className="text-slate-500 font-medium flex items-center gap-1">
                       <Phone className="w-3 h-3 text-slate-400" /> {waybill.sender_phone}
                     </p>
                   </div>
                   <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignee (Receiver)</span>
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Receiver</span>
                     <p className="font-extrabold text-slate-800 text-sm">{waybill.receiver_name}</p>
                     <p className="text-slate-500 font-medium flex items-center gap-1">
                       <Phone className="w-3 h-3 text-slate-400" /> {waybill.receiver_phone}

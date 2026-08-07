@@ -231,6 +231,18 @@ export async function arriveBus(token: string, busId: string) {
   return res.json();
 }
 
+export async function verifyWaybillCode(token: string, waybillId: string, code: string) {
+  const res = await fetch(`${API_BASE}/staff/waybills/${waybillId}/verify-code`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ code })
+  });
+  return res.json();
+}
+
 export async function collectWaybill(token: string, waybillId: string, verificationValue: string) {
   const res = await fetch(`${API_BASE}/staff/waybills/${waybillId}/collect`, {
     method: 'POST',

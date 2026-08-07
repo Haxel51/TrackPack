@@ -85,8 +85,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
       (w.receiver_name || '').toLowerCase().includes(term) ||
       (w.receiver_phone || '').toLowerCase().includes(term) ||
       (w.item_description || '').toLowerCase().includes(term) ||
-      (w.bus_number || '').toLowerCase().includes(term) ||
-      (w.pickup_pin || '').toLowerCase().includes(term)
+      (w.bus_number || '').toLowerCase().includes(term)
     );
   });
 
@@ -305,17 +304,12 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                     </div>
                   </div>
 
-                  {/* Date & Pickup PIN */}
+                  {/* Date */}
                   <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-medium pt-1">
                     <span className="flex items-center gap-1">
                       <Calendar className="w-3.5 h-3.5 text-slate-400" />
                       Booked: {formatDateTime(waybill.created_at || waybill.booked_at)}
                     </span>
-                    {waybill.pickup_pin && (
-                      <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
-                        PIN: {waybill.pickup_pin}
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -372,11 +366,11 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               {/* Transaction Overview Grid */}
               <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
                 <div>
-                  <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Terminal</span>
+                  <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Park</span>
                   <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{selectedReceipt.origin_park}</span>
                 </div>
                 <div>
-                  <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Terminal</span>
+                  <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Park</span>
                   <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{selectedReceipt.destination_park}</span>
                 </div>
                 <div className="col-span-2 pt-2 border-t border-slate-200">
@@ -388,30 +382,20 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               {/* Parties Involved */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
                 <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignor (Sender)</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Sender</span>
                   <p className="font-extrabold text-slate-800 text-sm">{selectedReceipt.sender_name}</p>
                   <p className="text-slate-500 font-medium flex items-center gap-1">
                     <Phone className="w-3 h-3 text-slate-400" /> {selectedReceipt.sender_phone}
                   </p>
                 </div>
                 <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignee (Receiver)</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Receiver</span>
                   <p className="font-extrabold text-slate-800 text-sm">{selectedReceipt.receiver_name}</p>
                   <p className="text-slate-500 font-medium flex items-center gap-1">
                     <Phone className="w-3 h-3 text-slate-400" /> {selectedReceipt.receiver_phone}
                   </p>
                 </div>
               </div>
-
-              {/* Secret Pickup PIN */}
-              {selectedReceipt.pickup_pin && (
-                <div className="bg-purple-50 border border-purple-200 p-3 rounded-2xl flex items-center justify-between text-xs">
-                  <span className="font-bold text-purple-900">Secret Pickup PIN:</span>
-                  <span className="font-black text-purple-700 text-base tracking-wider bg-white px-3 py-1 rounded-xl border border-purple-200">
-                    {selectedReceipt.pickup_pin}
-                  </span>
-                </div>
-              )}
 
               {/* Bus details */}
               <div className="border border-slate-100 p-4 rounded-2xl bg-blue-50/40 space-y-1.5 text-xs">

@@ -1930,9 +1930,11 @@ app.post("/api/staff/waybills", async (req, res) => {
 
     const paymentRef = await addDoc(collection(db, "payments"), newPayment);
 
+    const { pickup_pin: _hiddenPin, ...safeWaybill } = newWaybill;
+
     res.json({
       success: true,
-      waybill: { id: waybillRef.id, ...newWaybill },
+      waybill: { id: waybillRef.id, ...safeWaybill },
       payment: { id: paymentRef.id, ...newPayment }
     });
   } catch (err) {
@@ -2422,6 +2424,51 @@ app.post("/api/staff/buses/:id/arrive", async (req, res) => {
     });
   } catch (err) {
     console.error("Error arriving bus:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 7b. Verify Secret Pickup PIN or Receiver Phone before displaying details to Staff
+app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
+  try {
+    const session = await validateSessionFromHeader(req, res);
+    if (!session) return;
+
+    const waybillId = req.params.id;
+    const { code } = req.body;
+    const inputVal = String(code || "").trim();
+
+    if (!inputVal) {
+      return res.status(400).json({ error: "Receiver phone number or secret 6-digit Pickup PIN is required for verification." });
+    }
+
+    const waybillRef = doc(db, "waybills", waybillId);
+    const waybillSnap = await getDoc(waybillRef);
+    if (!waybillSnap.exists()) {
+      return res.status(404).json({ error: "Waybill not found." });
+    }
+
+    const waybillData = waybillSnap.data();
+    const expectedPhone = (waybillData.receiver_phone || "").trim();
+    const expectedPin = (waybillData.pickup_pin || "").trim();
+
+    const isPhoneMatch = inputVal === expectedPhone;
+    const isPinMatch = expectedPin && inputVal === expectedPin;
+
+    if (!isPhoneMatch && !isPinMatch) {
+      return res.status(400).json({ error: "Verification Failed. The secret Pickup PIN or Receiver Phone provided does not match this waybill." });
+    }
+
+    // Do NOT expose pickup_pin in response object to staff
+    const { pickup_pin: _hiddenPin, ...safeWaybill } = waybillData;
+
+    res.json({
+      success: true,
+      verified_by: isPinMatch ? "Secret 6-Digit Pickup PIN" : "Receiver Phone Number",
+      waybill: { id: waybillSnap.id, ...safeWaybill }
+    });
+  } catch (err) {
+    console.error("Error verifying waybill code:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -3887,8 +3934,9 @@ async function confirmPayment(paymentId: string, payment: any, paystackFeeKobo?:
       const wbData = updatedWbSnap.data();
       sendPushNotificationForWaybill({ ...wbData, tracking_code }, "booked");
       
-      const senderMsg = `[Waybilla] Shipment Booked! Tracking Code: ${tracking_code}. Waybill for ${wbData.receiver_name} (${wbData.destination_park}). Track online at waybilla.com.ng`;
-      const receiverMsg = `[Waybilla] Waybill Alert! ${wbData.sender_name} sent you a waybill via Waybilla (${wbData.origin_park} to ${wbData.destination_park}). Tracking Code: ${tracking_code}. Track online at waybilla.com.ng`;
+      const pinClause = wbData.pickup_pin ? ` Secret Pickup PIN: ${wbData.pickup_pin}.` : '';
+      const senderMsg = `[Waybilla] Shipment Booked! Tracking Code: ${tracking_code}.${pinClause} Waybill for ${wbData.receiver_name} (${wbData.destination_park}). Track online at waybilla.com.ng`;
+      const receiverMsg = `[Waybilla] Waybill Alert! ${wbData.sender_name} sent you a waybill via Waybilla (${wbData.origin_park} to ${wbData.destination_park}). Tracking Code: ${tracking_code}.${pinClause} Track online at waybilla.com.ng`;
 
       if (wbData.sender_phone) {
         sendRealWorldSMS(wbData.sender_phone, senderMsg).catch(e => console.error("[SMS Error Sender Booked]:", e));

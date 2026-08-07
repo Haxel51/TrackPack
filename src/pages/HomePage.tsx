@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
+import waybillaCleanLogo from '../assets/images/waybilla_clean_app_icon_1786135762631.jpg';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -114,18 +115,26 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-between">
       {/* Top Header Banner */}
-      <header className="bg-[#0A1F44] text-white py-5 px-6 shadow-md border-b-4 border-[#F2A93B]">
+      <header className="bg-[#0A1F44] text-white py-4 px-6 shadow-md border-b-4 border-[#F2A93B]">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div 
             onClick={handleSecretTap}
-            className="flex items-center gap-2 cursor-pointer select-none"
+            className="flex items-center gap-3 cursor-pointer select-none"
             title="Waybilla Nigeria"
           >
-            <Package className="text-[#F2A93B] w-7 h-7" />
-            <div className="flex items-center gap-2 font-extrabold text-xl tracking-wider">
-              <span>Waybilla</span>
-              <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
-                <svg className="w-6 h-4" viewBox="0 0 3 2" role="img" aria-label="Nigeria Flag">
+            <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
+              <img
+                src={waybillaCleanLogo}
+                alt="Waybilla Logo"
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex items-center gap-2 font-black text-xl tracking-tight">
+              <span>Way<span className="text-[#F2A93B]">billa</span></span>
+              {/* Nigerian Flag Badge */}
+              <span className="inline-flex items-center shadow-sm rounded overflow-hidden border border-white/20 w-7 h-5 shrink-0" title="Nigeria Flag">
+                <svg className="w-full h-full" viewBox="0 0 3 2" role="img" aria-label="Nigeria Flag">
                   <title>Nigeria Flag</title>
                   <rect width="1" height="2" x="0" fill="#008751" />
                   <rect width="1" height="2" x="1" fill="#FFFFFF" />

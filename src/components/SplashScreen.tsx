@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Package } from 'lucide-react';
+import waybillaSplashScreen from '../assets/images/waybilla_splash_screen_1786134507522.jpg';
 
 interface SplashScreenProps {
   onComplete?: () => void;
@@ -8,37 +8,31 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onComplete,
-  duration = 3500
+  duration = 3800
 }) => {
   const [show, setShow] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
-  const [phase, setPhase] = useState<'logo' | 'text' | 'glow'>('logo');
+  const [progressWidth, setProgressWidth] = useState('w-1/4');
 
   useEffect(() => {
-    // Step 1: Text animation phase
-    const textTimer = setTimeout(() => {
-      setPhase('text');
-    }, 350);
+    // Fill the progress bar after component mounts
+    const progressTimer = setTimeout(() => {
+      setProgressWidth('w-full');
+    }, 150);
 
-    // Step 2: Glow / pulse progress phase
-    const glowTimer = setTimeout(() => {
-      setPhase('glow');
-    }, 700);
-
-    // Step 3: Trigger fade out transition
+    // Trigger fade out transition
     const fadeOutTimer = setTimeout(() => {
       setFadingOut(true);
-    }, duration - 400);
+    }, duration - 450);
 
-    // Step 4: Hide completely
+    // Hide completely
     const completeTimer = setTimeout(() => {
       setShow(false);
       if (onComplete) onComplete();
     }, duration);
 
     return () => {
-      clearTimeout(textTimer);
-      clearTimeout(glowTimer);
+      clearTimeout(progressTimer);
       clearTimeout(fadeOutTimer);
       clearTimeout(completeTimer);
     };
@@ -48,62 +42,28 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex flex-col items-center justify-center bg-gradient-to-br from-[#0A1F44] via-[#0F2952] to-[#1E3B70] text-white transition-opacity duration-500 ease-out ${
+      className={`fixed inset-0 z-[100] flex flex-col items-center justify-end pb-16 px-6 bg-[#08152B] text-white transition-opacity duration-500 ease-out overflow-hidden select-none ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{
-        WebkitFontSmoothing: 'antialiased'
+        WebkitFontSmoothing: 'antialiased',
+        backgroundImage: `url(${waybillaSplashScreen})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
       }}
     >
-      <div className="flex flex-col items-center text-center space-y-6 px-6 max-w-sm">
-        {/* Animated Shield / Logo Icon Container */}
-        <div className="relative">
-          {/* Subtle Outer Glow Ring */}
+      {/* Animated Gold Loading Indicator centered at the bottom of the premium background */}
+      <div className="relative z-10 w-full max-w-xs flex flex-col items-center space-y-2">
+        <div className="w-48 h-1.5 bg-slate-900/80 rounded-full overflow-hidden relative shadow-inner border border-slate-700/30">
           <div
-            className={`absolute -inset-4 rounded-3xl bg-[#F2A93B]/20 blur-xl transition-all duration-700 ${
-              phase === 'glow' ? 'opacity-100 scale-110' : 'opacity-0 scale-95'
-            }`}
-          />
-
-          <div
-            className={`relative w-20 h-20 bg-[#0A1F44] border-2 border-[#F2A93B]/60 rounded-3xl flex items-center justify-center shadow-2xl transition-all duration-500 ease-out transform ${
-              phase !== 'logo' ? 'scale-100 opacity-100' : 'scale-90 opacity-90'
-            }`}
-          >
-            <Package className="w-10 h-10 text-[#F2A93B] drop-shadow-md" />
-          </div>
-        </div>
-
-        {/* Brand Name & Tagline */}
-        <div
-          className={`space-y-2 transition-all duration-500 ease-out transform ${
-            phase === 'text' || phase === 'glow'
-              ? 'opacity-100 translate-y-0'
-              : 'opacity-0 translate-y-2'
-          }`}
-        >
-          <h1 className="text-3xl font-black tracking-wider text-white flex items-center justify-center gap-2 flex-wrap">
-            <span>Way<span className="text-[#F2A93B]">billa</span></span>
-            <span className="inline-flex items-center text-xl font-black px-2.5 py-0.5 rounded-lg bg-emerald-950/90 border border-emerald-500/50 shadow-md">
-              <span className="text-emerald-400">NI</span>
-              <span className="text-white">GER</span>
-              <span className="text-emerald-400">IA</span>
-            </span>
-          </h1>
-          <p className="text-xs font-bold text-slate-300 tracking-widest uppercase">
-            Digital waybill Tracking platform
-          </p>
-        </div>
-
-        {/* Animated Gold Loading Indicator */}
-        <div className="w-28 h-1 bg-white/10 rounded-full overflow-hidden relative mt-2">
-          <div
-            className={`h-full bg-gradient-to-r from-[#F2A93B] to-amber-300 rounded-full transition-all duration-2500 ease-in-out ${
-              phase === 'glow' ? 'w-full' : 'w-1/4'
-            }`}
+            className={`h-full bg-gradient-to-r from-[#F2A93B] via-amber-400 to-[#F2A93B] rounded-full transition-all duration-3000 ease-out shadow-[0_0_10px_rgba(242,169,59,0.6)] ${progressWidth}`}
           />
         </div>
       </div>
     </div>
   );
 };
+
+
+

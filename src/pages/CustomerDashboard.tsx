@@ -549,9 +549,6 @@ export const CustomerDashboard: React.FC = () => {
                 waybill={selectedWaybill} 
                 route={selectedRoute} 
                 driver={selectedDriver}
-                showConfirmButton={showConfirmButton} 
-                onConfirmReceived={handleConfirmReceived}
-                isConfirming={isConfirming}
               />
             </div>
 
