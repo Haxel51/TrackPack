@@ -8,6 +8,7 @@ export interface User {
   park_location?: string;
   approved?: boolean;
   active?: boolean;
+  has_completed_onboarding?: boolean;
 }
 
 export interface AuthState {

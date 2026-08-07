@@ -52,28 +52,29 @@ app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://www.google.com https://www.gstatic.com; " +
+      "script-src 'self' 'unsafe-inline' https://js.paystack.co https://www.google.com https://www.gstatic.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: https:; " +
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://www.google.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "img-src 'self' data: https: blob:; " +
+      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co https://www.google.com; " +
+      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
       "form-action 'self';"
     );
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
   } else {
     // Development/Preview CSP (allows Vite hot reloads, inline scripts, evals, and local web sockets)
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co https://www.google.com https://www.gstatic.com; " +
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' https://fonts.gstatic.com; " +
-      "img-src 'self' data: https:; " +
-      "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://www.google.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com; " +
+      "img-src 'self' data: https: blob:; " +
+      "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co https://www.google.com; " +
+      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
@@ -83,6 +84,9 @@ app.use((req, res, next) => {
 
   // Prevent MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
+
+  // Restrict sensitive browser permissions
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
 
   // Mitigate clickjacking attacks (PageSpeed / Lighthouse best practice)
   if (!isPreview) {
@@ -1328,15 +1332,70 @@ app.get("/api/auth/me", async (req, res) => {
     if (!session) {
       return res.status(401).json({ valid: false, error: "Session expired or invalid." });
     }
+
+    let collectionName = "";
+    if (session.userRole === "customer") collectionName = "customers";
+    else if (session.userRole === "staff") collectionName = "staff";
+    else if (session.userRole === "company") collectionName = "companies";
+
+    let freshUserData = session.userData || {};
+    if (collectionName && session.userId) {
+      const docSnap = await getDoc(doc(db, collectionName, session.userId));
+      if (docSnap.exists()) {
+        const d = docSnap.data();
+        if (session.userRole === "customer") {
+          freshUserData = { phone_number: d.phone_number, has_completed_onboarding: !!d.has_completed_onboarding };
+        } else if (session.userRole === "staff") {
+          freshUserData = { name: d.name, park_location: d.park_location, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
+        } else if (session.userRole === "company") {
+          freshUserData = { company_name: d.company_name, owner_phone: d.owner_phone, approved: d.approved, has_completed_onboarding: !!d.has_completed_onboarding };
+        }
+      }
+    }
+
     res.json({
       valid: true,
       role: session.userRole,
-      user: session.userData,
+      user: freshUserData,
       userId: session.userId
     });
   } catch (err) {
     console.error("Validate session error:", err);
     res.status(500).json({ valid: false, error: "Internal server error." });
+  }
+});
+
+// Complete onboarding endpoint
+app.post("/api/auth/complete-onboarding", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No session token found." });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const session = await validateSession(token);
+    if (!session) {
+      return res.status(401).json({ error: "Session expired or invalid." });
+    }
+
+    let collectionName = "";
+    if (session.userRole === "customer") collectionName = "customers";
+    else if (session.userRole === "staff") collectionName = "staff";
+    else if (session.userRole === "company") collectionName = "companies";
+
+    if (!collectionName || !session.userId) {
+      return res.status(400).json({ error: "Invalid role or user." });
+    }
+
+    await updateDoc(doc(db, collectionName, session.userId), {
+      has_completed_onboarding: true
+    });
+
+    res.json({ success: true, message: "Onboarding completed successfully." });
+  } catch (err) {
+    console.error("Complete onboarding error:", err);
+    res.status(500).json({ error: "Internal server error." });
   }
 });
 
@@ -1733,6 +1792,10 @@ app.post("/api/staff/waybills", async (req, res) => {
       return res.status(400).json({ error: "All fields are required." });
     }
 
+    if (!bus_id || bus_id === "Unassigned") {
+      return res.status(400).json({ error: "A bus assignment is required before creating a waybill for payment." });
+    }
+
     if (!isValid11DigitPhone(sender_phone)) {
       return res.status(400).json({ error: "Sender phone number must be exactly 11 digits (e.g. 08012345678)." });
     }
@@ -1741,14 +1804,12 @@ app.post("/api/staff/waybills", async (req, res) => {
       return res.status(400).json({ error: "Receiver phone number must be exactly 11 digits (e.g. 08012345678)." });
     }
 
-    let busData = null;
-    if (bus_id && bus_id !== "Unassigned") {
-      const busRef = doc(db, "buses", bus_id);
-      const busSnap = await getDoc(busRef);
-      if (busSnap.exists()) {
-        busData = busSnap.data();
-      }
+    const busRef = doc(db, "buses", bus_id);
+    const busSnap = await getDoc(busRef);
+    if (!busSnap.exists()) {
+      return res.status(400).json({ error: "The selected bus/driver was not found." });
     }
+    const busData = busSnap.data();
 
     // Verify company has set up their Paystack subaccount details
     const compRef = doc(db, "companies", company_id);
@@ -1770,8 +1831,8 @@ app.post("/api/staff/waybills", async (req, res) => {
       receiver_name,
       receiver_phone,
       item_description,
-      bus_id: (bus_id && bus_id !== "Unassigned") ? bus_id : null,
-      bus_number: busData ? busData.bus_number : "Unassigned",
+      bus_id: bus_id,
+      bus_number: busData ? busData.bus_number : "N/A",
       origin_park: park_location,
       destination_park,
       company_id,
@@ -3558,12 +3619,27 @@ async function createPaystackPaymentSession(senderPhone: string, subaccountCode:
   };
 }
 
-async function generateUniqueTrackingCode(): Promise<string> {
+function derivePrefix(originPark: string): string {
+  if (!originPark) return "NNW";
+  const cleaned = originPark
+    .replace(/park|terminal|motors|station|garage|transport|transit/gi, '')
+    .trim();
+  const letters = (cleaned || originPark).replace(/[^a-zA-Z]/g, '').toUpperCase();
+  if (letters.length >= 3) {
+    return letters.slice(0, 3);
+  } else if (letters.length > 0) {
+    return letters.padEnd(3, 'X');
+  }
+  return "NNW";
+}
+
+async function generateUniqueTrackingCode(originPark?: string): Promise<string> {
+  const prefix = derivePrefix(originPark || "Nnewi");
   let unique = false;
   let tracking_code = "";
   while (!unique) {
     const rand = Math.floor(1000 + Math.random() * 9000);
-    tracking_code = `NNW-${rand}`;
+    tracking_code = `${prefix}-${rand}`;
     const q = query(collection(db, "waybills"), where("tracking_code", "==", tracking_code), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) {
@@ -3580,8 +3656,13 @@ async function confirmPayment(paymentId: string, payment: any, paystackFeeKobo?:
     return { success: true, tracking_code: wbSnap.exists() ? wbSnap.data().tracking_code : null };
   }
 
-  // 1. Generate unique tracking code NNW-XXXX
-  const tracking_code = await generateUniqueTrackingCode();
+  const waybillRef = doc(db, "waybills", payment.waybill_id);
+  const wbSnap = await getDoc(waybillRef);
+  const wbData = wbSnap.exists() ? wbSnap.data() : {};
+  const originPark = wbData.origin_park || "Nnewi";
+
+  // 1. Generate unique tracking code with dynamic prefix based on origin park
+  const tracking_code = await generateUniqueTrackingCode(originPark);
 
   // 2. Fetch company to get split percentage
   const compRef = doc(db, "companies", payment.company_id);
@@ -3608,7 +3689,6 @@ async function confirmPayment(paymentId: string, payment: any, paystackFeeKobo?:
   });
 
   // 5. Update waybill document
-  const waybillRef = doc(db, "waybills", payment.waybill_id);
   await updateDoc(waybillRef, {
     tracking_code,
     tracking_active: true,

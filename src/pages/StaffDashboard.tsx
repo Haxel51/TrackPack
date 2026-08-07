@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight } from 'lucide-react';
+import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
 import { OutgoingBuses } from '../components/staff/OutgoingBuses';
@@ -12,6 +12,7 @@ type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'inco
 export const StaffDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const [screen, setScreen] = useState<StaffScreen>('menu');
+  const [showStaffGuideModal, setShowStaffGuideModal] = useState<boolean>(false);
   
   // Operational alert counts
   const [outgoingCount, setOutgoingCount] = useState<number>(0);
@@ -128,10 +129,14 @@ export const StaffDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
-                <span className="bg-blue-100 text-blue-800 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest block text-center">
-                  Terminal Operations
-                </span>
+              <div className="flex flex-col sm:flex-row items-center gap-3 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
+                <button
+                  onClick={() => setShowStaffGuideModal(true)}
+                  className="bg-amber-100 hover:bg-amber-200 text-[#0A1F44] border border-amber-300 font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                >
+                  <HelpCircle className="w-4 h-4 text-[#F2A93B]" />
+                  <span>📖 Staff Operating Guide</span>
+                </button>
               </div>
             </div>
 
@@ -216,6 +221,7 @@ export const StaffDashboard: React.FC = () => {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Card 1: Create Waybill */}
               <button
+                id="staff-create-waybill-btn"
                 onClick={() => setScreen('create_waybill')}
                 className="bg-[#0A1F44] text-white rounded-3xl p-6 hover:bg-blue-900 transition-all text-left space-y-4 group cursor-pointer shadow-md hover:shadow-lg flex flex-col justify-between min-h-[180px]"
               >
@@ -235,6 +241,7 @@ export const StaffDashboard: React.FC = () => {
 
               {/* Card 2: Outgoing Buses */}
               <button
+                id="staff-outgoing-buses-tab"
                 onClick={() => setScreen('outgoing')}
                 className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[180px] ${
                   outgoingCount > 0 ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
@@ -263,6 +270,7 @@ export const StaffDashboard: React.FC = () => {
 
               {/* Card 3: Incoming Buses */}
               <button
+                id="staff-incoming-buses-tab"
                 onClick={() => setScreen('incoming')}
                 className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[180px] ${
                   (incomingInTransitCount > 0 || pendingPickupCount > 0) ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
@@ -348,6 +356,113 @@ export const StaffDashboard: React.FC = () => {
       <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
         &copy; {new Date().getFullYear()} Waybilla Operations Hub. All rights reserved.
       </footer>
+
+      {/* Staff Operations Guide Modal */}
+      {showStaffGuideModal && (
+        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-[#0A1F44] flex items-center justify-center font-black text-lg">
+                  📖
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-[#0A1F44]">Park Staff Operating Manual</h3>
+                  <p className="text-xs text-slate-500">Step-by-step workflow guide — No hard English! 🤣</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowStaffGuideModal(false)}
+                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4 max-h-[65vh] overflow-y-auto pr-2 text-slate-700 text-xs">
+              {/* Step 1 */}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2">
+                <div className="font-extrabold text-[#0A1F44] text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-[#0A1F44] text-white flex items-center justify-center text-xs font-black">1</span>
+                  <span>Step 1: Register an Active Loading Bus 🚌</span>
+                </div>
+                <p className="leading-relaxed">
+                  Before issuing any waybill for payment, ensure a bus is created for that destination!
+                  Click <strong>Register New Bus</strong>, choose the bus number, driver name, and driver phone number.
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
+                <div className="font-extrabold text-amber-950 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-black">2</span>
+                  <span>Step 2: Create Waybill & Take Payment 💳</span>
+                </div>
+                <p className="leading-relaxed">
+                  Click <strong>Create New Waybill</strong>. Enter the Sender & Receiver <strong>11-digit phone numbers</strong> accurately. Pick the destination park and assign it to the loading bus. Present the Paystack QR code/link to customer to pay.
+                </p>
+                <div className="bg-white/80 p-2 rounded-xl text-[11px] font-bold text-amber-900 border border-amber-200">
+                  💡 Tip: The customer will receive an SMS containing their Waybill Tracking Code and 6-digit Secret Pickup PIN.
+                </div>
+              </div>
+
+              {/* Step 3 */}
+              <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
+                <div className="font-extrabold text-emerald-950 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">3</span>
+                  <span>Step 3: ⚠️ Mark Bus as Departed 🚀</span>
+                </div>
+                <p className="leading-relaxed">
+                  When the driver loads all waybills and the bus leaves your station, open <strong>Outgoing Buses</strong> and click <strong>"Mark Bus as Departed"</strong>.
+                </p>
+                <div className="bg-rose-100 border border-rose-300 p-2 rounded-xl text-[11px] text-rose-950 font-bold">
+                  ⚠️ <strong>SERIOUS WARNING:</strong> Staff MUST click Departed when bus moves! If you forget, tracking will stay stuck on "Booked" and customers will be calling your line non-stop!
+                </div>
+              </div>
+
+              {/* Step 4 */}
+              <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-2">
+                <div className="font-extrabold text-indigo-950 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black">4</span>
+                  <span>Step 4: ⚠️ Mark Bus as Arrived 📍</span>
+                </div>
+                <p className="leading-relaxed">
+                  When a bus arrives at your station from another park, open <strong>Incoming Buses</strong> and click <strong>"Mark Bus as Arrived"</strong>.
+                  This updates the waybill status to ARRIVED AT PARK so receiver knows it is ready for collection!
+                </p>
+              </div>
+
+              {/* Step 5 */}
+              <div className="bg-purple-50/70 border border-purple-200 rounded-2xl p-4 space-y-2">
+                <div className="font-extrabold text-purple-950 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-black">5</span>
+                  <span>Step 5: Verify Receiver Phone & Mark Collected 🎁</span>
+                </div>
+                <p className="leading-relaxed">
+                  When the receiver comes to collect their waybill:
+                </p>
+                <ol className="list-disc pl-5 space-y-1 text-[11px] font-semibold text-slate-700">
+                  <li>Ask receiver for their <strong>Receiver Phone Number</strong>.</li>
+                  <li>Verify the waybill details on your screen under Incoming Waybills.</li>
+                  <li>Click <strong>Mark Collected</strong> and hand over the waybill! 🎁</li>
+                </ol>
+                <div className="bg-white/80 p-2 rounded-xl text-[11px] font-bold text-purple-900 border border-purple-200">
+                  🤣 Simple as ABC! No friction, no stress!
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowStaffGuideModal(false)}
+              className="w-full bg-[#0A1F44] text-white font-bold py-3.5 rounded-2xl text-sm hover:bg-blue-900 transition-colors cursor-pointer"
+            >
+              Close Manual & Continue Operations
+            </button>
+          </div>
+        </div>
+      )}
+
+
     </div>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
-import { FileText, ArrowLeft, Loader2, Plus, Sparkles, CheckCircle, ExternalLink, CreditCard, CheckCircle2 } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
 
 interface WaybillFormProps {
   token: string;
@@ -16,7 +16,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const [receiverName, setReceiverName] = useState('');
   const [receiverPhone, setReceiverPhone] = useState('');
   const [itemDescription, setItemDescription] = useState('');
-  const [busId, setBusId] = useState('Unassigned');
+  const [busId, setBusId] = useState('');
   const [destinationPark, setDestinationPark] = useState('');
 
   const [parks, setParks] = useState<{ id: string; park_name: string; park_location: string }[]>([]);
@@ -97,16 +97,24 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         getStaffCompanyParks(token)
       ]);
 
+      let initialDest = '';
       if (parksRes.success && parksRes.parks) {
         const filteredParks = parksRes.parks.filter((p: any) => p.park_location !== originPark);
         setParks(filteredParks);
         if (filteredParks.length > 0) {
-          setDestinationPark(filteredParks[0].park_location);
+          initialDest = filteredParks[0].park_location;
+          setDestinationPark(initialDest);
         }
       }
 
       if (busesRes.success && busesRes.buses) {
         setAvailableBuses(busesRes.buses);
+        const matchingBuses = busesRes.buses.filter((b: any) => b.destination_park === initialDest);
+        if (matchingBuses.length > 0) {
+          setBusId(matchingBuses[0].id);
+        } else {
+          setBusId('');
+        }
       }
     } catch (err) {
       console.error('Error fetching waybill metadata:', err);
@@ -123,7 +131,12 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const handleDestinationChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const dest = e.target.value;
     setDestinationPark(dest);
-    setBusId('Unassigned'); // Reset bus choice when destination changes
+    const matchingBuses = availableBuses.filter(b => b.destination_park === dest);
+    if (matchingBuses.length > 0) {
+      setBusId(matchingBuses[0].id);
+    } else {
+      setBusId('');
+    }
   };
 
   const handleBusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -139,7 +152,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     setCreatedTrackingCode(null);
     setActivePayment(null);
     setError(null);
-    setBusId('Unassigned');
+    setBusId('');
     fetchMetadata();
   };
 
@@ -147,6 +160,11 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     e.preventDefault();
     if (!senderName.trim() || !senderPhone.trim() || !receiverName.trim() || !receiverPhone.trim() || !itemDescription.trim() || !destinationPark.trim()) {
       setError('Please fill in all required fields.');
+      return;
+    }
+
+    if (!busId || busId === 'Unassigned') {
+      setError(`Assigning an active loading bus for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a bus or click "Register New Bus".`);
       return;
     }
 
@@ -172,7 +190,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         receiver_name: receiverName.trim(),
         receiver_phone: receiverPhone.trim(),
         item_description: itemDescription.trim(),
-        bus_id: busId === 'Unassigned' ? '' : busId,
+        bus_id: busId,
         destination_park: destinationPark.trim()
       });
 
@@ -485,7 +503,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             <FileText className="text-[#F2A93B] w-5 h-5" />
             Create New Waybill
           </h2>
-          <p className="text-xs text-slate-500">Record outgoing parcel shipment details and dispatch route</p>
+          <p className="text-xs text-slate-500">Record outgoing waybill shipment details and dispatch route</p>
         </div>
       </div>
 
@@ -539,50 +557,65 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </div>
           </div>
 
-          {/* Optional Bus Selection Card */}
-          <div className="bg-blue-50/40 border border-blue-100 rounded-2xl p-5" id="bus-assignment-card">
-            <div className="flex justify-between items-center mb-3">
+          {/* Required Bus Selection Card */}
+          <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-5" id="bus-assignment-card">
+            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
               <label className="text-xs font-bold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#F2A93B]" />
-                Assign to Driver / Bus (Optional)
+                Assign to Active Bus / Driver <span className="text-red-500">*</span>
               </label>
               <button
                 type="button"
                 onClick={onCreateNewBus}
-                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors"
+                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Register New Bus
               </button>
             </div>
             
-            <p className="text-[11px] text-slate-500 mb-3 leading-relaxed">
-              If there is an active bus loading for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>, you can assign it now. Or choose <span className="font-semibold text-blue-700">Leave Unassigned</span> to register it on a driver/manifest later.
+            <p className="text-[11px] text-slate-600 mb-3 leading-relaxed">
+              Every waybill must be assigned to an active loading bus before taking customer payment. Select the bus/driver departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
             </p>
 
-            <select
-              value={busId}
-              onChange={handleBusChange}
-              className="w-full bg-white border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
-            >
-              <option value="Unassigned">-- Leave Unassigned (Assign to driver/bus later) --</option>
-              {availableBuses
-                .filter(b => b.destination_park === destinationPark)
-                .map((bus, index) => (
-                  <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
-                    Bus {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
-                  </option>
-                ))}
-            </select>
-
-            {availableBuses.filter(b => b.destination_park === destinationPark).length === 0 && destinationPark && (
-              <p className="text-[10px] text-amber-700 font-semibold mt-2.5 bg-amber-50 border border-amber-100 p-2.5 rounded-lg flex items-center gap-1.5">
-                💡 Tip: No active buses currently loading for {destinationPark}. This waybill will be registered as unassigned. You can load it onto a bus later.
-              </p>
+            {availableBuses.filter(b => b.destination_park === destinationPark).length > 0 ? (
+              <select
+                value={busId}
+                onChange={handleBusChange}
+                required
+                className="w-full bg-white border border-slate-300 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-slate-800"
+              >
+                <option value="" disabled>-- Select Active Bus / Driver --</option>
+                {availableBuses
+                  .filter(b => b.destination_park === destinationPark)
+                  .map((bus, index) => (
+                    <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
+                      Bus {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
+                    </option>
+                  ))}
+              </select>
+            ) : (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
+                <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
+                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                  No Active Bus Loading for {destinationPark || 'Destination'}
+                </p>
+                <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">
+                  You cannot issue a waybill without a bus assignment. Please register an active bus/driver for this route first.
+                </p>
+                <button
+                  type="button"
+                  onClick={onCreateNewBus}
+                  className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  Register & Launch New Bus for {destinationPark}
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="border-t border-slate-100 pt-5">
+          <div className="border-t border-slate-100 pt-5" id="staff-phone-fields">
             <h3 className="font-extrabold text-[#0A1F44] mb-4 text-sm uppercase tracking-wide">Sender Details</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <div>
@@ -676,16 +709,18 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </button>
             <button
               type="submit"
-              disabled={submitLoading}
-              className="flex-1 bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl text-sm transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-50"
+              disabled={submitLoading || !busId}
+              className="flex-1 bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl text-sm transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {submitLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
                   Registering...
                 </>
+              ) : !busId ? (
+                'Select Active Bus First'
               ) : (
-                'Create Waybill'
+                'Create Waybill & Pay'
               )}
             </button>
           </div>

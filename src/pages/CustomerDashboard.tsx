@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { 
   LogOut, 
@@ -38,9 +38,12 @@ export const CustomerDashboard: React.FC = () => {
   const [isRequestingNotif, setIsRequestingNotif] = useState(false);
   const [notificationDismissed, setNotificationDismissed] = useState(false);
 
-  const fetchWaybills = async () => {
+  // Ref to track previous status of waybills for instant push triggers
+  const prevWaybillStatuses = useRef<Record<string, string>>({});
+
+  const fetchWaybills = async (isSilent = false) => {
     if (!token) return;
-    setIsLoading(true);
+    if (!isSilent) setIsLoading(true);
     setError(null);
     try {
       const response = await fetch('/api/customer/waybills', {
@@ -50,15 +53,46 @@ export const CustomerDashboard: React.FC = () => {
       });
       const data = await response.json();
       if (!response.ok) {
-        setError(data.error || 'Failed to fetch shipments.');
+        if (!isSilent) setError(data.error || 'Failed to fetch shipments.');
       } else {
-        setWaybills(data.waybills);
+        const fetchedWaybills: any[] = data.waybills || [];
+        
+        // Compare with previous statuses to detect real-time updates
+        fetchedWaybills.forEach((wb) => {
+          const oldStatus = prevWaybillStatuses.current[wb.id];
+          if (oldStatus && oldStatus !== wb.status) {
+            // Status changed! Trigger OS browser notification if granted
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              let notifBody = `Waybill ${wb.tracking_code} status is now ${wb.status}.`;
+              if (wb.status === 'departed' || wb.status === 'in_transit') {
+                notifBody = `Your waybill ${wb.tracking_code} just departed ${wb.origin_park}!`;
+              } else if (wb.status === 'arrived') {
+                notifBody = `Good news! Your waybill ${wb.tracking_code} arrived at ${wb.destination_park}.`;
+              } else if (wb.status === 'collected') {
+                notifBody = `Waybill ${wb.tracking_code} delivered and collected safely.`;
+              }
+              try {
+                new Notification('Waybilla Shipment Update 🚚', {
+                  body: notifBody,
+                  icon: '/icon.png',
+                  tag: wb.tracking_code
+                });
+              } catch (e) {
+                console.error('Failed to show native browser notification:', e);
+              }
+            }
+          }
+          // Update ref tracking
+          prevWaybillStatuses.current[wb.id] = wb.status;
+        });
+
+        setWaybills(fetchedWaybills);
       }
     } catch (err) {
       console.error('Error fetching waybills:', err);
-      setError('Network connection error. Please try again.');
+      if (!isSilent) setError('Network connection error. Please try again.');
     } finally {
-      setIsLoading(false);
+      if (!isSilent) setIsLoading(false);
     }
   };
 
@@ -69,6 +103,13 @@ export const CustomerDashboard: React.FC = () => {
         setNotificationsEnabled(true);
       }
     }
+
+    // Set up real-time background polling every 12 seconds
+    const interval = setInterval(() => {
+      fetchWaybills(true);
+    }, 12000);
+
+    return () => clearInterval(interval);
   }, [token]);
 
   const handleEnableNotifications = async () => {
@@ -77,6 +118,16 @@ export const CustomerDashboard: React.FC = () => {
       try {
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
+          // Trigger test notification to prove OS notifications are active
+          try {
+            new Notification('Waybilla Push Alerts Active 🔔', {
+              body: 'Push notifications are enabled! You will get alerts when your waybill updates.',
+              icon: '/icon.png'
+            });
+          } catch (e) {
+            console.error('Test notification error:', e);
+          }
+
           const deviceToken = `fcm_web_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
           await fetch('/api/customer/fcm-token', {
             method: 'POST',
@@ -252,12 +303,30 @@ export const CustomerDashboard: React.FC = () => {
             </button>
 
             <button
-              onClick={fetchWaybills}
+              onClick={() => fetchWaybills()}
               className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0A1F44] bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 transition-all cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Refresh
             </button>
+          </div>
+        </div>
+
+        {/* Customer Quick Guide Banner */}
+        <div className="bg-blue-50/80 border border-blue-200/90 rounded-3xl p-5 shadow-xs space-y-2">
+          <div className="flex items-center gap-2 font-black text-[#0A1F44] text-sm">
+            <span>💡 How Your Waybill Dashboard Works:</span>
+          </div>
+          <p className="text-xs text-slate-700 leading-relaxed">
+            All waybills registered with your phone number (<strong>{user?.phone_number}</strong>) as either <strong>Sender</strong> or <strong>Receiver</strong> automatically show here!
+          </p>
+          <div className="bg-white p-3 rounded-2xl border border-blue-100 text-xs text-slate-700 space-y-1">
+            <p className="font-extrabold text-[#0A1F44] flex items-center gap-1">
+              📍 <strong>Easy Pickup & Collection:</strong>
+            </p>
+            <p className="text-[11px] leading-relaxed text-slate-600">
+              When your waybill arrives at the destination motor park, walk up to the park counter and provide the <strong>Receiver’s Phone Number</strong> to staff to verify and collect your waybill!
+            </p>
           </div>
         </div>
 
@@ -375,13 +444,14 @@ export const CustomerDashboard: React.FC = () => {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-3.5">
+            <div className="grid grid-cols-1 gap-3.5" id="customer-shipment-list">
               {waybills.map((w, index) => {
                 const isUserSender = user?.phone_number === w.sender_phone;
                 return (
                   <div
                     key={`cust-wb-${w.id || index}-${index}`}
                     onClick={() => handleSelectWaybill(w)}
+                    id={index === 0 ? "customer-shipment-card" : undefined}
                     className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="space-y-3 flex-grow min-w-0 pr-4">

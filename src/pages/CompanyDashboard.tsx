@@ -842,7 +842,7 @@ export const CompanyDashboard: React.FC = () => {
                           </div>
                           <div>
                             <p className="text-sm font-extrabold text-[#0A1F44]">{wb.tracking_code}</p>
-                            <p className="text-xs text-slate-500 mt-0.5">{wb.item_description || 'Parcel Item'}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{wb.item_description || 'Waybill Package'}</p>
                           </div>
                         </div>
 
@@ -1168,7 +1168,7 @@ export const CompanyDashboard: React.FC = () => {
                               {wb.tracking_code}
                             </td>
                             <td className="p-4 font-semibold text-[#0A1F44] max-w-[180px] truncate">
-                              {wb.item_description || 'Parcel Item'}
+                              {wb.item_description || 'Waybill Package'}
                             </td>
                             <td className="p-4 text-slate-600 font-semibold">{wb.origin_park}</td>
                             <td className="p-4 text-slate-600 font-semibold">{wb.destination_park}</td>
@@ -1828,6 +1828,7 @@ export const CompanyDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
 
     </div>
   );

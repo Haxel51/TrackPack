@@ -328,7 +328,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
             </div>
             <h3 className="font-extrabold text-[#0A1F44]">All Shipments Loaded</h3>
             <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              There are currently no unassigned paid waybills at your station. Every booked parcel has been registered to an active bus manifest.
+              There are currently no unassigned paid waybills at your station. Every booked waybill has been registered to an active bus.
             </p>
           </div>
         ) : (

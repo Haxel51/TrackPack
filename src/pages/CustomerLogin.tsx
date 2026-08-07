@@ -257,13 +257,18 @@ export const CustomerLogin: React.FC = () => {
             </div>
 
             {/* Waybill Matching Explanation Notice */}
-            <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-3.5 flex items-start gap-3">
-              <div className="p-1.5 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
-                <Info className="w-4 h-4" />
+            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+              <div className="p-2 bg-amber-100 rounded-xl text-amber-900 shrink-0 mt-0.5 font-bold text-lg">
+                📱
               </div>
-              <div className="text-xs text-amber-950 leading-relaxed font-medium">
-                <strong className="font-extrabold text-amber-900 block mb-0.5">Important Waybill Notice:</strong>
-                Please log in or sign up using the <strong>exact phone number</strong> registered during waybill booking at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>. All waybills linked to your phone number will automatically appear in your portal.
+              <div className="text-xs text-amber-950 leading-relaxed font-medium space-y-1">
+                <strong className="font-black text-amber-900 text-sm block">⚠️ CRITICAL: Use Park Phone Number!</strong>
+                <p>
+                  You <strong>MUST</strong> log in or sign up using the <strong>EXACT 11-digit phone number</strong> registered at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>!
+                </p>
+                <p className="text-[11px] text-amber-800 bg-white/70 p-2 rounded-xl border border-amber-200 font-semibold">
+                  🔑 That phone number automatically unlocks your digital waybill receipts 🧾, live bus updates, receiver verification, and full delivery history!
+                </p>
               </div>
             </div>
           </>

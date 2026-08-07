@@ -17,6 +17,7 @@ import {
   X,
   Check
 } from 'lucide-react';
+import { WaybillActions } from './WaybillActions';
 
 interface Waybill {
   id: string;
@@ -61,6 +62,7 @@ interface ShipmentTimelineProps {
   showConfirmButton?: boolean;
   onConfirmReceived?: () => Promise<void>;
   isConfirming?: boolean;
+  showReceiptButton?: boolean;
 }
 
 export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
@@ -69,7 +71,8 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
   driver = null,
   showConfirmButton = false,
   onConfirmReceived,
-  isConfirming = false
+  isConfirming = false,
+  showReceiptButton = true
 }) => {
   const [showReceiptModal, setShowReceiptModal] = useState(false);
 
@@ -199,11 +202,15 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       {/* Header Info Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-5">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">WAYBILL CODE</span>
-            <span className="bg-slate-100 text-slate-800 text-xs font-black px-2.5 py-0.5 rounded-md uppercase tracking-wider">
-              {tracking_code}
-            </span>
+            <WaybillActions 
+              trackingCode={tracking_code} 
+              itemDescription={item_description}
+              originPark={origin_park}
+              destinationPark={destination_park}
+              status={status}
+            />
           </div>
           <h3 className="text-lg font-extrabold text-[#0A1F44] mt-1 leading-tight">
             {item_description}
@@ -501,6 +508,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       {showConfirmButton && status === 'arrived' && (
         <div className="pt-2">
           <button
+            id="customer-confirm-btn"
             onClick={onConfirmReceived}
             disabled={isConfirming}
             className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400 text-white font-extrabold py-4 px-6 rounded-2xl transition-all shadow-sm active:scale-[0.98] cursor-pointer flex items-center justify-center gap-2 text-sm"
@@ -523,149 +531,153 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       )}
 
       {/* Digital Receipt Button */}
-      <div className="pt-2 border-t border-slate-100 mt-4">
-        <button
-          onClick={() => setShowReceiptModal(true)}
-          className="w-full bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs shadow-xs"
-        >
-          <Receipt className="w-4 h-4 text-[#F2A93B]" />
-          View Digital Waybill History Receipt 🧾
-        </button>
-      </div>
-
-      {/* Digital Waybill History Receipt Modal */}
-      {showReceiptModal && (
-        <div className="fixed inset-0 bg-[#0A1F44]/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="digital-waybill-receipt-modal">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-6 sm:p-8 space-y-6 relative border border-slate-100">
+      {showReceiptButton && (
+        <>
+          <div className="pt-2 border-t border-slate-100 mt-4">
             <button
-              onClick={() => setShowReceiptModal(false)}
-              className="absolute top-5 right-5 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors cursor-pointer"
+              onClick={() => setShowReceiptModal(true)}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs shadow-xs"
             >
-              <X className="w-5 h-5" />
+              <Receipt className="w-4 h-4 text-[#F2A93B]" />
+              View Digital Waybill History Receipt 🧾
             </button>
-
-            {/* Receipt Header */}
-            <div className="text-center border-b border-slate-100 pb-5 space-y-2">
-              <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
-                <Receipt className="w-6 h-6" />
-              </div>
-              <h2 className="text-xl font-black text-[#0A1F44]">Waybilla Nigeria</h2>
-              <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Official Digital Waybill Transaction Receipt</p>
-              <div className="inline-block bg-blue-50 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mt-1">
-                Ref: {tracking_code}
-              </div>
-            </div>
-
-            {/* Transaction Overview Grid */}
-            <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
-              <div>
-                <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Terminal</span>
-                <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{origin_park}</span>
-              </div>
-              <div>
-                <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Terminal</span>
-                <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{destination_park}</span>
-              </div>
-              <div className="col-span-2 pt-2 border-t border-slate-200">
-                <span className="text-slate-400 block font-bold uppercase text-[10px]">Item Description</span>
-                <span className="font-bold text-slate-800 text-sm block mt-0.5">{item_description}</span>
-              </div>
-            </div>
-
-            {/* Parties Involved */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignor (Sender)</span>
-                <p className="font-extrabold text-slate-800 text-sm">{waybill.sender_name}</p>
-                <p className="text-slate-500 font-medium flex items-center gap-1">
-                  <Phone className="w-3 h-3 text-slate-400" /> {waybill.sender_phone}
-                </p>
-              </div>
-              <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignee (Receiver)</span>
-                <p className="font-extrabold text-slate-800 text-sm">{waybill.receiver_name}</p>
-                <p className="text-slate-500 font-medium flex items-center gap-1">
-                  <Phone className="w-3 h-3 text-slate-400" /> {waybill.receiver_phone}
-                </p>
-              </div>
-            </div>
-
-            {/* Vehicle & Driver Details */}
-            <div className="border border-slate-100 p-4 rounded-2xl bg-blue-50/40 space-y-1.5 text-xs">
-              <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider block">Vehicle & Driver Allocation</span>
-              <div className="flex justify-between items-center">
-                <span className="text-slate-600 font-bold">Bus / Vehicle No:</span>
-                <span className="font-black text-[#0A1F44]">{bus_number}</span>
-              </div>
-              {driver && (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-bold">Driver Name:</span>
-                    <span className="font-black text-[#0A1F44]">{driver.driver_name || 'Assigned Driver'}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-bold">Driver Phone:</span>
-                    <span className="font-black text-[#0A1F44]">{driver.driver_phone}</span>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Chronological Audit Trail (Nothing hidden) */}
-            <div className="space-y-2.5">
-              <h4 className="text-xs font-black text-[#0A1F44] uppercase tracking-wider">Audit Trail & Transaction History</h4>
-              <div className="space-y-2 text-xs">
-                <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                  <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Waybill Created / Booked
-                  </span>
-                  <span className="font-medium text-slate-500">{formatDateTime(waybill.created_at || booked_at)}</span>
-                </div>
-                {departed_at && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Bus Departed Origin
-                    </span>
-                    <span className="font-medium text-slate-500">{formatDateTime(departed_at)}</span>
-                  </div>
-                )}
-                {arrived_at && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                    <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Arrived Destination Park
-                    </span>
-                    <span className="font-medium text-slate-500">{formatDateTime(arrived_at)}</span>
-                  </div>
-                )}
-                {collected_at && (
-                  <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                    <span className="font-bold text-emerald-900 flex items-center gap-1.5">
-                      <ShieldCheck className="w-4 h-4 text-emerald-600" /> Delivered & Collected ({collected_by === 'receiver' ? 'Verified by Receiver Phone' : 'Staff Confirmed'})
-                    </span>
-                    <span className="font-bold text-emerald-700">{formatDateTime(collected_at)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Receipt Footer & Actions */}
-            <div className="border-t border-slate-100 pt-5 flex items-center justify-between gap-3">
-              <button
-                onClick={() => window.print()}
-                className="bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold px-4 py-3 rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-2"
-              >
-                <Printer className="w-4 h-4" />
-                Print / Save Receipt
-              </button>
-              <button
-                onClick={() => setShowReceiptModal(false)}
-                className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-6 py-3 rounded-xl text-xs transition-colors cursor-pointer"
-              >
-                Close Receipt
-              </button>
-            </div>
           </div>
-        </div>
+
+          {/* Digital Waybill History Receipt Modal */}
+          {showReceiptModal && (
+            <div className="fixed inset-0 bg-[#0A1F44]/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in" id="digital-waybill-receipt-modal">
+              <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[92vh] overflow-y-auto p-6 sm:p-8 space-y-6 relative border border-slate-100">
+                <button
+                  onClick={() => setShowReceiptModal(false)}
+                  className="absolute top-5 right-5 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+
+                {/* Receipt Header */}
+                <div className="text-center border-b border-slate-100 pb-5 space-y-2">
+                  <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
+                    <Receipt className="w-6 h-6" />
+                  </div>
+                  <h2 className="text-xl font-black text-[#0A1F44]">Waybilla Nigeria</h2>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Official Digital Waybill Transaction Receipt</p>
+                  <div className="inline-block bg-blue-50 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mt-1">
+                    Ref: {tracking_code}
+                  </div>
+                </div>
+
+                {/* Transaction Overview Grid */}
+                <div className="grid grid-cols-2 gap-4 text-xs bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <div>
+                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Origin Terminal</span>
+                    <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{origin_park}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Destination Terminal</span>
+                    <span className="font-extrabold text-[#0A1F44] text-sm block mt-0.5">{destination_park}</span>
+                  </div>
+                  <div className="col-span-2 pt-2 border-t border-slate-200">
+                    <span className="text-slate-400 block font-bold uppercase text-[10px]">Item Description</span>
+                    <span className="font-bold text-slate-800 text-sm block mt-0.5">{item_description}</span>
+                  </div>
+                </div>
+
+                {/* Parties Involved */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignor (Sender)</span>
+                    <p className="font-extrabold text-slate-800 text-sm">{waybill.sender_name}</p>
+                    <p className="text-slate-500 font-medium flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-slate-400" /> {waybill.sender_phone}
+                    </p>
+                  </div>
+                  <div className="border border-slate-100 p-4 rounded-2xl bg-slate-50/60 space-y-1">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Consignee (Receiver)</span>
+                    <p className="font-extrabold text-slate-800 text-sm">{waybill.receiver_name}</p>
+                    <p className="text-slate-500 font-medium flex items-center gap-1">
+                      <Phone className="w-3 h-3 text-slate-400" /> {waybill.receiver_phone}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Vehicle & Driver Details */}
+                <div className="border border-slate-100 p-4 rounded-2xl bg-blue-50/40 space-y-1.5 text-xs">
+                  <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider block">Vehicle & Driver Allocation</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-600 font-bold">Bus / Vehicle No:</span>
+                    <span className="font-black text-[#0A1F44]">{bus_number}</span>
+                  </div>
+                  {driver && (
+                    <>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 font-bold">Driver Name:</span>
+                        <span className="font-black text-[#0A1F44]">{driver.driver_name || 'Assigned Driver'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-600 font-bold">Driver Phone:</span>
+                        <span className="font-black text-[#0A1F44]">{driver.driver_phone}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Chronological Audit Trail (Nothing hidden) */}
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-black text-[#0A1F44] uppercase tracking-wider">Audit Trail & Transaction History</h4>
+                  <div className="space-y-2 text-xs">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                      <span className="font-bold text-slate-600 flex items-center gap-1.5">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Waybill Created / Booked
+                      </span>
+                      <span className="font-medium text-slate-500">{formatDateTime(waybill.created_at || booked_at)}</span>
+                    </div>
+                    {departed_at && (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="font-bold text-slate-600 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Bus Departed Origin
+                        </span>
+                        <span className="font-medium text-slate-500">{formatDateTime(departed_at)}</span>
+                      </div>
+                    )}
+                    {arrived_at && (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+                        <span className="font-bold text-slate-600 flex items-center gap-1.5">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Arrived Destination Park
+                        </span>
+                        <span className="font-medium text-slate-500">{formatDateTime(arrived_at)}</span>
+                      </div>
+                    )}
+                    {collected_at && (
+                      <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                        <span className="font-bold text-emerald-900 flex items-center gap-1.5">
+                          <ShieldCheck className="w-4 h-4 text-emerald-600" /> Delivered & Collected ({collected_by === 'receiver' ? 'Verified by Receiver Phone' : 'Staff Confirmed'})
+                        </span>
+                        <span className="font-bold text-emerald-700">{formatDateTime(collected_at)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Receipt Footer & Actions */}
+                <div className="border-t border-slate-100 pt-5 flex items-center justify-between gap-3">
+                  <button
+                    onClick={() => window.print()}
+                    className="bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold px-4 py-3 rounded-xl text-xs transition-colors cursor-pointer flex items-center gap-2"
+                  >
+                    <Printer className="w-4 h-4" />
+                    Print / Save Receipt
+                  </button>
+                  <button
+                    onClick={() => setShowReceiptModal(false)}
+                    className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-6 py-3 rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Close Receipt
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
