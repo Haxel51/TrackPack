@@ -1836,6 +1836,7 @@ app.post("/api/staff/waybills", async (req, res) => {
       origin_park: park_location,
       destination_park,
       company_id,
+      pickup_pin: Math.floor(100000 + Math.random() * 900000).toString(),
       status: "booked",
       tracking_active: false, // Inactive until paid
       booked_at: new Date().toISOString(),
@@ -2281,17 +2282,19 @@ app.post("/api/staff/buses/:id/arrive", async (req, res) => {
   }
 });
 
-// 8. Mark Waybill as Collected (by Staff with Receiver Phone Verification)
+// 8. Mark Waybill as Collected (by Staff with Flexible Phone or Secret Pickup PIN Verification)
 app.post("/api/staff/waybills/:id/collect", async (req, res) => {
   try {
     const session = await validateSessionFromHeader(req, res);
     if (!session) return;
 
     const waybillId = req.params.id;
-    const { receiver_phone } = req.body;
+    const { receiver_phone, pickup_pin } = req.body;
 
-    if (!receiver_phone) {
-      return res.status(400).json({ error: "Receiver phone number is required for security verification." });
+    const inputVal = String(receiver_phone || pickup_pin || "").trim();
+
+    if (!inputVal) {
+      return res.status(400).json({ error: "Receiver phone number or 6-digit Pickup PIN is required for verification." });
     }
 
     const waybillRef = doc(db, "waybills", waybillId);
@@ -2303,11 +2306,15 @@ app.post("/api/staff/waybills/:id/collect", async (req, res) => {
     const waybillData = waybillSnap.data();
 
     const expectedPhone = (waybillData.receiver_phone || "").trim();
-    const providedPhone = String(receiver_phone || "").trim();
+    const expectedPin = (waybillData.pickup_pin || "").trim();
 
-    if (providedPhone !== expectedPhone) {
+    // Check if input matches receiver phone OR pickup pin
+    const isPhoneMatch = inputVal === expectedPhone;
+    const isPinMatch = expectedPin && inputVal === expectedPin;
+
+    if (!isPhoneMatch && !isPinMatch) {
       return res.status(400).json({ 
-        error: "Verification failed! The entered phone number does not match the receiver phone number on record for this waybill. Ask the person taking the waybill to call out the correct receiver phone number." 
+        error: "Verification failed! The entered value does not match the Receiver Phone Number or 6-digit Pickup PIN on record for this waybill. Ask the receiver to state their correct phone number or Pickup PIN." 
       });
     }
 

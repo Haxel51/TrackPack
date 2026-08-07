@@ -298,27 +298,27 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
 
             <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
               <p className="font-extrabold flex items-center gap-1">
-                <Phone className="w-3.5 h-3.5 text-amber-600" />
-                Staff Verification Protocol:
+                <Shield className="w-3.5 h-3.5 text-amber-600" />
+                Flexible Verification Protocol:
               </p>
               <p className="text-amber-800">
-                Please ask the person taking the waybill (<span className="font-bold">{verifyingWaybill.receiver_name}</span>) to call out the receiver phone number. Enter it below to authorize release.
+                Ask <span className="font-bold">{verifyingWaybill.receiver_name}</span> for their <strong>Receiver Phone Number</strong> OR their secret <strong>6-digit Pickup PIN</strong>. Enter either below to authorize release.
               </p>
             </div>
 
             <form onSubmit={handleConfirmCollect} className="space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                  Receiver Phone Number (Call out check)
+                  Receiver Phone OR 6-Digit Pickup PIN
                 </label>
                 <div className="relative">
                   <span className="absolute left-3.5 top-3.5 text-slate-400">
                     <Phone className="w-4 h-4" />
                   </span>
                   <input
-                    type="tel"
+                    type="text"
                     required
-                    placeholder="e.g. 08012345678"
+                    placeholder="Enter Receiver Phone OR 6-digit PIN"
                     value={inputPhone}
                     onChange={(e) => setInputPhone(e.target.value)}
                     className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0A1F44] focus:outline-none focus:border-[#F2A93B]"

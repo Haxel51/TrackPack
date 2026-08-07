@@ -7,6 +7,7 @@ interface WaybillActionsProps {
   originPark?: string;
   destinationPark?: string;
   status?: string;
+  pickupPin?: string;
 }
 
 export const WaybillActions: React.FC<WaybillActionsProps> = ({
@@ -14,7 +15,8 @@ export const WaybillActions: React.FC<WaybillActionsProps> = ({
   itemDescription = 'Waybill Parcel',
   originPark = '',
   destinationPark = '',
-  status = 'booked'
+  status = 'booked',
+  pickupPin
 }) => {
   const [copied, setCopied] = useState(false);
   const [shared, setShared] = useState(false);
@@ -28,7 +30,8 @@ export const WaybillActions: React.FC<WaybillActionsProps> = ({
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareText = `📦 Waybill Tracking Code: *${trackingCode}*\nItem: ${itemDescription}\nRoute: ${originPark} ➔ ${destinationPark}\nStatus: ${status.toUpperCase()}\nTrack instantly on Waybilla: ${window.location.origin}/?track=${trackingCode}`;
+    const pinText = pickupPin ? `\n🔑 Secret Pickup PIN: *${pickupPin}*` : '';
+    const shareText = `📦 Waybill Code: *${trackingCode}*${pinText}\nItem: ${itemDescription}\nRoute: ${originPark} ➔ ${destinationPark}\nStatus: ${status.toUpperCase()}\nTrack live on Waybilla: ${window.location.origin}/?track=${trackingCode}`;
     
     if (navigator.share) {
       try {
@@ -52,8 +55,9 @@ export const WaybillActions: React.FC<WaybillActionsProps> = ({
 
   const handleWhatsAppSend = (e: React.MouseEvent) => {
     e.stopPropagation();
+    const pinText = pickupPin ? `\n🔑 Secret Pickup PIN: *${pickupPin}*` : '';
     const message = encodeURIComponent(
-      `Hello! Please track my interstate waybill on Waybilla.\n\n📦 Code: *${trackingCode}*\n📝 Item: ${itemDescription}\n🚌 Route: ${originPark} to ${destinationPark}\n📍 Status: ${status.toUpperCase()}\n\nTrack here: ${window.location.origin}/?track=${trackingCode}`
+      `Hello! Please track my interstate waybill on Waybilla.\n\n📦 Code: *${trackingCode}*${pinText}\n📝 Item: ${itemDescription}\n🚌 Route: ${originPark} to ${destinationPark}\n📍 Status: ${status.toUpperCase()}\n\nTrack here: ${window.location.origin}/?track=${trackingCode}`
     );
     window.open(`https://wa.me/?text=${message}`, '_blank');
   };

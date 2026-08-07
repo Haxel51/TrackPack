@@ -467,6 +467,11 @@ export const CustomerDashboard: React.FC = () => {
                         `}>
                           {isUserSender ? 'SENDER' : 'RECEIVER'}
                         </span>
+                        {w.pickup_pin && (
+                          <span className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
+                            🔑 Pickup PIN: {w.pickup_pin}
+                          </span>
+                        )}
                       </div>
 
                       {/* Middle Line: Description */}

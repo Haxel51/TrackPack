@@ -15,13 +15,15 @@ import {
   Receipt,
   Printer,
   X,
-  Check
+  Check,
+  Key
 } from 'lucide-react';
 import { WaybillActions } from './WaybillActions';
 
 interface Waybill {
   id: string;
   tracking_code: string;
+  pickup_pin?: string;
   sender_name: string;
   sender_phone: string;
   receiver_name: string;
@@ -210,6 +212,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               originPark={origin_park}
               destinationPark={destination_park}
               status={status}
+              pickupPin={waybill.pickup_pin}
             />
           </div>
           <h3 className="text-lg font-extrabold text-[#0A1F44] mt-1 leading-tight">
@@ -247,6 +250,25 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
           {warmStatusPhrase}
         </p>
       </div>
+
+      {/* Pickup PIN Verification Banner */}
+      {waybill.pickup_pin && (
+        <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 font-extrabold shadow-2xs">
+              <Key className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="font-extrabold text-purple-950 text-sm flex items-center gap-1.5 flex-wrap">
+                Secret Pickup PIN: <span className="font-black text-purple-700 tracking-wider text-base bg-white px-2.5 py-0.5 rounded-lg border border-purple-200 shadow-2xs">{waybill.pickup_pin}</span>
+              </p>
+              <p className="text-purple-800 text-[11px] mt-1 font-medium leading-relaxed">
+                To collect at destination park, receiver can state their <strong>Phone Number ({waybill.receiver_phone})</strong> OR show this <strong>6-digit Pickup PIN ({waybill.pickup_pin})</strong>.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Origin -> Destination horizontal header */}
       <div className="flex items-center justify-between text-sm font-extrabold bg-[#FAFAFA] rounded-2xl p-4 border border-slate-100">
