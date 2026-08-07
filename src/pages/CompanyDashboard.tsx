@@ -103,6 +103,7 @@ export const CompanyDashboard: React.FC = () => {
     parkId: '',
     parkName: '',
     name: '',
+    phone: '',
     submitting: false,
     error: null as string | null
   });
@@ -478,6 +479,11 @@ export const CompanyDashboard: React.FC = () => {
       setNewStaffModal(prev => ({ ...prev, error: 'Staff name is required.' }));
       return;
     }
+    const cleanPhone = newStaffModal.phone.replace(/[\s-]/g, '');
+    if (cleanPhone && !/^[0-9]{11}$/.test(cleanPhone)) {
+      setNewStaffModal(prev => ({ ...prev, error: 'Please enter a valid 11-digit phone number (e.g., 08012345678).' }));
+      return;
+    }
     setNewStaffModal(prev => ({ ...prev, submitting: true, error: null }));
     try {
       const response = await fetch('/api/company/staff', {
@@ -488,6 +494,7 @@ export const CompanyDashboard: React.FC = () => {
         },
         body: JSON.stringify({
           name: newStaffModal.name,
+          phone: cleanPhone,
           park_id: newStaffModal.parkId
         })
       });
@@ -509,6 +516,7 @@ export const CompanyDashboard: React.FC = () => {
         parkId: '',
         parkName: '',
         name: '',
+        phone: '',
         submitting: false,
         error: null
       });
@@ -956,6 +964,9 @@ export const CompanyDashboard: React.FC = () => {
                                 <div key={`cmp-stf-${st.id || index}-${index}`} className="flex items-center justify-between bg-slate-50 hover:bg-slate-100/70 p-2.5 rounded-xl transition-all">
                                   <div>
                                     <p className="text-xs font-extrabold text-[#0A1F44]">{st.name}</p>
+                                    {st.phone && (
+                                      <p className="text-[10px] font-semibold text-slate-500 mt-0.5">{st.phone}</p>
+                                    )}
                                     <p className="text-[9px] text-slate-400 mt-0.5">
                                       Added: {new Date(st.created_at).toLocaleDateString()}
                                     </p>
@@ -1637,6 +1648,17 @@ export const CompanyDashboard: React.FC = () => {
                 />
               </div>
 
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Staff Phone Number (Optional)</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 08012345678"
+                  value={newStaffModal.phone}
+                  onChange={e => setNewStaffModal(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                />
+              </div>
+
               {newStaffModal.error && (
                 <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
                   {newStaffModal.error}
@@ -1809,6 +1831,14 @@ export const CompanyDashboard: React.FC = () => {
               <p className="text-xs text-slate-500 mt-1">
                 Tracking code: <strong className="text-blue-600">{detailModal.waybill.tracking_code}</strong>
               </p>
+              {detailModal.waybill.creator_staff_name && (
+                <div className="mt-2.5 p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs flex items-center justify-between">
+                  <span className="font-bold text-blue-900">Issued by Terminal Staff:</span>
+                  <span className="font-black text-blue-800">
+                    {detailModal.waybill.creator_staff_name} {detailModal.waybill.creator_staff_phone ? `(${detailModal.waybill.creator_staff_phone})` : ''}
+                  </span>
+                </div>
+              )}
             </div>
 
             {detailModal.loading ? (

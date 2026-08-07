@@ -948,6 +948,9 @@ export const AdminDashboard: React.FC = () => {
                                 <div key={`adm-stf-${s.id || index}-${index}`} className="bg-slate-50/60 border border-slate-100 rounded-xl p-2.5 flex justify-between items-center">
                                   <div>
                                     <span className="font-extrabold text-slate-700 block">{s.name}</span>
+                                    {s.phone && (
+                                      <span className="text-[10px] font-semibold text-slate-500 block">{s.phone}</span>
+                                    )}
                                     <span className="text-[10px] text-slate-400 font-medium">Location: {s.park_location}</span>
                                   </div>
                                   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${s.active !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'}`}>
@@ -1555,6 +1558,11 @@ export const AdminDashboard: React.FC = () => {
                   <div className="absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full bg-emerald-500" />
                   <p className="text-xs font-extrabold text-slate-700">Waybill Booked</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.booked_at ? new Date(selectedWaybill.booked_at).toLocaleString() : 'N/A'}</p>
+                  {selectedWaybill.creator_staff_name && (
+                    <p className="text-[10px] text-blue-600 font-bold mt-0.5">
+                      Issued by Staff: {selectedWaybill.creator_staff_name} {selectedWaybill.creator_staff_phone ? `(${selectedWaybill.creator_staff_phone})` : ''}
+                    </p>
+                  )}
                 </div>
 
                 <div className="relative pl-4">
@@ -1563,6 +1571,11 @@ export const AdminDashboard: React.FC = () => {
                   }`} />
                   <p className="text-xs font-extrabold text-slate-700">Bus Departed Terminal</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.departed_at ? new Date(selectedWaybill.departed_at).toLocaleString() : 'Not Departed'}</p>
+                  {selectedWaybill.departed_by_staff_name && (
+                    <p className="text-[10px] text-amber-600 font-bold mt-0.5">
+                      Departed by Staff: {selectedWaybill.departed_by_staff_name} {selectedWaybill.departed_by_staff_phone ? `(${selectedWaybill.departed_by_staff_phone})` : ''}
+                    </p>
+                  )}
                 </div>
 
                 <div className="relative pl-4">
@@ -1571,6 +1584,11 @@ export const AdminDashboard: React.FC = () => {
                   }`} />
                   <p className="text-xs font-extrabold text-slate-700">Bus Arrived Destination</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.arrived_at ? new Date(selectedWaybill.arrived_at).toLocaleString() : 'Not Arrived'}</p>
+                  {selectedWaybill.arrived_by_staff_name && (
+                    <p className="text-[10px] text-blue-600 font-bold mt-0.5">
+                      Arrived by Staff: {selectedWaybill.arrived_by_staff_name} {selectedWaybill.arrived_by_staff_phone ? `(${selectedWaybill.arrived_by_staff_phone})` : ''}
+                    </p>
+                  )}
                 </div>
 
                 <div className="relative pl-4">
@@ -1579,6 +1597,11 @@ export const AdminDashboard: React.FC = () => {
                   }`} />
                   <p className="text-xs font-extrabold text-slate-700">Waybill Collected</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.collected_at ? new Date(selectedWaybill.collected_at).toLocaleString() : 'Not Collected'}</p>
+                  {selectedWaybill.collected_by_staff_name && (
+                    <p className="text-[10px] text-indigo-600 font-bold mt-0.5">
+                      Collected by Staff: {selectedWaybill.collected_by_staff_name} {selectedWaybill.collected_by_staff_phone ? `(${selectedWaybill.collected_by_staff_phone})` : ''}
+                    </p>
+                  )}
                 </div>
 
               </div>

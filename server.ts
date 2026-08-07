@@ -814,6 +814,7 @@ app.post("/api/auth/staff/login", async (req, res) => {
       userRole: "staff",
       userData: {
         name: matchedStaffData.name,
+        phone: matchedStaffData.phone || matchedStaffData.staff_phone || "",
         company_id: matchedStaffData.company_id,
         park_location: matchedStaffData.park_location,
         active: matchedStaffData.active
@@ -1470,11 +1471,26 @@ app.get("/api/track/:code", async (req, res) => {
       }
     }
 
+    // Sanitize staff internal info from public tracking for customer privacy
+    const sanitizedWaybill = { ...waybill };
+    delete sanitizedWaybill.creator_staff_name;
+    delete sanitizedWaybill.creator_staff_phone;
+    delete sanitizedWaybill.created_by_staff_id;
+    delete sanitizedWaybill.departed_by_staff_id;
+    delete sanitizedWaybill.departed_by_staff_name;
+    delete sanitizedWaybill.departed_by_staff_phone;
+    delete sanitizedWaybill.arrived_by_staff_id;
+    delete sanitizedWaybill.arrived_by_staff_name;
+    delete sanitizedWaybill.arrived_by_staff_phone;
+    delete sanitizedWaybill.collected_by_staff_id;
+    delete sanitizedWaybill.collected_by_staff_name;
+    delete sanitizedWaybill.collected_by_staff_phone;
+
     res.json({
       success: true,
       waybill: {
         id: waybillDoc.id,
-        ...waybill
+        ...sanitizedWaybill
       },
       route: routeInfo,
       driver: driverInfo
@@ -1805,6 +1821,8 @@ app.post("/api/staff/buses", async (req, res) => {
       departed_at: null,
       arrived_at: null,
       created_by_staff_id: session.userId,
+      created_by_staff_name: session.userData.name || "Terminal Staff",
+      created_by_staff_phone: session.userData.phone || session.userData.staff_phone || "",
       created_at: new Date().toISOString()
     };
 
@@ -1876,6 +1894,9 @@ app.post("/api/staff/waybills", async (req, res) => {
       status: "booked",
       tracking_active: false, // Inactive until paid
       booked_at: new Date().toISOString(),
+      created_by_staff_id: session.userId,
+      creator_staff_name: session.userData.name || "Terminal Staff",
+      creator_staff_phone: session.userData.phone || session.userData.staff_phone || "",
       departed_at: null,
       arrived_at: null,
       collected_at: null,
@@ -2159,9 +2180,15 @@ app.post("/api/staff/buses/:id/depart", async (req, res) => {
     }
 
     const nowStr = new Date().toISOString();
+    const staffName = session.userData.name || "Terminal Staff";
+    const staffPhone = session.userData.phone || session.userData.staff_phone || "";
+
     await updateDoc(busRef, {
       status: "departed",
-      departed_at: nowStr
+      departed_at: nowStr,
+      departed_by_staff_id: session.userId,
+      departed_by_staff_name: staffName,
+      departed_by_staff_phone: staffPhone
     });
 
     const q = query(collection(db, "waybills"), where("bus_id", "==", busId));
@@ -2174,11 +2201,17 @@ app.post("/api/staff/buses/:id/depart", async (req, res) => {
         const updatedWaybill = {
           ...waybillData,
           status: "in_transit",
-          departed_at: nowStr
+          departed_at: nowStr,
+          departed_by_staff_id: session.userId,
+          departed_by_staff_name: staffName,
+          departed_by_staff_phone: staffPhone
         };
         await updateDoc(doc(db, "waybills", docObj.id), {
           status: "in_transit",
-          departed_at: nowStr
+          departed_at: nowStr,
+          departed_by_staff_id: session.userId,
+          departed_by_staff_name: staffName,
+          departed_by_staff_phone: staffPhone
         });
         count++;
         // Trigger push notification for departure
@@ -2212,10 +2245,15 @@ app.post("/api/staff/buses/:id/arrive", async (req, res) => {
 
     const busData = busSnap.data();
     const nowStr = new Date().toISOString();
+    const staffName = session.userData.name || "Terminal Staff";
+    const staffPhone = session.userData.phone || session.userData.staff_phone || "";
 
     await updateDoc(busRef, {
       status: "arrived",
-      arrived_at: nowStr
+      arrived_at: nowStr,
+      arrived_by_staff_id: session.userId,
+      arrived_by_staff_name: staffName,
+      arrived_by_staff_phone: staffPhone
     });
 
     // FEATURE 1: ROUTE LEARNING - Calculate actual journey time & update route stats
@@ -2295,11 +2333,17 @@ app.post("/api/staff/buses/:id/arrive", async (req, res) => {
         const updatedWaybill = {
           ...waybillData,
           status: "arrived",
-          arrived_at: nowStr
+          arrived_at: nowStr,
+          arrived_by_staff_id: session.userId,
+          arrived_by_staff_name: staffName,
+          arrived_by_staff_phone: staffPhone
         };
         await updateDoc(doc(db, "waybills", docObj.id), {
           status: "arrived",
-          arrived_at: nowStr
+          arrived_at: nowStr,
+          arrived_by_staff_id: session.userId,
+          arrived_by_staff_name: staffName,
+          arrived_by_staff_phone: staffPhone
         });
         count++;
         // Trigger push notification for arrival
@@ -2359,7 +2403,10 @@ app.post("/api/staff/waybills/:id/collect", async (req, res) => {
     await updateDoc(waybillRef, {
       status: "collected",
       collected_at: nowStr,
-      collected_by: "staff"
+      collected_by: "staff",
+      collected_by_staff_id: session.userId,
+      collected_by_staff_name: session.userData.name || "Terminal Staff",
+      collected_by_staff_phone: session.userData.phone || session.userData.staff_phone || ""
     });
 
     sendPushNotificationForWaybill({ ...waybillData, status: "collected" }, "collected");
@@ -2434,7 +2481,10 @@ app.get("/api/company/overview", async (req, res) => {
       const dateB = new Date(b.created_at || b.booked_at || 0).getTime();
       return dateB - dateA;
     });
-    const recentWaybills = sortedWaybills.slice(0, 5);
+    const recentWaybills = sortedWaybills.slice(0, 5).map((wb: any) => {
+      const { pickup_pin, ...rest } = wb;
+      return rest;
+    });
 
     // Fetch real monthly earnings from successful payments
     const paySnap = await getDocs(collection(db, "payments"));
@@ -2541,9 +2591,14 @@ app.post("/api/company/staff", async (req, res) => {
     if (!session) return;
     const companyId = session.userId;
 
-    const { name, park_id } = req.body;
+    const { name, phone, park_id } = req.body;
     if (!name || !park_id) {
       return res.status(400).json({ error: "Staff name and park selection are required." });
+    }
+
+    const cleanPhone = (phone || "").trim();
+    if (cleanPhone && !isValid11DigitPhone(cleanPhone)) {
+      return res.status(400).json({ error: "If provided, staff phone number must be a valid 11-digit phone number (e.g. 08012345678)." });
     }
 
     // Get the park location first
@@ -2586,6 +2641,7 @@ app.post("/api/company/staff", async (req, res) => {
 
     const newStaffDoc = await addDoc(collection(db, "staff"), {
       name: name.trim(),
+      phone: phone.trim(),
       pin_hash: hashedPin,
       company_id: companyId,
       park_id: park_id,
@@ -2601,6 +2657,7 @@ app.post("/api/company/staff", async (req, res) => {
       staff: {
         id: newStaffDoc.id,
         name: name.trim(),
+        phone: phone.trim(),
         park_id: park_id,
         park_location: parkLocation,
         active: true,
@@ -2765,7 +2822,10 @@ app.get("/api/company/waybills", async (req, res) => {
     const total = waybills.length;
     const startIndex = (page - 1) * limitVal;
     const endIndex = page * limitVal;
-    const paginatedWaybills = waybills.slice(startIndex, endIndex);
+    const paginatedWaybills = waybills.slice(startIndex, endIndex).map((wb: any) => {
+      const { pickup_pin, ...rest } = wb;
+      return rest;
+    });
 
     res.json({
       success: true,
@@ -3358,12 +3418,20 @@ app.get("/api/admin/companies/:id/details", async (req, res) => {
     // Fetch staff
     const staffQ = query(collection(db, "staff"), where("company_id", "==", compId));
     const staffSnap = await getDocs(staffQ);
-    const staff = staffSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const staff = staffSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      delete data.pin_hash;
+      return { id: doc.id, ...data };
+    });
 
     // Fetch shipments
     const wbQ = query(collection(db, "waybills"), where("company_id", "==", compId));
     const wbSnap = await getDocs(wbQ);
-    const shipments = wbSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const shipments = wbSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      delete data.pickup_pin;
+      return { id: doc.id, ...data };
+    });
 
     // Query successful payments for this company to calculate real-time earnings & commission share
     const paySnap = await getDocs(collection(db, "payments"));
@@ -3488,7 +3556,15 @@ app.get("/api/admin/shipments", async (req, res) => {
     const total = waybills.length;
     const startIndex = (page - 1) * limitVal;
     const endIndex = page * limitVal;
-    const paginatedWaybills = waybills.slice(startIndex, endIndex);
+    const paginatedWaybills = waybills.slice(startIndex, endIndex).map((wb: any) => {
+      const { pickup_pin, ...rest } = wb;
+      return rest;
+    });
+
+    const sanitizedAllFiltered = waybills.map((wb: any) => {
+      const { pickup_pin, ...rest } = wb;
+      return rest;
+    });
 
     res.json({
       success: true,
@@ -3496,7 +3572,7 @@ app.get("/api/admin/shipments", async (req, res) => {
       total,
       page,
       pages: Math.ceil(total / limitVal),
-      allFiltered: waybills
+      allFiltered: sanitizedAllFiltered
     });
   } catch (err) {
     console.error("Error fetching admin waybills:", err);
