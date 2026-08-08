@@ -178,7 +178,7 @@ export const StaffDashboard: React.FC = () => {
                           onClick={() => setScreen('outgoing')}
                           className="bg-white hover:bg-rose-100/50 border border-red-200 p-3.5 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between min-h-[90px] shadow-xs hover:border-red-400 group"
                         >
-                          <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest block">Outgoing Manifests</span>
+                          <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest block">Outgoing Vehicles</span>
                           <div className="flex items-baseline gap-1.5 mt-1">
                             <span className="text-lg font-black text-red-700">{outgoingCount}</span>
                             <span className="text-[11px] text-rose-800 font-bold">Needs Dispatch</span>
@@ -197,7 +197,7 @@ export const StaffDashboard: React.FC = () => {
                           <span className="text-[9px] font-black text-rose-600 uppercase tracking-widest block">Inbound Transits</span>
                           <div className="flex items-baseline gap-1.5 mt-1">
                             <span className="text-lg font-black text-red-700">{incomingInTransitCount}</span>
-                            <span className="text-[11px] text-rose-800 font-bold">In-Transit Buses</span>
+                            <span className="text-[11px] text-rose-800 font-bold">In-Transit Vehicles</span>
                           </div>
                           <span className="text-[9px] font-extrabold text-red-600 underline mt-1.5 inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
                             Confirm Arrivals &rarr;
@@ -243,7 +243,7 @@ export const StaffDashboard: React.FC = () => {
                     <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 font-medium">
-                    Register sender, receiver, and load waybills onto a departure bus manifest.
+                    Register sender, receiver, and load waybills onto an active loading list.
                   </p>
                 </div>
               </button>
@@ -268,11 +268,11 @@ export const StaffDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
-                    Outgoing Buses
+                    Outgoing Vehicles
                     <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
-                    Manage active loading manifests at this park and mark them as departed.
+                    Manage active loading lists at this park and mark them as departed.
                   </p>
                 </div>
               </button>
@@ -297,7 +297,7 @@ export const StaffDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
-                    Incoming Buses
+                    Incoming Vehicles
                     <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
@@ -413,11 +413,11 @@ export const StaffDashboard: React.FC = () => {
               <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-[#0A1F44] text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#0A1F44] text-white flex items-center justify-center text-xs font-black">1</span>
-                  <span>Step 1: Register an Active Loading Bus 🚌</span>
+                  <span>Step 1: Register an Active Loading Vehicle 🚛</span>
                 </div>
                 <p className="leading-relaxed">
-                  Before issuing any waybill for payment, ensure a bus is created for that destination!
-                  Click <strong>Register New Bus</strong>, choose the bus number, driver name, and driver phone number.
+                  Before issuing any waybill for payment, ensure a vehicle is registered for that destination!
+                  Click <strong>Register New Vehicle</strong>, choose the plate number, driver name, and driver phone number.
                 </p>
               </div>
 
@@ -428,7 +428,7 @@ export const StaffDashboard: React.FC = () => {
                   <span>Step 2: Create Waybill & Take Payment 💳</span>
                 </div>
                 <p className="leading-relaxed">
-                  Click <strong>Create New Waybill</strong>. Enter the Sender & Receiver <strong>11-digit phone numbers</strong> accurately. Pick the destination park and assign it to the loading bus. Open the secure Paystack checkout portal so the customer can choose their preferred payment method (Bank Transfer, Card, USSD, or Bank Account) to complete payment.
+                  Click <strong>Create New Waybill</strong>. Enter the Sender & Receiver <strong>11-digit phone numbers</strong> accurately. Pick the destination park and assign it to the loading vehicle. Open the secure Paystack checkout portal so the customer can choose their preferred payment method (Bank Transfer, Card, USSD, or Bank Account) to complete payment.
                 </p>
                 <div className="bg-white/80 p-2 rounded-xl text-[11px] font-bold text-amber-900 border border-amber-200">
                   💡 Tip: The customer will receive an SMS containing their Waybill Tracking Code and 6-digit Secret Pickup PIN.
@@ -439,13 +439,13 @@ export const StaffDashboard: React.FC = () => {
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-emerald-950 text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">3</span>
-                  <span>Step 3: ⚠️ Mark Bus as Departed 🚀</span>
+                  <span>Step 3: ⚠️ Mark Vehicle as Departed 🚀</span>
                 </div>
                 <p className="leading-relaxed">
-                  When the driver loads all waybills and the bus leaves your station, open <strong>Outgoing Buses</strong> and click <strong>"Mark Bus as Departed"</strong>.
+                  When the driver loads all waybills and the vehicle leaves your station, open <strong>Outgoing Vehicles</strong> and click <strong>"Mark Vehicle as Departed"</strong>.
                 </p>
                 <div className="bg-rose-100 border border-rose-300 p-2 rounded-xl text-[11px] text-rose-950 font-bold">
-                  ⚠️ <strong>SERIOUS WARNING:</strong> Staff MUST click Departed when bus moves! If you forget, tracking will stay stuck on "Booked" and customers will be calling your line non-stop!
+                  ⚠️ <strong>SERIOUS WARNING:</strong> Staff MUST click Departed when vehicle moves! If you forget, tracking will stay stuck on "Booked" and customers will be calling your line non-stop!
                 </div>
               </div>
 
@@ -453,10 +453,10 @@ export const StaffDashboard: React.FC = () => {
               <div className="bg-indigo-50/70 border border-indigo-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-indigo-950 text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-indigo-600 text-white flex items-center justify-center text-xs font-black">4</span>
-                  <span>Step 4: ⚠️ Mark Bus as Arrived 📍</span>
+                  <span>Step 4: ⚠️ Mark Vehicle as Arrived 📍</span>
                 </div>
                 <p className="leading-relaxed">
-                  When a bus arrives at your station from another park, open <strong>Incoming Buses</strong> and click <strong>"Mark Bus as Arrived"</strong>.
+                  When a vehicle arrives at your station from another park, open <strong>Incoming Vehicles</strong> and click <strong>"Mark Vehicle as Arrived"</strong>.
                   This updates the waybill status to ARRIVED AT PARK so receiver knows it is ready for collection!
                 </p>
               </div>

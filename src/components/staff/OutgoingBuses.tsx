@@ -37,7 +37,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
       }
     } catch (err) {
       console.error(err);
-      setError('An error occurred while fetching outgoing manifest data.');
+      setError('An error occurred while fetching outgoing loading data.');
     } finally {
       setLoading(false);
     }
@@ -55,7 +55,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
     try {
       const res = await departBus(token, busId);
       if (res.success) {
-        setConfirmationMessage(`Bus ${busNumber} marked as departed successfully. ${res.count} waybills updated to in-transit.`);
+        setConfirmationMessage(`Vehicle ${busNumber} marked as departed successfully. ${res.count} waybills updated to in-transit.`);
         await fetchData();
       } else {
         setError(res.error || `Failed to mark bus ${busNumber} as departed.`);
@@ -76,7 +76,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
     try {
       const res = await assignWaybillToBus(token, waybillId, busId);
       if (res.success) {
-        setConfirmationMessage('Waybill assigned to bus manifest successfully.');
+        setConfirmationMessage('Waybill assigned to loading list successfully.');
         await fetchData();
       } else {
         setError(res.error || 'Failed to assign waybill to bus.');
@@ -102,9 +102,9 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-5 h-5" />
-            Outgoing Bus Manifests
+            Outgoing Bus/Truck Loading Lists
           </h2>
-          <p className="text-xs text-slate-500">Manage pending bus dispatches leaving from your park</p>
+          <p className="text-xs text-slate-500">Manage pending dispatches leaving from your park</p>
         </div>
       </div>
 
@@ -112,7 +112,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
         <div className="bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm px-5 py-4 rounded-2xl flex items-start gap-3 shadow-sm">
           <CheckCircle className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
           <div>
-            <h4 className="font-extrabold">Manifest Updated</h4>
+            <h4 className="font-extrabold">Loading List Updated</h4>
             <p className="text-xs text-emerald-700 mt-1">{confirmationMessage}</p>
           </div>
         </div>
@@ -135,7 +135,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
               : 'border-transparent text-slate-400 hover:text-slate-600'
           }`}
         >
-          Active Loading Buses ({buses.length})
+          Active Loading Vehicles ({buses.length})
         </button>
         <button
           type="button"
@@ -158,7 +158,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="text-sm">Loading outgoing manifest queues...</span>
+          <span className="text-sm">Loading outgoing vehicle loading lists...</span>
         </div>
       ) : activeTab === 'buses' ? (
         buses.length === 0 ? (
@@ -166,9 +166,9 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
             <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
               <Truck className="w-6 h-6" />
             </div>
-            <h3 className="font-extrabold text-[#0A1F44]">No Outgoing Buses</h3>
+            <h3 className="font-extrabold text-[#0A1F44]">No Outgoing Vehicles</h3>
             <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              There are currently no active buses in 'loading' status departing from this station.
+              There are currently no active vehicles in 'loading' status departing from this station.
             </p>
           </div>
         ) : (
@@ -216,7 +216,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
 
                     {!bus.waybills || bus.waybills.length === 0 ? (
                       <p className="text-xs text-slate-400 italic bg-slate-50 rounded-xl p-4">
-                        No waybills have been assigned to this bus manifest yet.
+                        No waybills have been assigned to this loading list yet.
                       </p>
                     ) : (
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-48 overflow-y-auto pr-2">
@@ -284,7 +284,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                               {actionLoading === wb.id ? (
                                 <Loader2 className="w-3 h-3 animate-spin" />
                               ) : (
-                                <span>+ Load onto Bus</span>
+                                <span>+ Load onto Vehicle</span>
                               )}
                             </button>
                           </div>
@@ -308,7 +308,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                         ) : (
                           <>
                             <Truck className="w-4 h-4" />
-                            Mark Bus as Departed
+                            Mark Vehicle as Departed
                           </>
                         )}
                       </button>
@@ -328,7 +328,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
             </div>
             <h3 className="font-extrabold text-[#0A1F44]">All Shipments Loaded</h3>
             <p className="text-sm text-slate-500 max-w-sm mx-auto">
-              There are currently no unassigned paid waybills at your station. Every booked waybill has been registered to an active bus.
+              There are currently no unassigned paid waybills at your station. Every booked waybill has been registered to an active vehicle.
             </p>
           </div>
         ) : (
@@ -355,11 +355,11 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
 
                   <div className="shrink-0 w-full md:w-auto bg-slate-50 rounded-2xl p-4 border border-slate-100 space-y-3 min-w-[240px]">
                     <div className="text-xs font-black text-slate-500 uppercase tracking-wider">
-                      Load onto Active Bus:
+                      Load onto Active Vehicle:
                     </div>
                     {validBuses.length === 0 ? (
                       <div className="text-xs text-amber-800 bg-amber-50 rounded-xl p-3 font-medium">
-                        ⚠️ No active buses loading for <strong className="font-extrabold text-[#0A1F44]">{wb.destination_park}</strong>.
+                        ⚠️ No active vehicles loading for <strong className="font-extrabold text-[#0A1F44]">{wb.destination_park}</strong>.
                       </div>
                     ) : (
                       <select
@@ -373,10 +373,10 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                           }
                         }}
                       >
-                        <option value="" disabled>-- Choose Bus Manifest --</option>
+                        <option value="" disabled>-- Choose Loading List --</option>
                         {validBuses.map((b) => (
                           <option key={b.id} value={b.id}>
-                            🚌 Bus {b.bus_number} (Driver: {b.driver_name || 'N/A'})
+                            🚛 Vehicle {b.bus_number} (Driver: {b.driver_name || 'N/A'})
                           </option>
                         ))}
                       </select>

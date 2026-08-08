@@ -579,7 +579,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
       {loadingData ? (
         <div className="flex flex-col items-center justify-center py-12 gap-3 text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="text-sm">Fetching locations and active bus manifests...</span>
+          <span className="text-sm">Fetching locations and active loading lists...</span>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-6">

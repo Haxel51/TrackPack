@@ -167,7 +167,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       case 'booked':
         return `We've got your waybill! ${origin_park} is taking care of it.`;
       case 'departed':
-        return `Your waybill just left ${origin_park}, riding on Bus ${bus_number}.`;
+        return `Your waybill just left ${origin_park}, riding on Vehicle ${bus_number}.`;
       case 'in_transit':
         return `On the way! Expected between ${expectedTimeRange}.`;
       case 'arrived':
@@ -398,7 +398,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
                 {departed_at 
-                  ? `Your waybill just left ${origin_park} on Bus ${bus_number}.`
+                  ? `Your waybill just left ${origin_park} on Vehicle ${bus_number}.`
                   : `Awaiting dispatch from ${origin_park}.`
                 }
               </p>
@@ -620,7 +620,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 <div className="border border-slate-100 p-4 rounded-2xl bg-blue-50/40 space-y-1.5 text-xs">
                   <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider block">Vehicle & Driver Allocation</span>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-600 font-bold">Bus / Vehicle No:</span>
+                    <span className="text-slate-600 font-bold">Vehicle Plate No:</span>
                     <span className="font-black text-[#0A1F44]">{bus_number}</span>
                   </div>
                   {driver && (
@@ -650,7 +650,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                     {departed_at && (
                       <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
                         <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Bus Departed Origin
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Vehicle Departed Origin
                         </span>
                         <span className="font-medium text-slate-500">{formatDateTime(departed_at)}</span>
                       </div>

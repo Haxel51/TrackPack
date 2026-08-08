@@ -371,7 +371,7 @@ export const HomePage: React.FC = () => {
 
                   <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-blue-100">
                     <span className="font-black text-blue-700">3.</span>
-                    <p><strong>Track Live Bus Movement:</strong> Get real-time updates when the bus departs, travels interstate, and arrives at the park!</p>
+                    <p><strong>Track Live Vehicle Movement:</strong> Get real-time updates when the vehicle departs, travels interstate, and arrives at the park!</p>
                   </div>
                 </div>
               </div>
@@ -386,17 +386,17 @@ export const HomePage: React.FC = () => {
                 <div className="space-y-2 text-xs text-slate-700">
                   <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
                     <span className="font-black text-amber-700">1.</span>
-                    <p><strong>Register Bus:</strong> First register the active loading bus/driver leaving your station.</p>
+                    <p><strong>Register Vehicle:</strong> First register the active loading vehicle/driver leaving your station.</p>
                   </div>
 
                   <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
                     <span className="font-black text-amber-700">2.</span>
-                    <p><strong>Issue Waybill:</strong> Assign waybill to the bus and collect Paystack payment.</p>
+                    <p><strong>Issue Waybill:</strong> Assign waybill to the vehicle and collect Paystack payment.</p>
                   </div>
 
                   <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
                     <span className="font-black text-amber-700">3.</span>
-                    <p><strong>⚠️ Depart & Arrive:</strong> Staff MUST click "Mark Bus as Departed" when leaving, and destination staff click "Mark Bus as Arrived" on arrival!</p>
+                    <p><strong>⚠️ Depart & Arrive:</strong> Staff MUST click "Mark Vehicle as Departed" when leaving, and destination staff click "Mark Vehicle as Arrived" on arrival!</p>
                   </div>
 
                   <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">

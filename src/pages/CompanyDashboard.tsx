@@ -1132,7 +1132,7 @@ export const CompanyDashboard: React.FC = () => {
                         <th className="p-4">Origin</th>
                         <th className="p-4">Destination</th>
                         <th className="p-4">Created Date</th>
-                        <th className="p-4">Bus Number</th>
+                        <th className="p-4">Vehicle Plate</th>
                         <th className="p-4">Status</th>
                       </tr>
                     </thead>

@@ -75,7 +75,7 @@ export const BusForm: React.FC<BusFormProps> = ({ token, originPark, onSuccess, 
       if (res.success && res.bus) {
         onSuccess(res.bus.id);
       } else {
-        setError(res.error || 'Failed to create bus. Please try again.');
+        setError(res.error || 'Failed to create vehicle loading list. Please try again.');
       }
     } catch (err) {
       console.error(err);
@@ -98,9 +98,9 @@ export const BusForm: React.FC<BusFormProps> = ({ token, originPark, onSuccess, 
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-5 h-5" />
-            Create New Bus Manifest
+            Create New Vehicle Loading List
           </h2>
-          <p className="text-xs text-slate-500">Register a new bus loading manifest at this park</p>
+          <p className="text-xs text-slate-500">Register a new vehicle loading list at this park</p>
         </div>
       </div>
 
@@ -169,12 +169,12 @@ export const BusForm: React.FC<BusFormProps> = ({ token, originPark, onSuccess, 
 
         <div>
           <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-            Bus Number <span className="text-red-500">*</span>
+            Vehicle Plate Number <span className="text-red-500">*</span>
           </label>
           <input
             type="text"
             required
-            placeholder="e.g. ENU-431-AA"
+            placeholder="e.g. ENU-431-AA (Vehicle Plate)"
             value={busNumber}
             onChange={(e) => setBusNumber(e.target.value)}
             className="w-full border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
@@ -229,7 +229,7 @@ export const BusForm: React.FC<BusFormProps> = ({ token, originPark, onSuccess, 
                 Creating...
               </>
             ) : (
-              'Create Bus'
+              'Create Loading List'
             )}
           </button>
         </div>

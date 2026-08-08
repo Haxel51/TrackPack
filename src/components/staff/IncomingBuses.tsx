@@ -150,9 +150,9 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-5 h-5" />
-            Incoming Bus Manifests
+            Incoming Bus/Truck Loading Lists
           </h2>
-          <p className="text-xs text-slate-500">Track inbound dispatches, mark arrivals, and manage handovers</p>
+          <p className="text-xs text-slate-500">Track inbound dispatches, mark arrivals, and manage collections</p>
         </div>
       </div>
 
@@ -175,16 +175,16 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
       {loading ? (
         <div className="flex flex-col items-center justify-center py-16 gap-3 text-slate-400">
           <Loader2 className="w-8 h-8 animate-spin" />
-          <span className="text-sm">Loading incoming manifest queues...</span>
+          <span className="text-sm">Loading incoming vehicle queues...</span>
         </div>
       ) : buses.length === 0 ? (
         <div className="bg-white border border-slate-100 rounded-3xl p-12 text-center space-y-4 shadow-sm">
           <div className="mx-auto w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center text-slate-400">
             <Truck className="w-6 h-6" />
           </div>
-          <h3 className="font-extrabold text-[#0A1F44]">No Incoming Buses</h3>
+          <h3 className="font-extrabold text-[#0A1F44]">No Incoming Vehicles</h3>
           <p className="text-sm text-slate-500 max-w-sm mx-auto">
-            There are currently no active buses in 'departed' or 'arrived' status headed to this station.
+            There are currently no active vehicles in 'departed' or 'arrived' status headed to this station.
           </p>
         </div>
       ) : (
@@ -229,7 +229,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
 
                 {!bus.waybills || bus.waybills.length === 0 ? (
                   <p className="text-xs text-slate-400 italic bg-slate-50 rounded-xl p-4">
-                    No waybills are associated with this bus manifest.
+                    No waybills are associated with this loading list.
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -293,12 +293,12 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                     {actionLoading === bus.id ? (
                       <>
                         <Loader2 className="w-4 h-4 animate-spin" />
-                        Updating Manifest...
+                        Updating Status...
                       </>
                     ) : (
                       <>
                         <Check className="w-4 h-4" />
-                        Mark Bus as Arrived
+                        Mark Vehicle as Arrived
                       </>
                     )}
                   </button>
