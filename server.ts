@@ -7,6 +7,7 @@ import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateD
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
+import { ICON_192_BASE64, ICON_512_BASE64 } from "./src/assets/images/icons-base64";
 
 // Read Firebase config from local environment file
 const configPath = path.join(process.cwd(), "firebase-applet-config.json");
@@ -21,6 +22,43 @@ const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
 
 const app = express();
 const PORT = 3000;
+
+// Re-write icon files to ensure they are 100% correct binaries on the local filesystem
+try {
+  const publicDir = path.join(process.cwd(), "public");
+  const distDir = path.join(process.cwd(), "dist");
+  
+  if (!fs.existsSync(publicDir)) {
+    fs.mkdirSync(publicDir, { recursive: true });
+  }
+  if (!fs.existsSync(distDir)) {
+    fs.mkdirSync(distDir, { recursive: true });
+  }
+
+  const buf192 = Buffer.from(ICON_192_BASE64, "base64");
+  const buf512 = Buffer.from(ICON_512_BASE64, "base64");
+
+  fs.writeFileSync(path.join(publicDir, "icon-192.png"), buf192);
+  fs.writeFileSync(path.join(publicDir, "icon-512.png"), buf512);
+  fs.writeFileSync(path.join(distDir, "icon-192.png"), buf192);
+  fs.writeFileSync(path.join(distDir, "icon-512.png"), buf512);
+  console.log("Successfully restored icons from Base64 string to public/ and dist/");
+} catch (e) {
+  console.error("Error writing PWA icons on start:", e);
+}
+
+// Intercept direct requests to icons to ensure uncorrupted binary delivery
+app.get("/icon-192.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(ICON_192_BASE64, "base64"));
+});
+
+app.get("/icon-512.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(ICON_512_BASE64, "base64"));
+});
 
 app.use(express.json());
 
