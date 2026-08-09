@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getStaffHistory } from '../../lib/api';
 import { Waybill } from '../../types';
+import { downloadReceiptImage, shareReceiptImage } from '../../utils/receiptExporter';
 import {
   Receipt,
   Search,
@@ -20,7 +21,9 @@ import {
   User,
   ShieldCheck,
   Send,
-  Inbox
+  Inbox,
+  Share2,
+  Check
 } from 'lucide-react';
 
 interface WaybillHistoryProps {
@@ -36,6 +39,70 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
   const [filterTab, setFilterTab] = useState<'all' | 'sent' | 'received'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedReceipt, setSelectedReceipt] = useState<Waybill | null>(null);
+  const [shareCopied, setShareCopied] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const getShareMessage = (wb: Waybill) => {
+    const statusLabels: Record<string, string> = {
+      booked: 'Booked / Registered 📦',
+      departed: 'Departed Origin / In Transit 🚚',
+      in_transit: 'In Transit interstate 🛣️',
+      arrived: 'Arrived at Destination Park 📍',
+      collected: 'Delivered & Collected ✓'
+    };
+
+    const statusStr = statusLabels[wb.status] || wb.status || 'Registered 📦';
+    const code = wb.tracking_code || wb.id;
+    const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
+
+    return `📦 *Waybilla Shipment Receipt & Status* 🧾\n\n` +
+      `*Ref/Tracking Code:* ${code}\n` +
+      `*Status:* ${statusStr}\n` +
+      `*Item:* ${wb.item_description || 'Package'}\n\n` +
+      `*📍 Origin:* ${wb.origin_park}\n` +
+      `*📍 Destination:* ${wb.destination_park}\n` +
+      `*👤 Sender:* ${wb.sender_name} (${wb.sender_phone})\n` +
+      `*👤 Receiver:* ${wb.receiver_name} (${wb.receiver_phone})\n` +
+      `*🚚 Vehicle Plate:* ${wb.bus_number || 'Awaiting dispatch'}\n\n` +
+      `🔗 *Track Live Movement:* ${trackingUrl}\n\n` +
+      `Thank you for choosing Waybilla Nigeria! 🇳🇬`;
+  };
+
+  const handleWhatsAppShare = async (wb: Waybill) => {
+    const text = getShareMessage(wb);
+    const code = wb.tracking_code || wb.id;
+    const elementId = `waybill-receipt-capture-staff-${code}`;
+    setIsSharing(true);
+    await shareReceiptImage(elementId, code, wb.receiver_phone, text);
+    setIsSharing(false);
+  };
+
+  const handleNativeOrCopyShare = async (wb: Waybill) => {
+    const text = getShareMessage(wb);
+    const code = wb.tracking_code || wb.id;
+    const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Waybilla Waybill Receipt - ${code}`,
+          text: `Here is the Waybilla digital receipt for ${wb.item_description || 'Package'}. Reference: ${code}`,
+          url: trackingUrl
+        });
+      } catch (err) {
+        console.log('Error sharing via native menu:', err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        setShareCopied(true);
+        setTimeout(() => setShareCopied(false), 2500);
+      } catch (err) {
+        console.error('Could not copy text to clipboard:', err);
+      }
+    }
+  };
 
   const isSamePark = (p1?: string, p2?: string) => {
     const s1 = (p1 || '').toLowerCase().trim();
@@ -101,8 +168,13 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
     }
   };
 
-  const handlePrintReceipt = () => {
-    window.print();
+  const handlePrintReceipt = async () => {
+    if (!selectedReceipt) return;
+    const code = selectedReceipt.tracking_code || selectedReceipt.id;
+    const elementId = `waybill-receipt-capture-staff-${code}`;
+    setIsDownloading(true);
+    await downloadReceiptImage(elementId, code);
+    setIsDownloading(false);
   };
 
   return (
@@ -336,13 +408,16 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
             {/* Close button */}
             <button
               onClick={() => setSelectedReceipt(null)}
-              className="absolute top-5 right-5 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors cursor-pointer"
+              className="absolute top-5 right-5 p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors cursor-pointer z-10"
             >
               <X className="w-5 h-5" />
             </button>
 
             {/* Receipt Content Printable Area */}
-            <div id="printable-staff-receipt" className="space-y-6">
+            <div 
+              id={`waybill-receipt-capture-staff-${selectedReceipt.tracking_code || selectedReceipt.id}`} 
+              className="bg-white p-5 rounded-2xl border border-slate-100 space-y-6"
+            >
               {/* Receipt Header */}
               <div className="text-center border-b border-slate-100 pb-5 space-y-2">
                 <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
@@ -428,20 +503,51 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               </div>
             </div>
 
+            {/* Sharing Options */}
+            <div className="border-t border-slate-100 pt-4 space-y-2.5">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Share Digital Waybill Receipt</span>
+              <button
+                onClick={() => handleNativeOrCopyShare(selectedReceipt)}
+                className="w-full bg-blue-50 hover:bg-blue-100 text-[#0A1F44] font-extrabold px-4 py-3.5 rounded-2xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 border border-blue-200"
+              >
+                {shareCopied ? (
+                  <>
+                    <Check className="w-4 h-4 text-emerald-600" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-4 h-4 text-blue-600" />
+                    Share / Copy Receipt Details
+                  </>
+                )}
+              </button>
+            </div>
+
             {/* Receipt Footer & Action buttons */}
             <div className="flex flex-col sm:flex-row items-center justify-end gap-3 border-t border-slate-100 pt-4">
               <button
                 onClick={handlePrintReceipt}
-                className="w-full sm:w-auto bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold text-xs px-5 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                disabled={isDownloading}
+                className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 disabled:opacity-50 text-[#0A1F44] font-extrabold text-xs px-5 py-3 rounded-2xl flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm border border-slate-200"
               >
-                <Printer className="w-4 h-4" />
-                Print / Save Receipt
+                {isDownloading ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-[#0A1F44] border-t-transparent rounded-full animate-spin"></div>
+                    Generating Image...
+                  </>
+                ) : (
+                  <>
+                    <Printer className="w-4 h-4" />
+                    Print / Save Receipt Image 🧾
+                  </>
+                )}
               </button>
               <button
                 onClick={() => setSelectedReceipt(null)}
-                className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs px-4 py-3 rounded-2xl transition-all cursor-pointer"
+                className="w-full sm:w-auto bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold text-xs px-6 py-3 rounded-2xl transition-all cursor-pointer"
               >
-                Close
+                Close Receipt
               </button>
             </div>
           </div>

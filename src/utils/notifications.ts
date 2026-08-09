@@ -34,7 +34,12 @@ export const triggerOSNotification = async (title: string, options: {
   // 1. Try Service Worker Registration (Required on Android Chrome & PWAs)
   try {
     if ('serviceWorker' in navigator) {
-      const reg = await navigator.serviceWorker.ready;
+      // Use a timeout to prevent awaiting navigator.serviceWorker.ready from hanging indefinitely if no SW is registered
+      const readyWithTimeout = Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 1000))
+      ]);
+      const reg = await readyWithTimeout;
       if (reg && reg.showNotification) {
         await reg.showNotification(title, defaultOptions);
         console.log('[Native Notification Dispatched via ServiceWorker]:', title);

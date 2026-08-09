@@ -1428,6 +1428,19 @@ app.get("/api/track/:code", async (req, res) => {
     const waybillDoc = snap.docs[0];
     const waybill = waybillDoc.data();
 
+    let companyName = waybill.company_name;
+    if (!companyName && waybill.company_id) {
+      try {
+        const compRef = doc(db, "companies", waybill.company_id);
+        const compSnap = await getDoc(compRef);
+        if (compSnap.exists()) {
+          companyName = compSnap.data().company_name;
+        }
+      } catch (compErr) {
+        console.error("Error fetching company name for public tracking:", compErr);
+      }
+    }
+
     if (!waybill.tracking_active) {
       return res.status(403).json({ error: "Tracking not activated for this shipment" });
     }
@@ -1490,7 +1503,8 @@ app.get("/api/track/:code", async (req, res) => {
       success: true,
       waybill: {
         id: waybillDoc.id,
-        ...sanitizedWaybill
+        ...sanitizedWaybill,
+        company_name: companyName || "Unknown Company"
       },
       route: routeInfo,
       driver: driverInfo
@@ -1540,8 +1554,24 @@ app.get("/api/customer/waybills", async (req, res) => {
 
     const combinedWaybills = Array.from(waybillsMap.values());
 
+    // Fetch company names to populate on waybills dynamically
+    const companiesMap = new Map<string, string>();
+    try {
+      const compSnap = await getDocs(collection(db, "companies"));
+      compSnap.docs.forEach((d) => {
+        companiesMap.set(d.id, d.data().company_name);
+      });
+    } catch (compErr) {
+      console.error("Error fetching companies map in customer waybills API:", compErr);
+    }
+
+    const waybillsWithCompany = combinedWaybills.map((wb) => ({
+      ...wb,
+      company_name: wb.company_name || companiesMap.get(wb.company_id) || "Unknown Company"
+    }));
+
     // Sort newest first by created_at or booked_at
-    combinedWaybills.sort((a, b) => {
+    waybillsWithCompany.sort((a, b) => {
       const dateA = new Date(a.created_at || a.booked_at || 0).getTime();
       const dateB = new Date(b.created_at || b.booked_at || 0).getTime();
       return dateB - dateA;
@@ -1549,7 +1579,7 @@ app.get("/api/customer/waybills", async (req, res) => {
 
     res.json({
       success: true,
-      waybills: combinedWaybills
+      waybills: waybillsWithCompany
     });
   } catch (err) {
     console.error("Get customer waybills error:", err);
@@ -1600,6 +1630,19 @@ app.post("/api/customer/waybills/:id/confirm-received", async (req, res) => {
 
     sendPushNotificationForWaybill({ ...waybill, status: "collected" }, "collected");
 
+    let companyName = waybill.company_name;
+    if (!companyName && waybill.company_id) {
+      try {
+        const compRef = doc(db, "companies", waybill.company_id);
+        const compSnap = await getDoc(compRef);
+        if (compSnap.exists()) {
+          companyName = compSnap.data().company_name;
+        }
+      } catch (compErr) {
+        console.error("Error fetching company name in confirm-received:", compErr);
+      }
+    }
+
     res.json({
       success: true,
       waybill: {
@@ -1607,7 +1650,8 @@ app.post("/api/customer/waybills/:id/confirm-received", async (req, res) => {
         id: waybillId,
         status: "collected",
         collected_at: nowStr,
-        collected_by: "receiver"
+        collected_by: "receiver",
+        company_name: companyName || "Unknown Company"
       }
     });
   } catch (err) {
@@ -1890,6 +1934,7 @@ app.post("/api/staff/waybills", async (req, res) => {
       origin_park: park_location,
       destination_park,
       company_id,
+      company_name: compData.company_name || "Unknown Company",
       pickup_pin: Math.floor(100000 + Math.random() * 900000).toString(),
       status: "booked",
       tracking_active: false, // Inactive until paid

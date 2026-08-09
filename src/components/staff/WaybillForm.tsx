@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
-import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check } from 'lucide-react';
 
 interface WaybillFormProps {
   token: string;
@@ -53,6 +53,54 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     success: boolean;
     trackingCode: string | null;
   } | null>(null);
+
+  const [successCopied, setSuccessCopied] = useState(false);
+
+  const getShareMessage = (code: string) => {
+    const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
+
+    return `📦 *Waybilla Shipment Registered* 🧾\n\n` +
+      `*Ref/Tracking Code:* ${code}\n` +
+      `*Status:* Booked / Registered 📦\n` +
+      `*Item:* ${itemDescription || 'Package'}\n\n` +
+      `*📍 Origin:* ${originPark}\n` +
+      `*📍 Destination:* ${destinationPark}\n` +
+      `*👤 Sender:* ${senderName} (${senderPhone})\n` +
+      `*👤 Receiver:* ${receiverName} (${receiverPhone})\n\n` +
+      `🔗 *Track Live Movement:* ${trackingUrl}\n\n` +
+      `Thank you for choosing Waybilla Nigeria! 🇳🇬`;
+  };
+
+  const handleWhatsAppShare = (code: string) => {
+    const text = getShareMessage(code);
+    const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleNativeOrCopyShare = async (code: string) => {
+    const text = getShareMessage(code);
+    const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Waybilla Waybill Receipt - ${code}`,
+          text: `Here is your Waybilla digital receipt for ${itemDescription || 'Package'}. Reference: ${code}`,
+          url: trackingUrl
+        });
+      } catch (err) {
+        console.log('Error sharing via native menu:', err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(text);
+        setSuccessCopied(true);
+        setTimeout(() => setSuccessCopied(false), 2500);
+      } catch (err) {
+        console.error('Could not copy text to clipboard:', err);
+      }
+    }
+  };
 
   // Automatically save form state into sessionStorage draft so no typed details are lost when switching screens
   useEffect(() => {
@@ -411,6 +459,36 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               {activePayment.trackingCode}
             </div>
           </div>
+
+          {activePayment.trackingCode && (
+            <div className="space-y-2.5">
+              <button
+                onClick={() => handleWhatsAppShare(activePayment.trackingCode!)}
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xs"
+              >
+                <svg className="w-5 h-5 fill-current text-white" viewBox="0 0 24 24">
+                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946C.06 5.348 5.397.01 12.008.01c3.202.001 6.212 1.246 8.477 3.514 2.266 2.268 3.507 5.28 3.505 8.484-.004 6.657-5.34 11.997-11.953 11.997-2.005-.001-3.973-.502-5.713-1.455L0 24zm6.59-4.846c1.6.95 3.188 1.449 4.825 1.451 5.436 0 9.86-4.42 9.864-9.858.002-2.634-1.024-5.11-2.888-6.973-1.865-1.864-4.343-2.89-6.979-2.891-5.439 0-9.865 4.42-9.869 9.859-.001 1.716.463 3.39 1.342 4.881l-.882 3.226 3.3-.865zM17.47 14.39c-.3-.149-1.777-.878-2.076-.985-.3-.105-.518-.159-.736.159-.217.319-.844 1.057-1.035 1.27-.19.213-.383.241-.682.09-1.3-.65-2.485-1.56-3.418-2.67-.3-.518.3-.481.859-1.6.09-.18.045-.339-.022-.473-.067-.134-.518-1.246-.71-1.707-.187-.451-.378-.39-.518-.397-.133-.007-.285-.008-.437-.008-.152 0-.401.057-.61.286-.21.229-.8.781-.8 1.905 0 1.125.819 2.212.933 2.362.114.15 1.611 2.46 3.902 3.45.545.234 1.01.374 1.393.495.54.172 1.03.148 1.417.09.431-.064 1.777-.726 2.027-1.428.25-.7.25-1.3.175-1.43-.075-.127-.285-.202-.585-.351z"/>
+                </svg>
+                Share Receipt on WhatsApp
+              </button>
+              <button
+                onClick={() => handleNativeOrCopyShare(activePayment.trackingCode!)}
+                className="w-full bg-blue-50 hover:bg-blue-100 text-[#0A1F44] font-extrabold py-3.5 rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2 border border-blue-200"
+              >
+                {successCopied ? (
+                  <>
+                    <Check className="w-5 h-5 text-emerald-600" />
+                    Copied to Clipboard!
+                  </>
+                ) : (
+                  <>
+                    <Share2 className="w-5 h-5 text-blue-600" />
+                    Share Receipt Summary
+                  </>
+                )}
+              </button>
+            </div>
+          )}
 
           <div className="pt-2 border-t border-slate-100 space-y-3">
             <button
