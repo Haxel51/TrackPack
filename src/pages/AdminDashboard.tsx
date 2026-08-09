@@ -51,6 +51,8 @@ export const AdminDashboard: React.FC = () => {
     companyName: string;
   } | null>(null);
 
+  const [rejectionReason, setRejectionReason] = useState('');
+
   // Standard fetch-with-timeout wrapper (10s limit)
   const fetchWithTimeout = async (url: string, options: RequestInit = {}): Promise<Response> => {
     const controller = new AbortController();
@@ -167,14 +169,21 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  // Handle Reject (Delete Application)
-  const handleRejectCompany = async (id: string) => {
+  // Handle Reject (Reject Application with Reason)
+  const handleRejectCompany = async (id: string, reason: string) => {
     try {
-      const res = await fetchWithTimeout(`/api/admin/companies/${id}/reject`, { method: 'POST' });
+      const res = await fetchWithTimeout(`/api/admin/companies/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+      });
       if (res.ok) {
         loadCompanies();
         setConfirmAction(null);
         setSelectedCompanyId(null);
+        setRejectionReason('');
       }
     } catch (err) {
       console.error(err);
@@ -709,17 +718,17 @@ export const AdminDashboard: React.FC = () => {
                         <span>Pending Operator Registrations</span>
                       </h3>
                       <span className="text-[10px] font-extrabold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
-                        {companies.filter(c => c.approved === false).length} waiting review
+                        {companies.filter(c => c.approved === false && c.rejected !== true).length} waiting review
                       </span>
                     </div>
 
-                    {companies.filter(c => c.approved === false).length === 0 ? (
+                    {companies.filter(c => c.approved === false && c.rejected !== true).length === 0 ? (
                       <div className="text-center py-8 text-xs text-slate-400 font-bold">
                         No pending applications. All registration applications reviewed. ✓
                       </div>
                     ) : (
                       <div className="divide-y divide-slate-50" id="pending-applications-list">
-                        {companies.filter(c => c.approved === false).map((comp: any, index: number) => (
+                        {companies.filter(c => c.approved === false && c.rejected !== true).map((comp: any, index: number) => (
                           <div key={`adm-pcomp-${comp.id || index}-${index}`} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="space-y-1">
                               <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
@@ -782,7 +791,14 @@ export const AdminDashboard: React.FC = () => {
                             {companies.filter(c => c.approved === true).map((comp: any, index: number) => (
                               <tr key={`adm-acomp-${comp.id || index}-${index}`} className="hover:bg-slate-50/50 transition-all text-xs">
                                 <td className="py-3.5 px-2">
-                                  <div className="font-extrabold text-[#0A1F44]">{comp.company_name}</div>
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-extrabold text-[#0A1F44]">{comp.company_name}</span>
+                                    {(comp.suspended === true || comp.suspended === "true") && (
+                                      <span className="bg-red-100 text-red-700 text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider shrink-0">
+                                        Suspended
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="text-[10px] text-slate-400 mt-0.5">Approved: {comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'N/A'}</div>
                                 </td>
                                 <td className="py-3.5 px-2 font-semibold text-slate-600">{comp.owner_phone}</td>
@@ -800,12 +816,21 @@ export const AdminDashboard: React.FC = () => {
                                   >
                                     View Details
                                   </button>
-                                  <button
-                                    onClick={() => setConfirmAction({ type: 'suspend', companyId: comp.id, companyName: comp.company_name })}
-                                    className="bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-extrabold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
-                                  >
-                                    Suspend
-                                  </button>
+                                  {comp.suspended === true || comp.suspended === "true" ? (
+                                    <button
+                                      onClick={() => setConfirmAction({ type: 'reinstate', companyId: comp.id, companyName: comp.company_name })}
+                                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-600 text-[11px] font-extrabold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                                    >
+                                      Reinstate
+                                    </button>
+                                  ) : (
+                                    <button
+                                      onClick={() => setConfirmAction({ type: 'suspend', companyId: comp.id, companyName: comp.company_name })}
+                                      className="bg-red-50 hover:bg-red-100 text-red-600 text-[11px] font-extrabold px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                                    >
+                                      Suspend
+                                    </button>
+                                  )}
                                 </td>
                               </tr>
                             ))}
@@ -1452,15 +1477,31 @@ export const AdminDashboard: React.FC = () => {
                 </h4>
                 <p className="text-xs text-slate-500 mt-1 leading-relaxed">
                   {confirmAction.type === 'suspend' && `Are you sure you want to suspend [${confirmAction.companyName}]? This will immediately lock out the owner and all their registered motor park staff.`}
-                  {confirmAction.type === 'reject' && `Are you sure you want to reject [${confirmAction.companyName}]? This cannot be undone.`}
+                  {confirmAction.type === 'reject' && `Are you sure you want to reject [${confirmAction.companyName}]? Please provide a reason to help them correct any issues and resubmit.`}
                   {confirmAction.type === 'reinstate' && `Are you sure you want to reinstate [${confirmAction.companyName}]? They will be able to log back into the system.`}
                 </p>
               </div>
             </div>
 
+            {confirmAction.type === 'reject' && (
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Rejection Reason</label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="e.g. Please upload a clearer registration certificate or verify your initial motor park address."
+                  className="w-full h-24 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-[#0A1F44] placeholder-slate-400 focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none transition-all resize-none"
+                  required
+                />
+              </div>
+            )}
+
             <div className="flex gap-2 justify-end">
               <button
-                onClick={() => setConfirmAction(null)}
+                onClick={() => {
+                  setConfirmAction(null);
+                  setRejectionReason('');
+                }}
                 className="bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
@@ -1470,10 +1511,11 @@ export const AdminDashboard: React.FC = () => {
                   if (confirmAction.type === 'suspend' || confirmAction.type === 'reinstate') {
                     handleToggleSuspendCompany(confirmAction.companyId);
                   } else if (confirmAction.type === 'reject') {
-                    handleRejectCompany(confirmAction.companyId);
+                    handleRejectCompany(confirmAction.companyId, rejectionReason.trim());
                   }
                 }}
-                className={`${confirmAction.type === 'reinstate' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'} text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer`}
+                disabled={confirmAction.type === 'reject' && !rejectionReason.trim()}
+                className={`${confirmAction.type === 'reinstate' ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-red-600 hover:bg-red-700'} text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed`}
                 id="modal-confirm-btn"
               >
                 Confirm Action

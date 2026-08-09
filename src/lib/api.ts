@@ -76,12 +76,26 @@ export async function loginStaff(pin: string) {
 }
 
 export async function loginCompany(phoneNumber: string, password: string) {
-  const res = await fetch(`${API_BASE}/auth/company/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, password }),
-  });
-  return res.json();
+  try {
+    const res = await fetch(`${API_BASE}/auth/company/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone_number: phoneNumber, password }),
+    });
+    const contentType = res.headers.get("content-type");
+    if (contentType && contentType.includes("application/json")) {
+      const data = await res.json();
+      if (!res.ok) {
+        return { success: false, error: data.error || "Login failed." };
+      }
+      return { success: true, ...data };
+    } else {
+      const text = await res.text();
+      return { success: false, error: `Server error (${res.status}): ${text.substring(0, 100) || "Unable to read response."}` };
+    }
+  } catch (err) {
+    return { success: false, error: "Network error. Please check your internet connection and try again." };
+  }
 }
 
 export async function registerCompany(data: {

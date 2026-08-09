@@ -798,8 +798,15 @@ app.post("/api/auth/staff/login", async (req, res) => {
     // Check if company is suspended/pending
     const companyRef = doc(db, "companies", matchedStaffData.company_id);
     const companySnap = await getDoc(companyRef);
-    if (!companySnap.exists() || !companySnap.data().approved) {
-      return res.status(403).json({ error: "Your company is suspended or pending approval." });
+    if (!companySnap.exists()) {
+      return res.status(400).json({ error: "Your company is suspended or pending approval." });
+    }
+    const companyData = companySnap.data();
+    if (companyData.suspended === true || companyData.suspended === "true") {
+      return res.status(400).json({ error: "Your company has been suspended. Please contact customer service." });
+    }
+    if (!companyData.approved) {
+      return res.status(400).json({ error: "Your company is suspended or pending approval." });
     }
 
     // Success! Clear any PIN lockouts
@@ -875,9 +882,21 @@ app.post("/api/auth/company/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid phone number or password.", attemptsLeft: failInfo.attemptsLeft });
     }
 
+    // Check if company is suspended
+    if (company.suspended === true || company.suspended === "true") {
+      return res.status(400).json({
+        error: "Your company has been suspended. Please contact customer service."
+      });
+    }
+
     // Check approval
     if (!company.approved) {
-      return res.status(403).json({ error: "Your account is pending approval. Please wait." });
+      if (company.rejected) {
+        return res.status(400).json({
+          error: `Your application has been rejected. Reason: ${company.rejection_reason || "Please check details and try again."}`
+        });
+      }
+      return res.status(400).json({ error: "Your account is pending approval. Please wait." });
     }
 
     // Success! Reset attempts
@@ -938,7 +957,22 @@ app.post("/api/auth/company/register", async (req, res) => {
     const qPhone = query(collection(db, "companies"), where("owner_phone", "==", owner_phone.trim()), limit(1));
     const snapPhone = await getDocs(qPhone);
     if (!snapPhone.empty) {
-      return res.status(400).json({ error: "A company with this owner phone number is already registered." });
+      const existingComp = snapPhone.docs[0].data();
+      if (existingComp.rejected) {
+        // If the previous application was rejected, clean up the rejected records to allow fresh registration
+        const existingCompId = snapPhone.docs[0].id;
+        
+        // Delete associated parks
+        const pSnap = await getDocs(query(collection(db, "parks"), where("company_id", "==", existingCompId)));
+        for (const pDoc of pSnap.docs) {
+          await deleteDoc(doc(db, "parks", pDoc.id));
+        }
+        
+        // Delete the rejected company document
+        await deleteDoc(doc(db, "companies", existingCompId));
+      } else {
+        return res.status(400).json({ error: "A company with this owner phone number is already registered." });
+      }
     }
 
     const hash = await bcrypt.hash(password, 10);
@@ -959,6 +993,14 @@ app.post("/api/auth/company/register", async (req, res) => {
       park_location: park_location.trim(),
       created_at: new Date().toISOString()
     });
+
+    // Send email notification to admin asynchronously
+    sendCompanyRegistrationNotificationEmail(
+      company_name.trim(),
+      owner_phone.trim(),
+      park_name.trim(),
+      park_location.trim()
+    ).catch((err) => console.error("Error in sendCompanyRegistrationNotificationEmail:", err));
 
     res.json({
       success: true,
@@ -1182,6 +1224,61 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
   }
 
   return { success: true, sentTo: email };
+}
+
+// Helper function to send email notification to admin upon new company registration
+async function sendCompanyRegistrationNotificationEmail(companyName: string, ownerPhone: string, parkName: string, parkLocation: string): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  const ownerEmail = "ndubuisis430@gmail.com";
+  if (!apiKey) {
+    console.log("[RESEND] API Key not set. Registration email notification logged to console.");
+    return false;
+  }
+  
+  const htmlContent = `
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+      <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla Nigeria</h1>
+        <p style="color: #F2A93B; margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">New Partner Application Notification</p>
+      </div>
+      
+      <h2 style="color: #0A1F44; font-size: 18px; font-weight: 700; margin-top: 0;">New Company Registration!</h2>
+      <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+        A new transport company owner has submitted an onboarding application:
+      </p>
+      
+      <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #cbd5e1;">
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Company Name:</strong> ${companyName}</p>
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Owner Phone:</strong> ${ownerPhone}</p>
+        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Initial Motor Park:</strong> ${parkName}</p>
+        <p style="margin: 0 0 0 0; font-size: 14px; color: #1e293b;"><strong>Park Location:</strong> ${parkLocation}</p>
+      </div>
+      
+      <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
+        Please log into the Admin Dashboard to review and approve or reject their application.
+      </p>
+      
+      <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
+      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
+        &copy; ${new Date().getFullYear()} Waybilla Nigeria. Motor Park Digital Waybills.
+      </p>
+    </div>
+  `;
+
+  try {
+    const resend = new Resend(apiKey);
+    await resend.emails.send({
+      from: "onboarding@resend.dev",
+      to: ownerEmail,
+      subject: `🚨 New Company Registration: ${companyName}`,
+      html: htmlContent
+    });
+    console.log(`[RESEND SUCCESS] Sent registration notification for ${companyName} to admin ${ownerEmail}`);
+    return true;
+  } catch (err) {
+    console.error("[RESEND ERROR] Failed to send registration notification:", err);
+    return false;
+  }
 }
 
 // 4. Super Admin Login Step 1: Password Verification & 2FA OTP Generation
@@ -3283,7 +3380,7 @@ app.get("/api/admin/overview", async (req, res) => {
     const companies = compSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
     const onboardedCount = companies.filter(c => c.approved === true).length;
-    const pendingCount = companies.filter(c => c.approved === false).length;
+    const pendingCount = companies.filter(c => c.approved === false && c.rejected !== true).length;
 
     // Fetch staff
     const staffSnap = await getDocs(collection(db, "staff"));
@@ -3481,7 +3578,7 @@ app.post("/api/admin/companies/:id/approve", async (req, res) => {
   }
 });
 
-// 4. POST /api/admin/companies/:id/reject - delete pending company
+// 4. POST /api/admin/companies/:id/reject - reject pending company with reason
 app.post("/api/admin/companies/:id/reject", async (req, res) => {
   try {
     const session = await validateAdminSessionFromHeader(req, res);
@@ -3494,9 +3591,15 @@ app.post("/api/admin/companies/:id/reject", async (req, res) => {
       return res.status(400).json({ error: "Company can only be rejected if it's pending." });
     }
 
-    await deleteDoc(compRef);
+    const { reason } = req.body;
 
-    res.json({ success: true, message: "Company application rejected and removed." });
+    await updateDoc(compRef, {
+      approved: false,
+      rejected: true,
+      rejection_reason: reason || "Your registration details do not meet our service requirements. Please contact support or resubmit with accurate information."
+    });
+
+    res.json({ success: true, message: "Company application rejected successfully." });
   } catch (err) {
     console.error("Error rejecting company:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -3516,15 +3619,16 @@ app.post("/api/admin/companies/:id/toggle-suspend", async (req, res) => {
       return res.status(404).json({ error: "Company not found." });
     }
 
-    const currentApproved = compSnap.data().approved;
-    const nextApproved = !currentApproved;
+    const companyData = compSnap.data();
+    const currentSuspended = companyData.suspended === true || companyData.suspended === "true";
+    const nextSuspended = !currentSuspended;
 
     await updateDoc(compRef, {
-      approved: nextApproved
+      suspended: nextSuspended
     });
 
     // Logout company owners & company staff instantly
-    if (!nextApproved) {
+    if (nextSuspended) {
       const sessionsSnap = await getDocs(collection(db, "sessions"));
       for (const sDoc of sessionsSnap.docs) {
         const sData = sDoc.data();
@@ -3543,8 +3647,8 @@ app.post("/api/admin/companies/:id/toggle-suspend", async (req, res) => {
 
     res.json({
       success: true,
-      approved: nextApproved,
-      message: nextApproved ? "Company reinstated successfully." : "Company suspended successfully, and all associated sessions terminated."
+      suspended: nextSuspended,
+      message: nextSuspended ? "Company suspended successfully, and all associated sessions terminated." : "Company reinstated successfully."
     });
   } catch (err) {
     console.error("Error suspending/reinstating company:", err);
