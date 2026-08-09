@@ -35,6 +35,16 @@ export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery'>('overview');
 
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="robots"]');
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'robots');
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute('content', 'noindex, nofollow, noarchive, nosnippet');
+  }, []);
+
   // Unified company detail view state
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
   const [selectedCompanyDetails, setSelectedCompanyDetails] = useState<any | null>(null);

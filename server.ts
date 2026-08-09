@@ -103,6 +103,15 @@ app.use((req, res, next) => {
   // Refined Referrer-Policy
   res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
 
+  // Prevent Search Engine Indexing strictly for Super Admin routes
+  const reqPath = (req.path || "").toLowerCase();
+  if (
+    reqPath.startsWith("/admin") ||
+    reqPath.startsWith("/login/admin")
+  ) {
+    res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive, nosnippet");
+  }
+
   next();
 });
 

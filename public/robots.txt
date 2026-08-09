@@ -1,14 +1,15 @@
 User-agent: *
 Allow: /
+Allow: /?track=
 Allow: /login/customer
 Allow: /login/staff
 Allow: /login/company
-Allow: /login/admin
 
-# Disallow authenticated terminal/dashboard sections to avoid crawl errors
-Disallow: /customer/dashboard
-Disallow: /staff/dashboard
-Disallow: /company/dashboard
+# Explicitly Disallow ONLY Super Admin from Search Engines
+Disallow: /login/admin
+Disallow: /admin
+Disallow: /admin/
+Disallow: /admin/*
 Disallow: /admin/dashboard
 
 # Sitemap link
