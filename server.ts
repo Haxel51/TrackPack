@@ -7,7 +7,7 @@ import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateD
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
-import { ICON_192_BASE64, ICON_512_BASE64 } from "./src/assets/images/icons-base64";
+import { ICON_192_BASE64, ICON_512_BASE64, SCREENSHOT_DESKTOP_BASE64, SCREENSHOT_MOBILE_BASE64 } from "./src/assets/images/icons-base64";
 
 // Read Firebase config from local environment file
 const configPath = path.join(process.cwd(), "firebase-applet-config.json");
@@ -37,17 +37,25 @@ try {
 
   const buf192 = Buffer.from(ICON_192_BASE64, "base64");
   const buf512 = Buffer.from(ICON_512_BASE64, "base64");
+  const bufDesktop = Buffer.from(SCREENSHOT_DESKTOP_BASE64, "base64");
+  const bufMobile = Buffer.from(SCREENSHOT_MOBILE_BASE64, "base64");
 
   fs.writeFileSync(path.join(publicDir, "icon-192.png"), buf192);
   fs.writeFileSync(path.join(publicDir, "icon-512.png"), buf512);
+  fs.writeFileSync(path.join(publicDir, "screenshot-desktop.jpg"), bufDesktop);
+  fs.writeFileSync(path.join(publicDir, "screenshot-mobile.jpg"), bufMobile);
+
   fs.writeFileSync(path.join(distDir, "icon-192.png"), buf192);
   fs.writeFileSync(path.join(distDir, "icon-512.png"), buf512);
-  console.log("Successfully restored icons from Base64 string to public/ and dist/");
+  fs.writeFileSync(path.join(distDir, "screenshot-desktop.jpg"), bufDesktop);
+  fs.writeFileSync(path.join(distDir, "screenshot-mobile.jpg"), bufMobile);
+
+  console.log("Successfully restored icons and screenshots from Base64 string to public/ and dist/");
 } catch (e) {
-  console.error("Error writing PWA icons on start:", e);
+  console.error("Error writing PWA assets on start:", e);
 }
 
-// Intercept direct requests to icons to ensure uncorrupted binary delivery
+// Intercept direct requests to icons and screenshots to ensure uncorrupted binary delivery
 app.get("/icon-192.png", (req, res) => {
   res.setHeader("Content-Type", "image/png");
   res.setHeader("Cache-Control", "public, max-age=31536000");
@@ -58,6 +66,18 @@ app.get("/icon-512.png", (req, res) => {
   res.setHeader("Content-Type", "image/png");
   res.setHeader("Cache-Control", "public, max-age=31536000");
   res.send(Buffer.from(ICON_512_BASE64, "base64"));
+});
+
+app.get("/screenshot-desktop.jpg", (req, res) => {
+  res.setHeader("Content-Type", "image/jpeg");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(SCREENSHOT_DESKTOP_BASE64, "base64"));
+});
+
+app.get("/screenshot-mobile.jpg", (req, res) => {
+  res.setHeader("Content-Type", "image/jpeg");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(SCREENSHOT_MOBILE_BASE64, "base64"));
 });
 
 app.use(express.json());
