@@ -734,7 +734,7 @@ export const AdminDashboard: React.FC = () => {
                               <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                                 <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F2A93B]" /> Owner: {comp.owner_phone}</span>
-                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || 'N/A'}</span>
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || comp.park_name || 'N/A'}</span>
                                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-indigo-500" /> Applied: {comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'N/A'}</span>
                               </div>
                             </div>

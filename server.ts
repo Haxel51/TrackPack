@@ -980,6 +980,8 @@ app.post("/api/auth/company/register", async (req, res) => {
       company_name: company_name.trim(),
       owner_phone: owner_phone.trim(),
       password_hash: hash,
+      park_name: park_name.trim(),
+      park_location: park_location.trim(),
       approved: false,
       failed_attempts: 0,
       locked_until: null,
@@ -3527,7 +3529,7 @@ app.get("/api/admin/companies", async (req, res) => {
     const paySnap = await getDocs(collection(db, "payments"));
     const payments = paySnap.docs.map(doc => doc.data() as any).filter(p => p.status === "success");
 
-    // Enrich companies with counts and real earnings
+    // Enrich companies with counts, park details, and real earnings
     const enrichedCompanies = companies.map(comp => {
       const companyParks = parks.filter(p => p.company_id === comp.id);
       const companyStaff = staff.filter(s => s.company_id === comp.id);
@@ -3535,8 +3537,23 @@ app.get("/api/admin/companies", async (req, res) => {
       const companyPayments = payments.filter(p => p.company_id === comp.id);
       const companyEarnings = companyPayments.reduce((sum, p) => sum + (Number(p.company_share) || 0), 0);
 
+      const firstPark = companyParks[0];
+      const pName = comp.park_name || (firstPark ? (firstPark as any).park_name : null);
+      const pLoc = comp.park_location || (firstPark ? (firstPark as any).park_location : null);
+
+      let parkDisplay = "N/A";
+      if (pName && pLoc) {
+        parkDisplay = pName.toLowerCase() === pLoc.toLowerCase() ? pName : `${pName} (${pLoc})`;
+      } else if (pName) {
+        parkDisplay = pName;
+      } else if (pLoc) {
+        parkDisplay = pLoc;
+      }
+
       return {
         ...comp,
+        park_name: pName,
+        park_location: parkDisplay !== "N/A" ? parkDisplay : (comp.park_location || "N/A"),
         total_parks: companyParks.length,
         total_staff: companyStaff.length,
         total_shipments: companyShipments.length,
