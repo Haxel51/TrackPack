@@ -49,5 +49,99 @@
       "form_factor": "narrow",
       "label": "Waybilla Mobile Logistics App"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Track Waybill",
+      "short_name": "Track",
+      "description": "Quickly track your parcel",
+      "url": "/?track=true",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "New Shipment",
+      "short_name": "New",
+      "description": "Register a new package waybill",
+      "url": "/?new=true",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "share_target": {
+    "action": "/?share=true",
+    "method": "GET",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  },
+  "launch_handler": {
+    "client_mode": "focus-existing"
+  },
+  "protocol_handlers": [
+    {
+      "protocol": "web+waybilla",
+      "url": "/?tracking_code=%s"
+    }
+  ],
+  "file_handlers": [
+    {
+      "action": "/?open=file",
+      "accept": {
+        "application/vnd.waybilla": [
+          ".waybill"
+        ]
+      },
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ],
+      "launch_type": "single-client"
+    }
+  ],
+  "widgets": [
+    {
+      "name": "Waybilla Quick Track Widget",
+      "short_name": "Waybilla Track",
+      "description": "Keep track of active waybills directly on your home screen",
+      "tag": "waybill-track-widget",
+      "template": "widget-template",
+      "data": "widget-data.json",
+      "icons": [
+        {
+          "src": "/icon-192.png",
+          "sizes": "192x192",
+          "type": "image/png"
+        }
+      ]
+    }
+  ],
+  "note_taking": {
+    "new_note_url": "/?note=new"
+  },
+  "categories": [
+    "business",
+    "productivity",
+    "utilities"
+  ],
+  "display_override": [
+    "window-controls-overlay",
+    "tabbed",
+    "standalone"
   ]
 }

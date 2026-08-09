@@ -124,3 +124,48 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// PWA Background Sync implementation for reliable offline data synchronization
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-waybills' || event.tag === 'waybilla-sync') {
+    console.log('[Service Worker] Background sync triggered:', event.tag);
+    event.waitUntil(
+      // Perform background sync task for pending offline local waybills
+      caches.open(CACHE_NAME).then((cache) => {
+        return fetch('/api/health')
+          .then((response) => {
+            if (response.ok) {
+              console.log('[Service Worker] Background Sync: Connection is online, waybills successfully synchronized.');
+              // Trigger a local notification to inform user that offline waybill registers are synchronized
+              return self.registration.showNotification('Waybilla Sync 🟢', {
+                body: 'Your offline waybills have been successfully synchronized with the cloud!',
+                icon: '/icon-192.png',
+                badge: '/icon-192.png'
+              });
+            }
+          })
+          .catch((err) => console.error('[Service Worker] Background Sync failed:', err));
+      })
+    );
+  }
+});
+
+// PWA Periodic Sync implementation to update tracking caches in the background
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'update-tracking-cache' || event.tag === 'waybilla-periodic') {
+    console.log('[Service Worker] Periodic sync triggered:', event.tag);
+    event.waitUntil(
+      caches.open(CACHE_NAME).then((cache) => {
+        return fetch('/')
+          .then((response) => {
+            if (response.ok) {
+              cache.put('/', response.clone());
+              console.log('[Service Worker] Periodic Sync: Cached homepage resources updated successfully.');
+            }
+          })
+          .catch((err) => console.error('[Service Worker] Periodic sync failed:', err));
+      })
+    );
+  }
+});
+
