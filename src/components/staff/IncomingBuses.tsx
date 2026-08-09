@@ -152,7 +152,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
             <Truck className="text-[#F2A93B] w-5 h-5" />
             Incoming Bus/Truck Loading Lists
           </h2>
-          <p className="text-xs text-slate-500">Track inbound dispatches, mark arrivals, and manage collections</p>
+          <p className="text-xs text-slate-500">Track buses coming to your park, mark arrivals, and hand over packages</p>
         </div>
       </div>
 
@@ -328,7 +328,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                     <Shield className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-[#0A1F44]">Security Verification</h3>
+                    <h3 className="text-lg font-black text-[#0A1F44]">Check Receiver Code</h3>
                     <p className="text-xs text-slate-500">Waybill: <strong className="text-blue-600">{verifyingWaybill.tracking_code}</strong></p>
                   </div>
                 </div>
@@ -339,7 +339,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                     Customer Pickup Verification:
                   </p>
                   <p className="text-amber-800 leading-relaxed">
-                    Ask <span className="font-black">{verifyingWaybill.receiver_name}</span> for their secret <strong>6-digit Pickup PIN</strong> (or registered Receiver Phone Number). Enter it below to inspect waybill details.
+                    Ask <span className="font-black">{verifyingWaybill.receiver_name}</span> for their <strong>6-digit Pickup PIN</strong> (or registered Phone Number). Enter it below to view package details.
                   </p>
                 </div>
 
@@ -391,7 +391,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                       ) : (
                         <>
                           <Shield className="w-4 h-4 text-[#F2A93B]" />
-                          Verify Code & Inspect Details &rarr;
+                          Verify Code & View Details &rarr;
                         </>
                       )}
                     </button>
@@ -416,7 +416,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
 
                 <div className="space-y-1">
                   <h3 className="text-base font-black text-[#0A1F44]">Waybill Package Details</h3>
-                  <p className="text-xs text-slate-500">Please inspect package and verify details with customer before release.</p>
+                  <p className="text-xs text-slate-500">Please check the package and confirm details with the customer before handing it over.</p>
                 </div>
 
                 {/* Detail Summary Grid */}

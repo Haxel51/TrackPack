@@ -56,7 +56,10 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
     const code = wb.tracking_code || wb.id;
     const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
 
-    return `📦 *Waybilla Shipment Receipt & Status* 🧾\n\n` +
+    const waybillFee = Number(wb.waybill_fee || 0);
+    const totalPaid = waybillFee + 200;
+
+    return `📦 *Waybilla Shipment Receipt & Invoice* 🧾\n\n` +
       `*Ref/Tracking Code:* ${code}\n` +
       `*Status:* ${statusStr}\n` +
       `*Item:* ${wb.item_description || 'Package'}\n\n` +
@@ -65,8 +68,13 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
       `*👤 Sender:* ${wb.sender_name} (${wb.sender_phone})\n` +
       `*👤 Receiver:* ${wb.receiver_name} (${wb.receiver_phone})\n` +
       `*🚚 Vehicle Plate:* ${wb.bus_number || 'Awaiting dispatch'}\n\n` +
-      `🔗 *Track Live Movement:* ${trackingUrl}\n\n` +
-      `Thank you for choosing Waybilla Nigeria! 🇳🇬`;
+      `💰 *Payment Breakdown:*\n` +
+      `- Transport Fee: ₦${waybillFee > 0 ? waybillFee.toLocaleString() : '0'}\n` +
+      `- Live Tracking Fee: ₦200\n` +
+      `- *Total Paid:* ₦${totalPaid.toLocaleString()}\n\n` +
+      (wb.pickup_pin ? `🔑 *Pickup PIN:* ${wb.pickup_pin}\n\n` : '') +
+      `🔗 *Track Live Movement:* ${trackingUrl}\n` +
+      `🌐 *Website:* www.waybilla.com.ng`;
   };
 
   const handleWhatsAppShare = async (wb: Waybill) => {
@@ -195,7 +203,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               Waybill History & Receipts 🧾
             </h1>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
-              Complete transaction logs and digital receipts for terminal <span className="text-[#0A1F44] font-extrabold">{originPark}</span>
+              Waybill history and receipts for motor park <span className="text-[#0A1F44] font-extrabold">{originPark}</span>
             </p>
           </div>
         </div>
@@ -476,30 +484,50 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               <div className="border border-slate-100 p-4 rounded-2xl bg-blue-50/40 space-y-1.5 text-xs">
                 <span className="text-[10px] font-black text-blue-900 uppercase tracking-wider block">Vehicle Allocation</span>
                 <div className="flex justify-between items-center">
-                  <span className="text-slate-600 font-bold">Assigned Bus:</span>
+                  <span className="text-slate-600 font-bold">Assigned Bus / Plate:</span>
                   <span className="font-black text-[#0A1F44]">{selectedReceipt.bus_number || 'N/A'}</span>
                 </div>
               </div>
 
-              {/* Audit Timestamps */}
-              <div className="space-y-2 text-xs border-t border-slate-100 pt-3">
-                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Timestamp Audit</span>
+              {/* Financial & Fee Breakdown */}
+              <div className="border border-slate-200 p-4 rounded-2xl bg-slate-50/80 space-y-2.5 text-xs">
+                <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Payment Breakdown</span>
                 <div className="flex justify-between items-center text-slate-600 font-medium">
-                  <span>Created / Booked:</span>
-                  <span className="font-bold text-slate-800">{formatDateTime(selectedReceipt.created_at || selectedReceipt.booked_at)}</span>
+                  <span>Transport Waybill Fee:</span>
+                  <span className="font-bold text-slate-900">
+                    ₦{Number(selectedReceipt.waybill_fee || 0) > 0 ? Number(selectedReceipt.waybill_fee).toLocaleString() : '0'}
+                  </span>
                 </div>
-                {selectedReceipt.departed_at && (
-                  <div className="flex justify-between items-center text-slate-600 font-medium">
-                    <span>Departed Origin:</span>
-                    <span className="font-bold text-slate-800">{formatDateTime(selectedReceipt.departed_at)}</span>
+                <div className="flex justify-between items-center text-slate-600 font-medium">
+                  <span>Live Tracking & Service Fee:</span>
+                  <span className="font-bold text-slate-900">₦200</span>
+                </div>
+                <div className="flex justify-between items-center text-slate-900 font-black pt-2 border-t border-slate-200 text-sm">
+                  <span>Total Amount Paid:</span>
+                  <span className="text-[#0A1F44]">
+                    ₦{(Number(selectedReceipt.waybill_fee || 0) + 200).toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              {/* Receiver & Pickup Code Footer Box */}
+              <div className="border border-amber-200 bg-amber-50/70 p-4 rounded-2xl text-xs space-y-2">
+                <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">Collection Details</span>
+                <div className="flex justify-between items-center">
+                  <span className="text-amber-900 font-bold">Receiver Phone:</span>
+                  <span className="font-black text-amber-950">{selectedReceipt.receiver_phone}</span>
+                </div>
+                {selectedReceipt.pickup_pin && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-amber-900 font-bold">Pickup Code / PIN:</span>
+                    <span className="font-black text-amber-950 bg-amber-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{selectedReceipt.pickup_pin}</span>
                   </div>
                 )}
-                {selectedReceipt.collected_at && (
-                  <div className="flex justify-between items-center text-emerald-800 font-medium">
-                    <span>Handed Over & Collected:</span>
-                    <span className="font-bold text-emerald-900">{formatDateTime(selectedReceipt.collected_at)}</span>
-                  </div>
-                )}
+              </div>
+
+              {/* Official Website Footer */}
+              <div className="text-center pt-3 border-t border-slate-100 text-[11px] font-extrabold text-slate-400 tracking-wider">
+                www.waybilla.com.ng
               </div>
             </div>
 

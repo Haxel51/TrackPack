@@ -30,7 +30,7 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `waybilla_receipt_${trackingCode.replace(/\s+/g, '_')}.png`;
+    link.download = `waybilla_receipt_${(trackingCode || 'receipt').replace(/\s+/g, '_')}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -73,7 +73,7 @@ export async function shareReceiptImage(
       return { success: false, method: 'failed' };
     }
 
-    const fileName = `waybilla_receipt_${trackingCode.replace(/\s+/g, '_')}.png`;
+    const fileName = `waybilla_receipt_${(trackingCode || 'receipt').replace(/\s+/g, '_')}.png`;
     const file = new File([blob], fileName, { type: 'image/png' });
 
     // Check if Web Share API with files is supported (e.g. mobile Safari/Chrome)

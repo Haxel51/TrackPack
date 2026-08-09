@@ -133,7 +133,7 @@ export const StaffDashboard: React.FC = () => {
                   </h2>
                   <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-[#F2A93B]" />
-                    <span>Active Terminal Assigned: <strong>{originPark}</strong></span>
+                    <span>Your Assigned Motor Park: <strong>{originPark}</strong></span>
                   </div>
                 </div>
               </div>
@@ -164,7 +164,7 @@ export const StaffDashboard: React.FC = () => {
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
                         </span>
                         <h3 className="text-sm font-black text-red-950 uppercase tracking-wide">
-                          ⚠️ ACTION REQUIRED: Outstanding Terminal Jobs
+                          ⚠️ ACTION REQUIRED: Unfinished Park Tasks
                         </h3>
                       </div>
                       <p className="text-xs text-rose-800 font-bold mt-1">

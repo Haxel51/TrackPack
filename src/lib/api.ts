@@ -211,7 +211,7 @@ export async function createBus(token: string, data: { bus_number: string; desti
   return res.json();
 }
 
-export async function createWaybill(token: string, data: { sender_name: string; sender_phone: string; receiver_name: string; receiver_phone: string; item_description: string; bus_id: string; destination_park: string }) {
+export async function createWaybill(token: string, data: { sender_name: string; sender_phone: string; receiver_name: string; receiver_phone: string; item_description: string; bus_id: string; destination_park: string; waybill_fee?: number }) {
   const res = await fetch(`${API_BASE}/staff/waybills`, {
     method: 'POST',
     headers: {

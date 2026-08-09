@@ -479,7 +479,7 @@ export const CompanyDashboard: React.FC = () => {
       setNewStaffModal(prev => ({ ...prev, error: 'Staff name is required.' }));
       return;
     }
-    const cleanPhone = newStaffModal.phone.replace(/[\s-]/g, '');
+    const cleanPhone = (newStaffModal.phone || '').replace(/[\s-]/g, '');
     if (cleanPhone && !/^[0-9]{11}$/.test(cleanPhone)) {
       setNewStaffModal(prev => ({ ...prev, error: 'Please enter a valid 11-digit phone number (e.g., 08012345678).' }));
       return;
@@ -889,8 +889,8 @@ export const CompanyDashboard: React.FC = () => {
               {/* TOP HEADER CONTROLS */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-extrabold text-[#0A1F44]">Branches & Terminals</h2>
-                  <p className="text-sm text-slate-500 mt-1">Manage dispatch hubs and assign active terminal staff</p>
+                  <h2 className="text-xl font-extrabold text-[#0A1F44]">Motor Parks & Branches</h2>
+                  <p className="text-sm text-slate-500 mt-1">Manage your motor park locations and assign staff</p>
                 </div>
                 <button
                   onClick={() => setNewParkModal(prev => ({ ...prev, open: true }))}
@@ -920,7 +920,7 @@ export const CompanyDashboard: React.FC = () => {
                 </div>
               ) : parksState.parks.length === 0 ? (
                 <div className="bg-white border border-slate-100 rounded-2xl p-10 text-center shadow-sm text-slate-500 space-y-4">
-                  <p className="text-sm">You haven't registered any branches or terminals yet.</p>
+                  <p className="text-sm">You haven't added any motor park branches yet.</p>
                   <button
                     onClick={() => setNewParkModal(prev => ({ ...prev, open: true }))}
                     className="bg-blue-600 hover:bg-blue-700 text-white font-extrabold px-4 py-2 rounded-xl text-xs transition-all border-0 cursor-pointer"
@@ -944,7 +944,7 @@ export const CompanyDashboard: React.FC = () => {
                               <h3 className="font-extrabold text-base text-[#0A1F44]">{park.park_name}</h3>
                               <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-1">
                                 <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                                <span>Terminal location: <strong className="text-slate-700">{park.park_location}</strong></span>
+                                <span>Park location: <strong className="text-slate-700">{park.park_location}</strong></span>
                               </div>
                             </div>
                           </div>
@@ -957,7 +957,7 @@ export const CompanyDashboard: React.FC = () => {
                           </p>
 
                           {!park.staff || park.staff.length === 0 ? (
-                            <p className="text-xs text-slate-400 italic py-2">No staff assigned to this terminal yet.</p>
+                            <p className="text-xs text-slate-400 italic py-2">No staff added to this park yet.</p>
                           ) : (
                             <div className="space-y-3 max-h-48 overflow-y-auto pr-1">
                               {park.staff.map((st: any, index: number) => (
@@ -1580,7 +1580,7 @@ export const CompanyDashboard: React.FC = () => {
 
             <div>
               <h3 className="text-lg font-extrabold text-[#0A1F44]">Create New Branch</h3>
-              <p className="text-xs text-slate-500 mt-1">Register a new departure and reception terminal location in Nigeria</p>
+              <p className="text-xs text-slate-500 mt-1">Register a new motor park or branch location in Nigeria</p>
             </div>
 
             <form onSubmit={handleCreatePark} className="space-y-4">
@@ -1833,7 +1833,7 @@ export const CompanyDashboard: React.FC = () => {
               </p>
               {detailModal.waybill.creator_staff_name && (
                 <div className="mt-2.5 p-2.5 bg-blue-50/70 border border-blue-100 rounded-xl text-xs flex items-center justify-between">
-                  <span className="font-bold text-blue-900">Issued by Terminal Staff:</span>
+                  <span className="font-bold text-blue-900">Issued by Park Staff:</span>
                   <span className="font-black text-blue-800">
                     {detailModal.waybill.creator_staff_name} {detailModal.waybill.creator_staff_phone ? `(${detailModal.waybill.creator_staff_phone})` : ''}
                   </span>

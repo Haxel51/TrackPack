@@ -160,7 +160,7 @@ export const HomePage: React.FC = () => {
         <div className="text-center space-y-3">
           <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold shadow-xs">
             <span role="img" aria-label="Nigeria Flag">🇳🇬</span>
-            <span>Built for All Nigerian Motor Parks, Transport Lines & Trade Terminals</span>
+            <span>Built for All Nigerian Motor Parks & Transport Companies</span>
           </div>
           
           <h1 className="text-2xl sm:text-3xl font-black text-[#0A1F44] tracking-tight leading-tight max-w-md mx-auto">
@@ -168,7 +168,7 @@ export const HomePage: React.FC = () => {
           </h1>
           
           <p className="text-xs sm:text-sm text-slate-700 max-w-md mx-auto leading-relaxed">
-            Waybilla tracks waybills across Nigerian interstate transport companies (Peace Mass, GIGM, Young Shall Grow, Goodness & Mercy, etc.), motor parks, and major commercial trade hubs — including high-volume motor & machine parts terminals like <strong>Nwanyi Imo Park Nnewi</strong> (handling 500–1,000+ daily truck waybills to <strong>Kano, Lagos, Abuja, Onitsha</strong>).
+            Waybilla tracks waybills across Nigerian interstate transport companies (Peace Mass, GIGM, Young Shall Grow, Goodness & Mercy, etc.), motor parks, and major commercial trade hubs — including high-volume motor & machine parts parks like <strong>Nwanyi Imo Park Nnewi</strong> (handling 500–1,000+ daily truck waybills to <strong>Kano, Lagos, Abuja, Onitsha</strong>).
           </p>
 
           {/* Feature highlights pill badges */}
@@ -191,10 +191,10 @@ export const HomePage: React.FC = () => {
             <span>💡 Quick Notice for All Users:</span>
           </div>
           <p className="leading-relaxed font-medium">
-            <strong>What is Waybilla?</strong> Waybilla tracks waybills registered at interstate motor parks, transport companies, and commercial goods terminals (including spare parts loading hubs like Nwanyi Imo Nnewi) across Nigeria.
+            <strong>What is Waybilla?</strong> Waybilla tracks waybills registered at interstate motor parks, transport companies, and commercial goods loading parks (including spare parts loading hubs like Nwanyi Imo Nnewi) across Nigeria.
           </p>
           <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200 text-amber-900 text-[11px] font-semibold leading-relaxed">
-            🤣 <strong>Please Note:</strong> No carry DHL, FedEx, or foreign tracking codes come here o! Only waybill codes created at participating Nigerian motor park, transport company, or trade terminal counters work on Waybilla.
+            🤣 <strong>Please Note:</strong> No carry DHL, FedEx, or foreign tracking codes come here o! Only waybill codes created at participating Nigerian motor park or transport company counters work on Waybilla.
           </div>
         </div>
 

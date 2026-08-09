@@ -66,9 +66,9 @@ export const StaffLogin: React.FC = () => {
           <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
             <Lock className="text-[#0A1F44] w-6 h-6" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0A1F44]">Staff Terminal Sign In</h1>
+          <h1 className="text-2xl font-extrabold text-[#0A1F44]">Staff Sign In</h1>
           <p className="text-sm text-slate-500 max-w-xs">
-            Enter your unique 4-digit staff PIN to unlock your terminal console. No phone number is needed.
+            Enter your 4-digit staff PIN to log in. No phone number is needed.
           </p>
         </div>
 
@@ -154,7 +154,7 @@ export const StaffLogin: React.FC = () => {
                 Verifying PIN...
               </>
             ) : (
-              'Enter Terminal Console'
+              'Sign In to Staff Account'
             )}
           </button>
         </form>

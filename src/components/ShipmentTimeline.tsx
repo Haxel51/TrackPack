@@ -98,7 +98,10 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
     const code = tracking_code || waybill.id;
     const trackingUrl = `${window.location.origin}/?track=${encodeURIComponent(code)}`;
 
-    return `📦 *Waybilla Shipment Receipt & Status* 🧾\n\n` +
+    const waybillFee = Number(waybill.waybill_fee || 0);
+    const totalPaid = waybillFee + 200;
+
+    return `📦 *Waybilla Shipment Receipt & Invoice* 🧾\n\n` +
       `*Ref/Tracking Code:* ${code}\n` +
       `*Status:* ${statusStr}\n` +
       `*Item:* ${item_description || 'Package'}\n\n` +
@@ -107,8 +110,13 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       `*👤 Sender:* ${waybill.sender_name} (${waybill.sender_phone})\n` +
       `*👤 Receiver:* ${waybill.receiver_name} (${waybill.receiver_phone})\n` +
       `*🚚 Vehicle Plate:* ${bus_number || 'Awaiting dispatch'}\n\n` +
-      `🔗 *Track Live Movement:* ${trackingUrl}\n\n` +
-      `Thank you for choosing Waybilla Nigeria! 🇳🇬`;
+      `💰 *Payment Breakdown:*\n` +
+      `- Transport Fee: ₦${waybillFee > 0 ? waybillFee.toLocaleString() : '0'}\n` +
+      `- Live Tracking Fee: ₦200\n` +
+      `- *Total Paid:* ₦${totalPaid.toLocaleString()}\n\n` +
+      (waybill.pickup_pin ? `🔑 *Pickup PIN:* ${waybill.pickup_pin}\n\n` : '') +
+      `🔗 *Track Live Movement:* ${trackingUrl}\n` +
+      `🌐 *Website:* www.waybilla.com.ng`;
   };
 
   const handleWhatsAppShare = async () => {
@@ -315,7 +323,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               ${currentColor === 'blue' ? 'bg-blue-500 animate-pulse' : ''}
               ${currentColor === 'emerald' ? 'bg-emerald-500' : ''}
             `} />
-            {status.replace('_', ' ')}
+            {(status || '').replace('_', ' ')}
           </div>
         </div>
       </div>
@@ -381,7 +389,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             </div>
             <div>
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Live Transit Progress</p>
-              <p className="text-xs font-black text-[#0A1F44] capitalize">{status.replace('_', ' ')} ({progressPercent}%)</p>
+              <p className="text-xs font-black text-[#0A1F44] capitalize">{(status || '').replace('_', ' ')} ({progressPercent}%)</p>
             </div>
           </div>
           <span className="text-xs font-extrabold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5">
@@ -617,7 +625,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             Ready for Pickup at Motor Park
           </p>
           <p className="text-amber-700">
-            Your shipment has safely arrived at <strong>{waybill.destination_park || 'the destination motor park'}</strong>. Please present your secret Pickup PIN to the park counter staff to inspect and collect your package.
+            Your shipment has safely arrived at <strong>{waybill.destination_park || 'the destination motor park'}</strong>. Please present your secret Pickup PIN to the park counter staff to collect your package.
           </p>
         </div>
       )}
@@ -731,41 +739,45 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                     )}
                   </div>
 
-                  {/* Chronological Audit Trail (Nothing hidden) */}
-                  <div className="space-y-2.5">
-                    <h4 className="text-xs font-black text-[#0A1F44] uppercase tracking-wider">Audit Trail & Transaction History</h4>
-                    <div className="space-y-2 text-xs">
-                      <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                        <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Waybill Created / Booked
-                        </span>
-                        <span className="font-medium text-slate-500">{formatDateTime(waybill.created_at || booked_at)}</span>
-                      </div>
-                      {departed_at && (
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Vehicle Departed Origin
-                          </span>
-                          <span className="font-medium text-slate-500">{formatDateTime(departed_at)}</span>
-                        </div>
-                      )}
-                      {arrived_at && (
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
-                          <span className="font-bold text-slate-600 flex items-center gap-1.5">
-                            <CheckCircle2 className="w-4 h-4 text-emerald-600" /> Arrived Destination Park
-                          </span>
-                          <span className="font-medium text-slate-500">{formatDateTime(arrived_at)}</span>
-                        </div>
-                      )}
-                      {collected_at && (
-                        <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 border border-emerald-200">
-                          <span className="font-bold text-emerald-900 flex items-center gap-1.5">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600" /> Delivered & Collected ({collected_by === 'receiver' ? 'Verified by Receiver Phone' : 'Staff Confirmed'})
-                          </span>
-                          <span className="font-bold text-emerald-700">{formatDateTime(collected_at)}</span>
-                        </div>
-                      )}
+                  {/* Financial & Fee Breakdown */}
+                  <div className="border border-slate-200 p-4 rounded-2xl bg-slate-50/80 space-y-2.5 text-xs">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Payment Breakdown</span>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Transport Waybill Fee:</span>
+                      <span className="font-bold text-slate-900">
+                        ₦{Number(waybill.waybill_fee || 0) > 0 ? Number(waybill.waybill_fee).toLocaleString() : '0'}
+                      </span>
                     </div>
+                    <div className="flex justify-between items-center text-slate-600 font-medium">
+                      <span>Live Tracking & Service Fee:</span>
+                      <span className="font-bold text-slate-900">₦200</span>
+                    </div>
+                    <div className="flex justify-between items-center text-slate-900 font-black pt-2 border-t border-slate-200 text-sm">
+                      <span>Total Amount Paid:</span>
+                      <span className="text-[#0A1F44]">
+                        ₦{(Number(waybill.waybill_fee || 0) + 200).toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Receiver & Pickup Code Footer Box */}
+                  <div className="border border-amber-200 bg-amber-50/70 p-4 rounded-2xl text-xs space-y-2">
+                    <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">Collection Details</span>
+                    <div className="flex justify-between items-center">
+                      <span className="text-amber-900 font-bold">Receiver Phone:</span>
+                      <span className="font-black text-amber-950">{waybill.receiver_phone}</span>
+                    </div>
+                    {waybill.pickup_pin && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-amber-900 font-bold">Pickup Code / PIN:</span>
+                        <span className="font-black text-amber-950 bg-amber-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{waybill.pickup_pin}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Official Website Footer */}
+                  <div className="text-center pt-3 border-t border-slate-100 text-[11px] font-extrabold text-slate-400 tracking-wider">
+                    www.waybilla.com.ng
                   </div>
                 </div>
 

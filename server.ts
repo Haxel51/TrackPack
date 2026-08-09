@@ -499,7 +499,7 @@ function isValid11DigitPhone(phone: string): boolean {
 }
 
 function normalizePhoneForSMS(phone: string): string {
-  let cleaned = phone.replace(/\D/g, ""); // strip non-numeric characters
+  let cleaned = (phone || "").replace(/\D/g, ""); // strip non-numeric characters
   if (cleaned.startsWith("0") && cleaned.length === 11) {
     cleaned = "234" + cleaned.substring(1);
   }
@@ -531,16 +531,21 @@ async function sendRealWorldSMS(toPhone: string, message: string): Promise<{ suc
           api_key: termiiApiKey
         })
       });
-      const data = (await response.json()) as any;
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { message: responseText || `HTTP ${response.status} ${response.statusText}` };
+      }
       console.log("[SMS OUT-OF-BAND] Termii response:", data);
-      if (response.ok && (data.message === "Successfully Sent" || data.status === "success" || data.code === "ok" || (data.message && data.message.includes("Sent")))) {
+      if (response.ok && (data.message === "Successfully Sent" || data.status === "success" || data.code === "ok" || (data.message && typeof data.message === 'string' && data.message.includes("Sent")))) {
         return { success: true, provider: "Termii" };
       } else {
-        return { success: false, provider: "Termii", error: data.message || JSON.stringify(data) };
+        console.warn("[SMS OUT-OF-BAND] Termii dispatch unsuccessful:", data);
       }
     } catch (err: any) {
       console.error("[SMS OUT-OF-BAND] Termii SMS dispatch error:", err);
-      return { success: false, provider: "Termii", error: err.message };
     }
   }
 
@@ -561,16 +566,21 @@ async function sendRealWorldSMS(toPhone: string, message: string): Promise<{ suc
         },
         body: body.toString()
       });
-      const data = (await response.json()) as any;
+      const responseText = await response.text();
+      let data: any = {};
+      try {
+        data = responseText ? JSON.parse(responseText) : {};
+      } catch {
+        data = { message: responseText || `HTTP ${response.status} ${response.statusText}` };
+      }
       console.log("[SMS OUT-OF-BAND] Twilio response:", data);
       if (response.ok && data.sid) {
         return { success: true, provider: "Twilio" };
       } else {
-        return { success: false, provider: "Twilio", error: data.message || JSON.stringify(data) };
+        console.warn("[SMS OUT-OF-BAND] Twilio dispatch unsuccessful:", data);
       }
     } catch (err: any) {
       console.error("[SMS OUT-OF-BAND] Twilio SMS dispatch error:", err);
-      return { success: false, provider: "Twilio", error: err.message };
     }
   }
 
@@ -1983,7 +1993,7 @@ app.post("/api/staff/waybills", async (req, res) => {
     const session = await validateSessionFromHeader(req, res);
     if (!session) return;
     const { company_id, park_location } = session.userData;
-    const { sender_name, sender_phone, receiver_name, receiver_phone, item_description, bus_id, destination_park } = req.body;
+    const { sender_name, sender_phone, receiver_name, receiver_phone, item_description, bus_id, destination_park, waybill_fee } = req.body;
 
     if (!sender_name || !sender_phone || !receiver_name || !receiver_phone || !item_description || !destination_park) {
       return res.status(400).json({ error: "All fields are required." });
@@ -2028,6 +2038,7 @@ app.post("/api/staff/waybills", async (req, res) => {
       receiver_name,
       receiver_phone,
       item_description,
+      waybill_fee: typeof waybill_fee !== 'undefined' && waybill_fee !== null ? (parseFloat(waybill_fee) || 0) : 0,
       bus_id: bus_id,
       bus_number: busData ? busData.bus_number : "N/A",
       origin_park: park_location,

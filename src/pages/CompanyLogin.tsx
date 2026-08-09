@@ -550,7 +550,7 @@ export const CompanyLogin: React.FC = () => {
             {/* Initial Park Section */}
             <div className="border-t border-slate-100 pt-3 space-y-3">
               <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#0A1F44]" /> Primary Park / Terminal Information
+                <MapPin className="w-3.5 h-3.5 text-[#0A1F44]" /> Primary Motor Park Information
               </div>
 
               <div className="space-y-1">

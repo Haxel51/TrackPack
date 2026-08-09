@@ -344,7 +344,7 @@ export const CustomerDashboard: React.FC = () => {
               📍 <strong>Easy Pickup & Collection:</strong>
             </p>
             <p className="text-[11px] leading-relaxed text-slate-600">
-              When your waybill arrives at the destination motor park, walk up to the park counter and provide the <strong>Receiver’s Phone Number</strong> to staff to verify and collect your waybill!
+              When your waybill arrives at the destination motor park, walk up to the park counter and provide the <strong>Receiver’s Phone Number</strong> or your <strong>Pickup PIN</strong> to staff to verify and collect your waybill!
             </p>
           </div>
         </div>
@@ -458,7 +458,7 @@ export const CustomerDashboard: React.FC = () => {
                 </div>
                 <div className="text-xs text-amber-950 leading-relaxed font-medium">
                   <strong className="font-extrabold text-amber-900 block mb-0.5">Looking for a waybill?</strong>
-                  Make sure the terminal staff registered your waybill using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
+                  Make sure the park staff registered your waybill using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
                 </div>
               </div>
             </div>
@@ -513,7 +513,7 @@ export const CustomerDashboard: React.FC = () => {
                         </span>
 
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest border ${getStatusColorClass(w.status)}`}>
-                          {w.status.replace('_', ' ')}
+                          {(w.status || '').replace('_', ' ')}
                         </span>
                       </div>
                     </div>

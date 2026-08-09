@@ -53,5 +53,7 @@ export interface Waybill {
   arrived_at: string | null;
   collected_at: string | null;
   collected_by: string | null;
+  waybill_fee?: number;
+  pickup_pin?: string;
   created_at: string;
 }

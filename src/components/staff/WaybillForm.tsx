@@ -28,6 +28,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const [receiverName, setReceiverName] = useState(initialDraft?.receiverName || '');
   const [receiverPhone, setReceiverPhone] = useState(initialDraft?.receiverPhone || '');
   const [itemDescription, setItemDescription] = useState(initialDraft?.itemDescription || '');
+  const [waybillFee, setWaybillFee] = useState('');
   const [busId, setBusId] = useState(initialDraft?.busId || '');
   const [destinationPark, setDestinationPark] = useState(initialDraft?.destinationPark || '');
 
@@ -260,6 +261,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     setReceiverName('');
     setReceiverPhone('');
     setItemDescription('');
+    setWaybillFee('');
     setCreatedTrackingCode(null);
     setActivePayment(null);
     setError(null);
@@ -279,13 +281,13 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
       return;
     }
 
-    const cleanSender = senderPhone.replace(/\D/g, '');
+    const cleanSender = (senderPhone || '').replace(/\D/g, '');
     if (cleanSender.length !== 11) {
       setError('Sender phone number must be exactly 11 digits (e.g. 08012345678).');
       return;
     }
 
-    const cleanReceiver = receiverPhone.replace(/\D/g, '');
+    const cleanReceiver = (receiverPhone || '').replace(/\D/g, '');
     if (cleanReceiver.length !== 11) {
       setError('Receiver phone number must be exactly 11 digits (e.g. 08012345678).');
       return;
@@ -302,7 +304,8 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         receiver_phone: receiverPhone.trim(),
         item_description: itemDescription.trim(),
         bus_id: busId,
-        destination_park: destinationPark.trim()
+        destination_park: destinationPark.trim(),
+        waybill_fee: waybillFee ? parseFloat(waybillFee) : 0
       });
 
       if (res.success && res.waybill && res.payment) {
@@ -664,7 +667,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Origin Park (Current Terminal)
+                Departure Park (Your Park)
               </label>
               <input
                 type="text"
@@ -688,7 +691,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                   onChange={handleDestinationChange}
                   className="w-full bg-white border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-[#0A1F44]"
                 >
-                  <option value="" disabled>-- Select Destination Terminal --</option>
+                  <option value="" disabled>-- Select Destination Park --</option>
                   {/* Render registered company parks */}
                   {parks.map((p, idx) => (
                     <option key={`park-opt-${p.id || idx}-${idx}`} value={p.park_location || p.park_name}>
@@ -889,6 +892,28 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 onChange={(e) => setItemDescription(e.target.value)}
                 className="w-full border border-slate-200 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors"
               />
+            </div>
+          </div>
+
+          <div className="border-t border-slate-100 pt-5">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
+                Waybill Fee / Transport Charge (₦) <span className="text-slate-400 font-normal lowercase">(optional)</span>
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-3 text-slate-400 font-bold text-sm">₦</span>
+                <input
+                  type="number"
+                  min="0"
+                  placeholder="e.g. 5000 (Amount paid directly to your transport line)"
+                  value={waybillFee}
+                  onChange={(e) => setWaybillFee(e.target.value)}
+                  className="w-full border border-slate-200 focus:border-[#0A1F44] rounded-xl pl-9 pr-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-[#0A1F44]"
+                />
+              </div>
+              <p className="text-[11px] text-slate-400 mt-1.5 font-medium">
+                Amount paid by the sender for transport. This will be added to the ₦200 live tracking fee to show the total on the receipt.
+              </p>
             </div>
           </div>
 

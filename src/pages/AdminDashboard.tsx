@@ -289,7 +289,7 @@ export const AdminDashboard: React.FC = () => {
       wb.booked_at || wb.created_at || ''
     ]);
 
-    const csvContent = [headers.join(','), ...rows.map(e => e.map(val => `"${val.replace(/"/g, '""')}"`).join(','))].join('\n');
+    const csvContent = [headers.join(','), ...rows.map(e => e.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(','))].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -715,7 +715,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                       <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
                         <AlertCircle className="w-4 h-4 text-amber-500" />
-                        <span>Pending Operator Registrations</span>
+                        <span>Pending Company Registrations</span>
                       </h3>
                       <span className="text-[10px] font-extrabold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
                         {companies.filter(c => c.approved === false && c.rejected !== true).length} waiting review
@@ -763,7 +763,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                       <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
                         <CheckCircle className="w-4 h-4 text-emerald-500" />
-                        <span>Onboarded Operators & Partners</span>
+                        <span>Approved Transport Companies</span>
                       </h3>
                       <span className="text-[10px] font-extrabold bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full">
                         {companies.filter(c => c.approved === true).length} active partners
@@ -847,12 +847,12 @@ export const AdminDashboard: React.FC = () => {
                   <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-5 sticky top-6">
                     <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider border-b border-slate-50 pb-3 flex items-center gap-1.5">
                       <Building2 className="w-4 h-4 text-[#F2A93B]" />
-                      <span>Operator Audit Profile</span>
+                      <span>Company Profile Details</span>
                     </h3>
 
                     {!selectedCompanyId ? (
                       <div className="text-center py-12 text-xs text-slate-400 font-medium">
-                        Select an approved company from the table to inspect their terminal parks, registered active staff, and global shipment records.
+                        Select an approved company from the table to view their motor parks, staff, and shipment records.
                       </div>
                     ) : loadingCompanyDetails ? (
                       <div className="space-y-4 py-4">
@@ -1031,10 +1031,10 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-50 pb-4">
                 <div>
                   <h3 className="text-sm font-extrabold text-[#0A1F44] uppercase tracking-wider">
-                    Global Waybill Audit Center
+                    All Registered Waybills
                   </h3>
                   <p className="text-xs text-slate-400 font-semibold mt-1">
-                    Inspecting {shipmentsTotal} total waybills across all motor park companies.
+                    Showing {shipmentsTotal} total waybills across all transport companies.
                   </p>
                 </div>
                 <button
@@ -1539,7 +1539,7 @@ export const AdminDashboard: React.FC = () => {
 
             <div>
               <span className="bg-slate-100 text-[#0A1F44] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider inline-block">
-                Waybill Details Auditing
+                Waybill Details
               </span>
               <h4 className="text-lg font-black text-[#0A1F44] mt-2 tracking-wider flex items-center gap-1.5">
                 <FileText className="w-5 h-5 text-[#F2A93B]" />
@@ -1564,17 +1564,17 @@ export const AdminDashboard: React.FC = () => {
             <div className="space-y-3 text-xs">
               
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-bold">Logistics Operator</span>
+                <span className="text-slate-500 font-bold">Transport Company</span>
                 <span className="font-extrabold text-[#0A1F44]">{selectedWaybill.company_name}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-bold">Origin Terminal</span>
+                <span className="text-slate-500 font-bold">Departure Park</span>
                 <span className="font-extrabold text-[#0A1F44]">{selectedWaybill.origin_park}</span>
               </div>
 
               <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500 font-bold">Destination Terminal</span>
+                <span className="text-slate-500 font-bold">Arrival Park</span>
                 <span className="font-extrabold text-[#0A1F44]">{selectedWaybill.destination_park}</span>
               </div>
 
@@ -1611,7 +1611,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className={`absolute left-[-21px] top-1 w-2.5 h-2.5 rounded-full ${
                     selectedWaybill.departed_at ? 'bg-emerald-500' : 'bg-slate-300'
                   }`} />
-                  <p className="text-xs font-extrabold text-slate-700">Bus Departed Terminal</p>
+                  <p className="text-xs font-extrabold text-slate-700">Bus Departed Motor Park</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.departed_at ? new Date(selectedWaybill.departed_at).toLocaleString() : 'Not Departed'}</p>
                   {selectedWaybill.departed_by_staff_name && (
                     <p className="text-[10px] text-amber-600 font-bold mt-0.5">
@@ -1653,7 +1653,7 @@ export const AdminDashboard: React.FC = () => {
               onClick={() => setSelectedWaybill(null)}
               className="w-full bg-[#0A1F44] hover:bg-[#143265] text-white font-extrabold py-3 rounded-2xl text-xs transition-all cursor-pointer"
             >
-              Close Auditor details
+              Close Details
             </button>
           </div>
         </div>
