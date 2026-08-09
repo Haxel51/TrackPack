@@ -55,7 +55,18 @@ try {
   console.error("Error writing PWA assets on start:", e);
 }
 
-// Intercept direct requests to icons and screenshots to ensure uncorrupted binary delivery
+// Intercept direct requests to icons, screenshots, and well-known files to ensure uncorrupted delivery
+app.get("/.well-known/assetlinks.json", (req, res) => {
+  res.setHeader("Content-Type", "application/json");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  const filePath = path.join(process.cwd(), "public", ".well-known", "assetlinks.json");
+  if (fs.existsSync(filePath)) {
+    res.sendFile(filePath);
+  } else {
+    res.status(404).json({ error: "assetlinks.json not found" });
+  }
+});
+
 app.get("/icon-192.png", (req, res) => {
   res.setHeader("Content-Type", "image/png");
   res.setHeader("Cache-Control", "public, max-age=31536000");
