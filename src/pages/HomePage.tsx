@@ -124,9 +124,8 @@ export const HomePage: React.FC = () => {
           >
             <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
               <img
-                src={waybillaBoxLogo}
+                src="/logo.png"
                 alt="Waybilla Logo"
-                referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
               />
             </div>
