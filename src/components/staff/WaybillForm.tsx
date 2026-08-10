@@ -305,7 +305,8 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         item_description: itemDescription.trim(),
         bus_id: busId,
         destination_park: destinationPark.trim(),
-        waybill_fee: waybillFee ? parseFloat(waybillFee) : 0
+        waybill_fee: waybillFee ? parseFloat(waybillFee) : 0,
+        shipping_fee: waybillFee ? parseFloat(waybillFee) : 0
       });
 
       if (res.success && res.waybill && res.payment) {

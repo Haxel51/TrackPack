@@ -33,7 +33,36 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
-  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers'>('overview');
+
+  // Managers Read-Only View State (Super Admin)
+  const [managers, setManagers] = useState<any[]>([]);
+  const [managersLoading, setManagersLoading] = useState(false);
+  const [managersError, setManagersError] = useState(false);
+
+  const loadManagers = async () => {
+    setManagersLoading(true);
+    setManagersError(false);
+    try {
+      const res = await fetchWithTimeout('/api/admin/managers');
+      if (res.ok) {
+        const data = await res.json();
+        setManagers(data.managers || []);
+      } else {
+        setManagersError(true);
+      }
+    } catch (err) {
+      setManagersError(true);
+    } finally {
+      setManagersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'managers') {
+      loadManagers();
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     let meta = document.querySelector('meta[name="robots"]');
@@ -401,7 +430,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'shipments', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
+            {(['overview', 'companies', 'managers', 'shipments', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -1467,6 +1496,87 @@ export const AdminDashboard: React.FC = () => {
 
         {activeTab === 'recovery' && (
           <RecoveryTabContent token={token} />
+        )}
+
+        {/* ==========================================
+            TAB: MANAGERS READ-ONLY VISIBILITY (SUPER ADMIN)
+            ========================================== */}
+        {activeTab === 'managers' && (
+          <div className="space-y-6" id="managers-tab-content">
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-2">
+                    <Shield className="w-5 h-5 text-indigo-600" />
+                    <span>All Managers Read-Only Visibility</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Super Admin overview of all Managers assigned across all transport companies and motor parks.
+                  </p>
+                </div>
+                <button
+                  onClick={loadManagers}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer border-0 self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${managersLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh List</span>
+                </button>
+              </div>
+
+              {managersLoading ? (
+                <div className="space-y-3 py-4">
+                  <Skeleton className="h-12" />
+                  <Skeleton className="h-12" />
+                  <Skeleton className="h-12" />
+                </div>
+              ) : managersError ? (
+                <div className="text-center py-10">
+                  <button onClick={loadManagers} className="bg-red-50 border border-red-100 text-red-600 font-extrabold text-xs px-4 py-2 rounded-xl cursor-pointer border-0">
+                    Could not load managers list. Tap to retry.
+                  </button>
+                </div>
+              ) : managers.length === 0 ? (
+                <div className="text-center py-12 text-xs text-slate-400 font-bold">
+                  No managers created across any company yet.
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                  <table className="w-full text-left border-collapse text-xs">
+                    <thead>
+                      <tr className="bg-slate-50 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                        <th className="py-3 px-4">Manager Name</th>
+                        <th className="py-3 px-4">Phone Number</th>
+                        <th className="py-3 px-4">Company Name</th>
+                        <th className="py-3 px-4">Park Location</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4">Created Date</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
+                      {managers.map((m: any, idx: number) => (
+                        <tr key={`adm-mgr-${m.id || idx}`} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="py-3 px-4 font-extrabold text-[#0A1F44]">{m.name}</td>
+                          <td className="py-3 px-4 font-mono">{m.phone}</td>
+                          <td className="py-3 px-4 font-bold text-slate-800">{m.company_name}</td>
+                          <td className="py-3 px-4">{m.park_location}</td>
+                          <td className="py-3 px-4">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                              m.active ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                            }`}>
+                              {m.active ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                          <td className="py-3 px-4 text-slate-400 text-[10px]">
+                            {m.created_at ? new Date(m.created_at).toLocaleDateString() : 'N/A'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
         )}
 
       </main>

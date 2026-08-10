@@ -10,6 +10,7 @@ import { WhatsAppButton } from './components/WhatsAppButton';
 import { HomePage } from './pages/HomePage';
 import { CustomerLogin } from './pages/CustomerLogin';
 import { StaffLogin } from './pages/StaffLogin';
+import { ManagerLogin } from './pages/ManagerLogin';
 import { CompanyLogin } from './pages/CompanyLogin';
 import { AdminLogin } from './pages/AdminLogin';
 import { ResetPassword } from './pages/ResetPassword';
@@ -17,6 +18,7 @@ import { ResetPassword } from './pages/ResetPassword';
 // Dashboards (Protected)
 import { CustomerDashboard } from './pages/CustomerDashboard';
 import { StaffDashboard } from './pages/StaffDashboard';
+import { ManagerDashboard } from './pages/ManagerDashboard';
 import { CompanyDashboard } from './pages/CompanyDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 
@@ -36,6 +38,7 @@ export default function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/login/customer" element={<CustomerLogin />} />
           <Route path="/login/staff" element={<StaffLogin />} />
+          <Route path="/login/manager" element={<ManagerLogin />} />
           <Route path="/login/company" element={<CompanyLogin />} />
           <Route path="/login/admin" element={<AdminLogin />} />
           <Route path="/reset-password" element={<ResetPassword />} />
@@ -54,6 +57,14 @@ export default function App() {
             element={
               <ProtectedRoute allowedRole="staff">
                 <StaffDashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manager/dashboard"
+            element={
+              <ProtectedRoute allowedRole="manager">
+                <ManagerDashboard />
               </ProtectedRoute>
             }
           />

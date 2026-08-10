@@ -211,7 +211,7 @@ export async function createBus(token: string, data: { bus_number: string; desti
   return res.json();
 }
 
-export async function createWaybill(token: string, data: { sender_name: string; sender_phone: string; receiver_name: string; receiver_phone: string; item_description: string; bus_id: string; destination_park: string; waybill_fee?: number }) {
+export async function createWaybill(token: string, data: { sender_name: string; sender_phone: string; receiver_name: string; receiver_phone: string; item_description: string; bus_id: string; destination_park: string; waybill_fee?: number; shipping_fee?: number }) {
   const res = await fetch(`${API_BASE}/staff/waybills`, {
     method: 'POST',
     headers: {
@@ -305,3 +305,166 @@ export async function getStaffHistory(token: string) {
   });
   return res.json();
 }
+
+// Manager Portal & Management Endpoints
+export async function checkManagerPhone(phoneNumber: string) {
+  const res = await fetch(`${API_BASE}/auth/manager/check-phone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber })
+  });
+  return res.json();
+}
+
+export async function setManagerPin(phoneNumber: string, pin: string, confirmPin?: string) {
+  const res = await fetch(`${API_BASE}/auth/manager/set-pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin })
+  });
+  return res.json();
+}
+
+export async function loginManager(phoneNumber: string, pin: string) {
+  const res = await fetch(`${API_BASE}/auth/manager/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, pin })
+  });
+  return res.json();
+}
+
+export async function getCompanyManagers(token: string) {
+  const res = await fetch(`${API_BASE}/company/managers`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function createCompanyManager(token: string, data: { name: string; phone: string; park_id: string; pin?: string }) {
+  const res = await fetch(`${API_BASE}/company/managers`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function toggleCompanyManagerStatus(token: string, managerId: string) {
+  const res = await fetch(`${API_BASE}/company/managers/${managerId}/toggle-active`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function resetCompanyManagerPin(token: string, managerId: string) {
+  const res = await fetch(`${API_BASE}/company/managers/${managerId}/reset-pin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function getManagerOverview(token: string) {
+  const res = await fetch(`${API_BASE}/manager/overview`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function getManagerStaff(token: string) {
+  const res = await fetch(`${API_BASE}/manager/staff`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function createManagerStaff(token: string, data: { name: string; phone?: string }) {
+  const res = await fetch(`${API_BASE}/manager/staff`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+  return res.json();
+}
+
+export async function toggleManagerStaffStatus(token: string, staffId: string) {
+  const res = await fetch(`${API_BASE}/manager/staff/${staffId}/toggle-active`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function resetManagerStaffPin(token: string, staffId: string) {
+  const res = await fetch(`${API_BASE}/manager/staff/${staffId}/reset-pin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function deleteManagerStaff(token: string, staffId: string) {
+  const res = await fetch(`${API_BASE}/manager/staff/${staffId}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function getManagerWaybills(token: string) {
+  const res = await fetch(`${API_BASE}/manager/waybills`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+
+export async function getAdminManagers(token: string) {
+  const res = await fetch(`${API_BASE}/admin/managers`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  return res.json();
+}
+

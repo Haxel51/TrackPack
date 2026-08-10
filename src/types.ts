@@ -11,10 +11,20 @@ export interface User {
   has_completed_onboarding?: boolean;
 }
 
+export interface Manager {
+  id: string;
+  name: string;
+  phone: string;
+  company_id: string;
+  park_location: string;
+  active: boolean;
+  created_at: string;
+}
+
 export interface AuthState {
   token: string | null;
   user: User | null;
-  role: 'customer' | 'company' | 'staff' | 'admin' | null;
+  role: 'customer' | 'company' | 'staff' | 'manager' | 'admin' | null;
 }
 
 export interface Bus {
@@ -54,6 +64,7 @@ export interface Waybill {
   collected_at: string | null;
   collected_by: string | null;
   waybill_fee?: number;
+  shipping_fee?: number;
   pickup_pin?: string;
   created_at: string;
 }

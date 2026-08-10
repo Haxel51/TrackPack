@@ -22,7 +22,9 @@ import {
   DollarSign,
   Package,
   Bus,
-  AlertCircle
+  AlertCircle,
+  UserCheck,
+  Trash2
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 
@@ -136,6 +138,88 @@ export const CompanyDashboard: React.FC = () => {
     pin: string;
   } | null>(null);
 
+  // New Manager Modal state
+  const [newManagerModal, setNewManagerModal] = useState({
+    open: false,
+    parkId: '',
+    parkName: '',
+    name: '',
+    phone: '',
+    submitting: false,
+    error: null as string | null
+  });
+
+  // Manager 6-digit PIN success modal state
+  const [managerPinSuccessState, setManagerPinSuccessState] = useState<{
+    open: boolean;
+    name: string;
+    pin: string;
+  } | null>(null);
+
+  // Selected manager profile slide-over panel
+  const [selectedManagerProfile, setSelectedManagerProfile] = useState<{
+    id: string;
+    name: string;
+    phone: string;
+    active: boolean;
+    parkId: string;
+    parkName: string;
+  } | null>(null);
+
+  // Reusable custom confirmation modal state
+  const [customConfirmModal, setCustomConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    confirmText: string;
+    cancelText: string;
+    submitting: boolean;
+    error: string | null;
+    onConfirm: () => Promise<void> | void;
+  }>({
+    open: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    submitting: false,
+    error: null,
+    onConfirm: () => {},
+  });
+
+  const showCustomConfirm = ({
+    title,
+    message,
+    confirmText = 'Confirm',
+    cancelText = 'Cancel',
+    onConfirm,
+  }: {
+    title: string;
+    message: string;
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm: () => Promise<void>;
+  }) => {
+    setCustomConfirmModal({
+      open: true,
+      title,
+      message,
+      confirmText,
+      cancelText,
+      submitting: false,
+      error: null,
+      onConfirm: async () => {
+        setCustomConfirmModal(prev => ({ ...prev, submitting: true, error: null }));
+        try {
+          await onConfirm();
+          setCustomConfirmModal(prev => ({ ...prev, open: false, submitting: false }));
+        } catch (err: any) {
+          setCustomConfirmModal(prev => ({ ...prev, submitting: false, error: err.message || 'Action failed' }));
+        }
+      },
+    });
+  };
+
   // --- TAB 4: EARNINGS STATE ---
   const [earningsState, setEarningsState] = useState<{
     loading: boolean;
@@ -229,10 +313,11 @@ export const CompanyDashboard: React.FC = () => {
 
   const fetchParksAndStaff = async () => {
     setParksState(prev => ({ ...prev, loading: true, error: false }));
+    const activeToken = token || localStorage.getItem('auth_token');
     try {
       const response = await fetch('/api/company/parks-and-staff', {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         }
       });
       if (!response.ok) throw new Error('Failed to load parks and staff');
@@ -530,27 +615,16 @@ export const CompanyDashboard: React.FC = () => {
 
   // 3. Toggle Staff Active Status
   const handleToggleStaffActive = async (staffId: string) => {
+    const activeToken = token || localStorage.getItem('auth_token');
     try {
       const response = await fetch(`/api/company/staff/${staffId}/toggle-active`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         }
       });
       if (response.ok) {
-        // Optimistically update local parks state
-        setParksState(prev => {
-          const updatedParks = prev.parks.map((park: any) => {
-            const updatedStaff = park.staff.map((s: any) => {
-              if (s.id === staffId) {
-                return { ...s, active: !s.active };
-              }
-              return s;
-            });
-            return { ...park, staff: updatedStaff };
-          });
-          return { ...prev, parks: updatedParks };
-        });
+        fetchParksAndStaff();
       } else {
         const err = await response.json();
         alert(err.error || 'Failed to toggle staff active status');
@@ -563,6 +637,7 @@ export const CompanyDashboard: React.FC = () => {
 
   // 3.5 Confirm Reset Staff PIN
   const handleConfirmResetPin = async () => {
+    const activeToken = token || localStorage.getItem('auth_token');
     const { staffId } = resetPinConfirmModal;
     if (!staffId) return;
 
@@ -571,7 +646,7 @@ export const CompanyDashboard: React.FC = () => {
       const response = await fetch(`/api/company/staff/${staffId}/reset-pin`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${activeToken}`
         }
       });
       const data = await response.json();
@@ -603,6 +678,141 @@ export const CompanyDashboard: React.FC = () => {
         error: 'Failed to connect to the server.'
       }));
     }
+  };
+
+  // Manager Handlers
+  const handleCreateManager = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (!newManagerModal.name.trim() || !newManagerModal.phone.trim()) {
+      setNewManagerModal(prev => ({ ...prev, error: 'Manager name and 11-digit phone number are required.' }));
+      return;
+    }
+
+    if (!/^\d{11}$/.test(newManagerModal.phone.trim())) {
+      setNewManagerModal(prev => ({ ...prev, error: 'Phone number must be a valid 11-digit number (e.g. 08012345678).' }));
+      return;
+    }
+
+    setNewManagerModal(prev => ({ ...prev, submitting: true, error: null }));
+
+    try {
+      const response = await fetch('/api/company/managers', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${activeToken}`
+        },
+        body: JSON.stringify({
+          park_id: newManagerModal.parkId,
+          name: newManagerModal.name.trim(),
+          phone: newManagerModal.phone.trim()
+        })
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create manager');
+      }
+
+      setManagerPinSuccessState({
+        open: true,
+        name: data.manager.name,
+        pin: data.pin
+      });
+
+      setNewManagerModal({
+        open: false,
+        parkId: '',
+        parkName: '',
+        name: '',
+        phone: '',
+        submitting: false,
+        error: null
+      });
+
+      fetchParksAndStaff();
+    } catch (err: any) {
+      setNewManagerModal(prev => ({ ...prev, submitting: false, error: err.message || 'An error occurred' }));
+    }
+  };
+
+  const handleToggleManagerActive = (managerId: string, managerName: string, currentActive: boolean) => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    const actionText = currentActive ? 'deactivate' : 'activate';
+    
+    showCustomConfirm({
+      title: `${currentActive ? 'Suspend' : 'Activate'} Manager Access?`,
+      message: `Are you sure you want to ${actionText} manager "${managerName}"?`,
+      confirmText: currentActive ? 'Yes, Suspend' : 'Yes, Activate',
+      onConfirm: async () => {
+        const response = await fetch(`/api/company/managers/${managerId}/toggle-active`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${activeToken}`
+          }
+        });
+        if (response.ok) {
+          fetchParksAndStaff();
+          if (selectedManagerProfile && selectedManagerProfile.id === managerId) {
+            setSelectedManagerProfile(prev => prev ? { ...prev, active: !currentActive } : null);
+          }
+        } else {
+          const err = await response.json();
+          throw new Error(err.error || 'Failed to toggle manager active status');
+        }
+      },
+    });
+  };
+
+  const handleDeleteManager = (managerId: string, managerName: string) => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    
+    showCustomConfirm({
+      title: 'Permanently Delete Manager?',
+      message: `Are you sure you want to permanently delete manager "${managerName}"? This action cannot be undone. They will lose all access immediately.`,
+      confirmText: 'Delete Permanently',
+      onConfirm: async () => {
+        const response = await fetch(`/api/company/managers/${managerId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${activeToken}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          fetchParksAndStaff();
+          if (selectedManagerProfile && selectedManagerProfile.id === managerId) {
+            setSelectedManagerProfile(null);
+          }
+        } else {
+          throw new Error(data.error || 'Failed to delete manager');
+        }
+      },
+    });
+  };
+
+  const handleDeleteStaffByCompany = (staffId: string, staffName: string) => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    
+    showCustomConfirm({
+      title: 'Delete Staff Member?',
+      message: `Are you sure you want to permanently delete staff member "${staffName}"? They will lose all access immediately and cannot sign in.`,
+      confirmText: 'Delete Permanently',
+      onConfirm: async () => {
+        const response = await fetch(`/api/company/staff/${staffId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${activeToken}`
+          }
+        });
+        const data = await response.json();
+        if (response.ok) {
+          fetchParksAndStaff();
+        } else {
+          throw new Error(data.error || 'Failed to delete staff member');
+        }
+      },
+    });
   };
 
   // 4. Open Waybill Timeline Detail Modal
@@ -950,6 +1160,71 @@ export const CompanyDashboard: React.FC = () => {
                           </div>
                         </div>
 
+                        {/* PARK MANAGER SECTION */}
+                        <div className="pt-4 border-t border-slate-100 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-[10px] font-extrabold text-indigo-600 uppercase tracking-widest flex items-center gap-1">
+                              <Shield className="w-3 h-3" />
+                              ASSIGNED MANAGER ({park.managers?.length ?? 0})
+                            </p>
+                            {(!park.managers || park.managers.length === 0) && (
+                              <button
+                                onClick={() => setNewManagerModal({
+                                  open: true,
+                                  parkId: park.id,
+                                  parkName: park.park_name,
+                                  name: '',
+                                  phone: '',
+                                  submitting: false,
+                                  error: null
+                                })}
+                                className="text-[10px] font-extrabold text-indigo-600 hover:text-indigo-800 bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1 rounded-lg transition-colors cursor-pointer border-0"
+                              >
+                                + Add Manager
+                              </button>
+                            )}
+                          </div>
+
+                          {!park.managers || park.managers.length === 0 ? (
+                            <p className="text-xs text-slate-400 italic py-1">No manager assigned to this park yet.</p>
+                          ) : (
+                            <div className="space-y-2">
+                              {park.managers.map((mgr: any) => (
+                                <div
+                                  key={mgr.id}
+                                  onClick={() => setSelectedManagerProfile({
+                                    id: mgr.id,
+                                    name: mgr.name,
+                                    phone: mgr.phone,
+                                    active: mgr.active !== false,
+                                    parkId: park.id,
+                                    parkName: park.park_name
+                                  })}
+                                  className="flex items-center justify-between bg-indigo-50/60 hover:bg-indigo-100/60 border border-indigo-100 p-2.5 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                                  title="Click to view profile & actions"
+                                  id={`manager-item-${mgr.id}`}
+                                >
+                                  <div>
+                                    <p className="text-xs font-extrabold text-[#0A1F44] flex items-center gap-1.5 flex-wrap">
+                                      {mgr.name}
+                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                        mgr.active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                      }`}>
+                                        {mgr.active !== false ? 'Active' : 'Deactivated'}
+                                      </span>
+                                    </p>
+                                    <p className="text-[10px] font-mono text-slate-600 mt-0.5">{mgr.phone}</p>
+                                  </div>
+
+                                  <div className="flex items-center text-slate-400">
+                                    <ChevronRight className="w-4 h-4" />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         {/* STAFF LIST */}
                         <div className="pt-4 border-t border-slate-100">
                           <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-3">
@@ -1007,6 +1282,15 @@ export const CompanyDashboard: React.FC = () => {
                                       id={`reset-staff-pin-btn-${st.id}`}
                                     >
                                       <Key className="w-3.5 h-3.5" />
+                                    </button>
+
+                                    <button
+                                      onClick={() => handleDeleteStaffByCompany(st.id, st.name)}
+                                      className="p-1.5 rounded-lg border-0 cursor-pointer transition-all bg-red-50 hover:bg-red-100 text-red-600"
+                                      title="Permanently Delete Staff Member"
+                                      id={`delete-staff-btn-${st.id}`}
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
                                     </button>
                                   </div>
                                 </div>
@@ -1859,6 +2143,302 @@ export const CompanyDashboard: React.FC = () => {
         </div>
       )}
 
+
+      {/* 5. ADD MANAGER MODAL */}
+      {newManagerModal.open && (
+        <div className="fixed inset-0 bg-[#0A1F44]/40 backdrop-blur-xs flex items-center justify-center p-6 z-50 animate-fade-in" id="add-manager-modal">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-6">
+            <button
+              onClick={() => setNewManagerModal(prev => ({ ...prev, open: false }))}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-all cursor-pointer border-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div>
+              <h3 className="text-lg font-extrabold text-[#0A1F44]">Assign Park Manager</h3>
+              <p className="text-xs text-slate-500 mt-1">Assign a Manager for <strong>{newManagerModal.parkName}</strong></p>
+            </div>
+
+            <form onSubmit={handleCreateManager} className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Manager Full Name *</label>
+                <input
+                  type="text"
+                  placeholder="e.g. Chidi Nnamdi"
+                  value={newManagerModal.name}
+                  onChange={e => setNewManagerModal(prev => ({ ...prev, name: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">11-Digit Phone Number (Login ID) *</label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 08012345678"
+                  value={newManagerModal.phone}
+                  onChange={e => setNewManagerModal(prev => ({ ...prev, phone: e.target.value }))}
+                  className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
+                  required
+                />
+              </div>
+
+              <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold space-y-1">
+                <p>• Managers create their own secret 6-digit PIN on sign-in.</p>
+                <p>• The system automatically verifies their phone number against your transport company.</p>
+              </div>
+
+              {newManagerModal.error && (
+                <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                  {newManagerModal.error}
+                </p>
+              )}
+
+              <button
+                type="submit"
+                disabled={newManagerModal.submitting}
+                className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0 disabled:opacity-50"
+              >
+                {newManagerModal.submitting ? 'Assigning Manager...' : 'Assign Manager'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 6. MANAGER ASSIGNED SUCCESS MODAL */}
+      {managerPinSuccessState?.open && (
+        <div className="fixed inset-0 bg-[#0A1F44]/40 backdrop-blur-xs flex items-center justify-center p-6 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl relative space-y-6 text-center">
+            <div className="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center mx-auto">
+              <CheckCircle2 className="w-6 h-6 text-emerald-600" />
+            </div>
+
+            <div>
+              <h3 className="text-lg font-extrabold text-[#0A1F44]">Manager Assigned Successfully</h3>
+              <p className="text-xs text-slate-500 mt-1">
+                <strong>{managerPinSuccessState.name}</strong> has been assigned as Park Manager.
+              </p>
+            </div>
+
+            <div className="bg-indigo-50 border border-indigo-100 p-4 rounded-2xl text-xs text-indigo-950 font-semibold space-y-2 text-left">
+              <p className="font-extrabold text-indigo-900 flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-indigo-600" /> Instructions for {managerPinSuccessState.name}:
+              </p>
+              <p>1. Go to the <strong>Manager Sign In</strong> page.</p>
+              <p>2. Enter their 11-digit phone number.</p>
+              <p>3. The system will recognize their transport company assignment and prompt them to <strong>create their own private 6-digit PIN</strong>.</p>
+            </div>
+
+            <button
+              onClick={() => setManagerPinSuccessState(null)}
+              className="w-full bg-[#0A1F44] text-white font-bold py-3.5 rounded-xl text-xs hover:bg-[#07152e] cursor-pointer transition-all border-0"
+            >
+              Done
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 7. MANAGER PROFILE SLIDE-OVER PANEL */}
+      {selectedManagerProfile && (
+        <div className="fixed inset-0 bg-[#0A1F44]/40 backdrop-blur-xs flex justify-end z-50 overflow-hidden" id="manager-profile-slideover">
+          <style>{`
+            @keyframes slideInRight {
+              from { transform: translateX(100%); }
+              to { transform: translateX(0); }
+            }
+            .animate-slide-in {
+              animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}</style>
+          {/* Backdrop */}
+          <div 
+            className="absolute inset-0 cursor-pointer"
+            onClick={() => setSelectedManagerProfile(null)}
+          />
+
+          {/* Slide-over Container */}
+          <div className="w-full max-w-md bg-white shadow-2xl flex flex-col justify-between h-full relative z-10 animate-slide-in">
+            {/* Header */}
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-[#0A1F44]">Manager Profile</h3>
+                  <p className="text-[10px] text-slate-500 font-medium">View details and manage permissions</p>
+                </div>
+              </div>
+              
+              <button
+                onClick={() => setSelectedManagerProfile(null)}
+                className="p-1.5 hover:bg-slate-100 text-slate-400 hover:text-slate-600 rounded-lg transition-colors border-0 cursor-pointer bg-transparent"
+                id="close-profile-slideover-btn"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Profile Content */}
+            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Visual Header card */}
+              <div className="text-center p-6 bg-gradient-to-b from-indigo-50/40 to-white border border-indigo-100/50 rounded-2xl relative overflow-hidden">
+                <div className="w-16 h-16 bg-indigo-100/80 rounded-full flex items-center justify-center mx-auto mb-3 text-indigo-700 text-lg font-black border-4 border-white shadow-sm">
+                  {selectedManagerProfile.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                </div>
+                <h4 className="text-base font-black text-[#0A1F44]">{selectedManagerProfile.name}</h4>
+                <p className="text-xs text-slate-500 font-mono mt-1 flex items-center justify-center gap-1.5">
+                  <Phone className="w-3 h-3 text-slate-400" /> {selectedManagerProfile.phone}
+                </p>
+
+                <div className="mt-4 flex justify-center">
+                  <span className={`text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider ${
+                    selectedManagerProfile.active ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                  }`}>
+                    {selectedManagerProfile.active ? 'Active Access' : 'Access Suspended'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Detail specs */}
+              <div className="space-y-4">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                  Assignment & Authority
+                </p>
+                
+                <div className="bg-slate-50 border border-slate-100 rounded-xl p-4 space-y-3.5">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Assigned Park</span>
+                    <span className="font-extrabold text-[#0A1F44] bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-md">
+                      {selectedManagerProfile.parkName}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Authority Level</span>
+                    <span className="font-extrabold text-slate-700">
+                      Park Administrator
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-500 font-medium">Access Status</span>
+                    <span className={`font-black uppercase text-[10px] ${selectedManagerProfile.active ? 'text-emerald-600' : 'text-rose-600'}`}>
+                      {selectedManagerProfile.active ? 'Full Access Allowed' : 'No Access'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Info advice box */}
+              <div className="bg-amber-50/50 border border-amber-100/80 p-4 rounded-xl text-xs text-amber-900 font-medium space-y-1.5">
+                <p className="font-black text-amber-950 flex items-center gap-1.5">
+                  💡 Security Note:
+                </p>
+                <p className="text-slate-600 text-[11px] leading-relaxed">
+                  Managers can create, approve, and track waybills for this park. If you suspect any malicious activity, you should immediately deactivate their access below.
+                </p>
+              </div>
+            </div>
+
+            {/* Actions Footer */}
+            <div className="p-6 border-t border-slate-100 bg-slate-50/50 space-y-3">
+              <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 text-center">
+                Administrative Controls
+              </p>
+
+              {/* Active Toggle Switch */}
+              <div className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-3">
+                <div>
+                  <p className="text-xs font-extrabold text-[#0A1F44]">Allow Sign-in Access</p>
+                  <p className="text-[10px] text-slate-500 mt-0.5">Toggle sign-in permissions</p>
+                </div>
+                <button
+                  onClick={() => handleToggleManagerActive(selectedManagerProfile.id, selectedManagerProfile.name, selectedManagerProfile.active)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    selectedManagerProfile.active ? 'bg-emerald-500' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={selectedManagerProfile.active}
+                  id="toggle-manager-access-switch"
+                >
+                  <span
+                    aria-hidden="true"
+                    className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      selectedManagerProfile.active ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Delete button */}
+              <button
+                onClick={() => handleDeleteManager(selectedManagerProfile.id, selectedManagerProfile.name)}
+                className="w-full bg-rose-600 hover:bg-rose-700 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border-0 shadow-sm"
+                id="panel-delete-manager-btn"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Manager Permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* REUSABLE CUSTOM CONFIRMATION MODAL */}
+      {customConfirmModal.open && (
+        <div className="fixed inset-0 bg-[#0A1F44]/50 backdrop-blur-xs flex items-center justify-center p-6 z-60 animate-fade-in" id="custom-confirm-modal">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative space-y-6 border border-slate-100">
+            <div className="text-center space-y-4">
+              <div className="mx-auto w-12 h-12 bg-indigo-50 rounded-full flex items-center justify-center border border-indigo-100">
+                <AlertCircle className="w-6 h-6 text-indigo-600" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-sm font-extrabold text-[#0A1F44]">{customConfirmModal.title}</h3>
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  {customConfirmModal.message}
+                </p>
+              </div>
+            </div>
+
+            {customConfirmModal.error && (
+              <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100 text-center">
+                {customConfirmModal.error}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setCustomConfirmModal(prev => ({ ...prev, open: false }))}
+                disabled={customConfirmModal.submitting}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold py-3 px-4 rounded-xl text-xs transition-all cursor-pointer border-0 disabled:opacity-50"
+                id="custom-confirm-cancel-btn"
+              >
+                {customConfirmModal.cancelText}
+              </button>
+              <button
+                onClick={() => {
+                  if (customConfirmModal.onConfirm) {
+                    customConfirmModal.onConfirm();
+                  }
+                }}
+                disabled={customConfirmModal.submitting}
+                className={`flex-1 font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0 disabled:opacity-50 text-white ${
+                  customConfirmModal.title.toLowerCase().includes('delete')
+                    ? 'bg-rose-600 hover:bg-rose-700'
+                    : 'bg-indigo-600 hover:bg-indigo-700'
+                }`}
+                id="custom-confirm-proceed-btn"
+              >
+                {customConfirmModal.submitting ? 'Processing...' : customConfirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

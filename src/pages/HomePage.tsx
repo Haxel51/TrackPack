@@ -317,6 +317,15 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
+              onClick={() => navigate('/login/manager')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              aria-label="Manager Login"
+            >
+              <ShieldCheck className="w-4 h-4 text-slate-700" />
+              <span>Manager Login</span>
+            </button>
+
+            <button
               onClick={() => navigate('/login/company')}
               className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Company Portal Login"

@@ -933,6 +933,277 @@ app.post("/api/auth/staff/login", async (req, res) => {
   }
 });
 
+// 2b. Manager Check Phone Endpoint (verifies phone number matches an active transport company manager profile)
+app.post("/api/auth/manager/check-phone", async (req, res) => {
+  const { phone_number } = req.body;
+  const cleanPhone = String(phone_number || "").trim();
+
+  if (!cleanPhone) {
+    return res.status(400).json({ error: "Phone number is required." });
+  }
+
+  if (!isValid11DigitPhone(cleanPhone)) {
+    return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
+  }
+
+  try {
+    const q = query(
+      collection(db, "managers"),
+      where("phone", "==", cleanPhone),
+      where("active", "==", true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      return res.status(404).json({ error: "This phone number is not registered as a Manager for any transport company. Please contact your company owner." });
+    }
+
+    const managerDoc = snap.docs[0];
+    const managerData = managerDoc.data();
+
+    // Check company status
+    const companyRef = doc(db, "companies", managerData.company_id);
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists()) {
+      return res.status(400).json({ error: "Your company was not found or has been removed." });
+    }
+    const companyData = companySnap.data();
+    if (companyData.suspended === true || companyData.suspended === "true") {
+      return res.status(400).json({ error: "Your company has been suspended. Please contact customer support." });
+    }
+    if (!companyData.approved) {
+      return res.status(400).json({ error: "Your company is pending approval." });
+    }
+
+    const hasPin = Boolean(managerData.pin_hash);
+
+    res.json({
+      success: true,
+      registered: true,
+      has_pin: hasPin,
+      manager_name: managerData.name,
+      company_name: companyData.company_name || "Transport Company",
+      park_location: managerData.park_location
+    });
+  } catch (err) {
+    console.error("Error checking manager phone:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 2c. Manager Create / Set PIN Endpoint (First-time PIN setup or PIN reset setup)
+app.post("/api/auth/manager/set-pin", async (req, res) => {
+  const { phone_number, pin, confirm_pin } = req.body;
+  const cleanPhone = String(phone_number || "").trim();
+  const cleanPin = String(pin || "").trim();
+  const cleanConfirm = String(confirm_pin || "").trim();
+
+  if (!cleanPhone || !cleanPin) {
+    return res.status(400).json({ error: "Phone number and 6-digit PIN are required." });
+  }
+
+  if (!isValid11DigitPhone(cleanPhone)) {
+    return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
+  }
+
+  if (cleanPin.length !== 6 || isNaN(Number(cleanPin))) {
+    return res.status(400).json({ error: "PIN must be a 6-digit number." });
+  }
+
+  if (cleanConfirm && cleanPin !== cleanConfirm) {
+    return res.status(400).json({ error: "PINs do not match. Please re-enter your 6-digit PIN." });
+  }
+
+  try {
+    const q = query(
+      collection(db, "managers"),
+      where("phone", "==", cleanPhone),
+      where("active", "==", true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      return res.status(404).json({ error: "This phone number is not registered as an active Manager for any transport company." });
+    }
+
+    const managerDoc = snap.docs[0];
+    const managerData = managerDoc.data();
+
+    const companyRef = doc(db, "companies", managerData.company_id);
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists() || companySnap.data().suspended === true || !companySnap.data().approved) {
+      return res.status(400).json({ error: "Your company is currently suspended or inactive." });
+    }
+    const companyData = companySnap.data();
+    const companyName = companyData.company_name || "Transport Company";
+
+    // Hash and store manager PIN
+    const hashedPin = await bcrypt.hash(cleanPin, 10);
+    await updateDoc(doc(db, "managers", managerDoc.id), {
+      pin_hash: hashedPin,
+      pin_set_at: new Date().toISOString()
+    });
+
+    // Clear failed PIN attempts
+    await handlePinSuccess(`mgr_${cleanPhone}`);
+
+    // Create session token and log in
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    await setDoc(doc(db, "sessions", token), {
+      userId: managerDoc.id,
+      userRole: "manager",
+      userData: {
+        name: managerData.name,
+        phone: managerData.phone,
+        company_id: managerData.company_id,
+        company_name: companyName,
+        park_id: managerData.park_id,
+        park_location: managerData.park_location,
+        active: managerData.active
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      message: "6-Digit PIN created successfully!",
+      token,
+      role: "manager",
+      user: {
+        name: managerData.name,
+        phone: managerData.phone,
+        park_location: managerData.park_location,
+        park_id: managerData.park_id,
+        company_id: managerData.company_id,
+        company_name: companyName
+      }
+    });
+  } catch (err) {
+    console.error("Error setting manager PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 2d. Manager Login Route (11-digit phone + 6-digit PIN)
+app.post("/api/auth/manager/login", async (req, res) => {
+  const { phone_number, pin } = req.body;
+  const cleanPhone = String(phone_number || "").trim();
+  const cleanPin = String(pin || "").trim();
+
+  if (!cleanPhone || !cleanPin) {
+    return res.status(400).json({ error: "Phone number and 6-digit PIN are required." });
+  }
+
+  if (!isValid11DigitPhone(cleanPhone)) {
+    return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
+  }
+
+  if (cleanPin.length !== 6 || isNaN(Number(cleanPin))) {
+    return res.status(400).json({ error: "PIN must be exactly 6 digits." });
+  }
+
+  try {
+    const pinLock = await getPinLockout(`mgr_${cleanPhone}`);
+    if (pinLock.locked) {
+      return res.status(429).json({ error: `Too many attempts. Try again in ${pinLock.timeLeftMinutes} minutes.` });
+    }
+
+    // Query active managers with matching phone
+    const q = query(
+      collection(db, "managers"),
+      where("phone", "==", cleanPhone),
+      where("active", "==", true),
+      limit(1)
+    );
+    const snap = await getDocs(q);
+
+    if (snap.empty) {
+      const pinFail = await handlePinFailure(`mgr_${cleanPhone}`);
+      return res.status(401).json({ error: "Invalid phone number or PIN. Please verify your phone number is assigned to a transport company.", attemptsLeft: pinFail.attemptsLeft });
+    }
+
+    const managerDoc = snap.docs[0];
+    const managerData = managerDoc.data();
+
+    // If manager hasn't set a PIN yet
+    if (!managerData.pin_hash) {
+      return res.status(400).json({
+        error: "You have not created a 6-digit PIN yet. Please create your PIN.",
+        requires_pin_creation: true,
+        manager_name: managerData.name,
+        park_location: managerData.park_location
+      });
+    }
+
+    // Verify bcrypt PIN
+    const isMatch = await bcrypt.compare(cleanPin, managerData.pin_hash);
+    if (!isMatch) {
+      const pinFail = await handlePinFailure(`mgr_${cleanPhone}`);
+      return res.status(401).json({ error: "Invalid 6-digit PIN.", attemptsLeft: pinFail.attemptsLeft });
+    }
+
+    // Check if company is active / not suspended
+    const companyRef = doc(db, "companies", managerData.company_id);
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists()) {
+      return res.status(400).json({ error: "Your company was not found or is suspended." });
+    }
+    const companyData = companySnap.data();
+    if (companyData.suspended === true || companyData.suspended === "true") {
+      return res.status(400).json({ error: "Your company has been suspended. Please contact customer service." });
+    }
+    if (!companyData.approved) {
+      return res.status(400).json({ error: "Your company is pending approval." });
+    }
+    const companyName = companyData.company_name || "Transport Company";
+
+    // Success! Clear PIN lockouts
+    await handlePinSuccess(`mgr_${cleanPhone}`);
+
+    // Create session token
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    await setDoc(doc(db, "sessions", token), {
+      userId: managerDoc.id,
+      userRole: "manager",
+      userData: {
+        name: managerData.name,
+        phone: managerData.phone,
+        company_id: managerData.company_id,
+        company_name: companyName,
+        park_id: managerData.park_id,
+        park_location: managerData.park_location,
+        active: managerData.active
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      token,
+      role: "manager",
+      user: {
+        name: managerData.name,
+        phone: managerData.phone,
+        park_location: managerData.park_location,
+        park_id: managerData.park_id,
+        company_id: managerData.company_id,
+        company_name: companyName
+      }
+    });
+  } catch (err) {
+    console.error("Manager login error:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // 3. Company Owner Login Route
 app.post("/api/auth/company/login", async (req, res) => {
   const { phone_number, password } = req.body;
@@ -1524,6 +1795,7 @@ app.get("/api/auth/me", async (req, res) => {
     let collectionName = "";
     if (session.userRole === "customer") collectionName = "customers";
     else if (session.userRole === "staff") collectionName = "staff";
+    else if (session.userRole === "manager") collectionName = "managers";
     else if (session.userRole === "company") collectionName = "companies";
 
     let freshUserData = session.userData || {};
@@ -1535,6 +1807,8 @@ app.get("/api/auth/me", async (req, res) => {
           freshUserData = { phone_number: d.phone_number, has_completed_onboarding: !!d.has_completed_onboarding };
         } else if (session.userRole === "staff") {
           freshUserData = { name: d.name, park_location: d.park_location, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
+        } else if (session.userRole === "manager") {
+          freshUserData = { name: d.name, phone: d.phone, park_location: d.park_location, park_id: d.park_id, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
         } else if (session.userRole === "company") {
           freshUserData = { company_name: d.company_name, owner_phone: d.owner_phone, approved: d.approved, has_completed_onboarding: !!d.has_completed_onboarding };
         }
@@ -1858,7 +2132,7 @@ async function validateSessionFromHeader(req: express.Request, res: express.Resp
   }
   const token = authHeader.split(" ")[1];
   const session = await validateSession(token);
-  if (!session || session.userRole !== "staff") {
+  if (!session || (session.userRole !== "staff" && session.userRole !== "manager")) {
     res.status(401).json({ error: "Unauthorized session." });
     return null;
   }
@@ -2071,7 +2345,7 @@ app.post("/api/staff/waybills", async (req, res) => {
     const session = await validateSessionFromHeader(req, res);
     if (!session) return;
     const { company_id, park_location } = session.userData;
-    const { sender_name, sender_phone, receiver_name, receiver_phone, item_description, bus_id, destination_park, waybill_fee } = req.body;
+    const { sender_name, sender_phone, receiver_name, receiver_phone, item_description, bus_id, destination_park, waybill_fee, shipping_fee } = req.body;
 
     if (!sender_name || !sender_phone || !receiver_name || !receiver_phone || !item_description || !destination_park) {
       return res.status(400).json({ error: "All fields are required." });
@@ -2117,6 +2391,7 @@ app.post("/api/staff/waybills", async (req, res) => {
       receiver_phone,
       item_description,
       waybill_fee: typeof waybill_fee !== 'undefined' && waybill_fee !== null ? (parseFloat(waybill_fee) || 0) : 0,
+      shipping_fee: typeof shipping_fee !== 'undefined' && shipping_fee !== null ? (parseFloat(shipping_fee) || 0) : (typeof waybill_fee !== 'undefined' && waybill_fee !== null ? (parseFloat(waybill_fee) || 0) : 0),
       bus_id: bus_id,
       bus_number: busData ? busData.bus_number : "N/A",
       origin_park: park_location,
@@ -2874,12 +3149,19 @@ app.get("/api/company/parks-and-staff", async (req, res) => {
     const snapStaff = await getDocs(qStaff);
     const staffList = snapStaff.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    // Nest staff inside parks
+    // Fetch Managers
+    const qManagers = query(collection(db, "managers"), where("company_id", "==", companyId));
+    const snapManagers = await getDocs(qManagers);
+    const managersList = snapManagers.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Nest staff and managers inside parks
     const parksWithStaff = parksList.map((park: any) => {
       const parkStaff = staffList.filter((s: any) => s.park_id === park.id);
+      const parkManagers = managersList.filter((m: any) => m.park_id === park.id);
       return {
         ...park,
-        staff: parkStaff
+        staff: parkStaff,
+        managers: parkManagers
       };
     });
 
@@ -3011,6 +3293,39 @@ app.post("/api/company/staff", async (req, res) => {
     });
   } catch (err) {
     console.error("Error creating staff:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 6. Delete Staff Member (Company CEO)
+app.delete("/api/company/staff/:id", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const staffId = req.params.id;
+    const staffRef = doc(db, "staff", staffId);
+    const staffSnap = await getDoc(staffRef);
+
+    if (!staffSnap.exists() || staffSnap.data().company_id !== companyId) {
+      return res.status(404).json({ error: "Staff member not found or unauthorized." });
+    }
+
+    await deleteDoc(staffRef);
+
+    // Invalidate sessions for this staff member
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+    for (const sDoc of sessionsSnap.docs) {
+      const sData = sDoc.data();
+      if (sData.userId === staffId || (sData.userData && (sData.userData.staff_id === staffId || sData.userData.id === staffId))) {
+        await deleteDoc(doc(db, "sessions", sDoc.id));
+      }
+    }
+
+    res.json({ success: true, message: "Staff member deleted permanently." });
+  } catch (err) {
+    console.error("Error deleting staff by company:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -3184,6 +3499,539 @@ app.get("/api/company/waybills", async (req, res) => {
   }
 });
 
+// ---------------- COMPANY OWNER MANAGER MANAGEMENT ENDPOINTS ----------------
+
+// GET /api/company/managers - List all managers created by this company
+app.get("/api/company/managers", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const q = query(collection(db, "managers"), where("company_id", "==", companyId));
+    const snap = await getDocs(q);
+    const managers = snap.docs.map(d => {
+      const { pin_hash, ...data } = d.data();
+      return { id: d.id, ...data };
+    });
+
+    res.json({ success: true, managers });
+  } catch (err) {
+    console.error("Error getting company managers:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/company/managers - Create a new manager for a specific park
+app.post("/api/company/managers", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const { name, phone, park_id, pin } = req.body;
+    if (!name || !phone || !park_id) {
+      return res.status(400).json({ error: "Manager name, phone number, and park selection are required." });
+    }
+
+    const cleanPhone = String(phone).trim();
+    if (!isValid11DigitPhone(cleanPhone)) {
+      return res.status(400).json({ error: "Manager phone number must be a valid 11-digit number (e.g. 08012345678)." });
+    }
+
+    // Check if a manager with this phone already exists
+    const qPhone = query(collection(db, "managers"), where("phone", "==", cleanPhone), limit(1));
+    const snapPhone = await getDocs(qPhone);
+    if (!snapPhone.empty) {
+      return res.status(400).json({ error: "A manager with this phone number already exists." });
+    }
+
+    // Verify park exists and belongs to company
+    const parkRef = doc(db, "parks", park_id);
+    const parkSnap = await getDoc(parkRef);
+    if (!parkSnap.exists() || parkSnap.data().company_id !== companyId) {
+      return res.status(404).json({ error: "Selected park was not found or unauthorized." });
+    }
+    const parkLocation = parkSnap.data().park_location;
+
+    // Option for PIN: if provided, hash it; otherwise leave null so manager creates their PIN on first login
+    let hashedPin: string | null = null;
+    let mgrPin: string | null = null;
+    if (pin && String(pin).trim().length === 6) {
+      mgrPin = String(pin).trim();
+      hashedPin = await bcrypt.hash(mgrPin, 10);
+    }
+
+    const newManagerDoc = await addDoc(collection(db, "managers"), {
+      name: name.trim(),
+      phone: cleanPhone,
+      pin_hash: hashedPin,
+      company_id: companyId,
+      park_id: park_id,
+      park_location: parkLocation,
+      active: true,
+      created_at: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      manager: {
+        id: newManagerDoc.id,
+        name: name.trim(),
+        phone: cleanPhone,
+        company_id: companyId,
+        park_id: park_id,
+        park_location: parkLocation,
+        active: true,
+        created_at: new Date().toISOString()
+      },
+      pin: mgrPin,
+      message: "Manager assigned successfully. They can now log in using their phone number and create their 6-digit PIN."
+    });
+  } catch (err) {
+    console.error("Error creating manager:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/company/managers/:id/toggle-active - Toggle manager active state
+app.post("/api/company/managers/:id/toggle-active", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const managerId = req.params.id;
+    const mgrRef = doc(db, "managers", managerId);
+    const mgrSnap = await getDoc(mgrRef);
+
+    if (!mgrSnap.exists() || mgrSnap.data().company_id !== companyId) {
+      return res.status(404).json({ error: "Manager not found or unauthorized." });
+    }
+
+    const currentActive = mgrSnap.data().active !== false;
+    const nextActive = !currentActive;
+    await updateDoc(mgrRef, { active: nextActive });
+
+    res.json({ success: true, active: nextActive });
+  } catch (err) {
+    console.error("Error toggling manager active status:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// DELETE /api/company/managers/:id - Delete manager permanently
+app.delete("/api/company/managers/:id", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const managerId = req.params.id;
+    const mgrRef = doc(db, "managers", managerId);
+    const mgrSnap = await getDoc(mgrRef);
+
+    if (!mgrSnap.exists() || mgrSnap.data().company_id !== companyId) {
+      return res.status(404).json({ error: "Manager not found or unauthorized." });
+    }
+
+    await deleteDoc(mgrRef);
+
+    // Invalidate sessions for this manager
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+    for (const sDoc of sessionsSnap.docs) {
+      const sData = sDoc.data();
+      if (sData.userId === managerId || (sData.userData && (sData.userData.manager_id === managerId || sData.userData.id === managerId))) {
+        await deleteDoc(doc(db, "sessions", sDoc.id));
+      }
+    }
+
+    res.json({ success: true, message: "Manager deleted permanently." });
+  } catch (err) {
+    console.error("Error deleting manager by company:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/company/managers/:id/reset-pin - Reset 6-digit PIN for a manager (clears PIN so manager can set a new one)
+app.post("/api/company/managers/:id/reset-pin", async (req, res) => {
+  try {
+    const session = await validateCompanySessionFromHeader(req, res);
+    if (!session) return;
+    const companyId = session.userId;
+
+    const managerId = req.params.id;
+    const mgrRef = doc(db, "managers", managerId);
+    const mgrSnap = await getDoc(mgrRef);
+
+    if (!mgrSnap.exists() || mgrSnap.data().company_id !== companyId) {
+      return res.status(404).json({ error: "Manager not found or unauthorized." });
+    }
+
+    const mgrName = mgrSnap.data().name;
+    await updateDoc(mgrRef, { pin_hash: null });
+
+    res.json({ success: true, name: mgrName, message: `PIN reset for ${mgrName}. They can now create a new 6-digit PIN on sign-in.` });
+  } catch (err) {
+    console.error("Error resetting manager PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// ---------------- MANAGER PORTAL API ENDPOINTS ----------------
+
+// Helper for Manager session validation
+async function validateManagerSessionFromHeader(req: express.Request, res: express.Response) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ error: "No session token found." });
+    return null;
+  }
+  const token = authHeader.split(" ")[1];
+  const session = await validateSession(token);
+  if (!session || session.userRole !== "manager") {
+    res.status(401).json({ error: "Unauthorized session for manager portal." });
+    return null;
+  }
+  return session;
+}
+
+// GET /api/manager/overview - Get park metrics, volume, gross tracking fee & shipping fee totals by day/week/month
+app.get("/api/manager/overview", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location, park_id } = session.userData;
+
+    const companyRef = doc(db, "companies", company_id);
+    const companySnap = await getDoc(companyRef);
+    const companyName = companySnap.exists() ? (companySnap.data().company_name || "Transport Company") : "Transport Company";
+
+    // Query waybills originating from or heading to this park
+    const qWb = query(
+      collection(db, "waybills"),
+      where("company_id", "==", company_id)
+    );
+    const snapWb = await getDocs(qWb);
+    const allWaybills = snapWb.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Filter for manager's park
+    const waybills = allWaybills.filter((wb: any) => 
+      wb.origin_park === park_location || wb.destination_park === park_location
+    );
+
+    const now = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+    const oneMonthMs = 30 * 24 * 60 * 60 * 1000;
+
+    let volumeToday = 0, volumeWeek = 0, volumeMonth = 0;
+    let trackingFeesToday = 0, trackingFeesWeek = 0, trackingFeesMonth = 0;
+    let shippingFeesToday = 0, shippingFeesWeek = 0, shippingFeesMonth = 0;
+
+    waybills.forEach((wb: any) => {
+      const ts = new Date(wb.created_at || wb.booked_at || 0).getTime();
+      const diff = now - ts;
+      const shippingFee = Number(wb.shipping_fee) || 0;
+      const isPaid = wb.paid === true;
+
+      if (diff <= oneDayMs) {
+        volumeToday++;
+        if (isPaid) {
+          trackingFeesToday += 200;
+          shippingFeesToday += shippingFee;
+        }
+      }
+      if (diff <= oneWeekMs) {
+        volumeWeek++;
+        if (isPaid) {
+          trackingFeesWeek += 200;
+          shippingFeesWeek += shippingFee;
+        }
+      }
+      if (diff <= oneMonthMs) {
+        volumeMonth++;
+        if (isPaid) {
+          trackingFeesMonth += 200;
+          shippingFeesMonth += shippingFee;
+        }
+      }
+    });
+
+    // Query staff at manager's park
+    const qStaff = query(
+      collection(db, "staff"),
+      where("company_id", "==", company_id)
+    );
+    const snapStaff = await getDocs(qStaff);
+    const staffList = snapStaff.docs
+      .map(d => {
+        const { pin_hash, ...data } = d.data();
+        return { id: d.id, ...data };
+      })
+      .filter((s: any) => s.park_location === park_location || s.park_id === park_id);
+
+    const activeStaffCount = staffList.filter((s: any) => s.active === true).length;
+
+    // Recent waybills for this park
+    const sortedWaybills = [...waybills].sort((a: any, b: any) => {
+      const dateA = new Date(a.created_at || a.booked_at || 0).getTime();
+      const dateB = new Date(b.created_at || b.booked_at || 0).getTime();
+      return dateB - dateA;
+    });
+
+    const recentWaybills = sortedWaybills.slice(0, 10).map((wb: any) => {
+      const { pickup_pin, ...rest } = wb;
+      return rest;
+    });
+
+    res.json({
+      success: true,
+      company_name: companyName,
+      park_location,
+      stats: {
+        volume: { today: volumeToday, week: volumeWeek, month: volumeMonth },
+        tracking_fees: { today: trackingFeesToday, week: trackingFeesWeek, month: trackingFeesMonth },
+        shipping_fees: { today: shippingFeesToday, week: shippingFeesWeek, month: shippingFeesMonth },
+        active_staff_count: activeStaffCount
+      },
+      staff: staffList,
+      recent_waybills: recentWaybills
+    });
+  } catch (err) {
+    console.error("Error in GET /api/manager/overview:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET /api/manager/staff - View staff at manager's park
+app.get("/api/manager/staff", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location, park_id } = session.userData;
+
+    const qStaff = query(collection(db, "staff"), where("company_id", "==", company_id));
+    const snap = await getDocs(qStaff);
+    const staff = snap.docs
+      .map(d => {
+        const { pin_hash, ...data } = d.data();
+        return { id: d.id, ...data };
+      })
+      .filter((s: any) => s.park_location === park_location || s.park_id === park_id);
+
+    res.json({ success: true, staff });
+  } catch (err) {
+    console.error("Error getting manager staff:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/manager/staff - Manager creates staff at their park
+app.post("/api/manager/staff", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_id, park_location } = session.userData;
+
+    const { name, phone } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: "Staff name is required." });
+    }
+
+    const cleanPhone = (phone || "").trim();
+    if (cleanPhone && !isValid11DigitPhone(cleanPhone)) {
+      return res.status(400).json({ error: "If provided, staff phone number must be a valid 11-digit phone number (e.g. 08012345678)." });
+    }
+
+    // Generate unique 4-digit PIN
+    let pin = "";
+    let pinUnique = false;
+    const allStaffSnap = await getDocs(collection(db, "staff"));
+    const staffDocs = allStaffSnap.docs.map(d => d.data());
+
+    let loopSafety = 0;
+    while (!pinUnique && loopSafety < 100) {
+      loopSafety++;
+      pin = Math.floor(1000 + Math.random() * 9000).toString();
+      if (isWeakPin(pin, 4).weak) continue;
+      let foundMatch = false;
+      for (const s of staffDocs) {
+        if (s.pin_hash) {
+          const isMatch = await bcrypt.compare(pin, s.pin_hash);
+          if (isMatch) {
+            foundMatch = true;
+            break;
+          }
+        }
+      }
+      if (!foundMatch) pinUnique = true;
+    }
+
+    const hashedPin = await bcrypt.hash(pin, 10);
+
+    const newStaffDoc = await addDoc(collection(db, "staff"), {
+      name: name.trim(),
+      phone: cleanPhone,
+      pin_hash: hashedPin,
+      company_id,
+      park_id: park_id || "park_assigned",
+      park_location,
+      active: true,
+      failed_attempts: 0,
+      locked_until: null,
+      created_at: new Date().toISOString()
+    });
+
+    res.json({
+      success: true,
+      staff: {
+        id: newStaffDoc.id,
+        name: name.trim(),
+        phone: cleanPhone,
+        park_location,
+        active: true,
+        created_at: new Date().toISOString()
+      },
+      pin
+    });
+  } catch (err) {
+    console.error("Error creating staff by manager:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/manager/staff/:id/toggle-active - Toggle staff active state
+app.post("/api/manager/staff/:id/toggle-active", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location } = session.userData;
+
+    const staffId = req.params.id;
+    const staffRef = doc(db, "staff", staffId);
+    const staffSnap = await getDoc(staffRef);
+
+    if (!staffSnap.exists() || staffSnap.data().company_id !== company_id || staffSnap.data().park_location !== park_location) {
+      return res.status(404).json({ error: "Staff member not found at your assigned park." });
+    }
+
+    const nextActive = !staffSnap.data().active;
+    await updateDoc(staffRef, { active: nextActive });
+
+    res.json({ success: true, active: nextActive });
+  } catch (err) {
+    console.error("Error toggling staff active status by manager:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// DELETE /api/manager/staff/:id - Delete staff member permanently by manager
+app.delete("/api/manager/staff/:id", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location } = session.userData;
+
+    const staffId = req.params.id;
+    const staffRef = doc(db, "staff", staffId);
+    const staffSnap = await getDoc(staffRef);
+
+    if (!staffSnap.exists() || staffSnap.data().company_id !== company_id || staffSnap.data().park_location !== park_location) {
+      return res.status(404).json({ error: "Staff member not found at your assigned park." });
+    }
+
+    await deleteDoc(staffRef);
+
+    // Invalidate sessions for this staff member
+    const sessionsSnap = await getDocs(collection(db, "sessions"));
+    for (const sDoc of sessionsSnap.docs) {
+      const sData = sDoc.data();
+      if (sData.userId === staffId || (sData.userData && (sData.userData.staff_id === staffId || sData.userData.id === staffId))) {
+        await deleteDoc(doc(db, "sessions", sDoc.id));
+      }
+    }
+
+    res.json({ success: true, message: "Staff member deleted permanently." });
+  } catch (err) {
+    console.error("Error deleting staff by manager:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/manager/staff/:id/reset-pin - Reset staff PIN
+app.post("/api/manager/staff/:id/reset-pin", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location } = session.userData;
+
+    const staffId = req.params.id;
+    const staffRef = doc(db, "staff", staffId);
+    const staffSnap = await getDoc(staffRef);
+
+    if (!staffSnap.exists() || staffSnap.data().company_id !== company_id || staffSnap.data().park_location !== park_location) {
+      return res.status(404).json({ error: "Staff member not found at your assigned park." });
+    }
+
+    const staffName = staffSnap.data().name;
+
+    let pin = "";
+    let pinUnique = false;
+    const allStaffSnap = await getDocs(collection(db, "staff"));
+    const staffDocs = allStaffSnap.docs.map(d => d.data());
+
+    let loopSafety = 0;
+    while (!pinUnique && loopSafety < 100) {
+      loopSafety++;
+      pin = Math.floor(1000 + Math.random() * 9000).toString();
+      if (isWeakPin(pin, 4).weak) continue;
+      let foundMatch = false;
+      for (const s of staffDocs) {
+        if (s.pin_hash) {
+          const isMatch = await bcrypt.compare(pin, s.pin_hash);
+          if (isMatch) {
+            foundMatch = true;
+            break;
+          }
+        }
+      }
+      if (!foundMatch) pinUnique = true;
+    }
+
+    const hashedPin = await bcrypt.hash(pin, 10);
+    await updateDoc(staffRef, { pin_hash: hashedPin, failed_attempts: 0, locked_until: null });
+
+    res.json({ success: true, name: staffName, pin });
+  } catch (err) {
+    console.error("Error resetting staff PIN by manager:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET /api/manager/waybills - View all waybills at manager's park
+app.get("/api/manager/waybills", async (req, res) => {
+  try {
+    const session = await validateManagerSessionFromHeader(req, res);
+    if (!session) return;
+    const { company_id, park_location } = session.userData;
+
+    const q = query(collection(db, "waybills"), where("company_id", "==", company_id));
+    const snap = await getDocs(q);
+    const waybills = snap.docs
+      .map(d => {
+        const { pickup_pin, ...rest } = d.data();
+        return { id: d.id, ...rest };
+      })
+      .filter((wb: any) => wb.origin_park === park_location || wb.destination_park === park_location);
+
+    res.json({ success: true, waybills });
+  } catch (err) {
+    console.error("Error getting manager waybills:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // ---------------- SUPER ADMIN API ENDPOINTS ----------------
 
 // Helper to validate admin session from header
@@ -3206,6 +4054,40 @@ async function validateAdminSessionFromHeader(req, res) {
   }
   return session;
 }
+
+// Read-Only Managers Endpoint for Super Admin
+app.get("/api/admin/managers", async (req, res) => {
+  try {
+    const session = await validateAdminSessionFromHeader(req, res);
+    if (!session) return;
+
+    const mgrSnap = await getDocs(collection(db, "managers"));
+    const compSnap = await getDocs(collection(db, "companies"));
+    const companyMap: Record<string, string> = {};
+    compSnap.docs.forEach(d => {
+      companyMap[d.id] = d.data().company_name || "Unknown Company";
+    });
+
+    const managers = mgrSnap.docs.map(d => {
+      const data = d.data();
+      return {
+        id: d.id,
+        name: data.name,
+        phone: data.phone,
+        park_location: data.park_location,
+        company_id: data.company_id,
+        company_name: companyMap[data.company_id] || "Unknown Company",
+        active: data.active,
+        created_at: data.created_at
+      };
+    });
+
+    res.json({ success: true, managers });
+  } catch (err) {
+    console.error("Error getting admin managers:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
 
 // 1b. Admin Account Recovery - Search account by phone number
 app.get("/api/admin/recovery/search", async (req, res) => {
