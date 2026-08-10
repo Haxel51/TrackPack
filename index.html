@@ -57,14 +57,52 @@
     }
     </script>
 
+    <link rel="preload" href="/icon-512.png" as="image" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="theme-color" content="#0A1F44" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Waybilla Nigeria" />
+    
+    <style>
+      #static-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background-color: #0A1F44;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        opacity: 1;
+        transition: opacity 400ms ease-out;
+        pointer-events: auto;
+      }
+      .static-logo-box {
+        width: 120px;
+        height: 120px;
+        border-radius: 28px;
+        overflow: hidden;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px rgba(242, 169, 59, 0.3);
+        border: 2px solid rgba(242, 169, 59, 0.5);
+        background-color: #0A1F44;
+      }
+      .static-logo-img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+    </style>
   </head>
   <body class="bg-[#0A1F44] text-slate-900 m-0 font-sans antialiased">
+    <!-- Static HTML Shell for instant launch without flicker -->
+    <div id="static-splash">
+      <div class="static-logo-box">
+        <img src="/icon-512.png" alt="Waybilla Nigeria" class="static-logo-img" />
+      </div>
+    </div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

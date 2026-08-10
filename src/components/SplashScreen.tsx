@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import waybillaSplashScreen from '../assets/images/waybilla_splash_screen_1786134507522.jpg';
 
 interface SplashScreenProps {
-  onComplete?: () => void;
-  duration?: number; // total ms before fade out
+  onComplete: () => void;
+  duration?: number;
 }
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
@@ -12,26 +12,44 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 }) => {
   const [show, setShow] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
+  const [graphicVisible, setGraphicVisible] = useState(false);
   const [progressWidth, setProgressWidth] = useState('w-1/4');
 
   useEffect(() => {
-    // Fill the progress bar after component mounts
+    // 1. Cross-fade out static HTML shell once React mounts
+    const staticSplash = document.getElementById('static-splash');
+    if (staticSplash) {
+      staticSplash.style.opacity = '0';
+      setTimeout(() => {
+        if (staticSplash && staticSplash.parentNode) {
+          staticSplash.parentNode.removeChild(staticSplash);
+        }
+      }, 400);
+    }
+
+    // 2. Smoothly fade in world map artwork after first frame
+    const graphicTimer = setTimeout(() => {
+      setGraphicVisible(true);
+    }, 50);
+
+    // 3. Fill progress bar smoothly
     const progressTimer = setTimeout(() => {
       setProgressWidth('w-full');
     }, 150);
 
-    // Trigger fade out transition
+    // 4. Trigger fade out transition of React splash screen
     const fadeOutTimer = setTimeout(() => {
       setFadingOut(true);
     }, duration - 450);
 
-    // Hide completely
+    // 5. Hide completely and notify parent
     const completeTimer = setTimeout(() => {
       setShow(false);
-      if (onComplete) onComplete();
+      onComplete();
     }, duration);
 
     return () => {
+      clearTimeout(graphicTimer);
       clearTimeout(progressTimer);
       clearTimeout(fadeOutTimer);
       clearTimeout(completeTimer);
@@ -46,12 +64,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{
-        WebkitFontSmoothing: 'antialiased',
+        backgroundColor: '#0A1F44'
       }}
     >
-      {/* Centered central asset container with responsive max-width constraints */}
+      {/* Centered central asset container with responsive max-width constraints and smooth fade-in */}
       <div
-        className="relative w-full max-w-[420px] max-h-screen aspect-[9/16] flex flex-col items-center justify-end pb-16 px-6 bg-cover bg-center bg-no-repeat transition-all duration-300"
+        className={`relative w-full max-w-[420px] max-h-screen aspect-[9/16] flex flex-col items-center justify-end pb-16 px-6 bg-cover bg-center bg-no-repeat transition-all duration-700 ease-out ${
+          graphicVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
+        }`}
         style={{
           backgroundImage: `url(${waybillaSplashScreen})`,
         }}
@@ -74,6 +94,3 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
     </div>
   );
 };
-
-
-
