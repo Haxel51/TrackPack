@@ -69,13 +69,13 @@ app.get("/.well-known/assetlinks.json", (req, res) => {
 
 app.get("/icon-192.png", (req, res) => {
   res.setHeader("Content-Type", "image/png");
-  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.send(Buffer.from(ICON_192_BASE64, "base64"));
 });
 
 app.get("/icon-512.png", (req, res) => {
   res.setHeader("Content-Type", "image/png");
-  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
   res.send(Buffer.from(ICON_512_BASE64, "base64"));
 });
 
