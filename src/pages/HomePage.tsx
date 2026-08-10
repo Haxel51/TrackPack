@@ -124,8 +124,11 @@ export const HomePage: React.FC = () => {
           >
             <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
               <img
-                src="/logo.png"
+                src={waybillaBoxLogo}
                 alt="Waybilla Logo"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = '/logo.png';
+                }}
                 className="w-full h-full object-cover"
               />
             </div>
