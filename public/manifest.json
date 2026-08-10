@@ -8,8 +8,8 @@
   "related_applications": [],
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0A1F44",
-  "theme_color": "#0A1F44",
+  "background_color": "#051124",
+  "theme_color": "#051124",
   "icons": [
     {
       "src": "/icon-192.png",
