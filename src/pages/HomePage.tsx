@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
-import waybillaCleanLogo from '../assets/images/waybilla_clean_app_icon_1786135762631.jpg';
+import waybillaBoxLogo from '../assets/images/waybilla_box_logo.png';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -124,7 +124,7 @@ export const HomePage: React.FC = () => {
           >
             <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
               <img
-                src={waybillaCleanLogo}
+                src={waybillaBoxLogo}
                 alt="Waybilla Logo"
                 referrerPolicy="no-referrer"
                 className="w-full h-full object-cover"
