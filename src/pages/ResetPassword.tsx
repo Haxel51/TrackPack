@@ -11,6 +11,7 @@ import {
   Eye,
   EyeOff,
   User,
+  UserCheck,
   Building2,
   AlertCircle
 } from 'lucide-react';
@@ -31,7 +32,7 @@ export const ResetPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [accountType, setAccountType] = useState<'customer' | 'company' | null>(null);
+  const [accountType, setAccountType] = useState<'customer' | 'company' | 'manager' | 'staff' | null>(null);
 
   // STEP 1: Code Validation
   const handleValidateCode = async (e: React.FormEvent) => {
@@ -89,11 +90,18 @@ export const ResetPassword: React.FC = () => {
       return;
     }
 
-    // Customer PIN checks (Exactly 6 digits)
-    if (accountType === 'customer') {
+    // Customer / Manager PIN checks (Exactly 6 digits)
+    if (accountType === 'customer' || accountType === 'manager') {
       const isDigits = /^\d{6}$/.test(newPassword);
       if (!isDigits) {
         setError('PIN must be exactly 6 numeric digits.');
+        return;
+      }
+    } else if (accountType === 'staff') {
+      // Staff PIN checks (Exactly 4 digits)
+      const isDigits = /^\d{4}$/.test(newPassword);
+      if (!isDigits) {
+        setError('PIN must be exactly 4 numeric digits.');
         return;
       }
     } else {
@@ -142,6 +150,18 @@ export const ResetPassword: React.FC = () => {
     }
   };
 
+  const getRoleDisplayName = () => {
+    if (accountType === 'customer') return 'Shipper/Receiver';
+    if (accountType === 'company') return 'Company Owner';
+    if (accountType === 'manager') return 'Park Manager';
+    if (accountType === 'staff') return 'Park Staff';
+    return 'Account';
+  };
+
+  const isPinType = () => {
+    return accountType === 'customer' || accountType === 'manager' || accountType === 'staff';
+  };
+
   return (
     <div className="min-h-screen bg-[#0A1F44] flex flex-col justify-center items-center p-4 relative overflow-hidden" id="reset-password-page">
       {/* Visual background details */}
@@ -159,7 +179,7 @@ export const ResetPassword: React.FC = () => {
           </h2>
           <p className="text-xs text-slate-400 font-semibold max-w-xs mx-auto">
             {step === 1 && "Verify your registered mobile number and admin-assigned code."}
-            {step === 2 && `Set a new security ${accountType === 'customer' ? 'PIN' : 'Password'} for your account.`}
+            {step === 2 && `Set a new security ${isPinType() ? 'PIN' : 'Password'} for your account.`}
             {step === 3 && "Your account has been fully restored."}
           </p>
         </div>
@@ -255,19 +275,26 @@ export const ResetPassword: React.FC = () => {
             >
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-                  accountType === 'customer' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'
+                  accountType === 'customer' ? 'bg-indigo-100 text-indigo-700' :
+                  accountType === 'manager' ? 'bg-amber-100 text-amber-700' :
+                  accountType === 'staff' ? 'bg-blue-100 text-blue-700' :
+                  'bg-emerald-100 text-emerald-700'
                 }`}>
-                  {accountType === 'customer' ? <User className="w-4 h-4" /> : <Building2 className="w-4 h-4" />}
+                  {accountType === 'customer' ? <User className="w-4 h-4" /> :
+                   accountType === 'manager' ? <UserCheck className="w-4 h-4" /> :
+                   accountType === 'staff' ? <User className="w-4 h-4" /> :
+                   <Building2 className="w-4 h-4" />}
                 </div>
                 <div>
-                  <p className="font-extrabold text-[#0A1F44] capitalize">{accountType} Account Verified</p>
-                  <p className="text-slate-400 font-medium">Please define your new security PIN/Password.</p>
+                  <p className="font-extrabold text-[#0A1F44]">{getRoleDisplayName()} Verified</p>
+                  <p className="text-slate-400 font-medium">Please define your new security credential.</p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                  {accountType === 'customer' ? 'New 6-Digit PIN' : 'New Password'}
+                  {accountType === 'customer' || accountType === 'manager' ? 'New 6-Digit PIN' :
+                   accountType === 'staff' ? 'New 4-Digit PIN' : 'New Password'}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
@@ -275,8 +302,8 @@ export const ResetPassword: React.FC = () => {
                   </span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    maxLength={accountType === 'customer' ? 6 : undefined}
-                    placeholder={accountType === 'customer' ? '••••••' : '••••••••'}
+                    maxLength={accountType === 'customer' || accountType === 'manager' ? 6 : accountType === 'staff' ? 4 : undefined}
+                    placeholder={isPinType() ? '••••••' : '••••••••'}
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     disabled={loading}
@@ -294,7 +321,7 @@ export const ResetPassword: React.FC = () => {
 
               <div className="space-y-1.5">
                 <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                  Confirm {accountType === 'customer' ? 'PIN' : 'Password'}
+                  Confirm {isPinType() ? 'PIN' : 'Password'}
                 </label>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
@@ -302,8 +329,8 @@ export const ResetPassword: React.FC = () => {
                   </span>
                   <input
                     type={showPassword ? 'text' : 'password'}
-                    maxLength={accountType === 'customer' ? 6 : undefined}
-                    placeholder={accountType === 'customer' ? '••••••' : '••••••••'}
+                    maxLength={accountType === 'customer' || accountType === 'manager' ? 6 : accountType === 'staff' ? 4 : undefined}
+                    placeholder={isPinType() ? '••••••' : '••••••••'}
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     disabled={loading}
@@ -343,20 +370,36 @@ export const ResetPassword: React.FC = () => {
                 </p>
               </div>
 
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              {accountType === 'manager' ? (
                 <button
-                  onClick={() => navigate('/login/customer')}
-                  className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
+                  onClick={() => navigate('/login/manager')}
+                  className="w-full bg-[#0A1F44] hover:bg-[#143265] text-white font-extrabold py-4 rounded-2xl text-xs transition-colors cursor-pointer"
                 >
-                  Shipper Login
+                  Continue to Manager Login
                 </button>
+              ) : accountType === 'staff' ? (
                 <button
-                  onClick={() => navigate('/login/company')}
-                  className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
+                  onClick={() => navigate('/login/staff')}
+                  className="w-full bg-[#0A1F44] hover:bg-[#143265] text-white font-extrabold py-4 rounded-2xl text-xs transition-colors cursor-pointer"
                 >
-                  Operator Login
+                  Continue to Staff Login
                 </button>
-              </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <button
+                    onClick={() => navigate('/login/customer')}
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
+                  >
+                    Shipper Login
+                  </button>
+                  <button
+                    onClick={() => navigate('/login/company')}
+                    className="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 font-extrabold py-3.5 rounded-2xl text-xs transition-colors cursor-pointer"
+                  >
+                    Operator Login
+                  </button>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

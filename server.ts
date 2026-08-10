@@ -4101,6 +4101,7 @@ app.get("/api/admin/recovery/search", async (req, res) => {
     }
 
     const cleanPhone = phone_number.trim();
+    const accounts = [];
 
     // 1. Search customers
     const custQuery = query(collection(db, "customers"), where("phone_number", "==", cleanPhone), limit(1));
@@ -4127,10 +4128,10 @@ app.get("/api/admin/recovery/search", async (req, res) => {
         if (data.tracking_code) trackingCodesSet.add(data.tracking_code);
       });
 
-      return res.json({
-        found: true,
+      accounts.push({
         type: "customer",
         id: custDoc.id,
+        name: "Registered Shipper/Receiver",
         phone_number: cleanPhone,
         tracking_codes: Array.from(trackingCodesSet),
         created_at: custData.created_at || null
@@ -4148,12 +4149,12 @@ app.get("/api/admin/recovery/search", async (req, res) => {
       // Query parks linked to company
       const parksQuery = query(collection(db, "parks"), where("company_id", "==", compDoc.id));
       const parksSnap = await getDocs(parksQuery);
-      const parks = parksSnap.docs.map(d => d.data().park_name || d.data().park_location);
+      const parks = parksSnap.docs.map(d => d.data().park_name || d.data().park_location || d.data().location);
 
-      return res.json({
-        found: true,
+      accounts.push({
         type: "company",
         id: compDoc.id,
+        name: compData.company_name || "Transport Company Owner",
         phone_number: cleanPhone,
         company_name: compData.company_name,
         parks,
@@ -4161,7 +4162,60 @@ app.get("/api/admin/recovery/search", async (req, res) => {
       });
     }
 
-    return res.status(404).json({ found: false, error: "No customer or company account found with this phone number." });
+    // 3. Search managers
+    const mgrQuery = query(collection(db, "managers"), where("phone", "==", cleanPhone), limit(1));
+    const mgrSnap = await getDocs(mgrQuery);
+
+    if (!mgrSnap.empty) {
+      const mgrDoc = mgrSnap.docs[0];
+      const mgrData = mgrDoc.data();
+
+      const compRef = doc(db, "companies", mgrData.company_id);
+      const compSnap = await getDoc(compRef);
+      const compName = compSnap.exists() ? compSnap.data().company_name : "Unknown Company";
+
+      accounts.push({
+        type: "manager",
+        id: mgrDoc.id,
+        name: mgrData.name || "Manager",
+        phone_number: cleanPhone,
+        company_name: compName,
+        park_location: mgrData.park_location || "N/A",
+        created_at: mgrData.created_at || null
+      });
+    }
+
+    // 4. Search staff
+    const staffQuery = query(collection(db, "staff"), where("phone", "==", cleanPhone), limit(1));
+    const staffSnap = await getDocs(staffQuery);
+
+    if (!staffSnap.empty) {
+      const staffDoc = staffSnap.docs[0];
+      const staffData = staffDoc.data();
+
+      const compRef = doc(db, "companies", staffData.company_id);
+      const compSnap = await getDoc(compRef);
+      const compName = compSnap.exists() ? compSnap.data().company_name : "Unknown Company";
+
+      accounts.push({
+        type: "staff",
+        id: staffDoc.id,
+        name: staffData.name || "Staff",
+        phone_number: cleanPhone,
+        company_name: compName,
+        park_location: staffData.park_location || staffData.assigned_park || "N/A",
+        created_at: staffData.created_at || null
+      });
+    }
+
+    if (accounts.length > 0) {
+      return res.json({
+        found: true,
+        accounts
+      });
+    }
+
+    return res.status(404).json({ found: false, error: "No account found with this phone number across all roles." });
   } catch (err) {
     console.error("Admin recovery search error:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -4179,14 +4233,19 @@ app.post("/api/admin/recovery/generate-code", async (req, res) => {
       return res.status(400).json({ error: "Account type and document ID are required." });
     }
 
-    if (type !== "customer" && type !== "company") {
+    if (type !== "customer" && type !== "company" && type !== "manager" && type !== "staff") {
       return res.status(400).json({ error: "Invalid account type." });
     }
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 minutes expiry
 
-    const targetCollection = type === "customer" ? "customers" : "companies";
+    let targetCollection = "";
+    if (type === "customer") targetCollection = "customers";
+    else if (type === "company") targetCollection = "companies";
+    else if (type === "manager") targetCollection = "managers";
+    else if (type === "staff") targetCollection = "staff";
+
     const docRef = doc(db, targetCollection, id);
     const docSnap = await getDoc(docRef);
 
@@ -4252,6 +4311,36 @@ app.post("/api/auth/reset-password/validate-code", async (req, res) => {
         const expires = new Date(data.temporary_reset_code_expires_at || 0);
         if (expires > new Date()) {
           return res.json({ success: true, type: "company", id: d.id });
+        }
+      }
+    }
+
+    // 3. Search managers
+    const mgrQuery = query(collection(db, "managers"), where("phone", "==", cleanPhone), limit(1));
+    const mgrSnap = await getDocs(mgrQuery);
+
+    if (!mgrSnap.empty) {
+      const d = mgrSnap.docs[0];
+      const data = d.data();
+      if (data.temporary_reset_code === code) {
+        const expires = new Date(data.temporary_reset_code_expires_at || 0);
+        if (expires > new Date()) {
+          return res.json({ success: true, type: "manager", id: d.id });
+        }
+      }
+    }
+
+    // 4. Search staff
+    const staffQuery = query(collection(db, "staff"), where("phone", "==", cleanPhone), limit(1));
+    const staffSnap = await getDocs(staffQuery);
+
+    if (!staffSnap.empty) {
+      const d = staffSnap.docs[0];
+      const data = d.data();
+      if (data.temporary_reset_code === code) {
+        const expires = new Date(data.temporary_reset_code_expires_at || 0);
+        if (expires > new Date()) {
+          return res.json({ success: true, type: "staff", id: d.id });
         }
       }
     }
@@ -4331,6 +4420,64 @@ app.post("/api/auth/reset-password/submit", async (req, res) => {
           });
 
           return res.json({ success: true, message: "Your password has been reset successfully. Please sign in." });
+        }
+      }
+    }
+
+    // Check manager
+    const mgrQuery = query(collection(db, "managers"), where("phone", "==", cleanPhone), limit(1));
+    const mgrSnap = await getDocs(mgrQuery);
+
+    if (!mgrSnap.empty) {
+      const d = mgrSnap.docs[0];
+      const data = d.data();
+      if (data.temporary_reset_code === code) {
+        const expires = new Date(data.temporary_reset_code_expires_at || 0);
+        if (expires > new Date()) {
+          const pinVal = isWeakPin(new_password, 6);
+          if (pinVal.weak) {
+            return res.status(400).json({ error: pinVal.reason });
+          }
+
+          const hash = await bcrypt.hash(new_password.trim(), 10);
+          await updateDoc(doc(db, "managers", d.id), {
+            pin_hash: hash,
+            temporary_reset_code: null,
+            temporary_reset_code_expires_at: null,
+            failed_attempts: 0,
+            locked_until: null
+          });
+
+          return res.json({ success: true, message: "Your PIN has been reset successfully. Please sign in." });
+        }
+      }
+    }
+
+    // Check staff
+    const staffQuery = query(collection(db, "staff"), where("phone", "==", cleanPhone), limit(1));
+    const staffSnap = await getDocs(staffQuery);
+
+    if (!staffSnap.empty) {
+      const d = staffSnap.docs[0];
+      const data = d.data();
+      if (data.temporary_reset_code === code) {
+        const expires = new Date(data.temporary_reset_code_expires_at || 0);
+        if (expires > new Date()) {
+          const pinVal = isWeakPin(new_password, 4);
+          if (pinVal.weak) {
+            return res.status(400).json({ error: pinVal.reason });
+          }
+
+          const hash = await bcrypt.hash(new_password.trim(), 10);
+          await updateDoc(doc(db, "staff", d.id), {
+            pin_hash: hash,
+            temporary_reset_code: null,
+            temporary_reset_code_expires_at: null,
+            failed_attempts: 0,
+            locked_until: null
+          });
+
+          return res.json({ success: true, message: "Your PIN has been reset successfully. Please sign in." });
         }
       }
     }

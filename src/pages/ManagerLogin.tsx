@@ -312,9 +312,17 @@ export const ManagerLogin: React.FC = () => {
             ) : (
               /* If manager ALREADY HAS a PIN */
               <div className="space-y-1.5">
-                <label htmlFor="manager-existing-pin" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                  Enter 6-Digit PIN
-                </label>
+                <div className="flex justify-between items-center">
+                  <label htmlFor="manager-existing-pin" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                    Enter 6-Digit PIN
+                  </label>
+                  <Link
+                    to="/reset-password"
+                    className="text-[11px] font-extrabold text-indigo-600 hover:underline cursor-pointer"
+                  >
+                    Forgot PIN?
+                  </Link>
+                </div>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                     <Shield className="w-4 h-4" />
