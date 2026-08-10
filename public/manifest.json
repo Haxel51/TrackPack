@@ -1,15 +1,15 @@
 {
   "name": "Waybilla Nigeria",
   "short_name": "Waybilla",
-  "description": "Real-time digital waybills for commercial transport motor parks in Nigeria.",
+  "description": "Nigeria's #1 Dedicated Waybill Live Tracking Platform and digital waybill for commercial transport motor parks.",
   "id": "/",
   "orientation": "portrait",
   "prefer_related_applications": false,
   "related_applications": [],
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#051124",
-  "theme_color": "#051124",
+  "background_color": "#0A1F44",
+  "theme_color": "#0A1F44",
   "icons": [
     {
       "src": "/icon-192.png",

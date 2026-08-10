@@ -1,6 +1,6 @@
 {
   "name": "Waybilla Nigeria",
-  "description": "Waybilla Nigeria - Digital Waybill Live Tracking Platform for Interstate Motor Parks, Transport Lines, and Commercial Goods Terminals",
+  "description": "Waybilla Nigeria - Nigeria's #1 Dedicated Waybill Live Tracking Platform and digital waybill for interstate motor parks, transport lines, and commercial goods terminals.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

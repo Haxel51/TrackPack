@@ -42,7 +42,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
   return (
     <div
-      className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#051124] text-white transition-opacity duration-500 ease-out overflow-hidden select-none ${
+      className={`fixed inset-0 z-[100] flex items-center justify-center bg-[#0A1F44] text-white transition-opacity duration-500 ease-out overflow-hidden select-none ${
         fadingOut ? 'opacity-0 pointer-events-none' : 'opacity-100'
       }`}
       style={{
@@ -57,7 +57,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         }}
       >
         {/* Smooth edge fade: Blends the world map graphic into the solid outer background color */}
-        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_45%,#051124_90%)] z-10" />
+        <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_45%,#0A1F44_90%)] z-10" />
 
         {/* Animated Gold Loading Indicator centered at the bottom of the premium background */}
         <div className="relative z-20 w-full max-w-xs flex flex-col items-center space-y-2 mb-2">
