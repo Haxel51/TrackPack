@@ -16,18 +16,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [progressWidth, setProgressWidth] = useState('w-1/4');
 
   useEffect(() => {
-    // 1. Cross-fade out static HTML shell once React mounts
-    const staticSplash = document.getElementById('static-splash');
-    if (staticSplash) {
-      staticSplash.style.opacity = '0';
-      setTimeout(() => {
-        if (staticSplash && staticSplash.parentNode) {
-          staticSplash.parentNode.removeChild(staticSplash);
-        }
-      }, 400);
-    }
-
-    // 2. Smoothly fade in world map artwork after first frame
+    // 1. Smoothly fade in world map artwork after first frame
     const graphicTimer = setTimeout(() => {
       setGraphicVisible(true);
     }, 50);
