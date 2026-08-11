@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles, Receipt, Package } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
@@ -7,11 +8,13 @@ import { OutgoingBuses } from '../components/staff/OutgoingBuses';
 import { IncomingBuses } from '../components/staff/IncomingBuses';
 import { WaybillHistory } from '../components/staff/WaybillHistory';
 import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 
 type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history';
 
 export const StaffDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
+  const { t } = useLanguage();
   const [screen, setScreen] = useState<StaffScreen>('menu');
   const [showStaffGuideModal, setShowStaffGuideModal] = useState<boolean>(false);
   
@@ -360,7 +363,8 @@ export const StaffDashboard: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-4">
+            <LanguageSwitcher />
             {hasJobs && (
               <div className="hidden sm:flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse">
                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
@@ -372,7 +376,7 @@ export const StaffDashboard: React.FC = () => {
               className="flex items-center gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
-              Logout
+              {t('signOut')}
             </button>
           </div>
         </div>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -23,6 +25,7 @@ import { triggerOSNotification } from '../utils/notifications';
 
 export const CustomerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
+  const { t } = useLanguage();
   const [waybills, setWaybills] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -275,13 +278,16 @@ export const CustomerDashboard: React.FC = () => {
               </span>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
-          >
-            <LogOut className="w-4 h-4" />
-            Sign Out
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <LanguageSwitcher />
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+              {t('signOut')}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -294,7 +300,7 @@ export const CustomerDashboard: React.FC = () => {
               <UserIcon className="w-6 h-6" />
             </div>
             <div>
-              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">CUSTOMER PORTAL</p>
+              <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-none">{t('customerDashboardTitle')}</p>
               <h2 className="text-xl font-extrabold text-[#0A1F44] mt-1">{user?.phone_number}</h2>
             </div>
           </div>
@@ -328,7 +334,7 @@ export const CustomerDashboard: React.FC = () => {
               className="flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-[#0A1F44] bg-slate-50 hover:bg-slate-100 px-3.5 py-2 rounded-xl border border-slate-200 transition-all cursor-pointer"
             >
               <RefreshCw className="w-3.5 h-3.5" />
-              Refresh
+              {t('clearResult') === 'Clear' ? 'Refresh' : t('clearResult')}
             </button>
           </div>
         </div>
@@ -336,17 +342,17 @@ export const CustomerDashboard: React.FC = () => {
         {/* Customer Quick Guide Banner */}
         <div className="bg-blue-50/80 border border-blue-200/90 rounded-3xl p-5 shadow-xs space-y-2">
           <div className="flex items-center gap-2 font-black text-[#0A1F44] text-sm">
-            <span>💡 How Your Waybill Dashboard Works:</span>
+            <span>💡 {t('howWorksSubtitle')}</span>
           </div>
           <p className="text-xs text-slate-700 leading-relaxed">
-            All waybills registered with your phone number (<strong>{user?.phone_number}</strong>) as either <strong>Sender</strong> or <strong>Receiver</strong> automatically show here!
+            {t('customerDesc')}: (<strong>{user?.phone_number}</strong>)
           </p>
           <div className="bg-white p-3 rounded-2xl border border-blue-100 text-xs text-slate-700 space-y-1">
             <p className="font-extrabold text-[#0A1F44] flex items-center gap-1">
-              📍 <strong>Easy Pickup & Collection:</strong>
+              📍 <strong>{t('pickupPinInstruction')}:</strong>
             </p>
             <p className="text-[11px] leading-relaxed text-slate-600">
-              When your waybill arrives at the destination motor park, walk up to the park counter and provide the <strong>Receiver’s Phone Number</strong> or your <strong>Pickup PIN</strong> to staff to verify and collect your waybill!
+              {t('custStep2')}
             </p>
           </div>
         </div>

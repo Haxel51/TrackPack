@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
+import { useLanguage } from '../../context/LanguageContext';
 import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check } from 'lucide-react';
 
 interface WaybillFormProps {
@@ -21,6 +22,7 @@ const getSavedDraft = () => {
 };
 
 export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onBackToMenu, onCreateNewBus }) => {
+  const { t } = useLanguage();
   const initialDraft = getSavedDraft();
 
   const [senderName, setSenderName] = useState(initialDraft?.senderName || '');

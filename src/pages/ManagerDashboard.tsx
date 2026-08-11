@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import {
   getManagerOverview,
   getManagerStaff,
@@ -16,6 +18,7 @@ import {
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
+  const { t } = useLanguage();
 
   const [overview, setOverview] = useState<any>(null);
   const [staffList, setStaffList] = useState<any[]>([]);
@@ -261,7 +264,7 @@ export const ManagerDashboard: React.FC = () => {
                   {user?.company_name || overview?.company_name || 'Transport Company'}
                 </h1>
                 <span className="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-xs font-bold px-2.5 py-0.5 rounded-full uppercase">
-                  Manager Portal
+                  {t('managerPortalTitle')}
                 </span>
               </div>
               <p className="text-xs text-slate-300 flex items-center gap-1.5 mt-0.5">
@@ -274,6 +277,7 @@ export const ManagerDashboard: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3 self-end sm:self-auto">
+            <LanguageSwitcher />
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -286,7 +290,7 @@ export const ManagerDashboard: React.FC = () => {
               onClick={logout}
               className="flex items-center gap-2 bg-red-500/20 hover:bg-red-500/30 border border-red-400/30 text-red-200 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
-              <LogOut className="w-4 h-4" /> Sign Out
+              <LogOut className="w-4 h-4" /> {t('signOut')}
             </button>
           </div>
         </div>
@@ -301,7 +305,7 @@ export const ManagerDashboard: React.FC = () => {
                 : 'text-slate-300 hover:text-white border-transparent'
             }`}
           >
-            <Building2 className="w-4 h-4" /> Park Overview
+            <Building2 className="w-4 h-4" /> {t('overview')}
           </button>
           <button
             onClick={() => setActiveTab('staff')}
@@ -311,7 +315,7 @@ export const ManagerDashboard: React.FC = () => {
                 : 'text-slate-300 hover:text-white border-transparent'
             }`}
           >
-            <Users className="w-4 h-4" /> Park Staff ({staffList.length})
+            <Users className="w-4 h-4" /> {t('staffMembers')} ({staffList.length})
           </button>
           <button
             onClick={() => setActiveTab('waybills')}
@@ -321,7 +325,7 @@ export const ManagerDashboard: React.FC = () => {
                 : 'text-slate-300 hover:text-white border-transparent'
             }`}
           >
-            <Package className="w-4 h-4" /> Park Waybills ({waybills.length})
+            <Package className="w-4 h-4" /> {t('waybillHistory')} ({waybills.length})
           </button>
         </div>
       </header>

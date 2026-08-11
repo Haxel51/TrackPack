@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import {
   LogOut,
   Building2,
@@ -35,6 +37,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 
 export const CompanyDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings'>('overview');
 
   // --- TAB 1: OVERVIEW STATE ---
@@ -854,19 +857,20 @@ export const CompanyDashboard: React.FC = () => {
               <Shield className="text-[#F2A93B] w-5 h-5" />
             </div>
             <div>
-              <span className="font-extrabold text-xs text-slate-400 tracking-wider block leading-none">COMPANY OWNER</span>
+              <span className="font-extrabold text-xs text-slate-400 tracking-wider block leading-none">{t('companyPortalTitle')}</span>
               <span className="font-extrabold text-base tracking-wider text-white block mt-1">{user?.company_name || 'Waybilla Partner'}</span>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <button
               onClick={logout}
               className="flex items-center gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-extrabold px-4.5 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
               id="header-logout-btn"
             >
               <LogOut className="w-4 h-4" />
-              <span>Sign Out</span>
+              <span>{t('signOut')}</span>
             </button>
           </div>
         </div>
@@ -879,10 +883,10 @@ export const CompanyDashboard: React.FC = () => {
         <nav className="lg:col-span-3 space-y-2" id="owner-navigation-sidebar">
           <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest px-4 mb-2">Navigation Menu</p>
           {[
-            { id: 'overview', label: 'Overview', icon: TrendingUp },
-            { id: 'parks', label: 'Parks & Staff', icon: Building2 },
-            { id: 'shipments', label: 'Shipments', icon: Package },
-            { id: 'earnings', label: 'Earnings', icon: DollarSign }
+            { id: 'overview', label: t('overview'), icon: TrendingUp },
+            { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
+            { id: 'shipments', label: t('waybillHistory'), icon: Package },
+            { id: 'earnings', label: t('analytics'), icon: DollarSign }
           ].map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

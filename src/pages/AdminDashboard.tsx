@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { RecoveryTabContent } from '../components/admin/RecoveryTabContent';
 import {
   Shield,
@@ -33,6 +35,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers'>('overview');
 
   // Managers Read-Only View State (Super Admin)
@@ -450,8 +453,9 @@ export const AdminDashboard: React.FC = () => {
           </nav>
 
           <div className="flex items-center gap-3">
+            <LanguageSwitcher />
             <div className="hidden lg:flex flex-col items-end text-right">
-              <span className="text-xs text-slate-300 font-medium">Logged in Admin</span>
+              <span className="text-xs text-slate-300 font-medium">{t('adminPortalTitle')}</span>
               <span className="text-[11px] font-bold text-slate-200 block">{user?.email || 'Administrator'}</span>
             </div>
             <button
@@ -460,7 +464,7 @@ export const AdminDashboard: React.FC = () => {
               id="admin-logout-btn"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Log Out</span>
+              <span>{t('signOut')}</span>
             </button>
           </div>
 
