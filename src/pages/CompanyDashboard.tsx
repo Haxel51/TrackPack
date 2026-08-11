@@ -850,7 +850,7 @@ export const CompanyDashboard: React.FC = () => {
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#F2A93B]/10 rounded-xl flex items-center justify-center border border-[#F2A93B]/20">
+            <div className="w-10 h-10 bg-[#08152B] rounded-xl flex items-center justify-center border border-[#F2A93B]/30 shadow-sm shrink-0">
               <Shield className="text-[#F2A93B] w-5 h-5" />
             </div>
             <div>

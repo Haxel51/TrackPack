@@ -13,8 +13,8 @@ export const ManagerLogin: React.FC = () => {
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
   
-  // Step: 'phone' (Stage 1 - check phone) | 'pin' (Stage 2 - enter/set PIN)
-  const [step, setStep] = useState<'phone' | 'pin'>('phone');
+  // Step: 'phone' (Stage 1 - check phone) | 'pin' (Stage 2 - enter/set PIN) | 'forgot_pin' (Assisted Reset)
+  const [step, setStep] = useState<'phone' | 'pin' | 'forgot_pin'>('phone');
   
   // Manager Verification Data from Backend
   const [managerInfo, setManagerInfo] = useState<{
@@ -154,16 +154,20 @@ export const ManagerLogin: React.FC = () => {
           <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-12 h-12 bg-indigo-50 rounded-2xl flex items-center justify-center">
-            <UserCheck className="text-indigo-600 w-6 h-6" />
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
+            <UserCheck className="text-[#F2A93B] w-7 h-7" />
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0A1F44]">Manager Portal</h1>
+          <h1 className="text-2xl font-extrabold text-[#0A1F44]">
+            {step === 'forgot_pin' ? 'Reset Forgotten Password' : 'Manager Portal'}
+          </h1>
           <p className="text-sm text-slate-500 max-w-xs">
-            {step === 'phone' 
-              ? 'Enter your phone number to match your transport company manager profile.' 
-              : managerInfo?.has_pin 
-                ? 'Enter your 6-digit PIN to access your manager dashboard.'
-                : 'Set up your secret 6-digit PIN for first-time access.'}
+            {step === 'forgot_pin'
+              ? 'Recover access to your account by verifying your registered manager phone number.'
+              : step === 'phone' 
+                ? 'Enter your phone number to match your transport company manager profile.' 
+                : managerInfo?.has_pin 
+                  ? 'Enter your 6-digit PIN to access your manager dashboard.'
+                  : 'Set up your secret 6-digit PIN for first-time access.'}
           </p>
         </div>
 
@@ -209,6 +213,19 @@ export const ManagerLogin: React.FC = () => {
                 'Continue to Sign In'
               )}
             </button>
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('forgot_pin');
+                  setError(null);
+                }}
+                className="text-xs font-bold text-[#F2A93B] hover:underline cursor-pointer border-0 bg-transparent"
+              >
+                Forgot Passcode?
+              </button>
+            </div>
           </form>
         )}
 
@@ -316,12 +333,16 @@ export const ManagerLogin: React.FC = () => {
                   <label htmlFor="manager-existing-pin" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
                     Enter 6-Digit PIN
                   </label>
-                  <Link
-                    to="/reset-password"
-                    className="text-[11px] font-extrabold text-indigo-600 hover:underline cursor-pointer"
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setStep('forgot_pin');
+                      setError(null);
+                    }}
+                    className="text-[11px] font-extrabold text-indigo-600 hover:underline cursor-pointer border-0 bg-transparent"
                   >
                     Forgot PIN?
-                  </Link>
+                  </button>
                 </div>
                 <div className="relative">
                   <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
@@ -373,6 +394,58 @@ export const ManagerLogin: React.FC = () => {
               )}
             </button>
           </form>
+        )}
+
+        {/* STAGE 3: Forgot PIN / Assisted Reset Mode */}
+        {step === 'forgot_pin' && (
+          <div className="space-y-6">
+            <div className="bg-slate-50 border border-slate-100 p-6 rounded-3xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#25D366]/10 rounded-2xl flex items-center justify-center text-[#25D366]">
+                  <Phone className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-[#0A1F44]">
+                  Assisted Password Reset
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Forgot your password? Message us on WhatsApp with your registered phone number and we'll help you reset it.
+              </p>
+
+              <a
+                href="https://wa.me/2349031940521?text=Hello%20Waybilla%20Support,%20I%20am%20a%20Park%20Manager%20and%20forgot%20my%20PIN.%20I%20need%20assistance%20with%20a%20reset%20code."
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"
+              >
+                <span>Message on WhatsApp</span>
+              </a>
+            </div>
+
+            <div className="space-y-3 pt-2 text-center">
+              <div className="text-xs text-slate-400 font-bold">
+                Have a reset code?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/reset-password')}
+                  className="text-[#F2A93B] hover:underline cursor-pointer font-black border-0 bg-transparent"
+                >
+                  Tap here
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('phone');
+                  setError(null);
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-[#0A1F44] transition-colors cursor-pointer border-0 bg-transparent"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
         )}
 
         <div className="text-center pt-2 text-xs text-slate-400">

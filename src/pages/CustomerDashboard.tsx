@@ -118,8 +118,8 @@ export const CustomerDashboard: React.FC = () => {
           // ignore non-json messages
         }
       };
-    } catch (e) {
-      console.error('SSE connection error:', e);
+    } catch {
+      // Ignore background SSE connection errors
     }
 
     // Set up real-time background polling as robust fallback every 10 seconds
@@ -260,8 +260,10 @@ export const CustomerDashboard: React.FC = () => {
       {/* Navbar */}
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Package className="text-[#F2A93B] w-6 h-6" />
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#08152B] flex items-center justify-center shrink-0 border border-amber-400/30 shadow-sm">
+              <Package className="w-5 h-5 text-[#F2A93B]" />
+            </div>
             <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
               <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">

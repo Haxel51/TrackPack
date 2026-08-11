@@ -63,8 +63,8 @@ export const StaffLogin: React.FC = () => {
           <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center">
-            <Lock className="text-[#0A1F44] w-6 h-6" />
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
+            <Lock className="text-[#F2A93B] w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">Staff Sign In</h1>
           <p className="text-sm text-slate-500 max-w-xs">

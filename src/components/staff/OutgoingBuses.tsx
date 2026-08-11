@@ -102,7 +102,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-5 h-5" />
-            Outgoing Bus/Truck Loading Lists
+            Outgoing Vehicle Loading Lists
           </h2>
           <p className="text-xs text-slate-500">Manage pending dispatches leaving from your park</p>
         </div>

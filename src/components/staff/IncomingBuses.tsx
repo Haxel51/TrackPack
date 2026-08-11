@@ -150,9 +150,9 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
             <Truck className="text-[#F2A93B] w-5 h-5" />
-            Incoming Bus/Truck Loading Lists
+            Incoming Vehicle Loading Lists
           </h2>
-          <p className="text-xs text-slate-500">Track buses coming to your park, mark arrivals, and hand over packages</p>
+          <p className="text-xs text-slate-500">Track vehicles coming to your park, mark arrivals, and hand over packages</p>
         </div>
       </div>
 
@@ -451,8 +451,8 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
-                    <span className="text-slate-500 font-bold">Assigned Bus:</span>
-                    <span className="font-black text-[#0A1F44]">Bus {verifiedWaybill.bus_number}</span>
+                    <span className="text-slate-500 font-bold">Assigned Vehicle:</span>
+                    <span className="font-black text-[#0A1F44]">Vehicle {verifiedWaybill.bus_number}</span>
                   </div>
 
                   <div className="flex items-center justify-between text-xs">

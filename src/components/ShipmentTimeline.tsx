@@ -5,6 +5,7 @@ import {
   Circle, 
   TrendingUp, 
   Bus, 
+  Truck,
   MapPin, 
   Clock, 
   ArrowRight,
@@ -385,7 +386,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center font-bold shadow-xs">
-              <Bus className="w-4 h-4" />
+              <Truck className="w-4 h-4" />
             </div>
             <div>
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">Live Transit Progress</p>
@@ -393,7 +394,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             </div>
           </div>
           <span className="text-xs font-extrabold text-slate-700 bg-white px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs flex items-center gap-1.5">
-            <Bus className="w-3.5 h-3.5 text-blue-600" /> Bus {bus_number}
+            <Truck className="w-3.5 h-3.5 text-blue-600" /> Vehicle {bus_number}
           </span>
         </div>
 
@@ -424,7 +425,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               ) : status === 'collected' ? (
                 <CheckCircle2 className="w-4 h-4" />
               ) : (
-                <Bus className="w-4 h-4" />
+                <Truck className="w-4 h-4" />
               )}
             </div>
           </div>
@@ -597,7 +598,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
           <div className="bg-blue-50/55 border border-blue-100 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-blue-100/80 rounded-xl flex items-center justify-center shrink-0">
-                <Bus className="w-5 h-5 text-blue-700" />
+                <Truck className="w-5 h-5 text-blue-700" />
               </div>
               <div>
                 <p className="font-extrabold text-slate-400 uppercase tracking-wider text-[9px] leading-none">DRIVER DETAILS</p>

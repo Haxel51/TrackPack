@@ -1,8 +1,10 @@
-const CACHE_NAME = 'waybilla-cache-v1';
+const CACHE_NAME = 'waybilla-cache-v2';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',
   '/manifest.json',
+  '/logo.png',
+  '/waybilla_box_logo.png',
   '/icon-192.png',
   '/icon-512.png'
 ];

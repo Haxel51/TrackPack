@@ -163,8 +163,8 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             } : null);
           }
         }
-      } catch (err) {
-        console.error("Auto polling error:", err);
+      } catch {
+        // Silently swallow transient network errors during auto-polling
       }
     };
 
@@ -277,7 +277,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     }
 
     if (!busId || busId === 'Unassigned') {
-      setError(`Assigning an active loading bus for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a bus or click "Register New Bus".`);
+      setError(`Assigning an active loading vehicle for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a vehicle or click "Register New Vehicle".`);
       return;
     }
 
@@ -714,12 +714,12 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </div>
           </div>
 
-          {/* Required Bus Selection Card */}
+          {/* Required Vehicle Selection Card */}
           <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-5" id="bus-assignment-card">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
               <label className="text-xs font-bold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-[#F2A93B]" />
-                Assign to Active Bus / Driver <span className="text-red-500">*</span>
+                Assign to Active Vehicle / Driver <span className="text-red-500">*</span>
               </label>
               <button
                 type="button"
@@ -727,12 +727,12 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
-                Register New Bus
+                Register New Vehicle
               </button>
             </div>
             
             <p className="text-[11px] text-slate-600 mb-3 leading-relaxed">
-              Every waybill must be assigned to an active loading bus before taking customer payment. Select the bus/driver departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
+              Every waybill must be assigned to an active loading vehicle before taking customer payment. Select the vehicle/driver departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
             </p>
 
             {availableBuses.filter(b => isSamePark(b.destination_park, destinationPark)).length > 0 ? (
@@ -742,12 +742,12 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 required
                 className="w-full bg-white border border-slate-300 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-slate-800"
               >
-                <option value="" disabled>-- Select Active Bus / Driver --</option>
+                <option value="" disabled>-- Select Active Vehicle / Driver --</option>
                 {availableBuses
                   .filter(b => isSamePark(b.destination_park, destinationPark))
                   .map((bus, index) => (
                     <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
-                      Bus {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
+                      Vehicle {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
                     </option>
                   ))}
               </select>
@@ -756,15 +756,15 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 <div>
                   <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
                     <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    No Active Bus Currently Loading for {destinationPark || 'Selected Destination'}
+                    No Active Vehicle Currently Loading for {destinationPark || 'Selected Destination'}
                   </p>
                   <p className="text-[11px] text-amber-700 leading-relaxed">
-                    You have active loading buses for other routes. Click below to select an active bus or register a new one:
+                    You have active loading vehicles for other routes. Click below to select an active vehicle or register a new one:
                   </p>
                 </div>
 
                 <div className="space-y-1.5">
-                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-900 block">Available Active Buses Loading:</span>
+                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-900 block">Available Active Vehicles Loading:</span>
                   <div className="flex flex-wrap gap-2">
                     {availableBuses.map((bus) => (
                       <button
@@ -776,7 +776,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                         }}
                         className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                       >
-                        ⚡ Select Bus {bus.bus_number} &rarr; {bus.destination_park}
+                        ⚡ Select Vehicle {bus.bus_number} &rarr; {bus.destination_park}
                       </button>
                     ))}
                   </div>
@@ -788,17 +788,17 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                   className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer mt-2"
                 >
                   <Plus className="w-4 h-4" />
-                  Register & Launch New Bus for {destinationPark}
+                  Register & Launch New Vehicle for {destinationPark}
                 </button>
               </div>
             ) : (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
                 <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
                   <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  No Active Bus Loading for {destinationPark || 'Destination'}
+                  No Active Vehicle Loading for {destinationPark || 'Destination'}
                 </p>
                 <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">
-                  You cannot issue a waybill without a bus assignment. Please register an active bus/driver for this route first.
+                  You cannot issue a waybill without a vehicle assignment. Please register an active vehicle/driver for this route first.
                 </p>
                 <button
                   type="button"
@@ -806,7 +806,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                   className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
-                  Register & Launch New Bus for {destinationPark}
+                  Register & Launch New Vehicle for {destinationPark}
                 </button>
               </div>
             )}
@@ -937,7 +937,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                   Registering...
                 </>
               ) : !busId ? (
-                'Select Active Bus First'
+                'Select Active Vehicle First'
               ) : (
                 'Create Waybill & Pay'
               )}

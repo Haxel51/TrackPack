@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles, Receipt } from 'lucide-react';
+import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles, Receipt, Package } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
 import { OutgoingBuses } from '../components/staff/OutgoingBuses';
@@ -30,13 +30,13 @@ export const StaffDashboard: React.FC = () => {
         getIncomingBuses(token)
       ]);
 
-      if (outRes.success && outRes.buses) {
+      if (outRes && outRes.success && Array.isArray(outRes.buses)) {
         // Outgoing count is any bus where status is 'loading'
         const loadingBuses = outRes.buses.filter((b: any) => b.status === 'loading');
         setOutgoingCount(loadingBuses.length);
       }
 
-      if (incRes.success && incRes.buses) {
+      if (incRes && incRes.success && Array.isArray(incRes.buses)) {
         // Incoming in transit is any bus where status is 'departed'
         const inTransitBuses = incRes.buses.filter((b: any) => b.status === 'departed');
         setIncomingInTransitCount(inTransitBuses.length);
@@ -54,8 +54,8 @@ export const StaffDashboard: React.FC = () => {
         });
         setPendingPickupCount(pickups);
       }
-    } catch (err) {
-      console.error('Error fetching staff counts:', err);
+    } catch {
+      // Ignore background refresh errors
     }
   };
 
@@ -336,8 +336,10 @@ export const StaffDashboard: React.FC = () => {
       {/* Navbar */}
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <Truck className="text-[#F2A93B] w-6 h-6" />
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#08152B] flex items-center justify-center shrink-0 border border-amber-400/30 shadow-sm">
+              <Package className="w-5 h-5 text-[#F2A93B]" />
+            </div>
             <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
               <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">

@@ -418,8 +418,8 @@ export const AdminDashboard: React.FC = () => {
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-xl select-none" id="admin-main-nav">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-[#F2A93B]/10 rounded-xl flex items-center justify-center border border-[#F2A93B]/20">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#08152B] rounded-xl flex items-center justify-center border border-amber-400/30 shadow-sm shrink-0">
               <Shield className="text-[#F2A93B] w-5 h-5" />
             </div>
             <div>

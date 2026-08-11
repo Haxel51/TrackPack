@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
-import waybillaBoxLogo from '../assets/images/waybilla_box_logo.png';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -50,8 +49,8 @@ export const HomePage: React.FC = () => {
           // ignore
         }
       };
-    } catch (e) {
-      console.error('Public tracking SSE error:', e);
+    } catch {
+      // Ignore background SSE connection errors
     }
 
     return () => {
@@ -122,15 +121,8 @@ export const HomePage: React.FC = () => {
             className="flex items-center gap-3 cursor-pointer select-none"
             title="Waybilla Nigeria"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm overflow-hidden flex items-center justify-center shrink-0">
-              <img
-                src={waybillaBoxLogo}
-                alt="Waybilla Logo"
-                onError={(e) => {
-                  (e.target as HTMLImageElement).src = '/logo.png';
-                }}
-                className="w-full h-full object-cover"
-              />
+            <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm flex items-center justify-center shrink-0 border border-amber-400/30">
+              <Package className="w-5 h-5 text-[#F2A93B]" />
             </div>
             <div className="flex items-center gap-2 font-black text-xl tracking-tight">
               <span>Way<span className="text-[#F2A93B]">billa</span></span>
