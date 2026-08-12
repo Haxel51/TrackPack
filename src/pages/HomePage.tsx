@@ -230,6 +230,12 @@ export const HomePage: React.FC = () => {
             </button>
           </form>
 
+          <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3 text-xs text-slate-700 flex items-center justify-between gap-2">
+            <span className="text-[11px] leading-relaxed text-slate-700">
+              💡 <strong>Want to see all waybills linked to your phone number?</strong> Log in to the <strong>Customer Portal</strong> below to view all your receipts & Pickup PINs!
+            </span>
+          </div>
+
           {trackAlert && (
             <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-1">
               <div>{trackAlert}</div>
