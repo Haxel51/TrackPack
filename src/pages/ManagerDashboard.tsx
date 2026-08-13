@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Logo } from '../components/Logo';
 import {
   getManagerOverview,
   getManagerStaff,
@@ -255,9 +256,7 @@ export const ManagerDashboard: React.FC = () => {
       <header className="bg-[#0A1F44] text-white sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#08152B] rounded-2xl border border-amber-400/30 flex items-center justify-center shadow-sm shrink-0">
-              <UserCheck className="w-5 h-5 text-indigo-300" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="font-extrabold text-lg sm:text-xl text-white">

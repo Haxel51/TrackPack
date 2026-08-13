@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Logo } from '../components/Logo';
 import { 
   LogOut, 
   User as UserIcon, 
@@ -264,9 +265,7 @@ export const CustomerDashboard: React.FC = () => {
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
         <div className="max-w-4xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#08152B] flex items-center justify-center shrink-0 border border-amber-400/30 shadow-sm">
-              <Package className="w-5 h-5 text-[#F2A93B]" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
               <span>Waybilla</span>
               <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">

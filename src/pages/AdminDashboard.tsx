@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Logo } from '../components/Logo';
 import { RecoveryTabContent } from '../components/admin/RecoveryTabContent';
 import {
   Shield,
@@ -422,9 +423,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
           
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#08152B] rounded-xl flex items-center justify-center border border-amber-400/30 shadow-sm shrink-0">
-              <Shield className="text-[#F2A93B] w-5 h-5" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div>
               <span className="font-extrabold text-base tracking-wide block">Waybilla Admin</span>
               <span className="text-[10px] text-amber-400 font-black tracking-widest uppercase block">Internal Control Room</span>
@@ -774,7 +773,16 @@ export const AdminDashboard: React.FC = () => {
                         {companies.filter(c => c.approved === false && c.rejected !== true).map((comp: any, index: number) => (
                           <div key={`adm-pcomp-${comp.id || index}-${index}`} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                             <div className="space-y-1">
-                              <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
+                                <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
+                                  comp.service_mode === 'fleet' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                                  comp.service_mode === 'both' ? 'bg-blue-100 text-blue-900 border border-blue-300' :
+                                  'bg-slate-100 text-slate-700'
+                                }`}>
+                                  {comp.service_mode === 'fleet' ? '🚛 Fleet Only' : comp.service_mode === 'both' ? '⚡ Parcel & Fleet' : '📦 Parcel Waybills'}
+                                </span>
+                              </div>
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                                 <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F2A93B]" /> Owner: {comp.owner_phone}</span>
                                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || comp.park_name || 'N/A'}</span>

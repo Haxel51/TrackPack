@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Logo } from '../components/Logo';
 import {
   LogOut,
   Building2,
@@ -24,11 +25,13 @@ import {
   DollarSign,
   Package,
   Bus,
+  Truck,
   AlertCircle,
   UserCheck,
   Trash2
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
+import { FleetManagementView } from '../components/fleet/FleetManagementView';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -38,7 +41,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 export const CompanyDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings' | 'fleet'>('overview');
 
   // --- TAB 1: OVERVIEW STATE ---
   const [overviewState, setOverviewState] = useState<{
@@ -853,9 +856,7 @@ export const CompanyDashboard: React.FC = () => {
       <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#08152B] rounded-xl flex items-center justify-center border border-[#F2A93B]/30 shadow-sm shrink-0">
-              <Shield className="text-[#F2A93B] w-5 h-5" />
-            </div>
+            <Logo size="sm" showText={false} />
             <div>
               <span className="font-extrabold text-xs text-slate-400 tracking-wider block leading-none">{t('companyPortalTitle')}</span>
               <span className="font-extrabold text-base tracking-wider text-white block mt-1">{user?.company_name || 'Waybilla Partner'}</span>
@@ -886,7 +887,8 @@ export const CompanyDashboard: React.FC = () => {
             { id: 'overview', label: t('overview'), icon: TrendingUp },
             { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
             { id: 'shipments', label: t('waybillHistory'), icon: Package },
-            { id: 'earnings', label: t('analytics'), icon: DollarSign }
+            { id: 'earnings', label: t('analytics'), icon: DollarSign },
+            { id: 'fleet', label: 'Fleet Trip Tracking', icon: Truck }
           ].map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -922,6 +924,11 @@ export const CompanyDashboard: React.FC = () => {
         {/* WORKSPACE AREA (Progressive/skeleton loadings inside here) */}
         <main className="lg:col-span-9 space-y-6" id="dashboard-tab-content">
           
+          {/* TAB: FLEET TRIP TRACKING */}
+          {activeTab === 'fleet' && (
+            <FleetManagementView userRole="company" />
+          )}
+
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6" id="overview-tab">

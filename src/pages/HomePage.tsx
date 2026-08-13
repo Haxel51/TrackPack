@@ -5,6 +5,7 @@ import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { Logo } from '../components/Logo';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -124,9 +125,7 @@ export const HomePage: React.FC = () => {
             className="flex items-center gap-3 cursor-pointer select-none"
             title="Waybilla Nigeria"
           >
-            <div className="w-10 h-10 rounded-xl bg-[#08152B] shadow-sm flex items-center justify-center shrink-0 border border-amber-400/30">
-              <Package className="w-5 h-5 text-[#F2A93B]" />
-            </div>
+            <Logo size="md" showText={false} />
             <div className="flex items-center gap-2 font-black text-xl tracking-tight">
               <span>Way<span className="text-[#F2A93B]">billa</span></span>
               {/* Nigerian Flag Badge */}
@@ -172,8 +171,8 @@ export const HomePage: React.FC = () => {
             <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
               {t('digitalReceiptBadge')}
             </span>
-            <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              {t('heavyFreightBadge')}
+            <span className="bg-amber-100 border border-amber-300 px-3 py-1 rounded-full shadow-xs flex items-center gap-1 text-amber-950 font-black">
+              🚚 Fleet Trip Tracking & Billing
             </span>
           </div>
         </div>
@@ -331,6 +330,24 @@ export const HomePage: React.FC = () => {
             >
               <Building2 className="w-4 h-4 text-slate-700" />
               <span>{t('companyPortal')}</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/login/driver')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              aria-label="Driver Login"
+            >
+              <Truck className="w-4 h-4 text-amber-700" />
+              <span>Driver Portal</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/login/supplier')}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-900 font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              aria-label="Supplier Staff Login"
+            >
+              <Building2 className="w-4 h-4 text-blue-700" />
+              <span>Supplier Portal</span>
             </button>
           </div>
         </div>

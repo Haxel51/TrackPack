@@ -23,6 +23,7 @@ export const CompanyLogin: React.FC = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [parkName, setParkName] = useState('');
   const [parkLocation, setParkLocation] = useState('');
+  const [serviceMode, setServiceMode] = useState<'parcel' | 'fleet' | 'both'>('parcel');
   const [submittedMessage, setSubmittedMessage] = useState<string | null>(null);
 
   // Reset state
@@ -124,7 +125,8 @@ export const CompanyLogin: React.FC = () => {
         owner_phone: ownerPhone.trim(),
         password: regPassword.trim(),
         park_name: parkName.trim(),
-        park_location: parkLocation.trim()
+        park_location: parkLocation.trim(),
+        service_mode: serviceMode
       });
 
       if (res.success) {
@@ -543,17 +545,90 @@ export const CompanyLogin: React.FC = () => {
               </p>
             </div>
 
-            {/* Initial Park Section */}
+            {/* Service & Operation Mode Selection */}
+            <div className="border-t border-slate-100 pt-3 space-y-2">
+              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                Select Service & Operation Mode
+              </label>
+              <div className="grid grid-cols-1 gap-2 text-xs font-bold">
+                <button
+                  type="button"
+                  onClick={() => setServiceMode('parcel')}
+                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    serviceMode === 'parcel'
+                      ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-sm'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div>
+                    <div className="font-extrabold">📦 Motor Park & Parcel Waybills</div>
+                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'parcel' ? 'text-slate-300' : 'text-slate-500'}`}>
+                      For passenger transport & parcel tracking
+                    </div>
+                  </div>
+                  {serviceMode === 'parcel' && <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setServiceMode('fleet')}
+                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    serviceMode === 'fleet'
+                      ? 'bg-amber-600 text-slate-950 border-amber-600 shadow-sm font-black'
+                      : 'bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100'
+                  }`}
+                >
+                  <div>
+                    <div className="font-extrabold">🚛 Fleet Trip Tracking Only</div>
+                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'fleet' ? 'text-slate-900' : 'text-amber-800'}`}>
+                      For heavy trucks, round-trips & 3-checkpoint verification
+                    </div>
+                  </div>
+                  {serviceMode === 'fleet' && <CheckCircle2 className="w-4 h-4 text-slate-950 shrink-0" />}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setServiceMode('both')}
+                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                    serviceMode === 'both'
+                      ? 'bg-[#0A1F44] text-amber-300 border-[#0A1F44] shadow-sm'
+                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  <div>
+                    <div className="font-extrabold">⚡ Both (Parcel & Fleet Tracking)</div>
+                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'both' ? 'text-amber-200/80' : 'text-slate-500'}`}>
+                      Full access to both passenger waybills & truck fleet trips
+                    </div>
+                  </div>
+                  {serviceMode === 'both' && <CheckCircle2 className="w-4 h-4 text-amber-300 shrink-0" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Initial Park / Depot Section */}
             <div className="border-t border-slate-100 pt-3 space-y-3">
               <div className="text-xs font-bold text-slate-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-[#0A1F44]" /> Primary Motor Park Information
+                <MapPin className="w-3.5 h-3.5 text-[#0A1F44]" />{' '}
+                {serviceMode === 'fleet'
+                  ? 'Fleet Headquarters & Main Depot Information'
+                  : serviceMode === 'both'
+                  ? 'Motor Park & Fleet Depot Information'
+                  : 'Primary Motor Park Information'}
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-extrabold text-[#0A1F44] uppercase tracking-wider block">Park Name</label>
+                <label className="text-[11px] font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                  {serviceMode === 'fleet' ? 'Fleet Yard / Depot Name' : 'Park Name'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Peace Park Jibowu"
+                  placeholder={
+                    serviceMode === 'fleet'
+                      ? 'e.g. Dangote Logistics Fleet Yard'
+                      : 'e.g. Peace Park Jibowu'
+                  }
                   value={parkName}
                   onChange={(e) => setParkName(e.target.value)}
                   disabled={loading}
@@ -562,10 +637,16 @@ export const CompanyLogin: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-[11px] font-extrabold text-[#0A1F44] uppercase tracking-wider block">Park City / Location</label>
+                <label className="text-[11px] font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                  {serviceMode === 'fleet' ? 'Depot City / Location' : 'Park City / Location'}
+                </label>
                 <input
                   type="text"
-                  placeholder="e.g. Lagos"
+                  placeholder={
+                    serviceMode === 'fleet'
+                      ? 'e.g. Port Harcourt Terminal'
+                      : 'e.g. Lagos'
+                  }
                   value={parkLocation}
                   onChange={(e) => setParkLocation(e.target.value)}
                   disabled={loading}
