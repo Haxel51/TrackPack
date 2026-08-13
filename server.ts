@@ -1823,7 +1823,7 @@ app.get("/api/auth/me", async (req, res) => {
         } else if (session.userRole === "manager") {
           freshUserData = { name: d.name, phone: d.phone, park_location: d.park_location, park_id: d.park_id, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
         } else if (session.userRole === "company") {
-          freshUserData = { company_name: d.company_name, owner_phone: d.owner_phone, approved: d.approved, has_completed_onboarding: !!d.has_completed_onboarding };
+          freshUserData = { company_name: d.company_name, owner_phone: d.owner_phone, service_mode: d.service_mode || d.service_type || 'parcel', approved: d.approved, has_completed_onboarding: !!d.has_completed_onboarding };
         }
       }
     }
@@ -6533,7 +6533,7 @@ app.get("/api/fleet/drivers", async (req, res) => {
     });
 
     if (session.userRole === "manager" && parkId) {
-      drivers = drivers.filter(d => d.park_id === parkId);
+      drivers = drivers.filter((d: any) => d.park_id === parkId);
     }
 
     res.json({ success: true, drivers });

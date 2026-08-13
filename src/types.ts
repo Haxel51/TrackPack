@@ -6,6 +6,8 @@ export interface User {
   company_name?: string;
   company_id?: string;
   park_location?: string;
+  service_mode?: string;
+  service_type?: string;
   approved?: boolean;
   active?: boolean;
   has_completed_onboarding?: boolean;

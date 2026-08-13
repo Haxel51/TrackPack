@@ -101,6 +101,7 @@ export async function registerCompany(data: {
   password: string;
   park_name: string;
   park_location: string;
+  service_mode?: string;
 }) {
   return safeFetch(`${API_BASE}/auth/company/register`, {
     method: 'POST',
