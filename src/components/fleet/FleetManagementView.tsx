@@ -232,8 +232,8 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({ userRo
   return (
     <div className="space-y-6">
       {/* Fleet Sub-navigation */}
-      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center space-x-2">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           {[
             { id: 'overview', label: 'Overview & Service Type', icon: Building2 },
             { id: 'trucks', label: `Trucks (${trucks.length})`, icon: Truck },
@@ -247,11 +247,11 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({ userRo
               <button
                 key={tab.id}
                 onClick={() => setActiveSubTab(tab.id as any)}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'bg-amber-400 text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-slate-700'
+                className={`flex items-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold transition-colors whitespace-nowrap cursor-pointer border-0 ${
+                  isActive ? 'bg-amber-400 text-slate-900 shadow-lg' : 'text-slate-300 hover:bg-slate-700 bg-slate-900/40'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-4 h-4 shrink-0" />
                 <span>{tab.label}</span>
               </button>
             );

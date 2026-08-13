@@ -1211,12 +1211,13 @@ app.post("/api/auth/company/login", async (req, res) => {
     return res.status(400).json({ error: "Phone number and password are required." });
   }
 
-  if (!isValid11DigitPhone(phone_number)) {
+  const cleanPhone = phone_number.replace(/\D/g, "");
+  if (cleanPhone.length !== 11) {
     return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   try {
-    const q = query(collection(db, "companies"), where("owner_phone", "==", phone_number), limit(1));
+    const q = query(collection(db, "companies"), where("owner_phone", "==", cleanPhone), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) {
       return res.status(401).json({ error: "Invalid phone number or password." });
@@ -1313,7 +1314,7 @@ app.post("/api/auth/company/register", async (req, res) => {
 
   try {
     // Check if company owner phone number already exists
-    const qPhone = query(collection(db, "companies"), where("owner_phone", "==", owner_phone.trim()), limit(1));
+    const qPhone = query(collection(db, "companies"), where("owner_phone", "==", cleanPhone), limit(1));
     const snapPhone = await getDocs(qPhone);
     if (!snapPhone.empty) {
       const existingComp = snapPhone.docs[0].data();
@@ -1337,7 +1338,7 @@ app.post("/api/auth/company/register", async (req, res) => {
     const hash = await bcrypt.hash(password, 10);
     const companyDoc = await addDoc(collection(db, "companies"), {
       company_name: company_name.trim(),
-      owner_phone: owner_phone.trim(),
+      owner_phone: cleanPhone,
       password_hash: hash,
       park_name: park_name.trim(),
       park_location: park_location.trim(),
@@ -1359,7 +1360,7 @@ app.post("/api/auth/company/register", async (req, res) => {
     // Send email notification to admin asynchronously
     sendCompanyRegistrationNotificationEmail(
       company_name.trim(),
-      owner_phone.trim(),
+      cleanPhone,
       park_name.trim(),
       park_location.trim(),
       service_mode || 'parcel'
@@ -1382,12 +1383,13 @@ app.post("/api/auth/company/forgot-password/request", async (req, res) => {
     return res.status(400).json({ error: "Owner phone number is required." });
   }
 
-  if (!isValid11DigitPhone(owner_phone)) {
+  const cleanPhone = owner_phone.replace(/\D/g, "");
+  if (cleanPhone.length !== 11) {
     return res.status(400).json({ error: "Owner phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
   try {
-    const q = query(collection(db, "companies"), where("owner_phone", "==", owner_phone.trim()), limit(1));
+    const q = query(collection(db, "companies"), where("owner_phone", "==", cleanPhone), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) {
       return res.status(404).json({ error: "No company account found with this owner phone number." });
@@ -1402,18 +1404,18 @@ app.post("/api/auth/company/forgot-password/request", async (req, res) => {
       reset_otp_expires_at: expiresAt
     });
 
-    console.log(`[FORGOT PASSWORD] OTP for company owner ${owner_phone}: ${otpCode}`);
+    console.log(`[FORGOT PASSWORD] OTP for company owner ${cleanPhone}: ${otpCode}`);
 
     const smsMessage = `[Waybilla] Your owner account password reset verification code is: ${otpCode}. It expires in 15 minutes.`;
-    const smsResult = await sendRealWorldSMS(owner_phone, smsMessage);
+    const smsResult = await sendRealWorldSMS(cleanPhone, smsMessage);
 
     res.json({
       success: true,
       sms_sent: smsResult.success,
       sms_provider: smsResult.provider || null,
       message: smsResult.success
-        ? `A secure verification code has been successfully sent via SMS to ${owner_phone}.`
-        : `A secure verification code has been simulated for ${owner_phone}. Please enter the code to reset your password.`
+        ? `A secure verification code has been successfully sent via SMS to ${cleanPhone}.`
+        : `A secure verification code has been simulated for ${cleanPhone}. Please enter the code to reset your password.`
     });
   } catch (err) {
     console.error("Company forgot password error:", err);
@@ -1428,7 +1430,8 @@ app.post("/api/auth/company/forgot-password/reset", async (req, res) => {
     return res.status(400).json({ error: "Owner phone number, verification code, and new password are required." });
   }
 
-  if (!isValid11DigitPhone(owner_phone)) {
+  const cleanPhone = owner_phone.replace(/\D/g, "");
+  if (cleanPhone.length !== 11) {
     return res.status(400).json({ error: "Owner phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
@@ -1442,7 +1445,7 @@ app.post("/api/auth/company/forgot-password/reset", async (req, res) => {
   }
 
   try {
-    const q = query(collection(db, "companies"), where("owner_phone", "==", owner_phone.trim()), limit(1));
+    const q = query(collection(db, "companies"), where("owner_phone", "==", cleanPhone), limit(1));
     const snap = await getDocs(q);
     if (snap.empty) {
       return res.status(404).json({ error: "Company account not found." });
