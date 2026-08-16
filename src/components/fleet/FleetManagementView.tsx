@@ -150,6 +150,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     supplier_id?: string;
   } | null>(null);
   const [submittingSubscription, setSubmittingSubscription] = useState(false);
+  const [showSecurityDetails, setShowSecurityDetails] = useState(false);
 
   // ⚠️ Delete Confirmation Dialog State (Interactive Modal)
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -2326,11 +2327,12 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
 
       {/* 💳 Subscribe / Renew Monthly Subscription Paystack Modal (₦3,500) */}
       {showSubscribeMonthlyModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-purple-500/40 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in duration-150">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-purple-500/40 rounded-3xl w-[94%] max-w-md sm:max-w-lg max-h-[88vh] flex flex-col shadow-2xl animate-in fade-in zoom-in duration-150 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-4 sm:p-5 pb-3.5 border-b border-slate-800 flex items-center justify-between shrink-0 bg-slate-900/95">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center justify-center">
+                <div className="w-10 h-10 rounded-2xl bg-purple-500/20 text-purple-300 border border-purple-500/30 flex items-center justify-center shrink-0">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
@@ -2338,95 +2340,132 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                   <p className="text-xs text-slate-400">Truck: <span className="font-mono text-purple-300 font-bold">{showSubscribeMonthlyModal.truck_number}</span></p>
                 </div>
               </div>
-              <span className="text-[10px] font-extrabold font-mono text-purple-300 bg-purple-950 border border-purple-800 px-2.5 py-1 rounded-full uppercase">
-                30-Day Plan
-              </span>
-            </div>
-
-            <div className="bg-slate-950 rounded-2xl p-4 border border-slate-800 space-y-3">
-              <div className="flex justify-between items-center text-xs text-slate-400">
-                <span>Coverage Duration:</span>
-                <span className="font-bold text-white">30 Days Unlimited Trips</span>
-              </div>
-              <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
-                <span className="text-xs font-bold text-slate-300">Monthly Plan Amount:</span>
-                <span className="text-xl font-black text-purple-400 font-mono">₦3,500</span>
+              <div className="flex items-center space-x-2">
+                <span className="text-[10px] font-extrabold font-mono text-purple-300 bg-purple-950 border border-purple-800 px-2.5 py-1 rounded-full uppercase">
+                  30-Day Plan
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setShowSubscribeMonthlyModal(null)}
+                  className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
               </div>
             </div>
 
-            {/* 🛡️ Card Security & Bank Transfer Reassurance Card */}
-            <div className="bg-slate-950/90 rounded-2xl p-4 border border-purple-900/40 space-y-2.5">
-              <div className="flex items-center space-x-2 text-purple-300 font-bold text-xs">
-                <ShieldCheck className="w-4.5 h-4.5 shrink-0 text-purple-400" />
-                <span>100% Security & Bank Transfer Guarantee</span>
+            {/* Scrollable Content Body */}
+            <div className="p-4 sm:p-5 overflow-y-auto space-y-3.5 flex-1">
+              {/* Plan Pricing Card */}
+              <div className="bg-slate-950 rounded-2xl p-3.5 border border-slate-800 space-y-2">
+                <div className="flex justify-between items-center text-xs text-slate-400">
+                  <span>Coverage Duration:</span>
+                  <span className="font-bold text-white">30 Days Unlimited Trips</span>
+                </div>
+                <div className="pt-2 border-t border-slate-900 flex justify-between items-center">
+                  <span className="text-xs font-bold text-slate-300">Monthly Plan Amount:</span>
+                  <span className="text-xl font-black text-purple-400 font-mono">₦3,500</span>
+                </div>
               </div>
 
-              <div className="space-y-2 text-[11px] text-slate-300 leading-relaxed">
-                <div className="flex items-start space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
-                  <div>
-                    <strong className="text-white">Card Protection:</strong> Waybilla never sees or stores card numbers. Payments are encrypted by Paystack (CBN Licensed & PCI-DSS Level 1).
+              {/* 🛡️ Compact Security Badges & Details */}
+              <div className="bg-slate-950/90 rounded-2xl p-3.5 border border-purple-900/40 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-purple-300 font-bold text-xs">
+                    <ShieldCheck className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>Paystack Secured Guarantee</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setShowSecurityDetails(!showSecurityDetails)}
+                    className="text-[11px] text-purple-400 hover:text-purple-300 font-semibold underline cursor-pointer"
+                  >
+                    {showSecurityDetails ? 'Hide details' : 'View guarantees'}
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-1.5 text-[10px] text-slate-300 text-center font-medium">
+                  <div className="bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+                    <span className="text-emerald-400 block font-bold text-[11px]">🔒 Encrypted</span>
+                    <span className="text-[9px] text-slate-400">PCI-DSS Level 1</span>
+                  </div>
+                  <div className="bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+                    <span className="text-purple-400 block font-bold text-[11px]">⚡ Bank Transfer</span>
+                    <span className="text-[9px] text-slate-400">1-Click Renewal</span>
+                  </div>
+                  <div className="bg-slate-900/90 p-2 rounded-xl border border-slate-800">
+                    <span className="text-amber-400 block font-bold text-[11px]">🛡️ Zero-Risk</span>
+                    <span className="text-[9px] text-slate-400">Auto Fallback</span>
                   </div>
                 </div>
 
-                <div className="flex items-start space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1 shrink-0" />
-                  <div>
-                    <strong className="text-white">Bank Transfer Auto-Renewal:</strong> Paying via Transfer (OPay, GTB, Zenith)? You will get a 5-day expiry alert with a 1-click renewal prompt.
+                {showSecurityDetails && (
+                  <div className="space-y-2 text-[11px] text-slate-300 leading-relaxed pt-2 border-t border-slate-900">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1 shrink-0" />
+                      <div>
+                        <strong className="text-white">Card Protection:</strong> Waybilla never sees or stores card numbers. Payments are encrypted by Paystack (CBN Licensed & PCI-DSS Level 1).
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-1 shrink-0" />
+                      <div>
+                        <strong className="text-white">Bank Transfer Auto-Renewal:</strong> Paying via Transfer (OPay, GTB, Zenith)? You will get a 5-day expiry alert with a 1-click renewal prompt.
+                      </div>
+                    </div>
+                    <div className="flex items-start space-x-2">
+                      <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 shrink-0" />
+                      <div>
+                        <strong className="text-white">Zero-Risk Protection:</strong> If a plan expires without renewal, your truck automatically falls back to Per-Trip (₦1,000) so trips are never blocked.
+                      </div>
+                    </div>
                   </div>
-                </div>
-
-                <div className="flex items-start space-x-2">
-                  <div className="w-1.5 h-1.5 rounded-full bg-amber-400 mt-1 shrink-0" />
-                  <div>
-                    <strong className="text-white">Zero-Risk Protection:</strong> If a plan expires without renewal, your truck automatically falls back to Per-Trip (₦1,000) so trips are never blocked.
-                  </div>
-                </div>
+                )}
               </div>
+
+              {/* Auto-renew toggle */}
+              <div className="bg-slate-950/90 rounded-2xl p-3.5 border border-slate-800 space-y-1.5">
+                <label className="flex items-center space-x-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showSubscribeMonthlyModal.auto_renew}
+                    onChange={(e) => setShowSubscribeMonthlyModal({ ...showSubscribeMonthlyModal, auto_renew: e.target.checked })}
+                    className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-900 border-slate-700"
+                  />
+                  <span className="text-xs font-extrabold text-white">Auto-renew this truck's monthly plan?</span>
+                </label>
+                <p className="text-[11px] text-slate-400 leading-relaxed pl-7">
+                  Auto-renews every 30 days via Paystack. Cancel or toggle OFF anytime in 1 click!
+                </p>
+              </div>
+
+              {showSubscribeMonthlyModal.checkout_url && (
+                <a
+                  href={showSubscribeMonthlyModal.checkout_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3 px-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 no-underline border border-purple-500/50 shadow-md"
+                >
+                  <ExternalLink className="w-4 h-4 text-purple-300" />
+                  <span>Open Paystack Live Checkout Portal (₦3,500)</span>
+                </a>
+              )}
+
+              {verifyingPaymentStatus && (
+                <div className="bg-purple-950/60 border border-purple-500/50 p-3.5 rounded-2xl flex items-center space-x-3 text-purple-200 text-xs animate-pulse">
+                  <div className="w-4 h-4 border-2 border-purple-400 border-t-transparent rounded-full animate-spin shrink-0" />
+                  <span className="font-medium">{verifyingPaymentStatus}</span>
+                </div>
+              )}
             </div>
 
-            {/* Auto-renew toggle with explicit explanation */}
-            <div className="bg-slate-950/90 rounded-2xl p-4 border border-slate-800 space-y-2">
-              <label className="flex items-center space-x-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={showSubscribeMonthlyModal.auto_renew}
-                  onChange={(e) => setShowSubscribeMonthlyModal({ ...showSubscribeMonthlyModal, auto_renew: e.target.checked })}
-                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 bg-slate-900 border-slate-700"
-                />
-                <span className="text-xs font-extrabold text-white">Auto-renew this truck's monthly plan?</span>
-              </label>
-
-              <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
-                When ON: card payments auto-renew seamlessly every 30 days via Paystack tokenization. Bank Transfer users receive a 1-click renewal prompt 5 days before expiry. Cancel or toggle OFF anytime in 1 click!
-              </p>
-            </div>
-
-            {showSubscribeMonthlyModal.checkout_url && (
-              <a
-                href={showSubscribeMonthlyModal.checkout_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 no-underline border border-purple-500/50 shadow-md"
-              >
-                <ExternalLink className="w-4 h-4 text-purple-300" />
-                <span>Open Paystack Live Checkout Portal (₦3,500)</span>
-              </a>
-            )}
-
-            {verifyingPaymentStatus ? (
-              <div className="bg-purple-950/60 border border-purple-500/50 p-4 rounded-2xl flex items-center space-x-3 text-purple-200 text-xs animate-pulse">
-                <div className="w-5 h-5 border-2 border-purple-400 border-t-transparent rounded-full animate-spin shrink-0" />
-                <span className="font-medium">{verifyingPaymentStatus}</span>
-              </div>
-            ) : null}
-
-            <div className="flex space-x-3 pt-1">
+            {/* Sticky Action Footer (Always Visible above Android Navigation Bar) */}
+            <div className="p-3.5 sm:p-4 bg-slate-900 border-t border-slate-800 flex space-x-3 shrink-0">
               <button
                 type="button"
                 disabled={submittingSubscription}
                 onClick={() => executePaystackSubscribeMonthly(Boolean(showSubscribeMonthlyModal.checkout_url))}
-                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-black py-3 px-4 rounded-xl text-sm transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+                className="flex-1 bg-purple-600 hover:bg-purple-500 text-white font-black py-3 px-4 rounded-xl text-xs sm:text-sm transition-all shadow-lg shadow-purple-950/50 flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
               >
                 {submittingSubscription ? (
                   <>
@@ -2441,7 +2480,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 type="button"
                 disabled={submittingSubscription}
                 onClick={() => setShowSubscribeMonthlyModal(null)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-sm transition-colors cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 px-4 rounded-xl text-xs sm:text-sm transition-colors cursor-pointer"
               >
                 Cancel
               </button>
