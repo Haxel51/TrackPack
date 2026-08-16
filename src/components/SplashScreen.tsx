@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import waybillaSplashScreen from '../assets/images/waybilla_splash_screen_1786134507522.jpg';
+import { WAYBILLA_SPLASH_BASE64 } from '../assets/images/icons-base64';
+import waybillaSplashScreenFallback from '../assets/images/waybilla_splash_screen_1786134507522.jpg';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -15,11 +16,15 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [graphicVisible, setGraphicVisible] = useState(false);
   const [progressWidth, setProgressWidth] = useState('w-1/4');
 
+  const splashBgImage = WAYBILLA_SPLASH_BASE64
+    ? `data:image/jpeg;base64,${WAYBILLA_SPLASH_BASE64}`
+    : waybillaSplashScreenFallback;
+
   useEffect(() => {
-    // 1. Smoothly fade in world map artwork after first frame
+    // 1. Smoothly fade in artwork after first frame
     const graphicTimer = setTimeout(() => {
       setGraphicVisible(true);
-    }, 50);
+    }, 30);
 
     // 3. Fill progress bar smoothly
     const progressTimer = setTimeout(() => {
@@ -62,7 +67,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
           graphicVisible ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
         style={{
-          backgroundImage: `url(${waybillaSplashScreen})`,
+          backgroundImage: `url("${splashBgImage}")`,
         }}
       >
         {/* Smooth edge fade: Blends the world map graphic into the solid outer background color */}

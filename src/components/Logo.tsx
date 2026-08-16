@@ -1,5 +1,5 @@
 import React from 'react';
-import waybillaLogo from '../assets/images/waybilla_splash_screen_1786134507522.jpg';
+import { ICON_192_BASE64 } from '../assets/images/icons-base64';
 
 interface LogoProps {
   size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl';
@@ -30,13 +30,17 @@ export const Logo: React.FC<LogoProps> = ({
     xl: 'text-3xl'
   };
 
+  const logoSrc = `data:image/png;base64,${ICON_192_BASE64}`;
+
   return (
     <div className={`flex items-center gap-2.5 select-none ${className}`}>
       <div className={`relative rounded-xl overflow-hidden shadow-md shrink-0 border border-amber-400/30 bg-[#0A1F44] ${sizeMap[size]}`}>
         <img
-          src={waybillaLogo}
+          src={logoSrc}
           alt="Waybilla Logo"
           className="w-full h-full object-cover rounded-xl"
+          loading="eager"
+          decoding="sync"
         />
       </div>
       {showText && (

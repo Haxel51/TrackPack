@@ -44,15 +44,21 @@ try {
 
   fs.writeFileSync(path.join(publicDir, "icon-192.png"), buf192);
   fs.writeFileSync(path.join(publicDir, "icon-512.png"), buf512);
+  fs.writeFileSync(path.join(publicDir, "logo.png"), buf512);
+  fs.writeFileSync(path.join(publicDir, "waybilla_box_logo.png"), buf512);
+  fs.writeFileSync(path.join(publicDir, "waybilla-logo.png"), buf512);
   fs.writeFileSync(path.join(publicDir, "screenshot-desktop.jpg"), bufDesktop);
   fs.writeFileSync(path.join(publicDir, "screenshot-mobile.jpg"), bufMobile);
 
   fs.writeFileSync(path.join(distDir, "icon-192.png"), buf192);
   fs.writeFileSync(path.join(distDir, "icon-512.png"), buf512);
+  fs.writeFileSync(path.join(distDir, "logo.png"), buf512);
+  fs.writeFileSync(path.join(distDir, "waybilla_box_logo.png"), buf512);
+  fs.writeFileSync(path.join(distDir, "waybilla-logo.png"), buf512);
   fs.writeFileSync(path.join(distDir, "screenshot-desktop.jpg"), bufDesktop);
   fs.writeFileSync(path.join(distDir, "screenshot-mobile.jpg"), bufMobile);
 
-  console.log("Successfully restored icons and screenshots from Base64 string to public/ and dist/");
+  console.log("Successfully restored icons, logos, and screenshots from Base64 string to public/ and dist/");
 } catch (e) {
   console.error("Error writing PWA assets on start:", e);
 }
@@ -67,6 +73,24 @@ app.get("/.well-known/assetlinks.json", (req, res) => {
   } else {
     res.status(404).json({ error: "assetlinks.json not found" });
   }
+});
+
+app.get("/logo.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(ICON_512_BASE64, "base64"));
+});
+
+app.get("/waybilla_box_logo.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(ICON_512_BASE64, "base64"));
+});
+
+app.get("/waybilla-logo.png", (req, res) => {
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Cache-Control", "public, max-age=31536000");
+  res.send(Buffer.from(ICON_512_BASE64, "base64"));
 });
 
 app.get("/icon-192.png", (req, res) => {
