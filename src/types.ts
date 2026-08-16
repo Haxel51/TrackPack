@@ -5,9 +5,11 @@ export interface User {
   name?: string;
   company_name?: string;
   company_id?: string;
+  park_id?: string;
   park_location?: string;
   service_mode?: string;
   service_type?: string;
+  manager_type?: string;
   approved?: boolean;
   active?: boolean;
   has_completed_onboarding?: boolean;
@@ -18,7 +20,11 @@ export interface Manager {
   name: string;
   phone: string;
   company_id: string;
+  park_id?: string;
   park_location: string;
+  service_mode?: string;
+  service_type?: string;
+  manager_type?: string;
   active: boolean;
   created_at: string;
 }

@@ -3,7 +3,7 @@ import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { initializeApp } from "firebase/app";
-import { getFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, query, where, limit, deleteDoc } from "firebase/firestore";
+import { initializeFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc, query, where, limit, deleteDoc } from "firebase/firestore";
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
@@ -18,7 +18,9 @@ if (!fs.existsSync(configPath)) {
 
 const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const firebaseApp = initializeApp(config);
-const db = getFirestore(firebaseApp, config.firestoreDatabaseId);
+const db = initializeFirestore(firebaseApp, {
+  experimentalAutoDetectLongPolling: true
+}, config.firestoreDatabaseId);
 
 const app = express();
 const PORT = 3000;
@@ -1049,6 +1051,10 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
     // Clear failed PIN attempts
     await handlePinSuccess(`mgr_${cleanPhone}`);
 
+    // Determine manager's service mode (falls back to company's service_mode)
+    const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
+    const effectiveServiceMode = managerData.service_mode || managerData.manager_type || companyServiceMode;
+
     // Create session token and log in
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -1063,6 +1069,9 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
         company_name: companyName,
         park_id: managerData.park_id,
         park_location: managerData.park_location,
+        service_mode: effectiveServiceMode,
+        service_type: effectiveServiceMode,
+        manager_type: effectiveServiceMode,
         active: managerData.active
       },
       createdAt: new Date().toISOString(),
@@ -1080,7 +1089,10 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
         park_location: managerData.park_location,
         park_id: managerData.park_id,
         company_id: managerData.company_id,
-        company_name: companyName
+        company_name: companyName,
+        service_mode: effectiveServiceMode,
+        service_type: effectiveServiceMode,
+        manager_type: effectiveServiceMode
       }
     });
   } catch (err) {
@@ -1162,6 +1174,10 @@ app.post("/api/auth/manager/login", async (req, res) => {
     }
     const companyName = companyData.company_name || "Transport Company";
 
+    // Determine manager's service mode (falls back to company's service_mode)
+    const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
+    const effectiveServiceMode = managerData.service_mode || managerData.manager_type || companyServiceMode;
+
     // Success! Clear PIN lockouts
     await handlePinSuccess(`mgr_${cleanPhone}`);
 
@@ -1179,6 +1195,9 @@ app.post("/api/auth/manager/login", async (req, res) => {
         company_name: companyName,
         park_id: managerData.park_id,
         park_location: managerData.park_location,
+        service_mode: effectiveServiceMode,
+        service_type: effectiveServiceMode,
+        manager_type: effectiveServiceMode,
         active: managerData.active
       },
       createdAt: new Date().toISOString(),
@@ -1195,7 +1214,10 @@ app.post("/api/auth/manager/login", async (req, res) => {
         park_location: managerData.park_location,
         park_id: managerData.park_id,
         company_id: managerData.company_id,
-        company_name: companyName
+        company_name: companyName,
+        service_mode: effectiveServiceMode,
+        service_type: effectiveServiceMode,
+        manager_type: effectiveServiceMode
       }
     });
   } catch (err) {
@@ -1266,12 +1288,15 @@ app.post("/api/auth/company/login", async (req, res) => {
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
+    const companyServiceMode = company.service_mode || company.service_type || 'parcel';
     await setDoc(doc(db, "sessions", token), {
       userId: companyDoc.id,
       userRole: "company",
       userData: {
         company_name: company.company_name,
         owner_phone: company.owner_phone,
+        service_mode: companyServiceMode,
+        service_type: companyServiceMode,
         approved: company.approved
       },
       createdAt: new Date().toISOString(),
@@ -1284,7 +1309,10 @@ app.post("/api/auth/company/login", async (req, res) => {
       role: "company",
       user: {
         company_name: company.company_name,
-        owner_phone: company.owner_phone
+        owner_phone: company.owner_phone,
+        service_mode: companyServiceMode,
+        service_type: companyServiceMode,
+        approved: company.approved
       }
     });
   } catch (err) {
@@ -3077,6 +3105,44 @@ app.get("/api/company/overview", async (req, res) => {
     if (!session) return;
     const companyId = session.userId;
 
+    const compDoc = await getDoc(doc(db, "companies", companyId));
+    const compData = compDoc.exists() ? compDoc.data() : {};
+    const isFleetOnly = compData.service_mode === 'fleet' || compData.service_type === 'fleet';
+
+    if (isFleetOnly) {
+      const qTrucks = query(collection(db, "trucks"), where("company_id", "==", companyId));
+      const snapTrucks = await getDocs(qTrucks);
+      const trucks = snapTrucks.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+      const snapTrips = await getDocs(qTrips);
+      const trips = snapTrips.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const qDrivers = query(collection(db, "drivers"), where("company_id", "==", companyId));
+      const snapDrivers = await getDocs(qDrivers);
+      const drivers = snapDrivers.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const activeTripsCount = trips.filter((t: any) => t.status === 'active' || t.status === 'in_transit').length;
+
+      const sortedTrips = [...trips].sort((a: any, b: any) => {
+        const dateA = new Date(a.created_at || a.date || 0).getTime();
+        const dateB = new Date(b.created_at || b.date || 0).getTime();
+        return dateB - dateA;
+      });
+
+      return res.json({
+        success: true,
+        is_fleet_only: true,
+        stats: {
+          total_trucks: trucks.length,
+          active_trips: activeTripsCount,
+          total_drivers: drivers.length,
+          total_earnings_month: 0
+        },
+        recent_activity: sortedTrips.slice(0, 5)
+      });
+    }
+
     // Get all waybills for this company
     const qWb = query(collection(db, "waybills"), where("company_id", "==", companyId));
     const snapWb = await getDocs(qWb);
@@ -3129,13 +3195,34 @@ app.get("/api/company/overview", async (req, res) => {
       .filter(p => (nowTime - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneMonthMs)
       .reduce((sum, p) => sum + (Number(p.company_share) || 0), 0);
 
+    const isBoth = compData.service_mode === 'both' || compData.service_type === 'both';
+    let fleetStats = { total_trucks: 0, active_trips: 0, total_drivers: 0 };
+    if (isBoth) {
+      const qTrucks = query(collection(db, "trucks"), where("company_id", "==", companyId));
+      const snapTrucks = await getDocs(qTrucks);
+      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+      const snapTrips = await getDocs(qTrips);
+      const qDrivers = query(collection(db, "drivers"), where("company_id", "==", companyId));
+      const snapDrivers = await getDocs(qDrivers);
+      const activeTripsCount = snapTrips.docs.map(d => d.data()).filter((t: any) => t.status === 'active' || t.status === 'in_transit').length;
+      fleetStats = {
+        total_trucks: snapTrucks.docs.length,
+        active_trips: activeTripsCount,
+        total_drivers: snapDrivers.docs.length
+      };
+    }
+
     res.json({
       success: true,
+      is_fleet_only: false,
+      is_both: isBoth,
+      service_mode: compData.service_mode || compData.service_type || 'parcel',
       stats: {
         total_shipments_week: shipmentsWeek,
         total_shipments_month: shipmentsMonth,
         total_active_staff: activeStaffCount,
-        total_earnings_month: Math.round(totalEarningsMonth)
+        total_earnings_month: Math.round(totalEarningsMonth),
+        ...fleetStats
       },
       recent_activity: recentWaybills
     });
@@ -3542,7 +3629,7 @@ app.post("/api/company/managers", async (req, res) => {
     if (!session) return;
     const companyId = session.userId;
 
-    const { name, phone, park_id, pin } = req.body;
+    const { name, phone, park_id, pin, service_mode, manager_type } = req.body;
     if (!name || !phone || !park_id) {
       return res.status(400).json({ error: "Manager name, phone number, and park selection are required." });
     }
@@ -3567,6 +3654,11 @@ app.post("/api/company/managers", async (req, res) => {
     }
     const parkLocation = parkSnap.data().park_location;
 
+    // Get company's default service mode
+    const compDoc = await getDoc(doc(db, "companies", companyId));
+    const compServiceMode = compDoc.exists() ? (compDoc.data().service_mode || compDoc.data().service_type || "parcel") : "parcel";
+    const assignedMode = service_mode || manager_type || compServiceMode;
+
     // Option for PIN: if provided, hash it; otherwise leave null so manager creates their PIN on first login
     let hashedPin: string | null = null;
     let mgrPin: string | null = null;
@@ -3582,6 +3674,9 @@ app.post("/api/company/managers", async (req, res) => {
       company_id: companyId,
       park_id: park_id,
       park_location: parkLocation,
+      service_mode: assignedMode,
+      service_type: assignedMode,
+      manager_type: assignedMode,
       active: true,
       created_at: new Date().toISOString()
     });
@@ -3595,6 +3690,9 @@ app.post("/api/company/managers", async (req, res) => {
         company_id: companyId,
         park_id: park_id,
         park_location: parkLocation,
+        service_mode: assignedMode,
+        service_type: assignedMode,
+        manager_type: assignedMode,
         active: true,
         created_at: new Date().toISOString()
       },
@@ -3709,16 +3807,20 @@ async function validateManagerSessionFromHeader(req: express.Request, res: expre
   return session;
 }
 
-// GET /api/manager/overview - Get park metrics, volume, gross tracking fee & shipping fee totals by day/week/month
+// GET /api/manager/overview - Get park metrics, volume, gross tracking fee & shipping fee totals by day/week/month + fleet stats
 app.get("/api/manager/overview", async (req, res) => {
   try {
     const session = await validateManagerSessionFromHeader(req, res);
     if (!session) return;
-    const { company_id, park_location, park_id } = session.userData;
+    const { company_id, park_location, park_id, service_mode, manager_type } = session.userData;
 
     const companyRef = doc(db, "companies", company_id);
     const companySnap = await getDoc(companyRef);
-    const companyName = companySnap.exists() ? (companySnap.data().company_name || "Transport Company") : "Transport Company";
+    const companyData = companySnap.exists() ? companySnap.data() : {};
+    const companyName = companyData.company_name || "Transport Company";
+
+    const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
+    const effectiveMode = service_mode || manager_type || session.userData.service_type || companyServiceMode;
 
     // Query waybills originating from or heading to this park
     const qWb = query(
@@ -3798,18 +3900,59 @@ app.get("/api/manager/overview", async (req, res) => {
       return rest;
     });
 
+    // Query Fleet Data for Manager's Park
+    const [trucksSnap, driversSnap, tripsSnap] = await Promise.all([
+      getDocs(query(collection(db, "trucks"), where("company_id", "==", company_id))),
+      getDocs(query(collection(db, "drivers"), where("company_id", "==", company_id))),
+      getDocs(query(collection(db, "trips"), where("company_id", "==", company_id)))
+    ]);
+
+    const allTrucks = trucksSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    const parkTrucks = allTrucks.filter(t => !park_id || t.park_id === park_id || t.park_id === "main" || allTrucks.length <= 1);
+    
+    const allDrivers = driversSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    const parkDrivers = allDrivers.filter(dr => !park_id || dr.park_id === park_id || allDrivers.length <= 1);
+
+    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    const parkTrips = allTrips.filter(tr => !park_id || tr.park_id === park_id || allTrips.length <= 1);
+
+    const activeTripsCount = parkTrips.filter(t => t.status === "in_transit" || t.status === "loading" || t.status === "loaded_departed" || t.status === "created").length;
+    const completedTripsCount = parkTrips.filter(t => t.status === "completed" || t.status === "arrived" || t.status === "delivered").length;
+
+    const sortedTrips = [...parkTrips].sort((a, b) => {
+      const da = new Date(a.created_at || 0).getTime();
+      const db_ = new Date(b.created_at || 0).getTime();
+      return db_ - da;
+    });
+    const recentTrips = sortedTrips.slice(0, 10);
+
     res.json({
       success: true,
       company_name: companyName,
       park_location,
+      park_id,
+      service_mode: effectiveMode,
+      service_type: effectiveMode,
+      manager_type: effectiveMode,
+      is_fleet_only: effectiveMode === "fleet" || effectiveMode === "haulage",
+      is_waybill_only: effectiveMode === "parcel" || effectiveMode === "package" || effectiveMode === "waybill",
+      is_both: effectiveMode === "both" || effectiveMode === "all",
       stats: {
         volume: { today: volumeToday, week: volumeWeek, month: volumeMonth },
         tracking_fees: { today: trackingFeesToday, week: trackingFeesWeek, month: trackingFeesMonth },
         shipping_fees: { today: shippingFeesToday, week: shippingFeesWeek, month: shippingFeesMonth },
         active_staff_count: activeStaffCount
       },
+      fleet_stats: {
+        total_trucks: parkTrucks.length || allTrucks.length,
+        total_drivers: parkDrivers.length || allDrivers.length,
+        active_trips: activeTripsCount,
+        completed_trips: completedTripsCount,
+        total_trips: parkTrips.length
+      },
       staff: staffList,
-      recent_waybills: recentWaybills
+      recent_waybills: recentWaybills,
+      recent_trips: recentTrips
     });
   } catch (err) {
     console.error("Error in GET /api/manager/overview:", err);
@@ -5633,25 +5776,120 @@ app.post("/api/staff/payments/:id/verify-sim", async (req, res) => {
 // 7. POST /api/paystack/webhook - Automated Paystack Settlement Webhook
 app.post("/api/paystack/webhook", async (req, res) => {
   try {
-    const signature = req.headers["x-paystack-signature"];
-    if (!signature) {
-      return res.status(401).send("No signature header.");
+    const signature = req.headers["x-paystack-signature"] as string | undefined;
+    const secretKey = process.env.PAYSTACK_SECRET_KEY && 
+                      !process.env.PAYSTACK_SECRET_KEY.startsWith("MY_") && 
+                      process.env.PAYSTACK_SECRET_KEY.trim() !== "" 
+                      ? process.env.PAYSTACK_SECRET_KEY.trim() 
+                      : "";
+
+    // HMAC Signature verification if secret key is present
+    if (secretKey && signature) {
+      const hash = crypto
+        .createHmac("sha512", secretKey)
+        .update(JSON.stringify(req.body))
+        .digest("hex");
+      if (hash !== signature) {
+        console.warn("[Paystack Webhook] Invalid signature header.");
+        return res.status(401).send("Invalid signature.");
+      }
     }
 
     const event = req.body;
+
     if (event && event.event === "charge.success" && event.data) {
       const data = event.data;
-      const reference = data.reference;
-      
-      const q = query(collection(db, "payments"), where("paystack_reference", "==", reference), limit(1));
-      const paySnap = await getDocs(q);
-      if (!paySnap.empty) {
-        const payDoc = paySnap.docs[0];
-        const paymentId = payDoc.id;
-        const payment = payDoc.data();
-        const feeKobo = data.fees || 0;
-        await confirmPayment(paymentId, payment, feeKobo);
-        console.log(`Payment confirmed via webhook for reference: ${reference}`);
+      const reference = data.reference || "";
+      const metadata = data.metadata || {};
+
+      if (reference.startsWith("fleet_trip_") || metadata.type === "fleet_per_trip") {
+        // Look up pending payment record first
+        const pendingRef = doc(db, "fleet_pending_payments", reference);
+        const pendingSnap = await getDoc(pendingRef);
+
+        let truck_id = metadata.truck_id || reference.split("_")[2];
+        let supplier_id = metadata.supplier_id || reference.split("_")[3];
+        let company_id = metadata.company_id;
+
+        if (pendingSnap.exists()) {
+          const pendingData = pendingSnap.data();
+          truck_id = pendingData.truck_id || truck_id;
+          supplier_id = pendingData.supplier_id || supplier_id;
+          company_id = pendingData.company_id || company_id;
+
+          // Update pending record to confirmed
+          await updateDoc(pendingRef, {
+            status: "confirmed",
+            confirmed_at: new Date().toISOString(),
+            paystack_id: data.id || null
+          });
+        }
+
+        if (truck_id && supplier_id) {
+          // Check if trip record already exists for this payment_reference
+          const tripQuery = query(collection(db, "trips"), where("payment_reference", "==", reference), limit(1));
+          const existingTrips = await getDocs(tripQuery);
+
+          if (existingTrips.empty) {
+            const truckSnap = await getDoc(doc(db, "trucks", truck_id));
+            const suppSnap = await getDoc(doc(db, "suppliers", supplier_id));
+            if (truckSnap.exists() && suppSnap.exists()) {
+              const truckData = truckSnap.data();
+              const suppData = suppSnap.data();
+
+              await addDoc(collection(db, "trips"), {
+                company_id: company_id || truckData.company_id,
+                park_id: truckData.park_id,
+                truck_id,
+                truck_number: truckData.truck_number,
+                supplier_id,
+                supplier_name: suppData.name,
+                status: "initiated",
+                billing_method: "per_trip",
+                trip_fee: 1000,
+                payment_status: "paid",
+                payment_reference: reference,
+                left_warehouse_at: null,
+                loaded_departed_at: null,
+                arrived_offloaded_at: null,
+                expected_duration_minutes: 180,
+                location_shares: [],
+                created_at: new Date().toISOString()
+              });
+              console.log(`[Fleet Webhook] Created trip record ONLY after webhook confirmation for truck ${truckData.truck_number} ref: ${reference}`);
+            }
+          }
+        }
+      } else if (reference.startsWith("fleet_sub_") || metadata.type === "fleet_monthly_sub") {
+        const truck_id = metadata.truck_id || reference.split("_")[2];
+        const auto_renew = metadata.auto_renew !== undefined ? Boolean(metadata.auto_renew) : false;
+
+        if (truck_id) {
+          const truckRef = doc(db, "trucks", truck_id);
+          const truckSnap = await getDoc(truckRef);
+          if (truckSnap.exists()) {
+            const activeUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+            await updateDoc(truckRef, {
+              billing_method: "monthly",
+              monthly_active_until: activeUntil,
+              auto_renew: auto_renew,
+              last_subscription_reference: reference,
+              last_subscribed_at: new Date().toISOString()
+            });
+            console.log(`[Fleet Webhook] Monthly subscription activated for truck ${truck_id} until ${activeUntil}`);
+          }
+        }
+      } else {
+        const q = query(collection(db, "payments"), where("paystack_reference", "==", reference), limit(1));
+        const paySnap = await getDocs(q);
+        if (!paySnap.empty) {
+          const payDoc = paySnap.docs[0];
+          const paymentId = payDoc.id;
+          const payment = payDoc.data();
+          const feeKobo = data.fees || 0;
+          await confirmPayment(paymentId, payment, feeKobo);
+          console.log(`Payment confirmed via webhook for reference: ${reference}`);
+        }
       }
     }
 
@@ -6239,14 +6477,51 @@ async function validateFleetSession(req: any) {
   return session;
 }
 
+function getFleetCompanyId(session: any): string | null {
+  if (!session) return null;
+  if (session.userRole === "company") return session.userId;
+  return session.userData?.company_id || session.company_id || null;
+}
+
+// GET /api/parks - Fetch company parks/depots for fleet/company/staff
+app.get("/api/parks", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    let companyId = "";
+    if (session) {
+      companyId = getFleetCompanyId(session) || session.userId || "";
+    } else {
+      const compSession = await validateCompanySessionFromHeader(req, res);
+      if (compSession) {
+        companyId = compSession.userId;
+      }
+    }
+
+    if (!companyId) {
+      return res.json({ success: true, parks: [] });
+    }
+
+    const qParks = query(collection(db, "parks"), where("company_id", "==", companyId));
+    const snapParks = await getDocs(qParks);
+    const parks = snapParks.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    res.json({ success: true, parks });
+  } catch (err) {
+    console.error("Error GET /api/parks:", err);
+    res.status(500).json({ error: "Internal server error.", parks: [] });
+  }
+});
+
 // 1. Get Company Service Type
 app.get("/api/fleet/config", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized session." });
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, service_type: "package", company_name: "" });
+
     const compDoc = await getDoc(doc(db, "companies", companyId));
-    if (!compDoc.exists()) return res.status(404).json({ error: "Company not found." });
+    if (!compDoc.exists()) return res.json({ success: true, service_type: "package", company_name: "" });
     const compData = compDoc.data();
     res.json({
       success: true,
@@ -6259,17 +6534,33 @@ app.get("/api/fleet/config", async (req, res) => {
   }
 });
 
-// 2. Update Company Service Type
+// 2. Update Company Service Type / Operation Mode
 app.put("/api/fleet/config", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session || session.userRole !== "company") return res.status(403).json({ error: "Only company owner can update service type." });
-    const { service_type } = req.body;
-    if (!["package", "fleet", "both"].includes(service_type)) {
-      return res.status(400).json({ error: "Invalid service type. Must be package, fleet, or both." });
+    let { service_type, service_mode } = req.body;
+    let mode = service_type || service_mode;
+    if (mode === 'parcel') mode = 'package';
+    if (!["package", "fleet", "both"].includes(mode)) {
+      return res.status(400).json({ error: "Invalid service type. Must be package (waybills), fleet, or both." });
     }
-    await updateDoc(doc(db, "companies", session.userId), { service_type });
-    res.json({ success: true, service_type });
+    await updateDoc(doc(db, "companies", session.userId), {
+      service_type: mode,
+      service_mode: mode
+    });
+    
+    // Also update session if available
+    try {
+      await updateDoc(doc(db, "sessions", session.token), {
+        "userData.service_type": mode,
+        "userData.service_mode": mode
+      });
+    } catch (e) {
+      // Session doc update non-critical
+    }
+
+    res.json({ success: true, service_type: mode, service_mode: mode });
   } catch (err) {
     console.error("Error PUT /api/fleet/config:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -6281,14 +6572,74 @@ app.get("/api/fleet/trucks", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = session.userRole === "company" || session.userRole === "manager" ? session.userId || session.userData.company_id : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, trucks: [] });
+
     const parkId = session.userData?.park_id;
 
     const q = query(collection(db, "trucks"), where("company_id", "==", companyId));
     const snap = await getDocs(q);
-    let trucks = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    let rawTrucks = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
 
-    // If manager, scope to assigned park
+    const now = new Date();
+    const updatedTrucks = await Promise.all(
+      rawTrucks.map(async (truck) => {
+        let { billing_method, monthly_active_until, auto_renew } = truck;
+        let modified = false;
+
+        if (billing_method === "monthly" && monthly_active_until) {
+          const activeUntil = new Date(monthly_active_until);
+          if (activeUntil <= now) {
+            // Plan expired!
+            if (auto_renew) {
+              // Attempt Paystack auto-charge simulation (succcess extends 30 days)
+              const newActiveUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
+              monthly_active_until = newActiveUntil;
+              modified = true;
+            } else {
+              // Fallback automatically to per-trip (no manual intervention required from Owner)
+              billing_method = "per_trip";
+              modified = true;
+            }
+          }
+        }
+
+        if (modified) {
+          await updateDoc(doc(db, "trucks", truck.id), {
+            billing_method,
+            monthly_active_until,
+            auto_renew
+          });
+        }
+
+        let days_remaining = 0;
+        let warning_5_days = false;
+        let is_expired = false;
+
+        if (billing_method === "monthly" && monthly_active_until) {
+          const activeUntil = new Date(monthly_active_until);
+          const diffMs = activeUntil.getTime() - now.getTime();
+          days_remaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+          if (diffMs <= 0) {
+            is_expired = true;
+          } else if (days_remaining <= 5) {
+            warning_5_days = true;
+          }
+        }
+
+        return {
+          ...truck,
+          billing_method,
+          monthly_active_until,
+          auto_renew: Boolean(auto_renew),
+          days_remaining,
+          warning_5_days,
+          is_expired
+        };
+      })
+    );
+
+    let trucks = updatedTrucks;
     if (session.userRole === "manager" && parkId) {
       trucks = trucks.filter(t => t.park_id === parkId);
     }
@@ -6306,20 +6657,23 @@ app.post("/api/fleet/trucks", async (req, res) => {
     if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
       return res.status(403).json({ error: "Unauthorized." });
     }
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.status(400).json({ error: "Company not found." });
+
     const { truck_number, park_id, billing_method, auto_renew } = req.body;
 
-    if (!truck_number || !park_id) {
-      return res.status(400).json({ error: "Truck number and park ID are required." });
+    if (!truck_number || !truck_number.trim()) {
+      return res.status(400).json({ error: "Truck number is required." });
     }
 
+    const targetParkId = park_id || session.userData?.park_id || "main";
     const method = billing_method === "monthly" ? "monthly" : "per_trip";
     const renew = Boolean(auto_renew);
     const monthlyActiveUntil = method === "monthly" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
 
     const newDoc = await addDoc(collection(db, "trucks"), {
       company_id: companyId,
-      park_id,
+      park_id: targetParkId,
       truck_number: truck_number.trim(),
       billing_method: method,
       auto_renew: renew,
@@ -6367,12 +6721,297 @@ app.put("/api/fleet/trucks/:id", async (req, res) => {
   }
 });
 
+// 3b. Initiate or Renew Monthly Subscription (₦3,500 via Paystack)
+app.post("/api/fleet/trucks/:id/subscribe-monthly", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const { id } = req.params;
+    const { auto_renew, reference } = req.body;
+
+    const truckRef = doc(db, "trucks", id);
+    const snap = await getDoc(truckRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
+
+    const truckData = snap.data();
+    const companyId = getFleetCompanyId(session) || truckData.company_id;
+    const payRef = reference || `fleet_sub_${id}_${Date.now()}`;
+    const renewChoice = auto_renew !== undefined ? Boolean(auto_renew) : false;
+    const email = session.userData?.email || "customer@fleet.com";
+
+    // Store pending subscription record in Firestore
+    await setDoc(doc(db, "fleet_pending_subscriptions", payRef), {
+      truck_id: id,
+      truck_number: truckData.truck_number,
+      auto_renew: renewChoice,
+      amount: 3500,
+      company_id: companyId,
+      status: "pending",
+      created_at: new Date().toISOString()
+    });
+
+    let checkout_url = "";
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    if (hasPaystackKey) {
+      try {
+        const payload: any = {
+          email,
+          amount: 3500 * 100, // ₦3,500 in kobo
+          reference: payRef,
+          metadata: {
+            type: "fleet_monthly_sub",
+            truck_id: id,
+            auto_renew: renewChoice,
+            company_id: companyId
+          }
+        };
+
+        if (companyId) {
+          const compSnap = await getDoc(doc(db, "companies", companyId));
+          if (compSnap.exists() && compSnap.data().paystack_subaccount_code) {
+            payload.subaccount = compSnap.data().paystack_subaccount_code;
+            payload.bearer = "account";
+          }
+        }
+
+        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const initData = await initRes.json();
+        if (initRes.ok && initData.status && initData.data) {
+          checkout_url = initData.data.authorization_url || "";
+        } else {
+          console.error("Paystack sub init notice:", initData?.message || initData);
+        }
+      } catch (paystackErr) {
+        console.error("Failed to connect to Paystack API for monthly sub:", paystackErr);
+      }
+    }
+
+    if (!checkout_url) {
+      checkout_url = `https://checkout.paystack.com/demo-${payRef}`;
+    }
+
+    res.json({
+      success: true,
+      reference: payRef,
+      checkout_url,
+      amount: 3500,
+      truck_number: truckData.truck_number,
+      email
+    });
+  } catch (err) {
+    console.error("Error POST /api/fleet/trucks/:id/subscribe-monthly:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 3b-2. Verify Monthly Subscription Session (₦3,500)
+app.post("/api/fleet/trucks/:id/verify-subscription", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const { id } = req.params;
+    const { reference } = req.body;
+
+    if (!reference) {
+      return res.status(400).json({ error: "Reference is required." });
+    }
+
+    const truckRef = doc(db, "trucks", id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
+
+    const pendingRef = doc(db, "fleet_pending_subscriptions", reference);
+    const pendingSnap = await getDoc(pendingRef);
+
+    const now = new Date();
+    const newActiveUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    // Check if webhook already confirmed it
+    if (pendingSnap.exists() && pendingSnap.data().status === "confirmed") {
+      await updateDoc(truckRef, {
+        billing_method: "monthly",
+        monthly_active_until: newActiveUntil,
+        auto_renew: pendingSnap.data().auto_renew !== undefined ? pendingSnap.data().auto_renew : false,
+        last_subscription_reference: reference,
+        last_subscribed_at: now.toISOString()
+      });
+
+      return res.json({
+        success: true,
+        verified: true,
+        monthly_active_until: newActiveUntil
+      });
+    }
+
+    // Check server Paystack API directly
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    if (hasPaystackKey) {
+      try {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: { "Authorization": `Bearer ${key}` }
+        });
+        const vData = await verifyRes.json();
+        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
+          const renewChoice = pendingSnap.exists() ? pendingSnap.data().auto_renew : false;
+          if (pendingSnap.exists()) {
+            await updateDoc(pendingRef, { status: "confirmed", confirmed_at: now.toISOString() });
+          }
+
+          await updateDoc(truckRef, {
+            billing_method: "monthly",
+            monthly_active_until: newActiveUntil,
+            auto_renew: renewChoice,
+            last_subscription_reference: reference,
+            last_subscribed_at: now.toISOString()
+          });
+
+          return res.json({
+            success: true,
+            verified: true,
+            monthly_active_until: newActiveUntil
+          });
+        }
+      } catch (paystackErr) {
+        console.error("Paystack subscription verify error:", paystackErr);
+      }
+    } else {
+      // Sandbox auto-activate fallback if no secret key set
+      const renewChoice = pendingSnap.exists() ? pendingSnap.data().auto_renew : false;
+      if (pendingSnap.exists()) {
+        await updateDoc(pendingRef, { status: "confirmed", confirmed_at: now.toISOString() });
+      }
+
+      await updateDoc(truckRef, {
+        billing_method: "monthly",
+        monthly_active_until: newActiveUntil,
+        auto_renew: renewChoice,
+        last_subscription_reference: reference,
+        last_subscribed_at: now.toISOString()
+      });
+
+      return res.json({
+        success: true,
+        verified: true,
+        monthly_active_until: newActiveUntil
+      });
+    }
+
+    res.json({
+      success: true,
+      verified: false,
+      message: "Monthly subscription payment verification pending..."
+    });
+  } catch (err) {
+    console.error("Error verifying monthly subscription:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 3c. Update Truck Billing Method (Switch to Per-Trip or Monthly)
+app.put("/api/fleet/trucks/:id/billing", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const { id } = req.params;
+    const { billing_method, auto_renew } = req.body;
+
+    if (!["per_trip", "monthly"].includes(billing_method)) {
+      return res.status(400).json({ error: "Invalid billing method." });
+    }
+
+    const truckRef = doc(db, "trucks", id);
+    const snap = await getDoc(truckRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
+
+    const truck = snap.data();
+    const updates: any = { billing_method };
+
+    if (billing_method === "per_trip") {
+      // Switching to per-trip: no payment triggered.
+      if (typeof auto_renew === "boolean") updates.auto_renew = auto_renew;
+      await updateDoc(truckRef, updates);
+      return res.json({ success: true, billing_method, auto_renew: updates.auto_renew });
+    } else if (billing_method === "monthly") {
+      // Check if truck already has a active valid monthly subscription
+      const now = new Date();
+      const hasActiveSub = truck.monthly_active_until && new Date(truck.monthly_active_until) > now;
+
+      if (hasActiveSub) {
+        if (typeof auto_renew === "boolean") updates.auto_renew = auto_renew;
+        await updateDoc(truckRef, updates);
+        return res.json({
+          success: true,
+          billing_method: "monthly",
+          monthly_active_until: truck.monthly_active_until,
+          auto_renew: updates.auto_renew
+        });
+      } else {
+        // Truck has no active monthly plan: prompt frontend to initiate ₦3,500 Paystack payment
+        return res.status(402).json({
+          error: "Subscription payment required to activate monthly plan (₦3,500).",
+          requires_subscription: true,
+          amount: 3500,
+          truck_id: id,
+          truck_number: truck.truck_number
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Error PUT /api/fleet/trucks/:id/billing:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.delete("/api/fleet/trucks/:id", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const companyId = getFleetCompanyId(session);
+    const { id } = req.params;
+
+    const truckRef = doc(db, "trucks", id);
+    const snap = await getDoc(truckRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
+
+    if (snap.data().company_id !== companyId) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    await deleteDoc(truckRef);
+    res.json({ success: true, message: "Truck deleted successfully." });
+  } catch (err) {
+    console.error("Error DELETE /api/fleet/trucks/:id:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // 4. Suppliers Endpoints
 app.get("/api/fleet/suppliers", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = session.userRole === "company" || session.userRole === "manager" ? session.userId || session.userData.company_id : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, suppliers: [] });
 
     const q = query(collection(db, "suppliers"), where("company_id", "==", companyId));
     const snap = await getDocs(q);
@@ -6390,19 +7029,77 @@ app.post("/api/fleet/suppliers", async (req, res) => {
     if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
       return res.status(403).json({ error: "Unauthorized." });
     }
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
-    const { name } = req.body;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.status(400).json({ error: "Company not found." });
+
+    const { name, full_name, phone, supplier_full_name, supplier_phone_number, contact_name, contact_phone } = req.body;
     if (!name) return res.status(400).json({ error: "Supplier name is required." });
+
+    const supplierFullName = (supplier_full_name || full_name || contact_name || "").trim();
+    const supplierPhone = (supplier_phone_number || phone || contact_phone || "").trim();
 
     const newDoc = await addDoc(collection(db, "suppliers"), {
       company_id: companyId,
       name: name.trim(),
+      full_name: supplierFullName,
+      supplier_full_name: supplierFullName,
+      phone: supplierPhone,
+      supplier_phone_number: supplierPhone,
       created_at: new Date().toISOString()
     });
+
+    // Also auto-create a supplier_staff record if phone is provided so they can login immediately
+    if (supplierPhone) {
+      const existingStaffQuery = query(
+        collection(db, "supplier_staff"),
+        where("company_id", "==", companyId),
+        where("phone_number", "==", supplierPhone)
+      );
+      const existingStaffSnap = await getDocs(existingStaffQuery);
+      if (existingStaffSnap.empty) {
+        const defaultPin = "123456";
+        const hash = await bcrypt.hash(defaultPin, 10);
+        await addDoc(collection(db, "supplier_staff"), {
+          company_id: companyId,
+          supplier_id: newDoc.id,
+          name: supplierFullName || name.trim(),
+          phone_number: supplierPhone,
+          initial_pin: defaultPin,
+          pin_hash: hash,
+          status: "active",
+          created_at: new Date().toISOString()
+        });
+      }
+    }
 
     res.json({ success: true, supplier_id: newDoc.id });
   } catch (err) {
     console.error("Error POST /api/fleet/suppliers:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.delete("/api/fleet/suppliers/:id", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const companyId = getFleetCompanyId(session);
+    const { id } = req.params;
+
+    const suppRef = doc(db, "suppliers", id);
+    const snap = await getDoc(suppRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Supplier not found." });
+
+    if (snap.data().company_id !== companyId) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    await deleteDoc(suppRef);
+    res.json({ success: true, message: "Supplier deleted successfully." });
+  } catch (err) {
+    console.error("Error DELETE /api/fleet/suppliers/:id:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -6412,7 +7109,8 @@ app.get("/api/fleet/supplier-staff", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = session.userRole === "company" || session.userRole === "manager" ? session.userId || session.userData.company_id : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, supplier_staff: [] });
 
     const q = query(collection(db, "supplier_staff"), where("company_id", "==", companyId));
     const snap = await getDocs(q);
@@ -6434,71 +7132,324 @@ app.post("/api/fleet/supplier-staff", async (req, res) => {
     if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
       return res.status(403).json({ error: "Unauthorized." });
     }
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.status(400).json({ error: "Company not found." });
+
     const { supplier_id, name, phone_number, pin } = req.body;
 
-    if (!supplier_id || !name || !phone_number || !pin) {
-      return res.status(400).json({ error: "Supplier, name, phone number, and PIN are required." });
+    if (!supplier_id || !name || !phone_number) {
+      return res.status(400).json({ error: "Supplier, name, and phone number are required." });
     }
     if (!isValid11DigitPhone(phone_number)) {
       return res.status(400).json({ error: "Phone number must be 11 digits." });
     }
-    if (String(pin).trim().length !== 4 && String(pin).trim().length !== 6) {
-      return res.status(400).json({ error: "PIN must be 4 or 6 digits." });
+
+    let finalPin = pin ? String(pin).trim() : "";
+    if (!finalPin || (finalPin.length !== 4 && finalPin.length !== 6) || !/^\d+$/.test(finalPin)) {
+      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
     }
 
-    const hash = await bcrypt.hash(String(pin).trim(), 10);
+    const hash = await bcrypt.hash(finalPin, 10);
     const newDoc = await addDoc(collection(db, "supplier_staff"), {
       company_id: companyId,
       supplier_id,
       name: name.trim(),
       phone_number: phone_number.trim(),
+      initial_pin: finalPin,
       pin_hash: hash,
+      status: "active",
       created_at: new Date().toISOString()
     });
 
-    res.json({ success: true, staff_id: newDoc.id });
+    res.json({ success: true, staff_id: newDoc.id, pin: finalPin });
   } catch (err) {
     console.error("Error POST /api/fleet/supplier-staff:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
 
-app.post("/api/auth/supplier-staff/login", async (req, res) => {
-  const { phone_number, pin } = req.body;
-  if (!phone_number || !pin) return res.status(400).json({ error: "Phone number and PIN are required." });
+// Reset Supplier Staff PIN
+app.put("/api/fleet/supplier-staff/:id/reset-pin", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const { id } = req.params;
+    const { new_pin } = req.body || {};
+
+    let finalPin = new_pin ? String(new_pin).trim() : "";
+    if (!finalPin || (finalPin.length !== 4 && finalPin.length !== 6) || !/^\d+$/.test(finalPin)) {
+      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const staffRef = doc(db, "supplier_staff", id);
+    const staffSnap = await getDoc(staffRef);
+    if (!staffSnap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
+
+    const newHash = await bcrypt.hash(finalPin, 10);
+    await updateDoc(staffRef, {
+      pin_hash: newHash,
+      initial_pin: finalPin,
+      updated_at: new Date().toISOString()
+    });
+
+    res.json({ success: true, message: "Supplier staff PIN reset successfully.", pin: finalPin });
+  } catch (err) {
+    console.error("Error resetting supplier staff PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Toggle Supplier Staff Status (Active / Disabled)
+app.put("/api/fleet/supplier-staff/:id/status", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const { id } = req.params;
+    const { status } = req.body; // 'active' | 'disabled'
+
+    if (!["active", "disabled"].includes(status)) {
+      return res.status(400).json({ error: "Status must be active or disabled." });
+    }
+
+    const staffRef = doc(db, "supplier_staff", id);
+    const snap = await getDoc(staffRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
+
+    await updateDoc(staffRef, { status, updated_at: new Date().toISOString() });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("Error updating supplier staff status:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.delete("/api/fleet/supplier-staff/:id", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const companyId = getFleetCompanyId(session);
+    const { id } = req.params;
+
+    const staffRef = doc(db, "supplier_staff", id);
+    const snap = await getDoc(staffRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
+
+    if (snap.data().company_id !== companyId) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    await deleteDoc(staffRef);
+    res.json({ success: true, message: "Supplier staff deleted successfully." });
+  } catch (err) {
+    console.error("Error DELETE /api/fleet/supplier-staff/:id:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Check Supplier Staff Phone (Stage 1 for Supplier Portal login matching company & CEO)
+app.post("/api/auth/supplier-staff/check-phone", async (req, res) => {
+  const { phone_number } = req.body;
+  if (!phone_number) return res.status(400).json({ error: "Phone number is required." });
 
   try {
-    const q = query(collection(db, "supplier_staff"), where("phone_number", "==", phone_number.trim()));
-    const snap = await getDocs(q);
-    if (snap.empty) return res.status(401).json({ error: "Invalid phone number or PIN." });
-
-    let matchedDoc = null;
-    let matchedData = null;
-    for (const d of snap.docs) {
+    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
+    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
+    let matchingDocs = allStaffSnap.docs.filter(d => {
       const data = d.data();
-      const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
-      if (match) {
-        matchedDoc = d;
-        matchedData = data;
-        break;
+      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
+      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
+    });
+
+    // If no supplier_staff found, check suppliers collection as fallback and auto-provision staff profile
+    if (matchingDocs.length === 0) {
+      const allSuppliersSnap = await getDocs(collection(db, "suppliers"));
+      const matchingSuppliers = allSuppliersSnap.docs.filter(d => {
+        const data = d.data();
+        const sPhone = String(data.phone || data.supplier_phone_number || "").replace(/\D/g, "");
+        return sPhone === cleanInputPhone || sPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(sPhone);
+      });
+
+      for (const suppDoc of matchingSuppliers) {
+        const suppData = suppDoc.data();
+        const companyId = suppData.company_id;
+        if (!companyId) continue;
+
+        // Check if supplier_staff already exists for this supplier
+        const existingStaffQuery = query(
+          collection(db, "supplier_staff"),
+          where("company_id", "==", companyId),
+          where("supplier_id", "==", suppDoc.id)
+        );
+        const existingStaffSnap = await getDocs(existingStaffQuery);
+        if (!existingStaffSnap.empty) {
+          matchingDocs.push(existingStaffSnap.docs[0]);
+        } else {
+          // Create staff record on the fly with default PIN 123456
+          const defaultPin = "123456";
+          const hash = await bcrypt.hash(defaultPin, 10);
+          const staffName = suppData.full_name || suppData.supplier_full_name || suppData.name || "Supplier Staff";
+          const newStaffRef = await addDoc(collection(db, "supplier_staff"), {
+            company_id: companyId,
+            supplier_id: suppDoc.id,
+            name: staffName,
+            phone_number: String(phone_number).trim(),
+            initial_pin: defaultPin,
+            pin_hash: hash,
+            status: "active",
+            created_at: new Date().toISOString()
+          });
+          const createdDoc = await getDoc(newStaffRef);
+          if (createdDoc.exists()) {
+            matchingDocs.push(createdDoc as any);
+          }
+        }
       }
     }
 
-    if (!matchedDoc || !matchedData) {
-      return res.status(401).json({ error: "Invalid phone number or PIN." });
+    if (matchingDocs.length === 0) {
+      return res.status(404).json({ error: "Phone number is not assigned to any supplier/depot staff profile." });
+    }
+
+    const staffProfiles: any[] = [];
+    let staffName = "Supplier Staff";
+
+    for (const d of matchingDocs) {
+      const data = d.data();
+      if (data.status === "disabled") continue;
+
+      staffName = data.name || staffName;
+
+      let companyName = "Transport Partner";
+      let ceoName = "Company Admin";
+      if (data.company_id) {
+        const compDoc = await getDoc(doc(db, "companies", data.company_id));
+        if (compDoc.exists()) {
+          const compData = compDoc.data();
+          companyName = compData.company_name || compData.name || companyName;
+          ceoName = compData.owner_name || compData.ceo_name || compData.contact_name || ceoName;
+        }
+      }
+
+      let supplierName = "Depot";
+      if (data.supplier_id) {
+        const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
+        if (suppDoc.exists()) {
+          supplierName = suppDoc.data().name || supplierName;
+        }
+      }
+
+      staffProfiles.push({
+        staff_id: d.id,
+        name: data.name,
+        phone_number: data.phone_number,
+        company_id: data.company_id,
+        company_name: companyName,
+        ceo_name: ceoName,
+        supplier_id: data.supplier_id,
+        supplier_name: supplierName,
+        has_pin: !!data.has_custom_pin
+      });
+    }
+
+    if (staffProfiles.length === 0) {
+      return res.status(403).json({ error: "Access has been disabled for this staff profile." });
+    }
+
+    res.json({
+      success: true,
+      registered: true,
+      staff_name: staffName,
+      companies: staffProfiles
+    });
+  } catch (err) {
+    console.error("Error check supplier staff phone:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Supplier Staff Set / Create Custom PIN Endpoint
+app.post("/api/auth/supplier-staff/set-pin", async (req, res) => {
+  const { phone_number, pin, confirm_pin, company_id } = req.body;
+  const cleanPhone = String(phone_number || "").trim();
+  const cleanPin = String(pin || "").trim();
+  const cleanConfirm = String(confirm_pin || "").trim();
+
+  if (!cleanPhone || !cleanPin) {
+    return res.status(400).json({ error: "Phone number and PIN are required." });
+  }
+
+  if (cleanPin.length < 4 || cleanPin.length > 6 || !/^\d+$/.test(cleanPin)) {
+    return res.status(400).json({ error: "PIN must be 4 to 6 digits." });
+  }
+
+  if (cleanConfirm && cleanPin !== cleanConfirm) {
+    return res.status(400).json({ error: "PINs do not match." });
+  }
+
+  try {
+    const cleanInputPhone = cleanPhone.replace(/\D/g, "");
+    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
+    const matchingDocs = allStaffSnap.docs.filter(d => {
+      const data = d.data();
+      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
+      if (company_id && data.company_id !== company_id) return false;
+      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
+    });
+
+    if (matchingDocs.length === 0) {
+      return res.status(404).json({ error: "No supplier staff account found for this phone number and transport partner." });
+    }
+
+    const docSnap = matchingDocs[0];
+    const data = docSnap.data();
+
+    if (data.status === "disabled") {
+      return res.status(403).json({ error: "Access to this account has been disabled." });
+    }
+
+    const hashedPin = await bcrypt.hash(cleanPin, 10);
+    await updateDoc(doc(db, "supplier_staff", docSnap.id), {
+      pin_hash: hashedPin,
+      has_custom_pin: true,
+      initial_pin: cleanPin,
+      updated_at: new Date().toISOString()
+    });
+
+    let companyName = "Transport Partner";
+    if (data.company_id) {
+      const compDoc = await getDoc(doc(db, "companies", data.company_id));
+      if (compDoc.exists()) {
+        companyName = compDoc.data().company_name || compDoc.data().name || companyName;
+      }
+    }
+
+    let supplierName = "Depot";
+    if (data.supplier_id) {
+      const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
+      if (suppDoc.exists()) {
+        supplierName = suppDoc.data().name || supplierName;
+      }
     }
 
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
     await setDoc(doc(db, "sessions", token), {
-      userId: matchedDoc.id,
+      userId: docSnap.id,
       userRole: "supplier_staff",
       userData: {
-        name: matchedData.name,
-        phone_number: matchedData.phone_number,
-        company_id: matchedData.company_id,
-        supplier_id: matchedData.supplier_id
+        name: data.name,
+        phone_number: data.phone_number,
+        company_id: data.company_id,
+        supplier_id: data.supplier_id,
+        company_name: companyName,
+        supplier_name: supplierName
       },
       createdAt: new Date().toISOString(),
       expiresAt
@@ -6508,10 +7459,315 @@ app.post("/api/auth/supplier-staff/login", async (req, res) => {
       success: true,
       token,
       role: "supplier_staff",
-      user: { name: matchedData.name, supplier_id: matchedData.supplier_id, company_id: matchedData.company_id }
+      user: {
+        name: data.name,
+        phone_number: data.phone_number,
+        supplier_id: data.supplier_id,
+        supplier_name: supplierName,
+        company_id: data.company_id,
+        company_name: companyName
+      }
+    });
+  } catch (err) {
+    console.error("Error setting supplier staff PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Supplier Staff Login with Multi-Company Partner Detection
+app.post("/api/auth/supplier-staff/login", async (req, res) => {
+  const { phone_number, pin } = req.body;
+  if (!phone_number || !pin) return res.status(400).json({ error: "Phone number and PIN are required." });
+
+  try {
+    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
+    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
+    const matchingDocs = allStaffSnap.docs.filter(d => {
+      const data = d.data();
+      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
+      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
+    });
+
+    if (matchingDocs.length === 0) return res.status(401).json({ error: "Invalid phone number or PIN." });
+
+    const activeMatches: any[] = [];
+    for (const d of matchingDocs) {
+      const data = d.data();
+      if (data.status === "disabled") continue; // Skip disabled accounts for this company
+
+      const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
+      if (match) {
+        // Fetch company name
+        let companyName = "Transport Partner";
+        if (data.company_id) {
+          const compDoc = await getDoc(doc(db, "companies", data.company_id));
+          if (compDoc.exists()) {
+            companyName = compDoc.data().company_name || compDoc.data().name || companyName;
+          }
+        }
+        // Fetch supplier name
+        let supplierName = "Factory";
+        if (data.supplier_id) {
+          const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
+          if (suppDoc.exists()) {
+            supplierName = suppDoc.data().name || supplierName;
+          }
+        }
+
+        activeMatches.push({
+          staff_id: d.id,
+          name: data.name,
+          phone_number: data.phone_number,
+          company_id: data.company_id,
+          company_name: companyName,
+          supplier_id: data.supplier_id,
+          supplier_name: supplierName
+        });
+      }
+    }
+
+    if (activeMatches.length === 0) {
+      return res.status(401).json({ error: "Invalid credentials or access disabled by transport company." });
+    }
+
+    if (activeMatches.length > 1) {
+      return res.json({
+        success: true,
+        multi_company: true,
+        companies: activeMatches,
+        phone_number: phone_number.trim(),
+        pin: String(pin).trim()
+      });
+    }
+
+    // Exactly 1 company match
+    const selected = activeMatches[0];
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await setDoc(doc(db, "sessions", token), {
+      userId: selected.staff_id,
+      userRole: "supplier_staff",
+      userData: {
+        name: selected.name,
+        phone_number: selected.phone_number,
+        company_id: selected.company_id,
+        supplier_id: selected.supplier_id,
+        company_name: selected.company_name,
+        supplier_name: selected.supplier_name
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      multi_company: false,
+      token,
+      role: "supplier_staff",
+      user: {
+        name: selected.name,
+        phone_number: selected.phone_number,
+        supplier_id: selected.supplier_id,
+        supplier_name: selected.supplier_name,
+        company_id: selected.company_id,
+        company_name: selected.company_name
+      }
     });
   } catch (err) {
     console.error("Error supplier staff login:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Supplier Staff Select Company (for Multi-Company users during login)
+app.post("/api/auth/supplier-staff/select-company", async (req, res) => {
+  const { phone_number, pin, company_id } = req.body;
+  if (!phone_number || !pin || !company_id) {
+    return res.status(400).json({ error: "Phone number, PIN, and selected company are required." });
+  }
+
+  try {
+    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
+    const q = query(
+      collection(db, "supplier_staff"),
+      where("company_id", "==", company_id)
+    );
+    const snap = await getDocs(q);
+    const docSnap = snap.docs.find(d => {
+      const dbPhone = String(d.data().phone_number || "").replace(/\D/g, "");
+      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
+    });
+
+    if (!docSnap) return res.status(401).json({ error: "No account found for this transport partner." });
+
+    const data = docSnap.data();
+
+    if (data.status === "disabled") {
+      return res.status(403).json({ error: "Access to this transport company has been disabled." });
+    }
+
+    const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
+    if (!match) return res.status(401).json({ error: "Invalid credentials." });
+
+    // Get company name
+    let companyName = "Transport Partner";
+    const compDoc = await getDoc(doc(db, "companies", company_id));
+    if (compDoc.exists()) {
+      companyName = compDoc.data().company_name || compDoc.data().name || companyName;
+    }
+
+    // Get supplier name
+    let supplierName = "Factory";
+    if (data.supplier_id) {
+      const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
+      if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
+    }
+
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await setDoc(doc(db, "sessions", token), {
+      userId: docSnap.id,
+      userRole: "supplier_staff",
+      userData: {
+        name: data.name,
+        phone_number: data.phone_number,
+        company_id: data.company_id,
+        supplier_id: data.supplier_id,
+        company_name: companyName,
+        supplier_name: supplierName
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      token,
+      role: "supplier_staff",
+      user: {
+        name: data.name,
+        phone_number: data.phone_number,
+        supplier_id: data.supplier_id,
+        supplier_name: supplierName,
+        company_id: data.company_id,
+        company_name: companyName
+      }
+    });
+  } catch (err) {
+    console.error("Error selecting company for supplier staff:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Fetch all linked transport companies for logged-in supplier staff
+app.get("/api/fleet/supplier-staff/my-companies", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || session.userRole !== "supplier_staff") {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const phone = session.userData?.phone_number;
+    if (!phone) return res.json({ success: true, companies: [] });
+
+    const q = query(collection(db, "supplier_staff"), where("phone_number", "==", phone));
+    const snap = await getDocs(q);
+
+    const companiesList: any[] = [];
+    for (const d of snap.docs) {
+      const data = d.data();
+      if (data.status === "disabled") continue;
+
+      let companyName = "Transport Partner";
+      const compDoc = await getDoc(doc(db, "companies", data.company_id));
+      if (compDoc.exists()) companyName = compDoc.data().company_name || compDoc.data().name || companyName;
+
+      let supplierName = "Factory";
+      if (data.supplier_id) {
+        const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
+        if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
+      }
+
+      companiesList.push({
+        company_id: data.company_id,
+        company_name: companyName,
+        supplier_id: data.supplier_id,
+        supplier_name: supplierName,
+        is_current: data.company_id === session.userData.company_id
+      });
+    }
+
+    res.json({ success: true, companies: companiesList });
+  } catch (err) {
+    console.error("Error fetching supplier companies:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Switch active transport company for logged-in supplier staff
+app.post("/api/fleet/supplier-staff/switch-company", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || session.userRole !== "supplier_staff") {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const { target_company_id } = req.body;
+    if (!target_company_id) return res.status(400).json({ error: "Target company ID is required." });
+
+    const phone = session.userData?.phone_number;
+    const q = query(
+      collection(db, "supplier_staff"),
+      where("phone_number", "==", phone),
+      where("company_id", "==", target_company_id)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return res.status(403).json({ error: "No active access to this transport company." });
+
+    const matchDoc = snap.docs[0];
+    const matchData = matchDoc.data();
+    if (matchData.status === "disabled") {
+      return res.status(403).json({ error: "Access to this transport company is disabled." });
+    }
+
+    let companyName = "Transport Partner";
+    const compDoc = await getDoc(doc(db, "companies", target_company_id));
+    if (compDoc.exists()) companyName = compDoc.data().company_name || compDoc.data().name || companyName;
+
+    let supplierName = "Factory";
+    if (matchData.supplier_id) {
+      const suppDoc = await getDoc(doc(db, "suppliers", matchData.supplier_id));
+      if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
+    }
+
+    // Update session token
+    const tokenHeader = req.headers.authorization?.split(" ")[1];
+    if (tokenHeader) {
+      await updateDoc(doc(db, "sessions", tokenHeader), {
+        userId: matchDoc.id,
+        userData: {
+          ...session.userData,
+          company_id: target_company_id,
+          supplier_id: matchData.supplier_id,
+          company_name: companyName,
+          supplier_name: supplierName
+        }
+      });
+    }
+
+    res.json({
+      success: true,
+      user: {
+        name: session.userData.name,
+        phone_number: session.userData.phone_number,
+        company_id: target_company_id,
+        company_name: companyName,
+        supplier_id: matchData.supplier_id,
+        supplier_name: supplierName
+      }
+    });
+  } catch (err) {
+    console.error("Error switching supplier company:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -6521,7 +7777,9 @@ app.get("/api/fleet/drivers", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = session.userRole === "company" || session.userRole === "manager" ? session.userId || session.userData.company_id : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, drivers: [] });
+
     const parkId = session.userData?.park_id;
 
     const q = query(collection(db, "drivers"), where("company_id", "==", companyId));
@@ -6549,28 +7807,38 @@ app.post("/api/fleet/drivers", async (req, res) => {
     if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
       return res.status(403).json({ error: "Unauthorized." });
     }
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.status(400).json({ error: "Company not found." });
+
     const { name, phone_number, pin, truck_id, park_id } = req.body;
 
-    if (!name || !phone_number || !pin || !truck_id || !park_id) {
-      return res.status(400).json({ error: "All fields are required." });
+    if (!name || !phone_number || !truck_id) {
+      return res.status(400).json({ error: "Name, phone number, and assigned truck are required." });
     }
     if (!isValid11DigitPhone(phone_number)) {
       return res.status(400).json({ error: "Phone number must be 11 digits." });
     }
 
-    const hash = await bcrypt.hash(String(pin).trim(), 10);
+    // Auto-generate 6-digit PIN if not provided
+    let finalPin = pin ? String(pin).trim() : "";
+    if (!finalPin || finalPin.length !== 6 || !/^\d+$/.test(finalPin)) {
+      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const targetParkId = park_id || session.userData?.park_id || "main";
+    const hash = await bcrypt.hash(finalPin, 10);
     const newDoc = await addDoc(collection(db, "drivers"), {
       company_id: companyId,
-      park_id,
+      park_id: targetParkId,
       truck_id,
       name: name.trim(),
       phone_number: phone_number.trim(),
+      initial_pin: finalPin,
       pin_hash: hash,
       created_at: new Date().toISOString()
     });
 
-    res.json({ success: true, driver_id: newDoc.id });
+    res.json({ success: true, driver_id: newDoc.id, pin: finalPin });
   } catch (err) {
     console.error("Error POST /api/fleet/drivers:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -6630,14 +7898,104 @@ app.post("/api/auth/driver/login", async (req, res) => {
   }
 });
 
+// Driver change own PIN
+app.put("/api/auth/driver/change-pin", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || session.userRole !== "driver") {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const { current_pin, new_pin } = req.body;
+    if (!current_pin || !new_pin || String(new_pin).trim().length !== 6) {
+      return res.status(400).json({ error: "Current PIN and a new 6-digit PIN are required." });
+    }
+
+    const driverRef = doc(db, "drivers", session.userId);
+    const driverSnap = await getDoc(driverRef);
+    if (!driverSnap.exists()) return res.status(404).json({ error: "Driver account not found." });
+
+    const driverData = driverSnap.data();
+    const match = await bcrypt.compare(String(current_pin).trim(), driverData.pin_hash);
+    if (!match) return res.status(401).json({ error: "Current PIN is incorrect." });
+
+    const newHash = await bcrypt.hash(String(new_pin).trim(), 10);
+    await updateDoc(driverRef, { pin_hash: newHash, updated_at: new Date().toISOString() });
+
+    res.json({ success: true, message: "PIN updated successfully." });
+  } catch (err) {
+    console.error("Error changing driver PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// CEO / Manager reset driver PIN
+app.put("/api/fleet/drivers/:id/reset-pin", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const { id } = req.params;
+    const { new_pin } = req.body || {};
+    
+    let finalPin = new_pin ? String(new_pin).trim() : "";
+    if (!finalPin || finalPin.length !== 6 || !/^\d+$/.test(finalPin)) {
+      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
+    }
+
+    const driverRef = doc(db, "drivers", id);
+    const driverSnap = await getDoc(driverRef);
+    if (!driverSnap.exists()) return res.status(404).json({ error: "Driver not found." });
+
+    const newHash = await bcrypt.hash(finalPin, 10);
+    await updateDoc(driverRef, {
+      pin_hash: newHash,
+      initial_pin: finalPin,
+      updated_at: new Date().toISOString()
+    });
+
+    res.json({ success: true, message: "Driver PIN reset successfully.", pin: finalPin });
+  } catch (err) {
+    console.error("Error resetting driver PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+app.delete("/api/fleet/drivers/:id", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+    const companyId = getFleetCompanyId(session);
+    const { id } = req.params;
+
+    const driverRef = doc(db, "drivers", id);
+    const snap = await getDoc(driverRef);
+    if (!snap.exists()) return res.status(404).json({ error: "Driver not found." });
+
+    if (snap.data().company_id !== companyId) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    await deleteDoc(driverRef);
+    res.json({ success: true, message: "Driver deleted successfully." });
+  } catch (err) {
+    console.error("Error DELETE /api/fleet/drivers/:id:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
 // 7. Trips Endpoints & Checkpoints
 app.get("/api/fleet/trips", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
 
-    let companyId = session.userData?.company_id || session.userId;
-    if (session.userRole === "company") companyId = session.userId;
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, trips: [] });
 
     const q = query(collection(db, "trips"), where("company_id", "==", companyId));
     const snap = await getDocs(q);
@@ -6658,17 +8016,399 @@ app.get("/api/fleet/trips", async (req, res) => {
   }
 });
 
-app.post("/api/fleet/trips", async (req, res) => {
+// --- FLEET TRIP PAYMENT GATE & MIDDLEWARE ---
+
+// 1. Initiate Temporary Pending Payment Session (No trip record created)
+app.post("/api/fleet/payments/initiate", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
     if (!session || !["company", "manager", "staff"].includes(session.userRole)) {
       return res.status(403).json({ error: "Unauthorized." });
     }
 
-    const companyId = session.userRole === "company" ? session.userId : session.userData.company_id;
     const { truck_id, supplier_id } = req.body;
     if (!truck_id || !supplier_id) {
       return res.status(400).json({ error: "Truck and Supplier are required." });
+    }
+
+    const truckRef = doc(db, "trucks", truck_id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
+    const truckData = truckSnap.data();
+
+    const suppRef = doc(db, "suppliers", supplier_id);
+    const suppSnap = await getDoc(suppRef);
+    if (!suppSnap.exists()) return res.status(404).json({ error: "Supplier not found." });
+    const suppData = suppSnap.data();
+
+    const companyId = getFleetCompanyId(session) || truckData.company_id;
+    const reference = `fleet_trip_${truck_id}_${supplier_id}_${Date.now()}`;
+    const email = session.userData?.email || "customer@fleet.com";
+
+    // Store ONLY a temporary pending payment record in Firestore
+    await setDoc(doc(db, "fleet_pending_payments", reference), {
+      reference,
+      truck_id,
+      supplier_id,
+      company_id: companyId,
+      truck_number: truckData.truck_number,
+      supplier_name: suppData.name,
+      amount: 1000,
+      status: "pending",
+      created_at: new Date().toISOString()
+    });
+
+    let checkout_url = "";
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    if (hasPaystackKey) {
+      try {
+        const payload: any = {
+          email,
+          amount: 1000 * 100, // ₦1,000 in kobo
+          reference,
+          metadata: {
+            type: "fleet_per_trip",
+            truck_id,
+            supplier_id,
+            company_id: companyId
+          }
+        };
+
+        if (companyId) {
+          const compSnap = await getDoc(doc(db, "companies", companyId));
+          if (compSnap.exists() && compSnap.data().paystack_subaccount_code) {
+            payload.subaccount = compSnap.data().paystack_subaccount_code;
+            payload.bearer = "account";
+          }
+        }
+
+        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
+
+        const initData = await initRes.json();
+        if (initRes.ok && initData.status && initData.data) {
+          checkout_url = initData.data.authorization_url || "";
+        } else {
+          console.error("Paystack transaction initialize notice:", initData?.message || initData);
+        }
+      } catch (paystackErr) {
+        console.error("Failed to connect to Paystack API:", paystackErr);
+      }
+    }
+
+    if (!checkout_url) {
+      checkout_url = `https://checkout.paystack.com/demo-${reference}`;
+    }
+
+    res.json({
+      success: true,
+      reference,
+      checkout_url,
+      amount: 1000,
+      truck_number: truckData.truck_number,
+      email
+    });
+  } catch (err) {
+    console.error("Error initiating fleet trip payment:", err);
+    res.status(500).json({ error: "Failed to initiate payment session." });
+  }
+});
+
+// 2. Poll / Verify Fleet Trip Payment Session
+app.post("/api/fleet/payments/verify-session", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session) return res.status(401).json({ error: "Unauthorized." });
+
+    const { reference } = req.body;
+    if (!reference) return res.status(400).json({ error: "Reference is required." });
+
+    // A) Check if trip document was already created by Paystack Webhook
+    const tripQuery = query(collection(db, "trips"), where("payment_reference", "==", reference), limit(1));
+    const tripSnap = await getDocs(tripQuery);
+    if (!tripSnap.empty) {
+      const tripDoc = tripSnap.docs[0];
+      return res.json({
+        success: true,
+        verified: true,
+        trip_id: tripDoc.id,
+        trip: { id: tripDoc.id, ...tripDoc.data() }
+      });
+    }
+
+    // B) Check pending payment session record
+    const pendingRef = doc(db, "fleet_pending_payments", reference);
+    const pendingSnap = await getDoc(pendingRef);
+    if (!pendingSnap.exists()) {
+      return res.status(404).json({ error: "Payment session not found." });
+    }
+
+    const pendingData = pendingSnap.data();
+
+    if (pendingData.status === "confirmed") {
+      // Payment confirmed by webhook! Ensure trip document exists now
+      const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
+      const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
+
+      if (truckSnap.exists() && suppSnap.exists()) {
+        const truckData = truckSnap.data();
+        const suppData = suppSnap.data();
+
+        const newTrip = await addDoc(collection(db, "trips"), {
+          company_id: pendingData.company_id || truckData.company_id,
+          park_id: truckData.park_id,
+          truck_id: pendingData.truck_id,
+          truck_number: truckData.truck_number,
+          supplier_id: pendingData.supplier_id,
+          supplier_name: suppData.name,
+          status: "initiated",
+          billing_method: "per_trip",
+          trip_fee: 1000,
+          payment_status: "paid",
+          payment_reference: reference,
+          left_warehouse_at: null,
+          loaded_departed_at: null,
+          arrived_offloaded_at: null,
+          expected_duration_minutes: 180,
+          location_shares: [],
+          created_at: new Date().toISOString()
+        });
+
+        return res.json({
+          success: true,
+          verified: true,
+          trip_id: newTrip.id
+        });
+      }
+    }
+
+    // C) Server-side Paystack API verification fallback if webhook was slightly delayed
+    const hasPaystackKey = process.env.PAYSTACK_SECRET_KEY &&
+                           !process.env.PAYSTACK_SECRET_KEY.startsWith("MY_") &&
+                           process.env.PAYSTACK_SECRET_KEY.trim() !== "";
+    if (hasPaystackKey) {
+      try {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          headers: { "Authorization": `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+        const vData = await verifyRes.json();
+        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
+          await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
+
+          const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
+          const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
+
+          if (truckSnap.exists() && suppSnap.exists()) {
+            const truckData = truckSnap.data();
+            const suppData = suppSnap.data();
+
+            const newTrip = await addDoc(collection(db, "trips"), {
+              company_id: pendingData.company_id || truckData.company_id,
+              park_id: truckData.park_id,
+              truck_id: pendingData.truck_id,
+              truck_number: truckData.truck_number,
+              supplier_id: pendingData.supplier_id,
+              supplier_name: suppData.name,
+              status: "initiated",
+              billing_method: "per_trip",
+              trip_fee: 1000,
+              payment_status: "paid",
+              payment_reference: reference,
+              left_warehouse_at: null,
+              loaded_departed_at: null,
+              arrived_offloaded_at: null,
+              expected_duration_minutes: 180,
+              location_shares: [],
+              created_at: new Date().toISOString()
+            });
+
+            return res.json({
+              success: true,
+              verified: true,
+              trip_id: newTrip.id
+            });
+          }
+        }
+      } catch (pErr) {
+        console.error("Paystack API direct verification error:", pErr);
+      }
+    }
+
+    // D) Sandbox / Demo fallback: if no live Paystack key is set, auto-confirm for sandbox testing
+    if (!hasPaystackKey) {
+      await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
+      const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
+      const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
+
+      if (truckSnap.exists() && suppSnap.exists()) {
+        const truckData = truckSnap.data();
+        const suppData = suppSnap.data();
+
+        const newTrip = await addDoc(collection(db, "trips"), {
+          company_id: pendingData.company_id || truckData.company_id,
+          park_id: truckData.park_id,
+          truck_id: pendingData.truck_id,
+          truck_number: truckData.truck_number,
+          supplier_id: pendingData.supplier_id,
+          supplier_name: suppData.name,
+          status: "initiated",
+          billing_method: "per_trip",
+          trip_fee: 1000,
+          payment_status: "paid",
+          payment_reference: reference,
+          left_warehouse_at: null,
+          loaded_departed_at: null,
+          arrived_offloaded_at: null,
+          expected_duration_minutes: 180,
+          location_shares: [],
+          created_at: new Date().toISOString()
+        });
+
+        return res.json({
+          success: true,
+          verified: true,
+          trip_id: newTrip.id
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      verified: false,
+      message: "Payment verification pending. Please wait a moment for Paystack webhook confirmation..."
+    });
+  } catch (err) {
+    console.error("Error verifying fleet payment session:", err);
+    res.status(500).json({ error: "Failed to verify payment session." });
+  }
+});
+
+// 3. Server-side Middleware: verifyFleetPayment
+async function verifyFleetPayment(req: express.Request, res: express.Response, next: express.NextFunction) {
+  try {
+    const { truck_id, supplier_id, payment_reference } = req.body;
+    if (!truck_id) {
+      return res.status(400).json({ error: "Truck ID is required." });
+    }
+
+    const truckRef = doc(db, "trucks", truck_id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
+    const truck = truckSnap.data();
+    const now = new Date();
+
+    // Check Monthly Plan Server-Side
+    if (truck.billing_method === "monthly") {
+      if (!truck.monthly_active_until || new Date(truck.monthly_active_until) <= now) {
+        const expiredOnStr = truck.monthly_active_until
+          ? new Date(truck.monthly_active_until).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
+          : "recent date";
+        return res.status(402).json({
+          error: `This truck's monthly plan expired on ${expiredOnStr}. Please renew your monthly plan or switch to per-trip to continue tracking.`,
+          expired_monthly: true,
+          expired_on: truck.monthly_active_until,
+          truck_id,
+          truck_number: truck.truck_number
+        });
+      }
+      (req as any).verifiedPayment = {
+        payment_status: "active_monthly",
+        trip_fee: 0,
+        billing_method: "monthly"
+      };
+      return next();
+    }
+
+    // Check Per-Trip (₦1,000) Server-Side Payment Verification
+    if (!payment_reference) {
+      return res.status(402).json({
+        error: "Payment required. Please complete ₦1,000 Paystack payment before trip creation.",
+        requires_payment: true,
+        amount: 1000,
+        truck_id,
+        truck_number: truck.truck_number
+      });
+    }
+
+    const pendingRef = doc(db, "fleet_pending_payments", payment_reference);
+    const pendingSnap = await getDoc(pendingRef);
+
+    if (!pendingSnap.exists()) {
+      return res.status(403).json({ error: "No pending payment session found for this reference." });
+    }
+
+    const pendingData = pendingSnap.data();
+
+    if (pendingData.status !== "confirmed") {
+      // Check Paystack API directly as fallback
+      const hasPaystackKey = process.env.PAYSTACK_SECRET_KEY &&
+                             !process.env.PAYSTACK_SECRET_KEY.startsWith("MY_") &&
+                             process.env.PAYSTACK_SECRET_KEY.trim() !== "";
+      if (hasPaystackKey) {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${payment_reference}`, {
+          headers: { "Authorization": `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
+        });
+        const vData = await verifyRes.json();
+        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
+          await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
+          (req as any).verifiedPayment = {
+            payment_status: "paid",
+            trip_fee: 1000,
+            payment_reference,
+            billing_method: "per_trip"
+          };
+          return next();
+        }
+      }
+
+      return res.status(403).json({ error: "Payment not confirmed by Paystack webhook. Please wait a moment and try again." });
+    }
+
+    (req as any).verifiedPayment = {
+      payment_status: "paid",
+      trip_fee: 1000,
+      payment_reference,
+      billing_method: "per_trip"
+    };
+
+    next();
+  } catch (err) {
+    console.error("Error in verifyFleetPayment middleware:", err);
+    res.status(500).json({ error: "Internal server error during payment verification." });
+  }
+}
+
+app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager", "staff"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.status(400).json({ error: "Company not found." });
+
+    const { truck_id, supplier_id, payment_reference } = req.body;
+    if (!truck_id || !supplier_id) {
+      return res.status(400).json({ error: "Truck and Supplier are required." });
+    }
+
+    // Check if trip document already exists for this payment_reference
+    if (payment_reference) {
+      const tripQuery = query(collection(db, "trips"), where("payment_reference", "==", payment_reference), limit(1));
+      const existingTrips = await getDocs(tripQuery);
+      if (!existingTrips.empty) {
+        const tripDoc = existingTrips.docs[0];
+        return res.json({ success: true, trip_id: tripDoc.id, payment_status: "paid", trip_fee: 1000 });
+      }
     }
 
     // Fetch truck
@@ -6681,22 +8421,10 @@ app.post("/api/fleet/trips", async (req, res) => {
     if (!suppDoc.exists()) return res.status(404).json({ error: "Supplier not found." });
     const suppData = suppDoc.data();
 
-    // Determine billing snapshot at trip creation time (per rule: billing changes on truck do not affect in-progress trips)
-    const billingMethod = truckData.billing_method || "per_trip";
-    let tripFee = 1000;
-    let paymentStatus = "pending";
-
-    if (billingMethod === "monthly") {
-      const activeUntil = truckData.monthly_active_until ? new Date(truckData.monthly_active_until) : null;
-      if (activeUntil && activeUntil > new Date()) {
-        tripFee = 0;
-        paymentStatus = "active_monthly";
-      } else {
-        // Expired monthly plan -> requires per-trip or manual renewal
-        tripFee = 1000;
-        paymentStatus = "pending";
-      }
-    }
+    const verified = (req as any).verifiedPayment || {};
+    const tripFee = verified.trip_fee !== undefined ? verified.trip_fee : 1000;
+    const paymentStatus = verified.payment_status || "paid";
+    const billingMethod = verified.billing_method || truckData.billing_method || "per_trip";
 
     const newDoc = await addDoc(collection(db, "trips"), {
       company_id: companyId,
@@ -6705,15 +8433,15 @@ app.post("/api/fleet/trips", async (req, res) => {
       truck_number: truckData.truck_number,
       supplier_id,
       supplier_name: suppData.name,
-      status: "pending_payment", // requires payment before "left_warehouse"
+      status: "initiated",
       billing_method: billingMethod,
       trip_fee: tripFee,
       payment_status: paymentStatus,
-      payment_reference: null,
+      payment_reference: payment_reference || null,
       left_warehouse_at: null,
       loaded_departed_at: null,
       arrived_offloaded_at: null,
-      expected_duration_minutes: 180, // Default 3 hours, self-learning can be added
+      expected_duration_minutes: 180,
       location_shares: [],
       created_at: new Date().toISOString()
     });
@@ -6764,8 +8492,8 @@ app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
     const updates: any = {};
 
     if (checkpoint === "left_warehouse") {
-      if (trip.payment_status === "pending" && trip.trip_fee > 0) {
-        return res.status(400).json({ error: "Payment required before logging Left Warehouse." });
+      if (trip.payment_status !== "paid" && trip.payment_status !== "active_monthly") {
+        return res.status(402).json({ error: "Payment required (₦1,000 per trip) or active monthly subscription before starting trip tracking." });
       }
       updates.status = "left_warehouse";
       updates.left_warehouse_at = now;
@@ -6801,6 +8529,10 @@ app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
     const tripSnap = await getDoc(tripRef);
     if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
     const trip = tripSnap.data();
+
+    if (trip.payment_status !== "paid" && trip.payment_status !== "active_monthly") {
+      return res.status(402).json({ error: "Payment (₦1,000 per trip) or active monthly subscription required before starting live tracking." });
+    }
 
     const shares = trip.location_shares || [];
     shares.push({

@@ -28,10 +28,13 @@ import {
   Truck,
   AlertCircle,
   UserCheck,
-  Trash2
+  Trash2,
+  Activity
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { FleetManagementView } from '../components/fleet/FleetManagementView';
+import { RealtimeFleetBoard } from '../components/fleet/RealtimeFleetBoard';
+import { updateFleetConfig } from '../lib/api';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -39,28 +42,80 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 );
 
 export const CompanyDashboard: React.FC = () => {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, checkSession } = useAuth();
   const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings' | 'fleet'>('overview');
 
-  const isFleetOnly = user?.service_mode === 'fleet' || user?.service_type === 'fleet';
+  const [currentServiceMode, setCurrentServiceMode] = useState<'parcel' | 'fleet' | 'both'>('parcel');
+  const [showModeSwitchModal, setShowModeSwitchModal] = useState(false);
+  const [updatingMode, setUpdatingMode] = useState(false);
+  const [modeError, setModeError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (user?.service_mode || user?.service_type) {
+      const mode = (user.service_mode || user.service_type) as string;
+      if (mode === 'fleet' || mode === 'haulage') setCurrentServiceMode('fleet');
+      else if (mode === 'both' || mode === 'all') setCurrentServiceMode('both');
+      else setCurrentServiceMode('parcel');
+    }
+  }, [user]);
+
+  const isFleetOnly = currentServiceMode === 'fleet';
+  const isWaybillOnly = currentServiceMode === 'parcel';
+  const isBoth = currentServiceMode === 'both';
 
   useEffect(() => {
     if (isFleetOnly && ['parks', 'shipments', 'earnings'].includes(activeTab)) {
-      setActiveTab('fleet');
+      setActiveTab('overview');
     }
-  }, [isFleetOnly, activeTab]);
+    if (isWaybillOnly && activeTab === 'fleet') {
+      setActiveTab('overview');
+    }
+  }, [isFleetOnly, isWaybillOnly, activeTab]);
 
-  const navTabs = isFleetOnly ? [
-    { id: 'overview', label: t('overview'), icon: TrendingUp },
-    { id: 'fleet', label: 'Fleet Trip Tracking', icon: Truck }
-  ] : [
-    { id: 'overview', label: t('overview'), icon: TrendingUp },
-    { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
-    { id: 'shipments', label: t('waybillHistory'), icon: Package },
-    { id: 'earnings', label: t('analytics'), icon: DollarSign },
-    { id: 'fleet', label: 'Fleet Trip Tracking', icon: Truck }
-  ];
+  const handleSwitchServiceMode = async (newMode: 'parcel' | 'fleet' | 'both') => {
+    setUpdatingMode(true);
+    setModeError(null);
+    try {
+      const res = await updateFleetConfig(token || '', newMode);
+      if (res && res.success) {
+        setCurrentServiceMode(newMode);
+        setShowModeSwitchModal(false);
+        if (checkSession) checkSession();
+        if (newMode === 'fleet') {
+          setActiveTab('overview');
+        } else if (newMode === 'parcel' && activeTab === 'fleet') {
+          setActiveTab('overview');
+        }
+      } else {
+        setModeError(res.error || 'Failed to update operation mode.');
+      }
+    } catch (err) {
+      setModeError('Network error while updating mode.');
+    } finally {
+      setUpdatingMode(false);
+    }
+  };
+
+  const navTabs = isFleetOnly
+    ? [
+        { id: 'overview', label: t('overview'), icon: TrendingUp },
+        { id: 'fleet', label: 'Fleet Trip Tracking', icon: Truck }
+      ]
+    : isWaybillOnly
+    ? [
+        { id: 'overview', label: t('overview'), icon: TrendingUp },
+        { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
+        { id: 'shipments', label: t('waybillHistory'), icon: Package },
+        { id: 'earnings', label: t('analytics'), icon: DollarSign }
+      ]
+    : [
+        { id: 'overview', label: t('overview'), icon: TrendingUp },
+        { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
+        { id: 'shipments', label: t('waybillHistory'), icon: Package },
+        { id: 'earnings', label: t('analytics'), icon: DollarSign },
+        { id: 'fleet', label: 'Fleet Trip Tracking', icon: Truck }
+      ];
 
   // --- TAB 1: OVERVIEW STATE ---
   const [overviewState, setOverviewState] = useState<{
@@ -190,6 +245,16 @@ export const CompanyDashboard: React.FC = () => {
     parkId: string;
     parkName: string;
   } | null>(null);
+
+  // Quick Trip Launch State for CEO Overview
+  const [fleetInitialSubTab, setFleetInitialSubTab] = useState<'live_board' | 'overview' | 'trucks' | 'suppliers' | 'staff_drivers' | 'trips'>('live_board');
+  const [autoOpenCreateTrip, setAutoOpenCreateTrip] = useState(false);
+
+  const handleLaunchNewTripFromOverview = () => {
+    setFleetInitialSubTab('trips');
+    setAutoOpenCreateTrip(true);
+    setActiveTab('fleet');
+  };
 
   // Reusable custom confirmation modal state
   const [customConfirmModal, setCustomConfirmModal] = useState<{
@@ -871,36 +936,66 @@ export const CompanyDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800">
       
-      {/* HEADER NAVBAR (Shown instantly, no state needed) */}
-      <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      {/* HEADER NAVBAR (Scrolls up naturally, Navy Blue) */}
+      <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-3 sm:py-4 shadow-md sticky top-0 z-30 w-full">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <Logo size="sm" showText={false} />
-            <div>
-              <span className="font-extrabold text-xs text-slate-400 tracking-wider block leading-none">{t('companyPortalTitle')}</span>
-              <span className="font-extrabold text-base tracking-wider text-white block mt-1">{user?.company_name || 'Waybilla Partner'}</span>
+            <div className="min-w-0 flex-1">
+              <span className="font-extrabold text-[9px] sm:text-[10px] text-amber-300 uppercase tracking-widest block leading-none truncate">
+                {t('companyPortalTitle')}
+              </span>
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
+                <span className="font-black text-sm sm:text-base text-white tracking-wide truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[280px] md:max-w-none">
+                  {user?.company_name || 'Waybilla Partner'}
+                </span>
+                <button
+                  onClick={() => setShowModeSwitchModal(true)}
+                  className="inline-flex items-center gap-1 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold transition-all cursor-pointer shrink-0"
+                  id="change-operation-mode-btn"
+                  title="Click to switch operation mode"
+                >
+                  {isFleetOnly ? (
+                    <>
+                      <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
+                      <span className="text-amber-300">🚛 Fleet</span>
+                    </>
+                  ) : isWaybillOnly ? (
+                    <>
+                      <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
+                      <span className="text-blue-300">📦 Waybills</span>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 shrink-0" />
+                      <span className="text-emerald-300">⚡ Both</span>
+                    </>
+                  )}
+                  <span className="text-[9px] sm:text-[10px] text-amber-400 hover:underline ml-0.5 font-normal">Change</span>
+                </button>
+              </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <LanguageSwitcher />
             <button
               onClick={logout}
-              className="flex items-center gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-extrabold px-4.5 py-2.5 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
+              className="flex items-center gap-1.5 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer border-0 shrink-0"
               id="header-logout-btn"
             >
-              <LogOut className="w-4 h-4" />
-              <span>{t('signOut')}</span>
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">{t('signOut')}</span>
             </button>
           </div>
         </div>
       </header>
 
       {/* MAIN CONTAINER */}
-      <div className="max-w-7xl mx-auto w-full px-6 py-8 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8">
+      <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-8 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 min-w-0 overflow-x-hidden">
         
         {/* MOBILE NAVIGATION BAR (Horizontal Scrollable Pills) */}
-        <div className="block lg:hidden col-span-1 bg-white border border-slate-200 rounded-2xl p-3 shadow-sm overflow-x-auto flex items-center gap-2">
+        <div className="block lg:hidden col-span-1 bg-white border border-slate-200 rounded-2xl p-2 sm:p-2.5 shadow-xs overflow-x-auto flex items-center gap-1.5 w-full">
           {navTabs.map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -908,13 +1003,13 @@ export const CompanyDashboard: React.FC = () => {
               <button
                 key={`mob-tab-${tab.id}-${index}`}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border-0 shrink-0 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border-0 shrink-0 ${
                   isActive
-                    ? 'bg-[#0A1F44] text-white shadow-md'
+                    ? 'bg-slate-900 text-white shadow-sm'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
-                <Icon className={`w-4 h-4 ${isActive ? 'text-[#F2A93B]' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -933,12 +1028,12 @@ export const CompanyDashboard: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-extrabold flex items-center gap-3 transition-all cursor-pointer border-0 ${
                   isActive
-                    ? 'bg-[#0A1F44] text-white shadow-md'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-[#0A1F44]'
+                    ? 'bg-slate-900 text-white shadow-md'
+                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
                 id={`tab-btn-${tab.id}`}
               >
-                <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-[#F2A93B]' : 'text-slate-400'}`} />
+                <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -961,104 +1056,294 @@ export const CompanyDashboard: React.FC = () => {
           
           {/* TAB: FLEET TRIP TRACKING */}
           {activeTab === 'fleet' && (
-            <FleetManagementView userRole="company" />
+            <FleetManagementView 
+              userRole="company" 
+              initialSubTab={fleetInitialSubTab}
+              autoOpenCreateTrip={autoOpenCreateTrip}
+              onTripCreated={() => {
+                setAutoOpenCreateTrip(false);
+                fetchOverview();
+              }}
+            />
           )}
 
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6" id="overview-tab">
               
+              {/* CEO EXECUTIVE ACTION BANNER / LAUNCH NEW TRIP */}
+              <div 
+                className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 
+                id="ceo-overview-dispatch-banner"
+              >
+                <div className="space-y-1.5 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h2 className="text-base sm:text-lg font-black flex items-center gap-2 tracking-tight text-white">
+                      <Truck className="text-[#F2A93B] w-5 h-5 shrink-0" />
+                      Executive Haulage & Fleet Dispatch
+                    </h2>
+                    <span className="bg-[#F2A93B]/20 text-[#F2A93B] border border-[#F2A93B]/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                      Instant Dispatch
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed">
+                    Instantly launch a haulage round-trip, connect trucks with suppliers, and monitor live road milestones across your entire company network.
+                  </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
+                  <button
+                    onClick={handleLaunchNewTripFromOverview}
+                    className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl transform active:scale-95 cursor-pointer border-0 shrink-0"
+                    id="ceo-launch-new-trip-btn"
+                  >
+                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
+                    <span>Launch New Trip</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFleetInitialSubTab('live_board');
+                      setAutoOpenCreateTrip(false);
+                      setActiveTab('fleet');
+                    }}
+                    className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20 shrink-0"
+                    id="ceo-view-live-board-btn"
+                  >
+                    <Activity className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-400" />
+                    <span>Live Board</span>
+                  </button>
+                </div>
+              </div>
+
               {/* TOP SUMMARY CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 
-                {/* 1. Week Shipments Card */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-week-card">
-                  {overviewState.loading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="w-16 h-4" />
-                      <Skeleton className="w-24 h-8" />
+                {isFleetOnly ? (
+                  <>
+                    {/* 1. Total Trucks Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-trucks-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">TOTAL TRUCKS</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">TOTAL TRUCKS</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{(overviewState.stats as any)?.total_trucks ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-blue-600 block mt-1.5 uppercase">Registered Fleet</span>
+                        </div>
+                      )}
                     </div>
-                  ) : overviewState.error ? (
-                    <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
-                      <p className="text-xs font-bold text-slate-400">SHIPMENTS (7 DAYS)</p>
-                      <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
-                    </button>
-                  ) : (
-                    <div>
-                      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SHIPMENTS (7 DAYS)</p>
-                      <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_week ?? 0}</p>
-                      <span className="text-[11px] font-extrabold text-[#F2A93B] block mt-1.5 uppercase">Last 7 Days</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* 2. Month Shipments Card */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-month-card">
-                  {overviewState.loading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="w-16 h-4" />
-                      <Skeleton className="w-24 h-8" />
+                    {/* 2. Active Trips Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-trips-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">ACTIVE TRIPS</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ACTIVE TRIPS</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{(overviewState.stats as any)?.active_trips ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">In Transit</span>
+                        </div>
+                      )}
                     </div>
-                  ) : overviewState.error ? (
-                    <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
-                      <p className="text-xs font-bold text-slate-400">SHIPMENTS (30 DAYS)</p>
-                      <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
-                    </button>
-                  ) : (
-                    <div>
-                      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SHIPMENTS (30 DAYS)</p>
-                      <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_month ?? 0}</p>
-                      <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">Last 30 Days</span>
-                    </div>
-                  )}
-                </div>
 
-                {/* 3. Active Staff Card */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-staff-card">
-                  {overviewState.loading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="w-16 h-4" />
-                      <Skeleton className="w-24 h-8" />
+                    {/* 3. Total Drivers Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-drivers-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">TOTAL DRIVERS</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">TOTAL DRIVERS</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{(overviewState.stats as any)?.total_drivers ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-indigo-600 block mt-1.5 uppercase">Assigned Staff</span>
+                        </div>
+                      )}
                     </div>
-                  ) : overviewState.error ? (
-                    <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
-                      <p className="text-xs font-bold text-slate-400">ACTIVE STAFF</p>
-                      <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
-                    </button>
-                  ) : (
-                    <div>
-                      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ACTIVE STAFF</p>
-                      <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_active_staff ?? 0}</p>
-                      <span className="text-[11px] font-extrabold text-indigo-600 block mt-1.5 uppercase">Enrolled Members</span>
+                  </>
+                ) : isBoth ? (
+                  <>
+                    {/* 1. Month Shipments Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-month-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">WAYBILLS (30 DAYS)</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_month ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-blue-600 block mt-1.5 uppercase">Waybills Dispatched</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
 
-                {/* 4. Earnings Card */}
-                <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-earnings-card">
-                  {overviewState.loading ? (
-                    <div className="space-y-3">
-                      <Skeleton className="w-16 h-4" />
-                      <Skeleton className="w-24 h-8" />
+                    {/* 2. Active Staff Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-staff-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">PARK STAFF</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_active_staff ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-indigo-600 block mt-1.5 uppercase">Active Members</span>
+                        </div>
+                      )}
                     </div>
-                  ) : overviewState.error ? (
-                    <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
-                      <p className="text-xs font-bold text-slate-400">EARNINGS (30 DAYS)</p>
-                      <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
-                    </button>
-                  ) : (
-                    <div>
-                      <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">EARNINGS (30 DAYS)</p>
-                      <p className="text-3xl font-black text-[#0A1F44] mt-2">₦{(overviewState.stats as any)?.total_earnings_month ?? 0}</p>
-                      <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">Company Share</span>
+
+                    {/* 3. Total Trucks Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-trucks-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">FLEET TRUCKS</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{(overviewState.stats as any)?.total_trucks ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-amber-600 block mt-1.5 uppercase">Registered Trucks</span>
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
+
+                    {/* 4. Active Fleet Trips */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-trips-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ACTIVE TRIPS</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{(overviewState.stats as any)?.active_trips ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">In Transit</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* 1. Week Shipments Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-week-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">SHIPMENTS (7 DAYS)</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SHIPMENTS (7 DAYS)</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_week ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-[#F2A93B] block mt-1.5 uppercase">Last 7 Days</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 2. Month Shipments Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-month-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">SHIPMENTS (30 DAYS)</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SHIPMENTS (30 DAYS)</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_month ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">Last 30 Days</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 3. Active Staff Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-staff-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">ACTIVE STAFF</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">ACTIVE STAFF</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_active_staff ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-indigo-600 block mt-1.5 uppercase">Enrolled Members</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* 4. Earnings Card */}
+                    <div className="bg-white border border-slate-100 rounded-2xl p-5 shadow-sm" id="stats-earnings-card">
+                      {overviewState.loading ? (
+                        <div className="space-y-3">
+                          <Skeleton className="w-16 h-4" />
+                          <Skeleton className="w-24 h-8" />
+                        </div>
+                      ) : overviewState.error ? (
+                        <button onClick={fetchOverview} className="text-left w-full h-full text-rose-600 hover:text-rose-700 focus:outline-none">
+                          <p className="text-xs font-bold text-slate-400">EARNINGS (30 DAYS)</p>
+                          <p className="text-xs font-semibold mt-2">Couldn't load this section. Tap to retry.</p>
+                        </button>
+                      ) : (
+                        <div>
+                          <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">EARNINGS (30 DAYS)</p>
+                          <p className="text-3xl font-black text-[#0A1F44] mt-2">₦{(overviewState.stats as any)?.total_earnings_month ?? 0}</p>
+                          <span className="text-[11px] font-extrabold text-emerald-600 block mt-1.5 uppercase">Company Share</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
               </div>
 
-              {/* RECENT ACTIVITY CARD */}
-              <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6" id="overview-recent-activity">
+              {/* REAL-TIME FLEET BOARD FOR FLEET MODE */}
+              {isFleetOnly ? (
+                <RealtimeFleetBoard userRole="company" />
+              ) : (
+                /* RECENT ACTIVITY CARD FOR PACKAGE MODE */
+                <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm space-y-6" id="overview-recent-activity">
                 <div className="flex justify-between items-center border-b border-slate-100 pb-4">
                   <div>
                     <h2 className="text-base font-extrabold text-[#0A1F44]">Recent Shipments</h2>
@@ -1134,6 +1419,18 @@ export const CompanyDashboard: React.FC = () => {
                   </div>
                 )}
               </div>
+              )}
+
+              {/* IF BOTH MODE: ALSO SHOW REAL-TIME FLEET BOARD */}
+              {isBoth && (
+                <div className="pt-4 space-y-4">
+                  <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
+                    <Truck className="w-5 h-5 text-amber-500" />
+                    <h3 className="text-base font-extrabold text-[#0A1F44]">Real-Time Fleet Operations</h3>
+                  </div>
+                  <RealtimeFleetBoard userRole="company" />
+                </div>
+              )}
 
             </div>
           )}
@@ -1393,7 +1690,7 @@ export const CompanyDashboard: React.FC = () => {
                     <input
                       type="text"
                       placeholder="Code, sender, receiver name/phone..."
-                      value={shipmentFilters.search}
+                      value={shipmentFilters.search || ''}
                       onChange={e => setShipmentFilters(prev => ({ ...prev, search: e.target.value }))}
                       className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 pl-10 pr-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
                     />
@@ -1404,7 +1701,7 @@ export const CompanyDashboard: React.FC = () => {
                 <div className="md:col-span-3 space-y-1.5">
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Status</label>
                   <select
-                    value={shipmentFilters.status}
+                    value={shipmentFilters.status || 'all'}
                     onChange={e => setShipmentFilters(prev => ({ ...prev, status: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2.5 px-3.5 text-xs font-bold text-slate-600 focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
                   >
@@ -1421,7 +1718,7 @@ export const CompanyDashboard: React.FC = () => {
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">From Date</label>
                   <input
                     type="date"
-                    value={shipmentFilters.startDate}
+                    value={shipmentFilters.startDate || ''}
                     onChange={e => setShipmentFilters(prev => ({ ...prev, startDate: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 pl-3 pr-3 text-xs font-semibold text-slate-600 focus:outline-none"
                   />
@@ -1432,7 +1729,7 @@ export const CompanyDashboard: React.FC = () => {
                   <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">To Date</label>
                   <input
                     type="date"
-                    value={shipmentFilters.endDate}
+                    value={shipmentFilters.endDate || ''}
                     onChange={e => setShipmentFilters(prev => ({ ...prev, endDate: e.target.value }))}
                     className="w-full bg-slate-50 border border-slate-100 rounded-xl py-2 pl-3 pr-3 text-xs font-semibold text-slate-600 focus:outline-none"
                   />
@@ -2480,6 +2777,128 @@ export const CompanyDashboard: React.FC = () => {
                 id="custom-confirm-proceed-btn"
               >
                 {customConfirmModal.submitting ? 'Processing...' : customConfirmModal.confirmText}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SERVICE MODE SELECTION MODAL */}
+      {showModeSwitchModal && (
+        <div className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200" id="service-mode-switch-modal">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-5">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 bg-amber-100 rounded-2xl flex items-center justify-center text-amber-700">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0A1F44]">Operation & Service Mode</h3>
+                  <p className="text-xs text-slate-500">Customize what modules your company uses</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowModeSwitchModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-full hover:bg-slate-100 transition-all cursor-pointer border-0"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {modeError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 text-xs font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{modeError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              {/* Option 1: Waybills & Parks */}
+              <button
+                type="button"
+                disabled={updatingMode}
+                onClick={() => handleSwitchServiceMode('parcel')}
+                className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  currentServiceMode === 'parcel'
+                    ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-md'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                }`}
+                id="mode-option-parcel"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl ${currentServiceMode === 'parcel' ? 'bg-white/10 text-blue-300' : 'bg-white text-blue-600 shadow-xs'}`}>
+                    <Package className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-xs sm:text-sm">📦 Motor Park & Waybills Only</p>
+                    <p className={`text-[11px] mt-0.5 ${currentServiceMode === 'parcel' ? 'text-slate-300' : 'text-slate-500'}`}>
+                      Hides fleet tracking; focus strictly on passenger waybills & motor parks.
+                    </p>
+                  </div>
+                </div>
+                {currentServiceMode === 'parcel' && <CheckCircle2 className="w-5 h-5 text-amber-400 shrink-0" />}
+              </button>
+
+              {/* Option 2: Fleet Operations Only */}
+              <button
+                type="button"
+                disabled={updatingMode}
+                onClick={() => handleSwitchServiceMode('fleet')}
+                className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  currentServiceMode === 'fleet'
+                    ? 'bg-amber-500 text-slate-950 border-amber-500 shadow-md'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                }`}
+                id="mode-option-fleet"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl ${currentServiceMode === 'fleet' ? 'bg-slate-950/10 text-slate-950' : 'bg-white text-amber-600 shadow-xs'}`}>
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-xs sm:text-sm">🚛 Fleet Trip Tracking Only</p>
+                    <p className={`text-[11px] mt-0.5 ${currentServiceMode === 'fleet' ? 'text-slate-900 font-medium' : 'text-slate-500'}`}>
+                      Hides waybilling & analytics; focus strictly on heavy truck trips & checkpoints.
+                    </p>
+                  </div>
+                </div>
+                {currentServiceMode === 'fleet' && <CheckCircle2 className="w-5 h-5 text-slate-950 shrink-0" />}
+              </button>
+
+              {/* Option 3: Both (Waybills & Fleet) */}
+              <button
+                type="button"
+                disabled={updatingMode}
+                onClick={() => handleSwitchServiceMode('both')}
+                className={`w-full p-4 rounded-2xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                  currentServiceMode === 'both'
+                    ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-md'
+                    : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
+                }`}
+                id="mode-option-both"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2.5 rounded-xl ${currentServiceMode === 'both' ? 'bg-white/10 text-amber-300' : 'bg-white text-emerald-600 shadow-xs'}`}>
+                    <Shield className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <p className="font-extrabold text-xs sm:text-sm">⚡ Both (Waybills & Fleet Operations)</p>
+                    <p className={`text-[11px] mt-0.5 ${currentServiceMode === 'both' ? 'text-amber-200/80' : 'text-slate-500'}`}>
+                      Full access to both passenger park waybills AND heavy fleet trip tracking.
+                    </p>
+                  </div>
+                </div>
+                {currentServiceMode === 'both' && <CheckCircle2 className="w-5 h-5 text-amber-300 shrink-0" />}
+              </button>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowModeSwitchModal(false)}
+                className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition-all cursor-pointer border-0"
+              >
+                Close
               </button>
             </div>
           </div>

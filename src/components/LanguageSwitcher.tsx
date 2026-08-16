@@ -27,16 +27,16 @@ export const LanguageSwitcher: React.FC<{ className?: string }> = ({ className =
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-3 py-1.5 rounded-xl flex items-center gap-1.5 transition-colors cursor-pointer shadow-sm"
+        className="bg-white/10 hover:bg-white/20 text-white border border-white/20 text-xs sm:text-sm font-semibold px-2 py-1.5 sm:px-3 sm:py-1.5 rounded-xl flex items-center gap-1 sm:gap-1.5 transition-colors cursor-pointer shadow-xs shrink-0"
         aria-expanded={isOpen}
         aria-haspopup="true"
         title="Change language"
       >
-        <Globe className="w-4 h-4 text-[#F2A93B] shrink-0" />
-        <span className="truncate max-w-[90px] sm:max-w-[120px]">
-          {currentLanguage.flag} {currentLanguage.name}
+        <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F2A93B] shrink-0" />
+        <span className="truncate max-w-[60px] xs:max-w-[85px] sm:max-w-[120px] text-xs">
+          {currentLanguage.flag} <span className="hidden xs:inline">{currentLanguage.name}</span>
         </span>
-        <ChevronDown className={`w-3.5 h-3.5 text-slate-300 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+        <ChevronDown className={`w-3 h-3 sm:w-3.5 sm:h-3.5 text-slate-300 transition-transform duration-200 shrink-0 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (

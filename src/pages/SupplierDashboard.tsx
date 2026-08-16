@@ -1,49 +1,90 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
+import {
+  getSupplierStaffMyCompanies,
+  getFleetTrips,
+  switchSupplierStaffCompany,
+  advanceTripCheckpoint
+} from '../lib/api';
 import { Logo } from '../components/Logo';
 import { LogOut, Building2, Truck, CheckCircle2, Clock, MapPin } from 'lucide-react';
 
 export const SupplierDashboard: React.FC = () => {
-  const { user, token, logout } = useAuth();
+  const { user, token, logout, login } = useAuth();
   const [trips, setTrips] = useState<any[]>([]);
+  const [myCompanies, setMyCompanies] = useState<any[]>([]);
+  const [currentCompany, setCurrentCompany] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [switching, setSwitching] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchTrips = async () => {
+  const fetchMyCompanies = async () => {
+    if (!token) return;
     try {
-      const res = await fetch('/api/fleet/trips', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to fetch trips queue.');
-      setTrips(data.trips || []);
+      const data = await getSupplierStaffMyCompanies(token);
+      if (data && data.success) {
+        setMyCompanies(data.companies || []);
+        const active = data.companies?.find((c: any) => c.is_current) || data.companies?.[0];
+        if (active) setCurrentCompany(active);
+      }
+    } catch (err) {
+      console.error("Error fetching supplier companies:", err);
+    }
+  };
+
+  const fetchTrips = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
+    }
+    try {
+      setLoading(true);
+      const data = await getFleetTrips(token);
+      if (data && data.success) {
+        setTrips(data.trips || []);
+      } else {
+        setError(data?.error || 'Failed to fetch trips queue.');
+      }
     } catch (err: any) {
-      setError(err.message);
+      setError(err?.message || 'Network error.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (token) fetchTrips();
+    if (token) {
+      fetchMyCompanies();
+      fetchTrips();
+    }
   }, [token]);
 
+  const handleSwitchCompany = async (targetCompanyId: string) => {
+    if (!token || targetCompanyId === currentCompany?.company_id) return;
+    setSwitching(true);
+    try {
+      const data = await switchSupplierStaffCompany(token, targetCompanyId);
+      if (!data || !data.success) throw new Error(data?.error || 'Failed to switch transport partner.');
+
+      login(token, data.user, 'supplier_staff');
+      await fetchMyCompanies();
+      await fetchTrips();
+    } catch (err: any) {
+      alert(err.message || 'Failed to switch transport partner.');
+    } finally {
+      setSwitching(false);
+    }
+  };
+
   const handleMarkLoaded = async (tripId: string) => {
+    if (!token) return;
     if (!confirm('Confirm that this truck has arrived and is fully loaded & departed?')) return;
     try {
-      const res = await fetch(`/api/fleet/trips/${tripId}/checkpoint`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ checkpoint: 'loaded_departed' })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to update checkpoint.');
+      const data = await advanceTripCheckpoint(token, tripId, 'loaded_departed');
+      if (!data || !data.success) throw new Error(data?.error || 'Failed to update checkpoint.');
       fetchTrips();
     } catch (err: any) {
-      alert(err.message);
+      alert(err.message || 'Failed to update checkpoint');
     }
   };
 
@@ -52,21 +93,53 @@ export const SupplierDashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-white">
-      <nav className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex items-center justify-between">
+      <nav className="bg-slate-800 border-b border-slate-700 px-6 py-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center space-x-3">
           <Logo size="sm" />
           <div>
-            <h1 className="text-lg font-bold text-white">Supplier Portal</h1>
-            <p className="text-xs text-slate-400">Welcome, {user?.name || 'Supplier Staff'}</p>
+            <h1 className="text-lg font-bold text-white flex items-center space-x-2">
+              <span>Supplier Portal</span>
+              {user?.company_name && (
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-400/20 text-amber-300 font-semibold border border-amber-400/30">
+                  {user.company_name}
+                </span>
+              )}
+            </h1>
+            <p className="text-xs text-slate-400">
+              Logged in as <span className="text-slate-200 font-medium">{user?.name || 'Supplier Staff'}</span>
+              {user?.supplier_name ? ` (${user.supplier_name})` : ''}
+            </p>
           </div>
         </div>
-        <button
-          onClick={logout}
-          className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors"
-        >
-          <LogOut className="w-4 h-4" />
-          <span>Sign Out</span>
-        </button>
+
+        <div className="flex items-center space-x-3">
+          {myCompanies.length > 1 && (
+            <div className="flex items-center space-x-2 bg-slate-900 border border-slate-700 rounded-xl px-3 py-1.5">
+              <Building2 className="w-4 h-4 text-amber-400" />
+              <span className="text-xs text-slate-400 font-medium hidden sm:inline">Partner:</span>
+              <select
+                value={user?.company_id || currentCompany?.company_id || ''}
+                onChange={(e) => handleSwitchCompany(e.target.value)}
+                disabled={switching}
+                className="bg-transparent text-xs font-bold text-amber-300 focus:outline-none cursor-pointer"
+              >
+                {myCompanies.map((c: any) => (
+                  <option key={c.company_id} value={c.company_id} className="bg-slate-800 text-white">
+                    {c.company_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <button
+            onClick={logout}
+            className="flex items-center space-x-2 bg-slate-700 hover:bg-slate-600 text-slate-200 px-4 py-2 rounded-xl text-sm font-medium transition-colors cursor-pointer"
+          >
+            <LogOut className="w-4 h-4" />
+            <span>Sign Out</span>
+          </button>
+        </div>
       </nav>
 
       <main className="max-w-5xl mx-auto px-4 py-8 space-y-8">
@@ -89,32 +162,53 @@ export const SupplierDashboard: React.FC = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {enRouteQueue.map(trip => (
-                <div key={trip.id} className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-400/20 text-amber-300">
-                      Truck: {trip.truck_number}
-                    </span>
-                    <span className="text-xs text-slate-400 flex items-center space-x-1">
-                      <Clock className="w-3.5 h-3.5" />
-                      <span>Left Warehouse: {new Date(trip.left_warehouse_at).toLocaleTimeString()}</span>
-                    </span>
-                  </div>
+              {enRouteQueue.map(trip => {
+                // Calculate expected arrival time at depot (12-hour AM/PM readable format)
+                let expectedArrivalFormatted = 'Pending departure';
+                if (trip.left_warehouse_at) {
+                  const leftMs = new Date(trip.left_warehouse_at).getTime();
+                  const durationMins = trip.expected_duration_minutes || 180;
+                  const etaMs = leftMs + (durationMins / 2) * 60 * 1000;
+                  expectedArrivalFormatted = new Date(etaMs).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+                }
 
-                  <div>
-                    <p className="text-xs text-slate-500">Billing Type</p>
-                    <p className="text-sm font-semibold capitalize">{trip.billing_method} (Status: {trip.payment_status})</p>
-                  </div>
+                const departureFormatted = trip.left_warehouse_at
+                  ? new Date(trip.left_warehouse_at).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true })
+                  : 'N/A';
 
-                  <button
-                    onClick={() => handleMarkLoaded(trip.id)}
-                    className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm flex items-center justify-center space-x-2 transition-colors shadow-lg"
-                  >
-                    <CheckCircle2 className="w-5 h-5" />
-                    <span>Mark Loaded & Departed</span>
-                  </button>
-                </div>
-              ))}
+                return (
+                  <div key={trip.id} className="bg-slate-900 border border-slate-700 rounded-xl p-5 space-y-4 shadow-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30">
+                        Truck: {trip.truck_number}
+                      </span>
+                      <span className="text-xs font-semibold text-blue-300 bg-blue-950/60 border border-blue-800/80 px-2.5 py-1 rounded-lg flex items-center space-x-1">
+                        <Clock className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Expected: {expectedArrivalFormatted}</span>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 text-xs bg-slate-950/70 p-3 rounded-lg border border-slate-800/80">
+                      <div>
+                        <p className="text-slate-500 font-bold uppercase text-[10px]">Origin</p>
+                        <p className="text-white font-semibold mt-0.5">{trip.origin_name || trip.park_name || user?.company_name || 'Transport Depot'}</p>
+                      </div>
+                      <div>
+                        <p className="text-slate-500 font-bold uppercase text-[10px]">Departed At</p>
+                        <p className="text-slate-200 font-semibold mt-0.5">{departureFormatted}</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => handleMarkLoaded(trip.id)}
+                      className="w-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold py-3 px-4 rounded-xl text-sm flex items-center justify-center space-x-2 transition-colors shadow-lg cursor-pointer"
+                    >
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Mark Loaded & Departed</span>
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
