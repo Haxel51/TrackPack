@@ -23,6 +23,7 @@ import {
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
 import { triggerOSNotification } from '../utils/notifications';
+import { getCustomerWaybills, confirmCustomerWaybillReceived } from '../lib/api';
 
 export const CustomerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -49,16 +50,13 @@ export const CustomerDashboard: React.FC = () => {
   const fetchWaybills = async (isSilent = false) => {
     if (!token) return;
     if (!isSilent) setIsLoading(true);
-    setError(null);
+    if (!isSilent) setError(null);
     try {
-      const response = await fetch('/api/customer/waybills', {
-        headers: {
-          'Authorization': `Bearer ${token}`
+      const data = await getCustomerWaybills(token);
+      if (!data.success && data.error) {
+        if (!isSilent) {
+          setError(data.error || 'Failed to fetch shipments. Please check your connection.');
         }
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        if (!isSilent) setError(data.error || 'Failed to fetch shipments.');
       } else {
         const fetchedWaybills: any[] = data.waybills || [];
         
@@ -85,10 +83,13 @@ export const CustomerDashboard: React.FC = () => {
         });
 
         setWaybills(fetchedWaybills);
+        setError(null);
       }
-    } catch (err) {
-      console.error('Error fetching waybills:', err);
-      if (!isSilent) setError('Network connection error. Please try again.');
+    } catch (err: any) {
+      if (!isSilent) {
+        console.warn('Could not fetch waybills:', err?.message || err);
+        setError('Network connection error. Please tap Retry to reload your shipments.');
+      }
     } finally {
       if (!isSilent) setIsLoading(false);
     }
@@ -212,23 +213,16 @@ export const CustomerDashboard: React.FC = () => {
     if (!selectedWaybill || !token) return;
     setIsConfirming(true);
     try {
-      const response = await fetch(`/api/customer/waybills/${selectedWaybill.id}/confirm-received`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      const data = await response.json();
-      if (!response.ok) {
+      const data = await confirmCustomerWaybillReceived(token, selectedWaybill.id);
+      if (!data.success && data.error) {
         alert(data.error || 'Failed to confirm receipt.');
-      } else {
+      } else if (data.waybill) {
         // Update both selectedWaybill and waybills list state!
         setSelectedWaybill(data.waybill);
         setWaybills(prev => prev.map(w => w.id === data.waybill.id ? data.waybill : w));
       }
     } catch (err) {
-      console.error('Error confirming receipt:', err);
+      console.warn('Error confirming receipt:', err);
       alert('Network error. Please try again.');
     } finally {
       setIsConfirming(false);
@@ -478,7 +472,7 @@ export const CustomerDashboard: React.FC = () => {
                     key={`cust-wb-${w.id || index}-${index}`}
                     onClick={() => handleSelectWaybill(w)}
                     id={index === 0 ? "customer-shipment-card" : undefined}
-                    className="bg-white border border-slate-100 hover:border-slate-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                    className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-5 shadow-md hover:shadow-xl transition-all cursor-pointer flex items-center justify-between group"
                   >
                     <div className="space-y-3 flex-grow min-w-0 pr-4">
                       {/* Top Line: Tracking code and Role tag */}

@@ -29,12 +29,13 @@ import {
   AlertCircle,
   UserCheck,
   Trash2,
-  Activity
+  Activity,
+  KeyRound
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { FleetManagementView } from '../components/fleet/FleetManagementView';
 import { RealtimeFleetBoard } from '../components/fleet/RealtimeFleetBoard';
-import { updateFleetConfig } from '../lib/api';
+import { updateFleetConfig, updateCompanyManagerRole, resetCompanyManagerPin } from '../lib/api';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -52,11 +53,21 @@ export const CompanyDashboard: React.FC = () => {
   const [modeError, setModeError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user?.service_mode || user?.service_type) {
-      const mode = (user.service_mode || user.service_type) as string;
-      if (mode === 'fleet' || mode === 'haulage') setCurrentServiceMode('fleet');
-      else if (mode === 'both' || mode === 'all') setCurrentServiceMode('both');
-      else setCurrentServiceMode('parcel');
+    if (user?.role_mode === 'fleet_only') {
+      setCurrentServiceMode('fleet');
+    } else if (user?.role_mode === 'both') {
+      setCurrentServiceMode('both');
+    } else if (user?.role_mode === 'waybill_only') {
+      setCurrentServiceMode('parcel');
+    } else {
+      const mode = (user?.service_mode || user?.service_type || 'parcel') as string;
+      if (mode === 'fleet' || mode === 'haulage') {
+        setCurrentServiceMode('fleet');
+      } else if (mode === 'both' || mode === 'all') {
+        setCurrentServiceMode('both');
+      } else {
+        setCurrentServiceMode('parcel');
+      }
     }
   }, [user]);
 
@@ -218,6 +229,30 @@ export const CompanyDashboard: React.FC = () => {
     pin: string;
   } | null>(null);
 
+  // Manager Reset PIN state
+  const [managerResetModal, setManagerResetModal] = useState<{
+    open: boolean;
+    managerId: string;
+    managerName: string;
+    managerPhone: string;
+    submitting: boolean;
+    error: string | null;
+  }>({
+    open: false,
+    managerId: '',
+    managerName: '',
+    managerPhone: '',
+    submitting: false,
+    error: null
+  });
+
+  const [managerResetSuccessState, setManagerResetSuccessState] = useState<{
+    open: boolean;
+    name: string;
+    phone: string;
+    message: string;
+  } | null>(null);
+
   // New Manager Modal state
   const [newManagerModal, setNewManagerModal] = useState({
     open: false,
@@ -225,6 +260,7 @@ export const CompanyDashboard: React.FC = () => {
     parkName: '',
     name: '',
     phone: '',
+    service_mode: 'haulage' as 'haulage' | 'parcel' | 'both',
     submitting: false,
     error: null as string | null
   });
@@ -244,7 +280,10 @@ export const CompanyDashboard: React.FC = () => {
     active: boolean;
     parkId: string;
     parkName: string;
+    service_mode?: string;
+    manager_type?: string;
   } | null>(null);
+  const [updatingManagerRoleFromProfile, setUpdatingManagerRoleFromProfile] = useState(false);
 
   // Quick Trip Launch State for CEO Overview
   const [fleetInitialSubTab, setFleetInitialSubTab] = useState<'live_board' | 'overview' | 'trucks' | 'suppliers' | 'staff_drivers' | 'trips'>('live_board');
@@ -796,7 +835,9 @@ export const CompanyDashboard: React.FC = () => {
         body: JSON.stringify({
           park_id: newManagerModal.parkId,
           name: newManagerModal.name.trim(),
-          phone: newManagerModal.phone.trim()
+          phone: newManagerModal.phone.trim(),
+          service_mode: newManagerModal.service_mode,
+          manager_type: newManagerModal.service_mode
         })
       });
       const data = await response.json();
@@ -816,6 +857,7 @@ export const CompanyDashboard: React.FC = () => {
         parkName: '',
         name: '',
         phone: '',
+        service_mode: 'haulage',
         submitting: false,
         error: null
       });
@@ -823,6 +865,73 @@ export const CompanyDashboard: React.FC = () => {
       fetchParksAndStaff();
     } catch (err: any) {
       setNewManagerModal(prev => ({ ...prev, submitting: false, error: err.message || 'An error occurred' }));
+    }
+  };
+
+  const handleUpdateManagerRoleFromProfile = async (managerId: string, newMode: 'haulage' | 'parcel' | 'both') => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (!activeToken) return;
+    setUpdatingManagerRoleFromProfile(true);
+    try {
+      const data = await updateCompanyManagerRole(activeToken, managerId, newMode);
+      if (!data || !data.success) throw new Error(data?.error || 'Failed to update manager role');
+      setSelectedManagerProfile(prev => prev ? { ...prev, service_mode: newMode, manager_type: newMode } : null);
+      await fetchParksAndStaff();
+    } catch (err: any) {
+      alert(err.message || 'Error updating manager role');
+    } finally {
+      setUpdatingManagerRoleFromProfile(false);
+    }
+  };
+
+  const handleInitiateManagerResetPin = (managerId: string, managerName: string, managerPhone: string) => {
+    setManagerResetModal({
+      open: true,
+      managerId,
+      managerName,
+      managerPhone,
+      submitting: false,
+      error: null
+    });
+  };
+
+  const handleConfirmManagerResetPin = async () => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (!activeToken || !managerResetModal.managerId) return;
+
+    setManagerResetModal(prev => ({ ...prev, submitting: true, error: null }));
+    try {
+      const data = await resetCompanyManagerPin(activeToken, managerResetModal.managerId);
+      if (!data || !data.success) {
+        throw new Error(data?.error || 'Failed to reset manager PIN');
+      }
+
+      const mgrName = managerResetModal.managerName;
+      const mgrPhone = managerResetModal.managerPhone;
+
+      setManagerResetModal({
+        open: false,
+        managerId: '',
+        managerName: '',
+        managerPhone: '',
+        submitting: false,
+        error: null
+      });
+
+      setManagerResetSuccessState({
+        open: true,
+        name: data.name || mgrName,
+        phone: data.phone || mgrPhone,
+        message: data.message || `PIN for ${mgrName} has been reset successfully. They can now enter their registered phone number on the Manager Portal and create a new 6-digit PIN.`
+      });
+
+      await fetchParksAndStaff();
+    } catch (err: any) {
+      setManagerResetModal(prev => ({
+        ...prev,
+        submitting: false,
+        error: err.message || 'Error resetting manager PIN.'
+      }));
     }
   };
 
@@ -949,30 +1058,32 @@ export const CompanyDashboard: React.FC = () => {
                 <span className="font-black text-sm sm:text-base text-white tracking-wide truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[280px] md:max-w-none">
                   {user?.company_name || 'Waybilla Partner'}
                 </span>
-                <button
-                  onClick={() => setShowModeSwitchModal(true)}
-                  className="inline-flex items-center gap-1 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold transition-all cursor-pointer shrink-0"
-                  id="change-operation-mode-btn"
-                  title="Click to switch operation mode"
-                >
-                  {isFleetOnly ? (
-                    <>
-                      <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
-                      <span className="text-amber-300">🚛 Fleet</span>
-                    </>
-                  ) : isWaybillOnly ? (
-                    <>
-                      <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
-                      <span className="text-blue-300">📦 Waybills</span>
-                    </>
-                  ) : (
-                    <>
-                      <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 shrink-0" />
-                      <span className="text-emerald-300">⚡ Both</span>
-                    </>
-                  )}
-                  <span className="text-[9px] sm:text-[10px] text-amber-400 hover:underline ml-0.5 font-normal">Change</span>
-                </button>
+                {isWaybillOnly ? (
+                  <div className="inline-flex items-center gap-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/80 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold shrink-0">
+                    <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
+                    <span className="text-blue-300">📦 Waybills</span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowModeSwitchModal(true)}
+                    className="inline-flex items-center gap-1 bg-slate-800/90 hover:bg-slate-800 text-slate-200 border border-slate-700/80 px-2 py-0.5 sm:px-2.5 sm:py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold transition-all cursor-pointer shrink-0"
+                    id="change-operation-mode-btn"
+                    title="Click to switch operation mode"
+                  >
+                    {isFleetOnly ? (
+                      <>
+                        <Truck className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-amber-300">🚛 Fleet</span>
+                      </>
+                    ) : (
+                      <>
+                        <Shield className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-emerald-400 shrink-0" />
+                        <span className="text-emerald-300">⚡ Both</span>
+                      </>
+                    )}
+                    <span className="text-[9px] sm:text-[10px] text-amber-400 hover:underline ml-0.5 font-normal">Change</span>
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -1071,48 +1182,86 @@ export const CompanyDashboard: React.FC = () => {
           {activeTab === 'overview' && (
             <div className="space-y-6" id="overview-tab">
               
-              {/* CEO EXECUTIVE ACTION BANNER / LAUNCH NEW TRIP */}
-              <div 
-                className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 
-                id="ceo-overview-dispatch-banner"
-              >
-                <div className="space-y-1.5 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <h2 className="text-base sm:text-lg font-black flex items-center gap-2 tracking-tight text-white">
-                      <Truck className="text-[#F2A93B] w-5 h-5 shrink-0" />
-                      Executive Haulage & Fleet Dispatch
-                    </h2>
-                    <span className="bg-[#F2A93B]/20 text-[#F2A93B] border border-[#F2A93B]/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                      Instant Dispatch
-                    </span>
+              {/* CEO EXECUTIVE ACTION BANNER / WAYBILL OPERATIONS BANNER */}
+              {isWaybillOnly ? (
+                <div 
+                  className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 
+                  id="waybill-overview-banner"
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 tracking-tight text-white">
+                        <Package className="text-blue-400 w-5 h-5 shrink-0" />
+                        Motor Park Waybill & Package Operations
+                      </h2>
+                      <span className="bg-blue-500/20 text-blue-300 border border-blue-400/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        Active HQ Portal
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed">
+                      Manage park branches, monitor passenger waybill dispatches, view daily shipping revenue, and oversee park staff across your transport network.
+                    </p>
                   </div>
-                  <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed">
-                    Instantly launch a haulage round-trip, connect trucks with suppliers, and monitor live road milestones across your entire company network.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
+                    <button
+                      onClick={() => setActiveTab('parks')}
+                      className="flex-1 md:flex-initial bg-blue-500 hover:bg-blue-600 text-white font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg cursor-pointer border-0 shrink-0"
+                    >
+                      <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+                      <span>Manage Branches</span>
+                    </button>
+                    <button
+                      onClick={() => setActiveTab('shipments')}
+                      className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20 shrink-0"
+                    >
+                      <Package className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-blue-300" />
+                      <span>View Waybills</span>
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
-                  <button
-                    onClick={handleLaunchNewTripFromOverview}
-                    className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl transform active:scale-95 cursor-pointer border-0 shrink-0"
-                    id="ceo-launch-new-trip-btn"
-                  >
-                    <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
-                    <span>Launch New Trip</span>
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFleetInitialSubTab('live_board');
-                      setAutoOpenCreateTrip(false);
-                      setActiveTab('fleet');
-                    }}
-                    className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20 shrink-0"
-                    id="ceo-view-live-board-btn"
-                  >
-                    <Activity className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-400" />
-                    <span>Live Board</span>
-                  </button>
+              ) : (
+                <div 
+                  className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 
+                  id="ceo-overview-dispatch-banner"
+                >
+                  <div className="space-y-1.5 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <h2 className="text-base sm:text-lg font-black flex items-center gap-2 tracking-tight text-white">
+                        <Truck className="text-[#F2A93B] w-5 h-5 shrink-0" />
+                        Executive Haulage & Fleet Dispatch
+                      </h2>
+                      <span className="bg-[#F2A93B]/20 text-[#F2A93B] border border-[#F2A93B]/30 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        Instant Dispatch
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-300 max-w-2xl font-medium leading-relaxed">
+                      Instantly launch a haulage round-trip, connect trucks with suppliers, and monitor live road milestones across your entire company network.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 w-full md:w-auto shrink-0">
+                    <button
+                      onClick={handleLaunchNewTripFromOverview}
+                      className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-5 py-3 sm:px-6 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all shadow-lg hover:shadow-xl transform active:scale-95 cursor-pointer border-0 shrink-0"
+                      id="ceo-launch-new-trip-btn"
+                    >
+                      <Plus className="w-4 h-4 sm:w-5 sm:h-5 stroke-[3]" />
+                      <span>Launch New Trip</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFleetInitialSubTab('live_board');
+                        setAutoOpenCreateTrip(false);
+                        setActiveTab('fleet');
+                      }}
+                      className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-3 sm:px-5 sm:py-3.5 rounded-2xl text-xs sm:text-sm flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20 shrink-0"
+                      id="ceo-view-live-board-btn"
+                    >
+                      <Activity className="w-4 h-4 sm:w-4.5 sm:h-4.5 text-emerald-400" />
+                      <span>Live Board</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* TOP SUMMARY CARDS */}
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -1532,38 +1681,52 @@ export const CompanyDashboard: React.FC = () => {
                             <p className="text-xs text-slate-400 italic py-1">No manager assigned to this park yet.</p>
                           ) : (
                             <div className="space-y-2">
-                              {park.managers.map((mgr: any) => (
-                                <div
-                                  key={mgr.id}
-                                  onClick={() => setSelectedManagerProfile({
-                                    id: mgr.id,
-                                    name: mgr.name,
-                                    phone: mgr.phone,
-                                    active: mgr.active !== false,
-                                    parkId: park.id,
-                                    parkName: park.park_name
-                                  })}
-                                  className="flex items-center justify-between bg-indigo-50/60 hover:bg-indigo-100/60 border border-indigo-100 p-2.5 rounded-xl cursor-pointer transition-all hover:shadow-sm"
-                                  title="Click to view profile & actions"
-                                  id={`manager-item-${mgr.id}`}
-                                >
-                                  <div>
-                                    <p className="text-xs font-extrabold text-[#0A1F44] flex items-center gap-1.5 flex-wrap">
-                                      {mgr.name}
-                                      <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
-                                        mgr.active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
-                                      }`}>
-                                        {mgr.active !== false ? 'Active' : 'Deactivated'}
-                                      </span>
-                                    </p>
-                                    <p className="text-[10px] font-mono text-slate-600 mt-0.5">{mgr.phone}</p>
-                                  </div>
+                              {park.managers.map((mgr: any) => {
+                                const rawMgrMode = (mgr.service_mode || mgr.manager_type || mgr.service_type || 'haulage').toLowerCase();
+                                const isFleetMgr = rawMgrMode === 'fleet' || rawMgrMode === 'haulage';
+                                const isWaybillMgr = rawMgrMode === 'parcel' || rawMgrMode === 'package' || rawMgrMode === 'waybill';
+                                const isBothMgr = rawMgrMode === 'both' || rawMgrMode === 'all';
 
-                                  <div className="flex items-center text-slate-400">
-                                    <ChevronRight className="w-4 h-4" />
+                                return (
+                                  <div
+                                    key={mgr.id}
+                                    onClick={() => setSelectedManagerProfile({
+                                      id: mgr.id,
+                                      name: mgr.name,
+                                      phone: mgr.phone,
+                                      active: mgr.active !== false,
+                                      parkId: park.id,
+                                      parkName: park.park_name,
+                                      service_mode: rawMgrMode,
+                                      manager_type: rawMgrMode
+                                    })}
+                                    className="flex items-center justify-between bg-indigo-50/60 hover:bg-indigo-100/60 border border-indigo-100 p-2.5 rounded-xl cursor-pointer transition-all hover:shadow-sm"
+                                    title="Click to view profile & actions"
+                                    id={`manager-item-${mgr.id}`}
+                                  >
+                                    <div>
+                                      <p className="text-xs font-extrabold text-[#0A1F44] flex items-center gap-1.5 flex-wrap">
+                                        {mgr.name}
+                                        <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${
+                                          mgr.active !== false ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'
+                                        }`}>
+                                          {mgr.active !== false ? 'Active' : 'Deactivated'}
+                                        </span>
+                                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
+                                          isFleetMgr ? 'bg-amber-100 text-amber-900' : isWaybillMgr ? 'bg-blue-100 text-blue-900' : 'bg-purple-100 text-purple-900'
+                                        }`}>
+                                          {isFleetMgr ? '🚛 Fleet' : isWaybillMgr ? '📦 Waybill' : '⚡ Dual'}
+                                        </span>
+                                      </p>
+                                      <p className="text-[10px] font-mono text-slate-600 mt-0.5">{mgr.phone}</p>
+                                    </div>
+
+                                    <div className="flex items-center text-slate-400">
+                                      <ChevronRight className="w-4 h-4" />
+                                    </div>
                                   </div>
-                                </div>
-                              ))}
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -2399,6 +2562,103 @@ export const CompanyDashboard: React.FC = () => {
         </div>
       )}
 
+      {/* MANAGER RESET PIN CONFIRM MODAL */}
+      {managerResetModal.open && (
+        <div className="fixed inset-0 bg-[#0A1F44]/40 backdrop-blur-xs flex items-center justify-center p-6 z-50 animate-fade-in" id="manager-reset-pin-confirm-modal">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl relative space-y-5 border border-slate-100">
+            <button
+              onClick={() => setManagerResetModal(prev => ({ ...prev, open: false }))}
+              className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-2 rounded-full transition-all cursor-pointer border-0"
+              id="close-manager-reset-confirm-modal-btn"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="text-center space-y-3">
+              <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100 text-amber-600">
+                <KeyRound className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-[#0A1F44]">Reset Manager PIN?</h3>
+                <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+                  Reset 6-digit passcode for <strong>{managerResetModal.managerName}</strong> ({managerResetModal.managerPhone})?
+                </p>
+              </div>
+            </div>
+
+            <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl text-[11px] text-amber-900 space-y-1">
+              <p className="font-bold">What happens next:</p>
+              <p>• Their current PIN will be erased and any lockout cleared.</p>
+              <p>• The manager can visit the <strong>Manager Portal</strong>, enter their phone number, and immediately create a new 6-digit PIN.</p>
+            </div>
+
+            {managerResetModal.error && (
+              <p className="text-xs font-semibold text-rose-600 bg-rose-50 p-2.5 rounded-xl border border-rose-100">
+                {managerResetModal.error}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setManagerResetModal(prev => ({ ...prev, open: false }))}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold py-3 px-4 rounded-xl text-xs transition-all cursor-pointer border-0"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmManagerResetPin}
+                disabled={managerResetModal.submitting}
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0 disabled:opacity-50"
+              >
+                {managerResetModal.submitting ? 'Resetting...' : 'Yes, Reset PIN'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MANAGER RESET PIN SUCCESS MODAL */}
+      {managerResetSuccessState && managerResetSuccessState.open && (
+        <div className="fixed inset-0 bg-[#0A1F44]/50 backdrop-blur-xs flex items-center justify-center p-6 z-55 animate-fade-in" id="manager-reset-pin-success-modal">
+          <div className="bg-white rounded-3xl max-w-md w-full p-7 shadow-2xl text-center space-y-5 border border-emerald-100">
+            <div className="mx-auto w-14 h-14 bg-emerald-50 rounded-full flex items-center justify-center border border-emerald-100 text-emerald-600">
+              <CheckCircle2 className="w-8 h-8" />
+            </div>
+
+            <div className="space-y-1.5">
+              <h3 className="text-lg font-extrabold text-[#0A1F44]">Manager PIN Reset!</h3>
+              <p className="text-xs text-slate-500">
+                PIN for <strong>{managerResetSuccessState.name}</strong> has been cleared.
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left space-y-2 text-xs">
+              <p className="font-extrabold text-[#0A1F44] flex items-center gap-1.5">
+                <span>📱 Manager Sign-in Instructions</span>
+              </p>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                1. Manager opens the <strong>Manager Portal</strong> (or <span className="font-mono text-indigo-700 font-bold">/login/manager</span>).
+              </p>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                2. Enters their phone number: <span className="font-mono font-bold text-[#0A1F44]">{managerResetSuccessState.phone}</span>.
+              </p>
+              <p className="text-slate-600 text-[11px] leading-relaxed">
+                3. The system will prompt them to create and confirm their new secret 6-digit PIN.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setManagerResetSuccessState(null)}
+              className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
+            >
+              Done & Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* 3. ONE-TIME PIN SUCCESS DIALOG */}
       {pinSuccessState && pinSuccessState.open && (
         <div className="fixed inset-0 bg-[#0A1F44]/50 backdrop-blur-xs flex items-center justify-center p-6 z-55 animate-fade-in" id="pin-success-modal">
@@ -2526,6 +2786,50 @@ export const CompanyDashboard: React.FC = () => {
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20"
                   required
                 />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Manager Operational Role *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNewManagerModal(prev => ({ ...prev, service_mode: 'haulage' }))}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      newManagerModal.service_mode === 'haulage'
+                        ? 'bg-amber-50 border-amber-400 text-amber-900 ring-2 ring-amber-400/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <p className="font-extrabold text-xs">🚛 Fleet</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Trucks, drivers, trips</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewManagerModal(prev => ({ ...prev, service_mode: 'both' }))}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      newManagerModal.service_mode === 'both'
+                        ? 'bg-purple-50 border-purple-400 text-purple-900 ring-2 ring-purple-400/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <p className="font-extrabold text-xs">⚡ Dual</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Fleet & Waybills</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setNewManagerModal(prev => ({ ...prev, service_mode: 'parcel' }))}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      newManagerModal.service_mode === 'parcel'
+                        ? 'bg-blue-50 border-blue-400 text-blue-900 ring-2 ring-blue-400/20'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <p className="font-extrabold text-xs">📦 Waybill</p>
+                    <p className="text-[10px] text-slate-500 mt-0.5">Parcels & Officers</p>
+                  </button>
+                </div>
               </div>
 
               <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-xs text-indigo-900 font-semibold space-y-1">
@@ -2662,9 +2966,14 @@ export const CompanyDashboard: React.FC = () => {
                   </div>
 
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-slate-500 font-medium">Authority Level</span>
-                    <span className="font-extrabold text-slate-700">
-                      Park Administrator
+                    <span className="text-slate-500 font-medium">Operational Role</span>
+                    <span className="font-extrabold text-slate-700 flex items-center gap-1">
+                      {(() => {
+                        const raw = (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type || 'haulage').toLowerCase();
+                        if (raw === 'fleet' || raw === 'haulage') return '🚛 Fleet & Haulage Manager';
+                        if (raw === 'parcel' || raw === 'package' || raw === 'waybill') return '📦 Waybill Manager';
+                        return '⚡ Dual Operations Manager';
+                      })()}
                     </span>
                   </div>
 
@@ -2674,6 +2983,62 @@ export const CompanyDashboard: React.FC = () => {
                       {selectedManagerProfile.active ? 'Full Access Allowed' : 'No Access'}
                     </span>
                   </div>
+                </div>
+              </div>
+
+              {/* Operational Role Switcher Controls */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">
+                    Switch Dashboard Interface
+                  </p>
+                  {updatingManagerRoleFromProfile && (
+                    <span className="text-[10px] text-indigo-600 font-bold animate-pulse">Updating role...</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    disabled={updatingManagerRoleFromProfile}
+                    onClick={() => handleUpdateManagerRoleFromProfile(selectedManagerProfile.id, 'haulage')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type) === 'haulage' || (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type) === 'fleet'
+                        ? 'bg-amber-500 text-white border-amber-600 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <p className="font-black text-xs">🚛 Fleet</p>
+                    <p className="text-[9px] mt-0.5 opacity-90">Fleet & Trips</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={updatingManagerRoleFromProfile}
+                    onClick={() => handleUpdateManagerRoleFromProfile(selectedManagerProfile.id, 'both')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type) === 'both'
+                        ? 'bg-purple-600 text-white border-purple-700 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <p className="font-black text-xs">⚡ Dual</p>
+                    <p className="text-[9px] mt-0.5 opacity-90">Both Modes</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={updatingManagerRoleFromProfile}
+                    onClick={() => handleUpdateManagerRoleFromProfile(selectedManagerProfile.id, 'parcel')}
+                    className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                      (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type) === 'parcel' || (selectedManagerProfile.service_mode || selectedManagerProfile.manager_type) === 'waybill'
+                        ? 'bg-blue-600 text-white border-blue-700 shadow-sm'
+                        : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    <p className="font-black text-xs">📦 Waybill</p>
+                    <p className="text-[9px] mt-0.5 opacity-90">Waybills Only</p>
+                  </button>
                 </div>
               </div>
 
@@ -2693,6 +3058,15 @@ export const CompanyDashboard: React.FC = () => {
               <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest mb-2 text-center">
                 Administrative Controls
               </p>
+
+              {/* Reset PIN Button */}
+              <button
+                onClick={() => handleInitiateManagerResetPin(selectedManagerProfile.id, selectedManagerProfile.name, selectedManagerProfile.phone)}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border-0 shadow-sm"
+                id="panel-reset-manager-pin-btn"
+              >
+                <KeyRound className="w-4 h-4" /> Reset 6-Digit Manager PIN
+              </button>
 
               {/* Active Toggle Switch */}
               <div className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-3">

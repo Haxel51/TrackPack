@@ -596,10 +596,59 @@ function isWeakPassword(password: string): { weak: boolean; reason?: string } {
   return { weak: false };
 }
 
+function normalizeNigerianPhone(phone: string): string {
+  if (!phone) return "";
+  let digits = String(phone).replace(/\D/g, "");
+  if (digits.startsWith("234") && digits.length === 13) {
+    digits = "0" + digits.substring(3);
+  } else if (digits.length === 10 && !digits.startsWith("0")) {
+    digits = "0" + digits;
+  }
+  return digits;
+}
+
 function isValid11DigitPhone(phone: string): boolean {
   if (!phone) return false;
-  const digits = phone.replace(/\D/g, "");
+  const digits = normalizeNigerianPhone(phone);
   return digits.length === 11;
+}
+
+async function findManagerByPhone(phone: string): Promise<{ id: string; data: any } | null> {
+  const normPhone = normalizeNigerianPhone(phone);
+  if (!normPhone) return null;
+
+  const possibleFormats = Array.from(new Set([
+    normPhone,
+    phone.trim(),
+    phone.replace(/\D/g, ""),
+    normPhone.startsWith("0") ? "234" + normPhone.substring(1) : normPhone,
+    normPhone.startsWith("0") ? "+234" + normPhone.substring(1) : normPhone,
+    normPhone.startsWith("0") ? normPhone.substring(1) : normPhone
+  ])).filter(Boolean);
+
+  for (const fmt of possibleFormats) {
+    const q = query(collection(db, "managers"), where("phone", "==", fmt), limit(5));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const activeDoc = snap.docs.find(d => d.data().active !== false) || snap.docs[0];
+      return { id: activeDoc.id, data: activeDoc.data() };
+    }
+  }
+
+  // Fallback memory scan across managers
+  try {
+    const allManagersSnap = await getDocs(collection(db, "managers"));
+    for (const mDoc of allManagersSnap.docs) {
+      const mData = mDoc.data();
+      if (mData.phone && normalizeNigerianPhone(mData.phone) === normPhone) {
+        return { id: mDoc.id, data: mData };
+      }
+    }
+  } catch (err) {
+    console.warn("Fallback manager phone scan warning:", err);
+  }
+
+  return null;
 }
 
 function normalizePhoneForSMS(phone: string): string {
@@ -962,31 +1011,29 @@ app.post("/api/auth/staff/login", async (req, res) => {
 // 2b. Manager Check Phone Endpoint (verifies phone number matches an active transport company manager profile)
 app.post("/api/auth/manager/check-phone", async (req, res) => {
   const { phone_number } = req.body;
-  const cleanPhone = String(phone_number || "").trim();
+  const rawPhone = String(phone_number || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
 
-  if (!cleanPhone) {
+  if (!rawPhone) {
     return res.status(400).json({ error: "Phone number is required." });
   }
 
-  if (!isValid11DigitPhone(cleanPhone)) {
+  if (!isValid11DigitPhone(rawPhone)) {
     return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
   }
 
   try {
-    const q = query(
-      collection(db, "managers"),
-      where("phone", "==", cleanPhone),
-      where("active", "==", true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
+    const managerResult = await findManagerByPhone(cleanPhone);
 
-    if (snap.empty) {
+    if (!managerResult) {
       return res.status(404).json({ error: "This phone number is not registered as a Manager for any transport company. Please contact your company owner." });
     }
 
-    const managerDoc = snap.docs[0];
-    const managerData = managerDoc.data();
+    const managerData = managerResult.data;
+
+    if (managerData.active === false) {
+      return res.status(403).json({ error: "Your manager account has been deactivated. Please contact your company owner." });
+    }
 
     // Check company status
     const companyRef = doc(db, "companies", managerData.company_id);
@@ -1021,15 +1068,16 @@ app.post("/api/auth/manager/check-phone", async (req, res) => {
 // 2c. Manager Create / Set PIN Endpoint (First-time PIN setup or PIN reset setup)
 app.post("/api/auth/manager/set-pin", async (req, res) => {
   const { phone_number, pin, confirm_pin } = req.body;
-  const cleanPhone = String(phone_number || "").trim();
+  const rawPhone = String(phone_number || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
   const cleanPin = String(pin || "").trim();
   const cleanConfirm = String(confirm_pin || "").trim();
 
-  if (!cleanPhone || !cleanPin) {
+  if (!rawPhone || !cleanPin) {
     return res.status(400).json({ error: "Phone number and 6-digit PIN are required." });
   }
 
-  if (!isValid11DigitPhone(cleanPhone)) {
+  if (!isValid11DigitPhone(rawPhone)) {
     return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
   }
 
@@ -1042,20 +1090,18 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
   }
 
   try {
-    const q = query(
-      collection(db, "managers"),
-      where("phone", "==", cleanPhone),
-      where("active", "==", true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
+    const managerResult = await findManagerByPhone(cleanPhone);
 
-    if (snap.empty) {
+    if (!managerResult) {
       return res.status(404).json({ error: "This phone number is not registered as an active Manager for any transport company." });
     }
 
-    const managerDoc = snap.docs[0];
-    const managerData = managerDoc.data();
+    const managerDocId = managerResult.id;
+    const managerData = managerResult.data;
+
+    if (managerData.active === false) {
+      return res.status(403).json({ error: "Your manager account has been deactivated. Please contact your company owner." });
+    }
 
     const companyRef = doc(db, "companies", managerData.company_id);
     const companySnap = await getDoc(companyRef);
@@ -1067,13 +1113,20 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
 
     // Hash and store manager PIN
     const hashedPin = await bcrypt.hash(cleanPin, 10);
-    await updateDoc(doc(db, "managers", managerDoc.id), {
+    await updateDoc(doc(db, "managers", managerDocId), {
       pin_hash: hashedPin,
-      pin_set_at: new Date().toISOString()
+      pin_set_at: new Date().toISOString(),
+      failed_attempts: 0,
+      locked_until: null,
+      temporary_reset_code: null,
+      temporary_reset_code_expires_at: null
     });
 
     // Clear failed PIN attempts
     await handlePinSuccess(`mgr_${cleanPhone}`);
+    if (rawPhone !== cleanPhone) {
+      await handlePinSuccess(`mgr_${rawPhone}`);
+    }
 
     // Determine manager's service mode (falls back to company's service_mode)
     const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
@@ -1084,11 +1137,11 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     await setDoc(doc(db, "sessions", token), {
-      userId: managerDoc.id,
+      userId: managerDocId,
       userRole: "manager",
       userData: {
         name: managerData.name,
-        phone: managerData.phone,
+        phone: managerData.phone || cleanPhone,
         company_id: managerData.company_id,
         company_name: companyName,
         park_id: managerData.park_id,
@@ -1096,7 +1149,7 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
         service_mode: effectiveServiceMode,
         service_type: effectiveServiceMode,
         manager_type: effectiveServiceMode,
-        active: managerData.active
+        active: managerData.active !== false
       },
       createdAt: new Date().toISOString(),
       expiresAt
@@ -1109,7 +1162,7 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
       role: "manager",
       user: {
         name: managerData.name,
-        phone: managerData.phone,
+        phone: managerData.phone || cleanPhone,
         park_location: managerData.park_location,
         park_id: managerData.park_id,
         company_id: managerData.company_id,
@@ -1125,17 +1178,27 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
   }
 });
 
+function getRoleMode(mode: string): "fleet_only" | "waybill_only" | "both" {
+  let m = (mode || "parcel").toLowerCase();
+  if (m === "package" || m === "waybill") m = "parcel";
+
+  if (m === "fleet" || m === "haulage") return "fleet_only";
+  if (m === "both" || m === "all") return "both";
+  return "waybill_only";
+}
+
 // 2d. Manager Login Route (11-digit phone + 6-digit PIN)
 app.post("/api/auth/manager/login", async (req, res) => {
   const { phone_number, pin } = req.body;
-  const cleanPhone = String(phone_number || "").trim();
+  const rawPhone = String(phone_number || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
   const cleanPin = String(pin || "").trim();
 
-  if (!cleanPhone || !cleanPin) {
+  if (!rawPhone || !cleanPin) {
     return res.status(400).json({ error: "Phone number and 6-digit PIN are required." });
   }
 
-  if (!isValid11DigitPhone(cleanPhone)) {
+  if (!isValid11DigitPhone(rawPhone)) {
     return res.status(400).json({ error: "Phone number must be exactly 11 digits (e.g. 08012345678)." });
   }
 
@@ -1149,22 +1212,19 @@ app.post("/api/auth/manager/login", async (req, res) => {
       return res.status(429).json({ error: `Too many attempts. Try again in ${pinLock.timeLeftMinutes} minutes.` });
     }
 
-    // Query active managers with matching phone
-    const q = query(
-      collection(db, "managers"),
-      where("phone", "==", cleanPhone),
-      where("active", "==", true),
-      limit(1)
-    );
-    const snap = await getDocs(q);
+    const managerResult = await findManagerByPhone(cleanPhone);
 
-    if (snap.empty) {
+    if (!managerResult) {
       const pinFail = await handlePinFailure(`mgr_${cleanPhone}`);
       return res.status(401).json({ error: "Invalid phone number or PIN. Please verify your phone number is assigned to a transport company.", attemptsLeft: pinFail.attemptsLeft });
     }
 
-    const managerDoc = snap.docs[0];
-    const managerData = managerDoc.data();
+    const managerDocId = managerResult.id;
+    const managerData = managerResult.data;
+
+    if (managerData.active === false) {
+      return res.status(403).json({ error: "Your manager account has been deactivated. Please contact your company owner." });
+    }
 
     // If manager hasn't set a PIN yet
     if (!managerData.pin_hash) {
@@ -1201,6 +1261,7 @@ app.post("/api/auth/manager/login", async (req, res) => {
     // Determine manager's service mode (falls back to company's service_mode)
     const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
     const effectiveServiceMode = managerData.service_mode || managerData.manager_type || companyServiceMode;
+    const roleMode = getRoleMode(effectiveServiceMode);
 
     // Success! Clear PIN lockouts
     await handlePinSuccess(`mgr_${cleanPhone}`);
@@ -1210,7 +1271,7 @@ app.post("/api/auth/manager/login", async (req, res) => {
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     await setDoc(doc(db, "sessions", token), {
-      userId: managerDoc.id,
+      userId: managerDocId,
       userRole: "manager",
       userData: {
         name: managerData.name,
@@ -1222,6 +1283,10 @@ app.post("/api/auth/manager/login", async (req, res) => {
         service_mode: effectiveServiceMode,
         service_type: effectiveServiceMode,
         manager_type: effectiveServiceMode,
+        role_mode: roleMode,
+        is_fleet_only: roleMode === 'fleet_only',
+        is_waybill_only: roleMode === 'waybill_only',
+        is_both: roleMode === 'both',
         active: managerData.active
       },
       createdAt: new Date().toISOString(),
@@ -1241,7 +1306,11 @@ app.post("/api/auth/manager/login", async (req, res) => {
         company_name: companyName,
         service_mode: effectiveServiceMode,
         service_type: effectiveServiceMode,
-        manager_type: effectiveServiceMode
+        manager_type: effectiveServiceMode,
+        role_mode: roleMode,
+        is_fleet_only: roleMode === 'fleet_only',
+        is_waybill_only: roleMode === 'waybill_only',
+        is_both: roleMode === 'both'
       }
     });
   } catch (err) {
@@ -1312,7 +1381,9 @@ app.post("/api/auth/company/login", async (req, res) => {
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
-    const companyServiceMode = company.service_mode || company.service_type || 'parcel';
+    let companyServiceMode = company.service_mode || company.service_type || 'parcel';
+    const roleMode = getRoleMode(companyServiceMode);
+
     await setDoc(doc(db, "sessions", token), {
       userId: companyDoc.id,
       userRole: "company",
@@ -1321,6 +1392,10 @@ app.post("/api/auth/company/login", async (req, res) => {
         owner_phone: company.owner_phone,
         service_mode: companyServiceMode,
         service_type: companyServiceMode,
+        role_mode: roleMode,
+        is_fleet_only: roleMode === 'fleet_only',
+        is_waybill_only: roleMode === 'waybill_only',
+        is_both: roleMode === 'both',
         approved: company.approved
       },
       createdAt: new Date().toISOString(),
@@ -1336,6 +1411,10 @@ app.post("/api/auth/company/login", async (req, res) => {
         owner_phone: company.owner_phone,
         service_mode: companyServiceMode,
         service_type: companyServiceMode,
+        role_mode: roleMode,
+        is_fleet_only: roleMode === 'fleet_only',
+        is_waybill_only: roleMode === 'waybill_only',
+        is_both: roleMode === 'both',
         approved: company.approved
       }
     });
@@ -1873,9 +1952,35 @@ app.get("/api/auth/me", async (req, res) => {
         } else if (session.userRole === "staff") {
           freshUserData = { name: d.name, park_location: d.park_location, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
         } else if (session.userRole === "manager") {
-          freshUserData = { name: d.name, phone: d.phone, park_location: d.park_location, park_id: d.park_id, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
+          const mode = d.service_mode || d.service_type || d.manager_type || 'parcel';
+          const roleMode = getRoleMode(mode);
+          freshUserData = {
+            name: d.name,
+            phone: d.phone,
+            park_location: d.park_location,
+            park_id: d.park_id,
+            company_id: d.company_id,
+            service_mode: mode,
+            role_mode: roleMode,
+            is_fleet_only: roleMode === 'fleet_only',
+            is_waybill_only: roleMode === 'waybill_only',
+            is_both: roleMode === 'both',
+            has_completed_onboarding: !!d.has_completed_onboarding
+          };
         } else if (session.userRole === "company") {
-          freshUserData = { company_name: d.company_name, owner_phone: d.owner_phone, service_mode: d.service_mode || d.service_type || 'parcel', approved: d.approved, has_completed_onboarding: !!d.has_completed_onboarding };
+          const mode = d.service_mode || d.service_type || 'parcel';
+          const roleMode = getRoleMode(mode);
+          freshUserData = {
+            company_name: d.company_name,
+            owner_phone: d.owner_phone,
+            service_mode: mode,
+            role_mode: roleMode,
+            is_fleet_only: roleMode === 'fleet_only',
+            is_waybill_only: roleMode === 'waybill_only',
+            is_both: roleMode === 'both',
+            approved: d.approved,
+            has_completed_onboarding: !!d.has_completed_onboarding
+          };
         }
       }
     }
@@ -2060,23 +2165,62 @@ app.get("/api/customer/waybills", async (req, res) => {
       return res.status(400).json({ error: "Phone number not associated with session." });
     }
 
-    const qSender = query(collection(db, "waybills"), where("sender_phone", "==", phone));
-    const qReceiver = query(collection(db, "waybills"), where("receiver_phone", "==", phone));
+    const cleanPhone = phone.trim();
+    const phoneSet = new Set<string>();
+    phoneSet.add(cleanPhone);
 
-    const [snapSender, snapReceiver] = await Promise.all([
-      getDocs(qSender),
-      getDocs(qReceiver)
-    ]);
+    const digitsOnly = cleanPhone.replace(/\D/g, "");
+    if (digitsOnly.length >= 10) {
+      const last10 = digitsOnly.slice(-10);
+      phoneSet.add("0" + last10);
+      phoneSet.add("+234" + last10);
+      phoneSet.add("234" + last10);
+      phoneSet.add(last10);
+    }
+    const phoneVariations = Array.from(phoneSet).slice(0, 10);
 
     const waybillsMap = new Map<string, any>();
 
-    snapSender.docs.forEach((docObj) => {
-      waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
-    });
+    try {
+      if (phoneVariations.length > 1) {
+        const [snapSender, snapReceiver] = await Promise.all([
+          getDocs(query(collection(db, "waybills"), where("sender_phone", "in", phoneVariations))),
+          getDocs(query(collection(db, "waybills"), where("receiver_phone", "in", phoneVariations)))
+        ]);
 
-    snapReceiver.docs.forEach((docObj) => {
-      waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
-    });
+        snapSender.docs.forEach((docObj) => {
+          waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+        });
+        snapReceiver.docs.forEach((docObj) => {
+          waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+        });
+      } else {
+        const [snapSender, snapReceiver] = await Promise.all([
+          getDocs(query(collection(db, "waybills"), where("sender_phone", "==", cleanPhone))),
+          getDocs(query(collection(db, "waybills"), where("receiver_phone", "==", cleanPhone)))
+        ]);
+
+        snapSender.docs.forEach((docObj) => {
+          waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+        });
+        snapReceiver.docs.forEach((docObj) => {
+          waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+        });
+      }
+    } catch (queryErr) {
+      console.warn("Phone variation query failed, falling back to direct equality:", queryErr);
+      const [snapSender, snapReceiver] = await Promise.all([
+        getDocs(query(collection(db, "waybills"), where("sender_phone", "==", cleanPhone))),
+        getDocs(query(collection(db, "waybills"), where("receiver_phone", "==", cleanPhone)))
+      ]);
+
+      snapSender.docs.forEach((docObj) => {
+        waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+      });
+      snapReceiver.docs.forEach((docObj) => {
+        waybillsMap.set(docObj.id, { id: docObj.id, ...docObj.data() });
+      });
+    }
 
     const combinedWaybills = Array.from(waybillsMap.values());
 
@@ -3681,7 +3825,10 @@ app.post("/api/company/managers", async (req, res) => {
     // Get company's default service mode
     const compDoc = await getDoc(doc(db, "companies", companyId));
     const compServiceMode = compDoc.exists() ? (compDoc.data().service_mode || compDoc.data().service_type || "parcel") : "parcel";
-    const assignedMode = service_mode || manager_type || compServiceMode;
+    let assignedMode = service_mode || manager_type || compServiceMode || "haulage";
+    if (assignedMode === "fleet") assignedMode = "haulage";
+    if (assignedMode === "waybill" || assignedMode === "package") assignedMode = "parcel";
+    if (assignedMode === "all") assignedMode = "both";
 
     // Option for PIN: if provided, hash it; otherwise leave null so manager creates their PIN on first login
     let hashedPin: string | null = null;
@@ -3788,14 +3935,105 @@ app.delete("/api/company/managers/:id", async (req, res) => {
   }
 });
 
-// POST /api/company/managers/:id/reset-pin - Reset 6-digit PIN for a manager (clears PIN so manager can set a new one)
-app.post("/api/company/managers/:id/reset-pin", async (req, res) => {
+// POST / PUT /api/company/managers/:id/reset-pin - Reset 6-digit PIN for a manager (clears PIN and all lockouts so manager can set a new one on sign-in)
+const handleResetCompanyManagerPin = async (req: express.Request, res: express.Response) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader) {
+      return res.status(401).json({ error: "Missing authorization token." });
+    }
+    const token = authHeader.replace("Bearer ", "").trim();
+    const sessionSnap = await getDoc(doc(db, "sessions", token));
+    if (!sessionSnap.exists()) {
+      return res.status(401).json({ error: "Invalid or expired session token." });
+    }
+    const sessionData = sessionSnap.data();
+    const userRole = sessionData.userRole;
+    const companyId = sessionData.userId;
+
+    if (userRole !== "company" && userRole !== "admin") {
+      return res.status(403).json({ error: "Unauthorized. Company Owner or Admin access required." });
+    }
+
+    const managerId = req.params.id;
+    const mgrRef = doc(db, "managers", managerId);
+    const mgrSnap = await getDoc(mgrRef);
+
+    if (!mgrSnap.exists()) {
+      return res.status(404).json({ error: "Manager account not found." });
+    }
+
+    const mgrData = mgrSnap.data();
+    if (userRole === "company" && mgrData.company_id !== companyId) {
+      return res.status(403).json({ error: "Unauthorized. You can only reset PINs for managers in your company." });
+    }
+
+    const mgrName = mgrData.name || "Manager";
+    const mgrPhone = mgrData.phone;
+
+    // Reset PIN hash, clear all failed attempts, lockouts, and reset codes
+    await updateDoc(mgrRef, {
+      pin_hash: null,
+      pin_set_at: null,
+      failed_attempts: 0,
+      locked_until: null,
+      temporary_reset_code: null,
+      temporary_reset_code_expires_at: null
+    });
+
+    // Clear in-memory rate limiter / lockout tracker
+    if (mgrPhone) {
+      await handlePinSuccess(`mgr_${mgrPhone}`);
+      const normPhone = normalizeNigerianPhone(mgrPhone);
+      if (normPhone && normPhone !== mgrPhone) {
+        await handlePinSuccess(`mgr_${normPhone}`);
+      }
+    }
+
+    // Invalidate any active sessions for this manager
+    try {
+      const sessionsSnap = await getDocs(collection(db, "sessions"));
+      for (const sDoc of sessionsSnap.docs) {
+        const sData = sDoc.data();
+        if (sData.userId === managerId || (sData.userData && (sData.userData.phone === mgrPhone || sData.userData.id === managerId || sData.userData.manager_id === managerId))) {
+          await deleteDoc(doc(db, "sessions", sDoc.id));
+        }
+      }
+    } catch (sErr) {
+      console.warn("Could not invalidate old manager sessions:", sErr);
+    }
+
+    res.json({
+      success: true,
+      name: mgrName,
+      phone: mgrPhone,
+      message: `PIN reset for ${mgrName}. They can now enter their registered phone number (${mgrPhone || ''}) on the Manager Portal and create a new 6-digit PIN.`
+    });
+  } catch (err) {
+    console.error("Error resetting manager PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+};
+
+app.post("/api/company/managers/:id/reset-pin", handleResetCompanyManagerPin);
+app.put("/api/company/managers/:id/reset-pin", handleResetCompanyManagerPin);
+app.post("/api/admin/managers/:id/reset-pin", handleResetCompanyManagerPin);
+app.put("/api/admin/managers/:id/reset-pin", handleResetCompanyManagerPin);
+
+// POST /api/company/managers/:id/update-role - Update manager operational role (haulage, parcel, or both)
+app.post("/api/company/managers/:id/update-role", async (req, res) => {
   try {
     const session = await validateCompanySessionFromHeader(req, res);
     if (!session) return;
     const companyId = session.userId;
 
     const managerId = req.params.id;
+    const { service_mode, manager_type } = req.body;
+    let targetMode = (service_mode || manager_type || "haulage").toLowerCase().trim();
+    if (targetMode === "fleet") targetMode = "haulage";
+    if (targetMode === "waybill" || targetMode === "package") targetMode = "parcel";
+    if (targetMode === "all") targetMode = "both";
+
     const mgrRef = doc(db, "managers", managerId);
     const mgrSnap = await getDoc(mgrRef);
 
@@ -3803,12 +4041,41 @@ app.post("/api/company/managers/:id/reset-pin", async (req, res) => {
       return res.status(404).json({ error: "Manager not found or unauthorized." });
     }
 
-    const mgrName = mgrSnap.data().name;
-    await updateDoc(mgrRef, { pin_hash: null });
+    await updateDoc(mgrRef, {
+      service_mode: targetMode,
+      service_type: targetMode,
+      manager_type: targetMode
+    });
 
-    res.json({ success: true, name: mgrName, message: `PIN reset for ${mgrName}. They can now create a new 6-digit PIN on sign-in.` });
+    // Also update any active sessions for this manager
+    try {
+      const sessionsSnap = await getDocs(collection(db, "sessions"));
+      for (const sDoc of sessionsSnap.docs) {
+        const sData = sDoc.data();
+        if (sData.userId === managerId || (sData.userData && (sData.userData.phone === mgrSnap.data().phone || sData.userData.id === managerId))) {
+          await updateDoc(doc(db, "sessions", sDoc.id), {
+            "userData.service_mode": targetMode,
+            "userData.service_type": targetMode,
+            "userData.manager_type": targetMode,
+            "userData.role_mode": targetMode === "haulage" ? "fleet_only" : targetMode === "parcel" ? "waybill_only" : "both",
+            "userData.is_fleet_only": targetMode === "haulage",
+            "userData.is_waybill_only": targetMode === "parcel",
+            "userData.is_both": targetMode === "both"
+          });
+        }
+      }
+    } catch (sErr) {
+      console.warn("Could not sync active sessions:", sErr);
+    }
+
+    res.json({
+      success: true,
+      service_mode: targetMode,
+      manager_type: targetMode,
+      message: `Manager role updated successfully.`
+    });
   } catch (err) {
-    console.error("Error resetting manager PIN:", err);
+    console.error("Error updating manager role:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -3836,7 +4103,7 @@ app.get("/api/manager/overview", async (req, res) => {
   try {
     const session = await validateManagerSessionFromHeader(req, res);
     if (!session) return;
-    const { company_id, park_location, park_id, service_mode, manager_type } = session.userData;
+    const { company_id, park_location, park_id } = session.userData;
 
     const companyRef = doc(db, "companies", company_id);
     const companySnap = await getDoc(companyRef);
@@ -3844,7 +4111,16 @@ app.get("/api/manager/overview", async (req, res) => {
     const companyName = companyData.company_name || "Transport Company";
 
     const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
-    const effectiveMode = service_mode || manager_type || session.userData.service_type || companyServiceMode;
+
+    // Fetch the latest manager record directly from DB to ensure real-time accuracy
+    const mgrRef = doc(db, "managers", session.userId);
+    const mgrSnap = await getDoc(mgrRef);
+    const mgrData = mgrSnap.exists() ? mgrSnap.data() : session.userData;
+
+    let effectiveMode = mgrData.service_mode || mgrData.manager_type || mgrData.service_type || session.userData.service_mode || companyServiceMode || "both";
+    if (effectiveMode === "fleet") effectiveMode = "haulage";
+    if (effectiveMode === "waybill" || effectiveMode === "package") effectiveMode = "parcel";
+    if (effectiveMode === "all") effectiveMode = "both";
 
     // Query waybills originating from or heading to this park
     const qWb = query(
@@ -3924,7 +4200,7 @@ app.get("/api/manager/overview", async (req, res) => {
       return rest;
     });
 
-    // Query Fleet Data for Manager's Park
+    // Query Fleet Data for Manager's Company
     const [trucksSnap, driversSnap, tripsSnap] = await Promise.all([
       getDocs(query(collection(db, "trucks"), where("company_id", "==", company_id))),
       getDocs(query(collection(db, "drivers"), where("company_id", "==", company_id))),
@@ -3932,18 +4208,60 @@ app.get("/api/manager/overview", async (req, res) => {
     ]);
 
     const allTrucks = trucksSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const parkTrucks = allTrucks.filter(t => !park_id || t.park_id === park_id || t.park_id === "main" || allTrucks.length <= 1);
-    
     const allDrivers = driversSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const parkDrivers = allDrivers.filter(dr => !park_id || dr.park_id === park_id || allDrivers.length <= 1);
-
     const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const parkTrips = allTrips.filter(tr => !park_id || tr.park_id === park_id || allTrips.length <= 1);
 
-    const activeTripsCount = parkTrips.filter(t => t.status === "in_transit" || t.status === "loading" || t.status === "loaded_departed" || t.status === "created").length;
-    const completedTripsCount = parkTrips.filter(t => t.status === "completed" || t.status === "arrived" || t.status === "delivered").length;
+    const activeTripsCount = allTrips.filter(t => 
+      t.status === "in_transit" || 
+      t.status === "loading" || 
+      t.status === "loaded_departed" || 
+      t.status === "created" || 
+      t.status === "initiated" || 
+      t.status === "left_warehouse" || 
+      t.status === "arrived_at_supplier" || 
+      t.status === "cargo_loaded" || 
+      t.status === "arrived_at_destination"
+    ).length;
+    
+    const completedTripsCount = allTrips.filter(t => 
+      t.status === "completed" || 
+      t.status === "arrived" || 
+      t.status === "delivered" || 
+      t.status === "arrived_offloaded"
+    ).length;
 
-    const sortedTrips = [...parkTrips].sort((a, b) => {
+    // Build driver lookup maps
+    const driverByTruckId = new Map<string, any>();
+    const driverById = new Map<string, any>();
+    allDrivers.forEach(dr => {
+      driverById.set(dr.id, dr);
+      if (dr.truck_id) driverByTruckId.set(dr.truck_id, dr);
+    });
+
+    const enrichedTrips = allTrips.map(t => {
+      let matchedDriver = (t.driver_id && driverById.get(t.driver_id)) || (t.truck_id && driverByTruckId.get(t.truck_id));
+      if (!matchedDriver && t.truck_id) {
+        const matchedTruck = allTrucks.find(trk => trk.id === t.truck_id);
+        if (matchedTruck && matchedTruck.driver_id) {
+          matchedDriver = driverById.get(matchedTruck.driver_id);
+        }
+      }
+      if (!matchedDriver && allDrivers.length > 0) {
+        matchedDriver = allDrivers[0];
+      }
+
+      const driverName = (t.driver_name && t.driver_name !== "Driver") ? t.driver_name : (matchedDriver ? matchedDriver.name : "Unassigned");
+      const driverPhone = t.driver_phone || (matchedDriver ? matchedDriver.phone_number : null);
+
+      return {
+        ...t,
+        driver_name: driverName,
+        driver_phone: driverPhone,
+        driver: matchedDriver ? { id: matchedDriver.id, name: matchedDriver.name, phone_number: matchedDriver.phone_number } : (t.driver || { name: driverName, phone_number: driverPhone })
+      };
+    });
+
+    const sortedTrips = [...enrichedTrips].sort((a, b) => {
       const da = new Date(a.created_at || 0).getTime();
       const db_ = new Date(b.created_at || 0).getTime();
       return db_ - da;
@@ -3968,11 +4286,11 @@ app.get("/api/manager/overview", async (req, res) => {
         active_staff_count: activeStaffCount
       },
       fleet_stats: {
-        total_trucks: parkTrucks.length || allTrucks.length,
-        total_drivers: parkDrivers.length || allDrivers.length,
+        total_trucks: allTrucks.length,
+        total_drivers: allDrivers.length,
         active_trips: activeTripsCount,
         completed_trips: completedTripsCount,
-        total_trips: parkTrips.length
+        total_trips: allTrips.length
       },
       staff: staffList,
       recent_waybills: recentWaybills,
@@ -4622,11 +4940,17 @@ app.post("/api/auth/reset-password/submit", async (req, res) => {
           const hash = await bcrypt.hash(new_password.trim(), 10);
           await updateDoc(doc(db, "managers", d.id), {
             pin_hash: hash,
+            pin_set_at: new Date().toISOString(),
             temporary_reset_code: null,
             temporary_reset_code_expires_at: null,
             failed_attempts: 0,
             locked_until: null
           });
+
+          await handlePinSuccess(`mgr_${cleanPhone}`);
+          if (data.phone && data.phone !== cleanPhone) {
+            await handlePinSuccess(`mgr_${data.phone}`);
+          }
 
           return res.json({ success: true, message: "Your PIN has been reset successfully. Please sign in." });
         }
@@ -6664,10 +6988,6 @@ app.get("/api/fleet/trucks", async (req, res) => {
     );
 
     let trucks = updatedTrucks;
-    if (session.userRole === "manager" && parkId) {
-      trucks = trucks.filter(t => t.park_id === parkId);
-    }
-
     res.json({ success: true, trucks });
   } catch (err) {
     console.error("Error GET /api/fleet/trucks:", err);
@@ -7193,7 +7513,7 @@ app.post("/api/fleet/supplier-staff", async (req, res) => {
 });
 
 // Reset Supplier Staff PIN
-app.put("/api/fleet/supplier-staff/:id/reset-pin", async (req, res) => {
+const handleResetSupplierStaffPinRoute = async (req: express.Request, res: express.Response) => {
   try {
     const session = await validateFleetSession(req);
     if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
@@ -7212,6 +7532,7 @@ app.put("/api/fleet/supplier-staff/:id/reset-pin", async (req, res) => {
     const staffSnap = await getDoc(staffRef);
     if (!staffSnap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
 
+    const staffData = staffSnap.data();
     const newHash = await bcrypt.hash(finalPin, 10);
     await updateDoc(staffRef, {
       pin_hash: newHash,
@@ -7219,12 +7540,20 @@ app.put("/api/fleet/supplier-staff/:id/reset-pin", async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
+    if (staffData.phone_number) {
+      await handlePinSuccess(`supplier_staff_${staffData.phone_number}`);
+      const norm = normalizeNigerianPhone(staffData.phone_number);
+      if (norm) await handlePinSuccess(`supplier_staff_${norm}`);
+    }
+
     res.json({ success: true, message: "Supplier staff PIN reset successfully.", pin: finalPin });
   } catch (err) {
     console.error("Error resetting supplier staff PIN:", err);
     res.status(500).json({ error: "Internal server error." });
   }
-});
+};
+app.put("/api/fleet/supplier-staff/:id/reset-pin", handleResetSupplierStaffPinRoute);
+app.post("/api/fleet/supplier-staff/:id/reset-pin", handleResetSupplierStaffPinRoute);
 
 // Toggle Supplier Staff Status (Active / Disabled)
 app.put("/api/fleet/supplier-staff/:id/status", async (req, res) => {
@@ -7814,10 +8143,6 @@ app.get("/api/fleet/drivers", async (req, res) => {
       return { id: d.id, ...data };
     });
 
-    if (session.userRole === "manager" && parkId) {
-      drivers = drivers.filter((d: any) => d.park_id === parkId);
-    }
-
     res.json({ success: true, drivers });
   } catch (err) {
     console.error("Error GET /api/fleet/drivers:", err);
@@ -7954,7 +8279,7 @@ app.put("/api/auth/driver/change-pin", async (req, res) => {
 });
 
 // CEO / Manager reset driver PIN
-app.put("/api/fleet/drivers/:id/reset-pin", async (req, res) => {
+const handleResetDriverPinRoute = async (req: express.Request, res: express.Response) => {
   try {
     const session = await validateFleetSession(req);
     if (!session || !["company", "manager"].includes(session.userRole)) {
@@ -7973,6 +8298,7 @@ app.put("/api/fleet/drivers/:id/reset-pin", async (req, res) => {
     const driverSnap = await getDoc(driverRef);
     if (!driverSnap.exists()) return res.status(404).json({ error: "Driver not found." });
 
+    const driverData = driverSnap.data();
     const newHash = await bcrypt.hash(finalPin, 10);
     await updateDoc(driverRef, {
       pin_hash: newHash,
@@ -7980,12 +8306,20 @@ app.put("/api/fleet/drivers/:id/reset-pin", async (req, res) => {
       updated_at: new Date().toISOString()
     });
 
+    if (driverData.phone_number) {
+      await handlePinSuccess(`drv_${driverData.phone_number}`);
+      const norm = normalizeNigerianPhone(driverData.phone_number);
+      if (norm) await handlePinSuccess(`drv_${norm}`);
+    }
+
     res.json({ success: true, message: "Driver PIN reset successfully.", pin: finalPin });
   } catch (err) {
     console.error("Error resetting driver PIN:", err);
     res.status(500).json({ error: "Internal server error." });
   }
-});
+};
+app.put("/api/fleet/drivers/:id/reset-pin", handleResetDriverPinRoute);
+app.post("/api/fleet/drivers/:id/reset-pin", handleResetDriverPinRoute);
 
 app.delete("/api/fleet/drivers/:id", async (req, res) => {
   try {
@@ -8022,12 +8356,48 @@ app.get("/api/fleet/trips", async (req, res) => {
     if (!companyId) return res.json({ success: true, trips: [] });
 
     const q = query(collection(db, "trips"), where("company_id", "==", companyId));
-    const snap = await getDocs(q);
-    let trips = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    const [snap, driversSnap, trucksSnap] = await Promise.all([
+      getDocs(q),
+      getDocs(query(collection(db, "drivers"), where("company_id", "==", companyId))),
+      getDocs(query(collection(db, "trucks"), where("company_id", "==", companyId)))
+    ]);
 
-    if (session.userRole === "manager" && session.userData?.park_id) {
-      trips = trips.filter(t => t.park_id === session.userData.park_id);
-    } else if (session.userRole === "supplier_staff" && session.userData?.supplier_id) {
+    const allDrivers = driversSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+    const allTrucks = trucksSnap.docs.map(t => ({ id: t.id, ...t.data() as any }));
+
+    const driverByTruckId = new Map<string, any>();
+    const driverById = new Map<string, any>();
+    allDrivers.forEach(dr => {
+      driverById.set(dr.id, dr);
+      if (dr.truck_id) driverByTruckId.set(dr.truck_id, dr);
+    });
+
+    let trips = snap.docs.map(d => {
+      const data = d.data() as any;
+      let matchedDriver = (data.driver_id && driverById.get(data.driver_id)) || (data.truck_id && driverByTruckId.get(data.truck_id));
+      if (!matchedDriver && data.truck_id) {
+        const matchedTruck = allTrucks.find(t => t.id === data.truck_id);
+        if (matchedTruck && matchedTruck.driver_id) {
+          matchedDriver = driverById.get(matchedTruck.driver_id);
+        }
+      }
+      if (!matchedDriver && allDrivers.length > 0) {
+        matchedDriver = allDrivers[0];
+      }
+
+      const driverName = (data.driver_name && data.driver_name !== "Driver") ? data.driver_name : (matchedDriver ? matchedDriver.name : "Unassigned");
+      const driverPhone = data.driver_phone || (matchedDriver ? matchedDriver.phone_number : null);
+
+      return {
+        id: d.id,
+        ...data,
+        driver_name: driverName,
+        driver_phone: driverPhone,
+        driver: matchedDriver ? { id: matchedDriver.id, name: matchedDriver.name, phone_number: matchedDriver.phone_number } : (data.driver || { name: driverName, phone_number: driverPhone })
+      };
+    });
+
+    if (session.userRole === "supplier_staff" && session.userData?.supplier_id) {
       trips = trips.filter(t => t.supplier_id === session.userData.supplier_id);
     } else if (session.userRole === "driver" && session.userData?.truck_id) {
       trips = trips.filter(t => t.truck_id === session.userData.truck_id);
@@ -8445,6 +8815,23 @@ app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
     if (!suppDoc.exists()) return res.status(404).json({ error: "Supplier not found." });
     const suppData = suppDoc.data();
 
+    // Look up assigned driver for this truck
+    let driverId = truckData.driver_id || null;
+    let driverName = truckData.driver_name || null;
+    let driverPhone = truckData.driver_phone || null;
+
+    if (!driverName) {
+      const driverQuery = query(collection(db, "drivers"), where("truck_id", "==", truck_id), limit(1));
+      const driverSnap = await getDocs(driverQuery);
+      if (!driverSnap.empty) {
+        const dDoc = driverSnap.docs[0];
+        const dData = dDoc.data();
+        driverId = dDoc.id;
+        driverName = dData.name || null;
+        driverPhone = dData.phone_number || null;
+      }
+    }
+
     const verified = (req as any).verifiedPayment || {};
     const tripFee = verified.trip_fee !== undefined ? verified.trip_fee : 1000;
     const paymentStatus = verified.payment_status || "paid";
@@ -8455,6 +8842,9 @@ app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
       park_id: truckData.park_id,
       truck_id,
       truck_number: truckData.truck_number,
+      driver_id: driverId,
+      driver_name: driverName,
+      driver_phone: driverPhone,
       supplier_id,
       supplier_name: suppData.name,
       status: "initiated",
@@ -8505,7 +8895,7 @@ app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
     const session = await validateFleetSession(req);
     if (!session) return res.status(401).json({ error: "Unauthorized." });
     const { id } = req.params;
-    const { checkpoint } = req.body; // 'left_warehouse' | 'loaded_departed' | 'arrived_offloaded'
+    const { checkpoint, waybill_number, notes } = req.body;
 
     const tripRef = doc(db, "trips", id);
     const tripSnap = await getDoc(tripRef);
@@ -8513,29 +8903,69 @@ app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
     const trip = tripSnap.data();
 
     const now = new Date().toISOString();
-    const updates: any = {};
+    const actorName = session.name || (session.userRole === "supplier_staff" ? "Supplier Officer" : "Depot Staff");
+    const updates: any = { updated_at: now };
 
-    if (checkpoint === "left_warehouse") {
+    if (checkpoint === "left_warehouse" || checkpoint === "departed_depot") {
+      // Stage 2: Marked by Depot Staff or Manager
+      if (session.userRole === "supplier_staff") {
+        return res.status(403).json({ error: "Suppliers cannot mark depot departure. This must be done by Depot Staff." });
+      }
       if (trip.payment_status !== "paid" && trip.payment_status !== "active_monthly") {
         return res.status(402).json({ error: "Payment required (₦1,000 per trip) or active monthly subscription before starting trip tracking." });
       }
       updates.status = "left_warehouse";
       updates.left_warehouse_at = now;
-    } else if (checkpoint === "loaded_departed") {
-      if (session.userRole !== "supplier_staff" && session.userRole !== "company" && session.userRole !== "manager") {
-        return res.status(403).json({ error: "Only supplier staff can mark Loaded & Departed." });
+      updates.left_warehouse_by = actorName;
+    } else if (checkpoint === "arrived_at_supplier") {
+      // Stage 3: Marked ONLY by Supplier
+      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
+        return res.status(403).json({ error: "Only the assigned Supplier plant staff can confirm truck arrival at their facility." });
+      }
+      updates.status = "arrived_at_supplier";
+      updates.arrived_at_supplier_at = now;
+      updates.arrived_at_supplier_by = actorName;
+      if (notes) updates.supplier_arrival_notes = notes;
+    } else if (checkpoint === "cargo_loaded") {
+      // Stage 4: Marked ONLY by Supplier
+      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
+        return res.status(403).json({ error: "Only the Supplier can confirm cargo loading and sealing." });
+      }
+      updates.status = "cargo_loaded";
+      updates.cargo_loaded_at = now;
+      updates.cargo_loaded_by = actorName;
+      if (waybill_number) updates.waybill_number = waybill_number;
+      if (notes) updates.cargo_notes = notes;
+    } else if (checkpoint === "loaded_departed" || checkpoint === "departed_supplier") {
+      // Stage 5: Marked ONLY by Supplier
+      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
+        return res.status(403).json({ error: "Only the Supplier can mark truck departure from the supplier facility." });
       }
       updates.status = "loaded_departed";
       updates.loaded_departed_at = now;
-    } else if (checkpoint === "arrived_offloaded") {
+      updates.loaded_departed_by = actorName;
+    } else if (checkpoint === "arrived_at_destination") {
+      // Stage 6: Marked by Depot Staff or Manager
+      if (session.userRole === "supplier_staff") {
+        return res.status(403).json({ error: "Supplier cannot mark destination arrival. This is recorded by Destination Depot Staff." });
+      }
+      updates.status = "arrived_at_destination";
+      updates.arrived_at_destination_at = now;
+      updates.arrived_at_destination_by = actorName;
+    } else if (checkpoint === "arrived_offloaded" || checkpoint === "completed") {
+      // Stage 7: Marked by Depot Staff or Manager
+      if (session.userRole === "supplier_staff") {
+        return res.status(403).json({ error: "Supplier cannot mark destination offloading. This is recorded by Depot Staff." });
+      }
       updates.status = "completed";
       updates.arrived_offloaded_at = now;
+      updates.arrived_offloaded_by = actorName;
     } else {
-      return res.status(400).json({ error: "Invalid checkpoint." });
+      return res.status(400).json({ error: "Invalid checkpoint stage requested." });
     }
 
     await updateDoc(tripRef, updates);
-    res.json({ success: true });
+    res.json({ success: true, status: updates.status, updated_at: now });
   } catch (err) {
     console.error("Error POST /api/fleet/trips/:id/checkpoint:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -8576,27 +9006,32 @@ app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
 // ---------------- SERVER AND Vite SERVING ----------------
 
 async function startServer() {
-  // Execute database seeding
-  await seedDatabase();
+  try {
+    // Vite middleware for development
+    if (process.env.NODE_ENV !== "production") {
+      const vite = await createViteServer({
+        server: { middlewareMode: true },
+        appType: "spa",
+      });
+      app.use(vite.middlewares);
+    } else {
+      const distPath = path.join(process.cwd(), "dist");
+      app.use(express.static(distPath));
+      app.get("*", (req, res) => {
+        res.sendFile(path.join(distPath, "index.html"));
+      });
+    }
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+      // Run database seed & cleanup asynchronously in background without blocking server startup
+      seedDatabase().catch((err) => {
+        console.warn("[SEED] Background database cleanup error (non-fatal):", err);
+      });
     });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), "dist");
-    app.use(express.static(distPath));
-    app.get("*", (req, res) => {
-      res.sendFile(path.join(distPath, "index.html"));
-    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
   }
-
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
 }
 
 startServer();

@@ -30,11 +30,12 @@ import {
   getCompanyManagers,
   createCompanyManager,
   toggleCompanyManagerStatus,
+  updateCompanyManagerRole,
   resetCompanyManagerPin,
   deleteCompanyManager
 } from '../../lib/api';
 import { getFleetTripNarrative } from '../../lib/fleetNarrative';
-import { Truck, Building2, Users, Plus, ShieldCheck, DollarSign, Calendar, AlertTriangle, CheckCircle2, Activity, X, Trash2, MapPin, ArrowRight, CreditCard, ExternalLink, UserCheck, AlertCircle } from 'lucide-react';
+import { Truck, Building2, Users, Plus, ShieldCheck, DollarSign, Calendar, AlertTriangle, CheckCircle2, Activity, X, Trash2, MapPin, ArrowRight, CreditCard, ExternalLink, UserCheck, AlertCircle, KeyRound, Copy, Check, Phone, Share2, MessageSquare } from 'lucide-react';
 import { RealtimeFleetBoard } from './RealtimeFleetBoard';
 
 interface FleetManagementViewProps {
@@ -81,6 +82,8 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
   const [managerName, setManagerName] = useState('');
   const [managerPhone, setManagerPhone] = useState('');
   const [managerParkId, setManagerParkId] = useState('');
+  const [managerRoleMode, setManagerRoleMode] = useState<'haulage' | 'parcel' | 'both'>('haulage');
+  const [updatingManagerRole, setUpdatingManagerRole] = useState<string | null>(null);
   const [submittingManager, setSubmittingManager] = useState(false);
   const [managerError, setManagerError] = useState<string | null>(null);
   const [createdManagerSuccess, setCreatedManagerSuccess] = useState<{
@@ -154,13 +157,38 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
 
   // ⚠️ Delete Confirmation Dialog State (Interactive Modal)
   const [deleteTarget, setDeleteTarget] = useState<{
-    type: 'supplier' | 'truck' | 'driver' | 'supplier_staff';
+    type: 'supplier' | 'truck' | 'driver' | 'supplier_staff' | 'manager';
     id: string;
     name: string;
     title: string;
     description: string;
   } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // 🔑 Comprehensive PIN Reset Modal State (Driver, Supplier Staff, Manager)
+  const [pinResetDialog, setPinResetDialog] = useState<{
+    open: boolean;
+    type: 'driver' | 'supplier_staff' | 'manager';
+    id: string;
+    name: string;
+    phone?: string;
+    customPin: string;
+    mode: 'auto' | 'custom';
+    submitting: boolean;
+    error: string | null;
+  } | null>(null);
+
+  const [pinResultDialog, setPinResultDialog] = useState<{
+    open: boolean;
+    type: 'driver' | 'supplier_staff' | 'manager';
+    title: string;
+    name: string;
+    phone?: string;
+    pin?: string;
+    message?: string;
+  } | null>(null);
+
+  const [copiedPin, setCopiedPin] = useState(false);
 
   const isMountedRef = useRef(true);
   useEffect(() => {
@@ -185,7 +213,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
         getFleetSupplierStaff(token),
         getFleetTrips(token),
         getParks(token),
-        getCompanyManagers(token)
+        userRole === 'company' ? getCompanyManagers(token) : Promise.resolve({ success: true, managers: [] })
       ]);
 
       if (!isMountedRef.current) return;
@@ -313,10 +341,20 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       });
       if (!data || !data.success) throw new Error(data?.error || 'Failed to create driver');
       setShowAddDriver(false);
+      const createdName = driverName;
+      const createdPhone = driverPhone;
       setDriverName('');
       setDriverPhone('');
       setDriverPin('');
-      alert(`Driver Account Created Successfully!\n\nDriver: ${driverName}\nPhone: ${driverPhone}\n6-Digit PIN: ${data.pin}\n\nPlease share this PIN with the driver to sign in.`);
+      setPinResultDialog({
+        open: true,
+        type: 'driver',
+        title: 'Driver Account Created',
+        name: createdName,
+        phone: createdPhone,
+        pin: data.pin,
+        message: 'Driver profile has been registered. Share the 6-digit PIN below with the driver to sign in.'
+      });
       fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to create driver');
@@ -335,35 +373,38 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       });
       if (!data || !data.success) throw new Error(data?.error || 'Failed to create staff');
       setShowAddSuppStaff(false);
+      const createdName = suppStaffName;
+      const createdPhone = suppStaffPhone;
       setSuppStaffName('');
       setSuppStaffPhone('');
       setSuppStaffPin('');
-      alert(`Supplier Staff Created Successfully!\n\nStaff: ${suppStaffName}\nPhone: ${suppStaffPhone}\n6-Digit PIN: ${data.pin}\n\nPlease share this PIN with the staff member.`);
+      setPinResultDialog({
+        open: true,
+        type: 'supplier_staff',
+        title: 'Supplier Staff Created',
+        name: createdName,
+        phone: createdPhone,
+        pin: data.pin,
+        message: 'Supplier staff account has been registered. Share the 6-digit PIN below with the staff member to sign in.'
+      });
       fetchData();
     } catch (err: any) {
       alert(err.message || 'Failed to create staff');
     }
   };
 
-  const handleResetSupplierStaffPin = async (staffId: string, staffName: string) => {
-    if (!token) return;
-    const choice = prompt(`Reset PIN for staff member ${staffName}:\n\n- Leave blank and click OK to auto-generate a new 6-digit PIN\n- Or enter a custom 6-digit PIN below:`);
-    if (choice === null) return; // User cancelled
-
-    const customPin = choice.trim();
-    if (customPin && (customPin.length !== 4 && customPin.length !== 6 || !/^\d+$/.test(customPin))) {
-      alert("Custom PIN must be 4 or 6 numeric digits.");
-      return;
-    }
-
-    try {
-      const data = await resetFleetSupplierStaffPin(token, staffId, customPin || undefined);
-      if (!data || !data.success) throw new Error(data?.error || 'Failed to reset staff PIN.');
-      alert(`Staff ${staffName}'s PIN has been reset successfully!\n\nNew 6-Digit PIN: ${data.pin}\n\nPlease share this PIN with the staff member.`);
-      fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to reset PIN');
-    }
+  const handleResetSupplierStaffPin = (staffId: string, staffName: string, phone?: string) => {
+    setPinResetDialog({
+      open: true,
+      type: 'supplier_staff',
+      id: staffId,
+      name: staffName,
+      phone: phone,
+      customPin: '',
+      mode: 'auto',
+      submitting: false,
+      error: null
+    });
   };
 
   const handleToggleStaffStatus = async (staffId: string, currentStatus: string) => {
@@ -378,25 +419,18 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     }
   };
 
-  const handleResetDriverPin = async (driverId: string, driverName: string) => {
-    if (!token) return;
-    const choice = prompt(`Reset PIN for driver ${driverName}:\n\n- Leave blank and click OK to auto-generate a new 6-digit PIN\n- Or enter a custom 6-digit PIN below:`);
-    if (choice === null) return; // User cancelled
-    
-    const customPin = choice.trim();
-    if (customPin && (customPin.length !== 6 || !/^\d+$/.test(customPin))) {
-      alert("Custom PIN must be exactly 6 numeric digits.");
-      return;
-    }
-
-    try {
-      const data = await resetFleetDriverPin(token, driverId, customPin || undefined);
-      if (!data || !data.success) throw new Error(data?.error || 'Failed to reset driver PIN.');
-      alert(`Driver ${driverName}'s PIN has been reset successfully!\n\nNew 6-Digit PIN: ${data.pin}\n\nPlease share this PIN with the driver.`);
-      fetchData();
-    } catch (err: any) {
-      alert(err.message || 'Failed to reset PIN');
-    }
+  const handleResetDriverPin = (driverId: string, driverName: string, phone?: string) => {
+    setPinResetDialog({
+      open: true,
+      type: 'driver',
+      id: driverId,
+      name: driverName,
+      phone: phone,
+      customPin: '',
+      mode: 'auto',
+      submitting: false,
+      error: null
+    });
   };
 
   const handleAddManager = async (e: React.FormEvent) => {
@@ -424,7 +458,9 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       const data = await createCompanyManager(token, {
         name: cleanName,
         phone: cleanPhone,
-        park_id: cleanParkId
+        park_id: cleanParkId,
+        service_mode: managerRoleMode,
+        manager_type: managerRoleMode
       });
 
       if (!data || !data.success) throw new Error(data?.error || 'Failed to create manager account.');
@@ -435,6 +471,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       setShowAddManager(false);
       setManagerName('');
       setManagerPhone('');
+      setManagerRoleMode('haulage');
       setManagerError(null);
 
       setCreatedManagerSuccess({
@@ -451,6 +488,20 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     }
   };
 
+  const handleUpdateManagerRole = async (managerId: string, newMode: 'haulage' | 'parcel' | 'both') => {
+    if (!token) return;
+    setUpdatingManagerRole(managerId);
+    try {
+      const data = await updateCompanyManagerRole(token, managerId, newMode);
+      if (!data || !data.success) throw new Error(data?.error || 'Failed to update manager role');
+      await fetchData();
+    } catch (err: any) {
+      alert(err.message || 'Error updating manager role');
+    } finally {
+      setUpdatingManagerRole(null);
+    }
+  };
+
   const handleToggleManagerActive = async (managerId: string, managerName: string) => {
     if (!token) return;
     try {
@@ -462,30 +513,86 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
     }
   };
 
-  const handleResetManagerPinAction = async (managerId: string, managerName: string) => {
-    if (!token) return;
-    if (!window.confirm(`Are you sure you want to reset 6-digit PIN for Manager ${managerName}?`)) return;
+  const handleResetManagerPinAction = (managerId: string, managerName: string, managerPhone?: string) => {
+    setPinResetDialog({
+      open: true,
+      type: 'manager',
+      id: managerId,
+      name: managerName,
+      phone: managerPhone,
+      customPin: '',
+      mode: 'auto',
+      submitting: false,
+      error: null
+    });
+  };
+
+  const executeConfirmedPinReset = async () => {
+    if (!token || !pinResetDialog) return;
+    
+    if (pinResetDialog.mode === 'custom') {
+      const pinStr = pinResetDialog.customPin.trim();
+      if (pinResetDialog.type === 'supplier_staff') {
+        if ((pinStr.length !== 4 && pinStr.length !== 6) || !/^\d+$/.test(pinStr)) {
+          setPinResetDialog(prev => prev ? { ...prev, error: 'Custom PIN must be 4 or 6 numeric digits.' } : null);
+          return;
+        }
+      } else if (pinResetDialog.type === 'driver') {
+        if (pinStr.length !== 6 || !/^\d+$/.test(pinStr)) {
+          setPinResetDialog(prev => prev ? { ...prev, error: 'Custom PIN must be exactly 6 numeric digits.' } : null);
+          return;
+        }
+      }
+    }
+
+    setPinResetDialog(prev => prev ? { ...prev, submitting: true, error: null } : null);
     try {
-      const data = await resetCompanyManagerPin(token, managerId);
-      if (!data || !data.success) throw new Error(data?.error || 'Failed to reset PIN.');
-      alert(`PIN for Manager ${managerName} has been reset successfully!\n\nThey can now log in using their phone number and set a new 6-digit PIN on the Manager Portal.`);
+      const { type, id, name, phone, mode, customPin } = pinResetDialog;
+      const finalCustomPin = mode === 'custom' ? customPin.trim() : undefined;
+
+      let resultPin = '';
+      let resultMessage = '';
+
+      if (type === 'manager') {
+        const data = await resetCompanyManagerPin(token, id);
+        if (!data || !data.success) throw new Error(data?.error || 'Failed to reset Manager PIN.');
+        resultMessage = data.message || 'Manager PIN reset successfully.';
+      } else if (type === 'driver') {
+        const data = await resetFleetDriverPin(token, id, finalCustomPin);
+        if (!data || !data.success) throw new Error(data?.error || 'Failed to reset Driver PIN.');
+        resultPin = data.pin;
+        resultMessage = 'Driver PIN has been reset successfully.';
+      } else if (type === 'supplier_staff') {
+        const data = await resetFleetSupplierStaffPin(token, id, finalCustomPin);
+        if (!data || !data.success) throw new Error(data?.error || 'Failed to reset Supplier Staff PIN.');
+        resultPin = data.pin;
+        resultMessage = 'Supplier Staff PIN has been reset successfully.';
+      }
+
+      setPinResetDialog(null);
+      setPinResultDialog({
+        open: true,
+        type,
+        title: `${type === 'manager' ? 'Manager' : type === 'driver' ? 'Driver' : 'Staff'} PIN Reset Successfully`,
+        name,
+        phone,
+        pin: resultPin,
+        message: resultMessage
+      });
       fetchData();
     } catch (err: any) {
-      alert(err.message || 'Error resetting manager PIN');
+      setPinResetDialog(prev => prev ? { ...prev, submitting: false, error: err.message || 'Error resetting PIN' } : null);
     }
   };
 
-  const triggerDeleteManager = async (managerId: string, managerName: string) => {
-    if (!token) return;
-    if (!window.confirm(`Are you sure you want to permanently delete Manager account for "${managerName}"?`)) return;
-    try {
-      const data = await deleteCompanyManager(token, managerId);
-      if (!data || !data.success) throw new Error(data?.error || 'Failed to delete manager.');
-      fetchData();
-      alert(`Manager "${managerName}" has been deleted.`);
-    } catch (err: any) {
-      alert(err.message || 'Error deleting manager');
-    }
+  const triggerDeleteManager = (managerId: string, managerName: string) => {
+    setDeleteTarget({
+      type: 'manager',
+      id: managerId,
+      name: managerName,
+      title: 'Delete Manager Account',
+      description: `Are you sure you want to permanently delete Manager account for "${managerName}"? They will no longer be able to access the Manager Portal or manage this park.`
+    });
   };
 
   const handleCreateTrip = async (e: React.FormEvent) => {
@@ -797,6 +904,8 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
         res = await deleteFleetDriver(token, deleteTarget.id);
       } else if (deleteTarget.type === 'supplier_staff') {
         res = await deleteFleetSupplierStaff(token, deleteTarget.id);
+      } else if (deleteTarget.type === 'manager') {
+        res = await deleteCompanyManager(token, deleteTarget.id);
       }
 
       if (!res || !res.success) {
@@ -822,7 +931,13 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
             { id: 'overview', label: 'Overview', icon: Building2 },
             { id: 'trucks', label: `Trucks (${trucks.length})`, icon: Truck },
             { id: 'suppliers', label: `Suppliers (${suppliers.length})`, icon: Building2 },
-            { id: 'staff_drivers', label: `Managers & Staff (${managers.length + drivers.length + supplierStaff.length})`, icon: Users },
+            { 
+              id: 'staff_drivers', 
+              label: userRole === 'company' 
+                ? `Managers & Staff (${managers.length + drivers.length + supplierStaff.length})` 
+                : `Drivers & Staff (${drivers.length + supplierStaff.length})`, 
+              icon: Users 
+            },
             { id: 'trips', label: `Trips (${trips.length})`, icon: Calendar }
           ].map(tab => {
             const Icon = tab.icon;
@@ -1087,106 +1202,190 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       {/* TAB 4: MANAGERS, DRIVERS & SUPPLIER STAFF */}
       {activeSubTab === 'staff_drivers' && (
         <div className="space-y-6">
-          {/* Company Managers & Park Officers */}
-          <div className="bg-[#0A1F44] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-4 gap-3">
-              <div>
-                <h3 className="text-lg font-black text-white flex items-center gap-2">
-                  <UserCheck className="w-6 h-6 text-amber-400" />
-                  <span>Company Managers & Park Officers ({managers.length}) 👔</span>
-                </h3>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Create manager accounts so your park officers can log in, dispatch trucks, and manage daily park operations.
-                </p>
+          {/* Company Managers & Park Officers (Only visible to Company CEO / Owner) */}
+          {userRole === 'company' && (
+            <div className="bg-[#0A1F44] border border-slate-800 rounded-3xl p-6 shadow-2xl space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-800 pb-4 gap-3">
+                <div>
+                  <h3 className="text-lg font-black text-white flex items-center gap-2">
+                    <UserCheck className="w-6 h-6 text-amber-400" />
+                    <span>Company Managers & Park Officers ({managers.length}) 👔</span>
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Create manager accounts so your park officers can log in, dispatch trucks, and manage daily park operations.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManagerParkId(parks[0]?.id || '');
+                    setShowAddManager(true);
+                  }}
+                  className="bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-5 py-2.5 rounded-2xl text-xs flex items-center space-x-1.5 shadow-lg transition-all cursor-pointer shrink-0"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Add Manager Account</span>
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  setManagerParkId(parks[0]?.id || '');
-                  setShowAddManager(true);
-                }}
-                className="bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-5 py-2.5 rounded-2xl text-xs flex items-center space-x-1.5 shadow-lg transition-all cursor-pointer shrink-0"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Add Manager Account</span>
-              </button>
-            </div>
 
-            {managers.length === 0 ? (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-center space-y-2">
-                <UserCheck className="w-8 h-8 text-slate-500 mx-auto" />
-                <p className="text-sm font-bold text-slate-300">No Manager Accounts Created Yet</p>
-                <p className="text-xs text-slate-400 max-w-md mx-auto">
-                  Click <strong>"Add Manager Account"</strong> above to assign a park location, phone number, and 6-digit PIN to your manager so they can log in.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {managers.map(mgr => {
-                  const isInactive = mgr.active === false;
-                  return (
-                    <div
-                      key={mgr.id}
-                      className={`bg-slate-900 border ${
-                        isInactive ? 'border-rose-500/30 opacity-75' : 'border-slate-800 hover:border-slate-700'
-                      } rounded-2xl p-4 space-y-3 shadow-md`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-black text-white text-base flex items-center gap-2">
-                            <span>{mgr.name}</span>
-                            <span
-                              className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                                isInactive
-                                  ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
-                                  : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+              {managers.length === 0 ? (
+                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 text-center space-y-2">
+                  <UserCheck className="w-8 h-8 text-slate-500 mx-auto" />
+                  <p className="text-sm font-bold text-slate-300">No Manager Accounts Created Yet</p>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto">
+                    Click <strong>"Add Manager Account"</strong> above to assign a park location, phone number, and 6-digit PIN to your manager so they can log in.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {managers.map(mgr => {
+                    const isInactive = mgr.active === false;
+                    const rawMode = (mgr.service_mode || mgr.manager_type || mgr.service_type || 'haulage').toLowerCase();
+                    const isFleet = rawMode === 'fleet' || rawMode === 'haulage';
+                    const isWaybill = rawMode === 'parcel' || rawMode === 'package' || rawMode === 'waybill';
+                    const isBothMode = rawMode === 'both' || rawMode === 'all';
+
+                    return (
+                      <div
+                        key={mgr.id}
+                        className={`bg-slate-900 border ${
+                          isInactive ? 'border-rose-500/30 opacity-75' : 'border-slate-800 hover:border-slate-700'
+                        } rounded-2xl p-4 space-y-3 shadow-md`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-black text-white text-base flex items-center gap-2">
+                              <span>{mgr.name}</span>
+                              <span
+                                className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                                  isInactive
+                                    ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                                    : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                }`}
+                              >
+                                {isInactive ? 'Disabled 🔴' : 'Active 🟢'}
+                              </span>
+                            </p>
+                            
+                            {/* Manager Operational Role Badge */}
+                            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+                              <span
+                                className={`text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                  isFleet
+                                    ? 'bg-amber-400/20 text-amber-300 border border-amber-400/40'
+                                    : isWaybill
+                                    ? 'bg-blue-400/20 text-blue-300 border border-blue-400/40'
+                                    : 'bg-purple-400/20 text-purple-300 border border-purple-400/40'
+                                }`}
+                              >
+                                {isFleet && '🚛 Fleet & Haulage Manager'}
+                                {isWaybill && '📦 Waybill Manager'}
+                                {isBothMode && '⚡ Dual Operations Manager'}
+                              </span>
+                            </div>
+
+                            <p className="text-xs text-slate-400 font-mono mt-1">📞 {mgr.phone || mgr.phone_number}</p>
+                            <p className="text-xs text-slate-300 font-bold mt-1 flex items-center gap-1">
+                              <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                              <span>{mgr.park_location || 'Central Park Depot'}</span>
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => triggerDeleteManager(mgr.id, mgr.name)}
+                            title={`Delete Manager ${mgr.name}`}
+                            className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+
+                        {/* Operational Role Switcher Controls */}
+                        <div className="pt-2 border-t border-slate-800 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] uppercase tracking-wider font-bold text-slate-400">Assigned Dashboard Mode:</span>
+                            {updatingManagerRole === mgr.id && (
+                              <span className="text-[10px] text-amber-300 animate-pulse">Updating...</span>
+                            )}
+                          </div>
+                          <div className="grid grid-cols-3 gap-1">
+                            <button
+                              type="button"
+                              disabled={updatingManagerRole === mgr.id}
+                              onClick={() => handleUpdateManagerRole(mgr.id, 'haulage')}
+                              className={`text-[10px] font-extrabold py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer ${
+                                isFleet
+                                  ? 'bg-amber-400 text-slate-950 shadow-sm'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
                               }`}
                             >
-                              {isInactive ? 'Disabled 🔴' : 'Active 🟢'}
-                            </span>
-                          </p>
-                          <p className="text-xs text-slate-400 font-mono mt-1">📞 {mgr.phone || mgr.phone_number}</p>
-                          <p className="text-xs text-amber-300 font-bold mt-1 flex items-center gap-1">
-                            <MapPin className="w-3.5 h-3.5 text-amber-400" />
-                            <span>{mgr.park_location || 'Central Park Depot'}</span>
-                          </p>
+                              🚛 Fleet
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updatingManagerRole === mgr.id}
+                              onClick={() => handleUpdateManagerRole(mgr.id, 'both')}
+                              className={`text-[10px] font-extrabold py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer ${
+                                isBothMode
+                                  ? 'bg-purple-500 text-white shadow-sm'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                              }`}
+                            >
+                              ⚡ Dual
+                            </button>
+                            <button
+                              type="button"
+                              disabled={updatingManagerRole === mgr.id}
+                              onClick={() => handleUpdateManagerRole(mgr.id, 'parcel')}
+                              className={`text-[10px] font-extrabold py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer ${
+                                isWaybill
+                                  ? 'bg-blue-500 text-white shadow-sm'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                              }`}
+                            >
+                              📦 Waybill
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => triggerDeleteManager(mgr.id, mgr.name)}
-                          title={`Delete Manager ${mgr.name}`}
-                          className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 transition-colors cursor-pointer"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
 
-                      <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs gap-2">
-                        <button
-                          type="button"
-                          onClick={() => handleResetManagerPinAction(mgr.id, mgr.name)}
-                          className="font-extrabold px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 transition-colors cursor-pointer text-xs"
-                        >
-                          Reset PIN
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleManagerActive(mgr.id, mgr.name)}
-                          className={`font-extrabold px-3 py-1.5 rounded-xl transition-colors cursor-pointer text-xs ${
-                            isInactive
-                              ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
-                              : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
-                          }`}
-                        >
-                          {isInactive ? 'Enable Access' : 'Disable Access'}
-                        </button>
+                        <div className="pt-2 border-t border-slate-800 flex items-center justify-between text-xs gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleResetManagerPinAction(mgr.id, mgr.name, mgr.phone)}
+                            className="font-extrabold px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 transition-colors cursor-pointer text-xs flex items-center gap-1"
+                          >
+                            <KeyRound className="w-3.5 h-3.5" />
+                            <span>Reset PIN</span>
+                          </button>
+                          <div className="flex items-center gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleManagerActive(mgr.id, mgr.name)}
+                              className={`font-extrabold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer text-xs ${
+                                isInactive
+                                  ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40'
+                                  : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700'
+                              }`}
+                            >
+                              {isInactive ? 'Enable' : 'Disable'}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => triggerDeleteManager(mgr.id, mgr.name)}
+                              className="p-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors cursor-pointer"
+                              title="Delete Manager"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Drivers */}
@@ -1226,7 +1425,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                         </span>
                       )}
                       <button
-                        onClick={() => handleResetDriverPin(drv.id, drv.name)}
+                        onClick={() => handleResetDriverPin(drv.id, drv.name, drv.phone_number)}
                         className="text-xs font-extrabold px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 transition-colors cursor-pointer"
                       >
                         Reset PIN
@@ -1284,7 +1483,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                       </span>
                     )}
                     <button
-                      onClick={() => handleResetSupplierStaffPin(st.id, st.name)}
+                      onClick={() => handleResetSupplierStaffPin(st.id, st.name, st.phone_number)}
                       className="text-xs font-extrabold px-3 py-1.5 rounded-xl bg-amber-400/10 hover:bg-amber-400/20 text-amber-300 border border-amber-400/30 transition-colors cursor-pointer"
                     >
                       Reset PIN
@@ -1361,7 +1560,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 const progressPct = Math.round((currentStageNum / 7) * 100);
 
                 return (
-                  <div key={trip.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-3xl p-6 shadow-xs transition-all space-y-6">
+                  <div key={trip.id} className="bg-white border border-slate-200 hover:border-slate-300 rounded-3xl p-6 shadow-md hover:shadow-xl transition-all space-y-6">
                     {narrativeInfo.isOverdue && narrativeInfo.overdueWarning && (
                       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-3.5 text-amber-900 text-xs flex items-start gap-3 shadow-xs">
                         <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
@@ -1873,7 +2072,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
         </div>
       )}
 
-      {showAddManager && (
+      {userRole === 'company' && showAddManager && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-800 border border-slate-700 rounded-2xl p-6 max-w-md w-full space-y-4">
             <div className="flex items-center justify-between border-b border-slate-700 pb-3">
@@ -1937,6 +2136,56 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 </select>
               </div>
 
+              <div>
+                <label className="block text-xs font-bold text-slate-300 mb-1">Manager Operational Role *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setManagerRoleMode('haulage')}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      managerRoleMode === 'haulage'
+                        ? 'bg-amber-400/20 border-amber-400 text-amber-300 shadow-sm'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    <p className="font-black text-xs flex items-center gap-1">
+                      <span>🚛 Fleet</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">Trucks, drivers, trips</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setManagerRoleMode('both')}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      managerRoleMode === 'both'
+                        ? 'bg-purple-500/20 border-purple-400 text-purple-300 shadow-sm'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    <p className="font-black text-xs flex items-center gap-1">
+                      <span>⚡ Dual</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">Fleet & Waybills</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setManagerRoleMode('parcel')}
+                    className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
+                      managerRoleMode === 'parcel'
+                        ? 'bg-blue-500/20 border-blue-400 text-blue-300 shadow-sm'
+                        : 'bg-slate-900 border-slate-700 text-slate-300 hover:border-slate-600'
+                    }`}
+                  >
+                    <p className="font-black text-xs flex items-center gap-1">
+                      <span>📦 Waybill</span>
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 leading-tight">Waybills & Parcels</p>
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-slate-900/80 border border-slate-700/60 p-3 rounded-xl text-xs text-slate-300 leading-relaxed space-y-1">
                 <p className="font-bold text-amber-400 flex items-center gap-1.5">
                   <ShieldCheck className="w-4 h-4" />
@@ -1968,7 +2217,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
         </div>
       )}
 
-      {createdManagerSuccess && (
+      {userRole === 'company' && createdManagerSuccess && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-emerald-500/50 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl">
             <div className="flex items-center space-x-3 text-emerald-400">
@@ -2529,6 +2778,199 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 Cancel
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔑 Comprehensive PIN Reset Modal (Manager, Driver, Supplier Staff) */}
+      {pinResetDialog && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-amber-500/40 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
+              <div className="p-3 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-2xl flex items-center justify-center">
+                <KeyRound className="w-6 h-6 text-amber-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">
+                  Reset {pinResetDialog.type === 'manager' ? 'Manager' : pinResetDialog.type === 'driver' ? 'Driver' : 'Supplier Staff'} PIN
+                </h3>
+                <p className="text-xs text-amber-300 font-medium">{pinResetDialog.name}</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs text-slate-300 leading-relaxed">
+              <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between font-mono text-xs">
+                <span className="text-slate-400">Phone Number:</span>
+                <span className="font-bold text-amber-300">{pinResetDialog.phone || 'Registered Phone'}</span>
+              </div>
+
+              {pinResetDialog.type === 'manager' ? (
+                <p className="text-slate-300">
+                  Resetting will clear all login lockouts and failed PIN attempts. The manager can then visit the <strong>Manager Portal</strong> and establish a new 6-digit PIN immediately.
+                </p>
+              ) : (
+                <div className="space-y-3 pt-1">
+                  <p className="text-slate-300">Choose how to generate the new PIN:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setPinResetDialog(prev => prev ? { ...prev, mode: 'auto', error: null } : null)}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        pinResetDialog.mode === 'auto'
+                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ⚡ Auto-Generate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPinResetDialog(prev => prev ? { ...prev, mode: 'custom', error: null } : null)}
+                      className={`p-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
+                        pinResetDialog.mode === 'custom'
+                          ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                          : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      ✍️ Custom PIN
+                    </button>
+                  </div>
+
+                  {pinResetDialog.mode === 'custom' && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-[11px] font-bold text-slate-300">Enter 6-Digit PIN</label>
+                      <input
+                        type="password"
+                        maxLength={6}
+                        value={pinResetDialog.customPin}
+                        onChange={(e) => setPinResetDialog(prev => prev ? { ...prev, customPin: e.target.value.replace(/\D/g, '').slice(0, 6) } : null)}
+                        placeholder="e.g. 123456"
+                        className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm tracking-widest focus:outline-none focus:border-amber-400 text-center"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {pinResetDialog.error && (
+                <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-semibold flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+                  <span>{pinResetDialog.error}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3 pt-1">
+              <button
+                type="button"
+                disabled={pinResetDialog.submitting}
+                onClick={() => setPinResetDialog(null)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold py-3 px-4 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={pinResetDialog.submitting}
+                onClick={executeConfirmedPinReset}
+                className="flex-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-lg flex items-center justify-center space-x-2 cursor-pointer disabled:opacity-50"
+              >
+                {pinResetDialog.submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-slate-950 border-t-transparent rounded-full animate-spin"></div>
+                    <span>Resetting...</span>
+                  </>
+                ) : (
+                  <>
+                    <KeyRound className="w-4 h-4" />
+                    <span>Confirm Reset</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 🔑 PIN Reset / Account Created Result Modal */}
+      {pinResultDialog && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-emerald-500/40 rounded-3xl max-w-md w-full p-6 space-y-5 shadow-2xl animate-in fade-in zoom-in duration-150">
+            <div className="flex items-center space-x-3 pb-3 border-b border-slate-800">
+              <div className="p-3 bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-2xl flex items-center justify-center">
+                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-white">{pinResultDialog.title}</h3>
+                <p className="text-xs text-emerald-300 font-medium">{pinResultDialog.name}</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-2xl p-4 space-y-3 text-xs text-slate-300 leading-relaxed">
+              <p className="text-slate-200">
+                {pinResultDialog.message || `PIN and lockouts have been reset for ${pinResultDialog.name}.`}
+              </p>
+
+              {pinResultDialog.pin && (
+                <div className="p-3.5 rounded-2xl bg-emerald-950/40 border border-emerald-500/40 space-y-2 text-center">
+                  <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-bold">New Login PIN</span>
+                  <div className="flex items-center justify-center space-x-2">
+                    <span className="text-3xl font-black font-mono tracking-widest text-emerald-300 bg-slate-900/90 px-4 py-1.5 rounded-xl border border-emerald-500/30 shadow-inner">
+                      {pinResultDialog.pin}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (pinResultDialog.pin) {
+                          navigator.clipboard.writeText(pinResultDialog.pin);
+                          setCopiedPin(true);
+                          setTimeout(() => setCopiedPin(false), 2500);
+                        }
+                      }}
+                      className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                      title="Copy PIN"
+                    >
+                      {copiedPin ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5 text-slate-300" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {pinResultDialog.type === 'manager' && (
+                <div className="bg-emerald-950/40 border border-emerald-900/60 rounded-xl p-3 space-y-1 text-emerald-200 text-xs">
+                  <p className="font-bold text-white">Next Steps for the Manager:</p>
+                  <p>1. Open the <strong>Manager Portal</strong> (/login/manager).</p>
+                  <p>2. Enter phone number: <strong className="font-mono text-amber-300">{pinResultDialog.phone || 'Registered Phone'}</strong>.</p>
+                  <p>3. Create and confirm their new 6-digit PIN to sign in.</p>
+                </div>
+              )}
+
+              {pinResultDialog.phone && (
+                <div className="pt-1">
+                  <a
+                    href={`https://wa.me/${pinResultDialog.phone.replace(/\D/g, '').replace(/^0/, '234')}?text=${encodeURIComponent(
+                      pinResultDialog.pin
+                        ? `Hello ${pinResultDialog.name}, your new 6-digit login PIN is: *${pinResultDialog.pin}*. Phone: ${pinResultDialog.phone}.`
+                        : `Hello ${pinResultDialog.name}, your Manager PIN has been reset. Please visit the Manager Portal and enter your phone number (${pinResultDialog.phone}) to set your new 6-digit PIN.`
+                    )}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center space-x-2 transition-all shadow-md cursor-pointer"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Share via WhatsApp</span>
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setPinResultDialog(null)}
+              className="w-full bg-slate-800 hover:bg-slate-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-lg cursor-pointer"
+            >
+              Done
+            </button>
           </div>
         </div>
       )}

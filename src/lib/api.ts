@@ -58,6 +58,24 @@ export async function resetCustomerPin(data: {
   });
 }
 
+export async function getCustomerWaybills(token: string) {
+  return safeFetch(`${API_BASE}/customer/waybills`, {
+    headers: {
+      Authorization: `Bearer ${token}`
+    }
+  });
+}
+
+export async function confirmCustomerWaybillReceived(token: string, waybillId: string) {
+  return safeFetch(`${API_BASE}/customer/waybills/${waybillId}/confirm-received`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
 export async function requestCompanyPasswordReset(ownerPhone: string) {
   return safeFetch(`${API_BASE}/auth/company/forgot-password/request`, {
     method: 'POST',
@@ -339,6 +357,17 @@ export async function toggleCompanyManagerStatus(token: string, managerId: strin
   });
 }
 
+export async function updateCompanyManagerRole(token: string, managerId: string, serviceMode: 'haulage' | 'parcel' | 'both') {
+  return safeFetch(`${API_BASE}/company/managers/${managerId}/update-role`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ service_mode: serviceMode, manager_type: serviceMode })
+  });
+}
+
 export async function resetCompanyManagerPin(token: string, managerId: string) {
   return safeFetch(`${API_BASE}/company/managers/${managerId}/reset-pin`, {
     method: 'POST',
@@ -512,14 +541,14 @@ export async function getParks(token: string) {
   });
 }
 
-export async function advanceTripCheckpoint(token: string, tripId: string, checkpoint: string) {
+export async function advanceTripCheckpoint(token: string, tripId: string, checkpoint: string, extra?: { waybill_number?: string; notes?: string }) {
   return safeFetch(`${API_BASE}/fleet/trips/${tripId}/checkpoint`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
     },
-    body: JSON.stringify({ checkpoint })
+    body: JSON.stringify({ checkpoint, ...(extra || {}) })
   });
 }
 

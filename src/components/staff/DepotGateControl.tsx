@@ -66,7 +66,7 @@ export const DepotGateControl: React.FC<DepotGateControlProps> = ({
     }
   }, [token]);
 
-  const handleCheckpoint = async (tripId: string, checkpoint: 'left_warehouse' | 'arrived_offloaded') => {
+  const handleCheckpoint = async (tripId: string, checkpoint: 'left_warehouse' | 'arrived_at_destination' | 'arrived_offloaded') => {
     if (!token) return;
     setError(null);
     setSuccessMsg(null);
@@ -79,9 +79,11 @@ export const DepotGateControl: React.FC<DepotGateControlProps> = ({
       }
 
       if (checkpoint === 'left_warehouse') {
-        setSuccessMsg('✅ Gate Departure Recorded: Truck marked as Left Depot.');
+        setSuccessMsg('✅ Gate Departure Recorded: Truck marked as Left Depot (Outbound to Supplier).');
+      } else if (checkpoint === 'arrived_at_destination') {
+        setSuccessMsg('✅ Gate Arrival Recorded: Truck marked as Arrived at Depot Gate.');
       } else {
-        setSuccessMsg('✅ Gate Arrival Recorded: Truck marked as Arrived & Offloaded.');
+        setSuccessMsg('✅ Offloading Completed: Trip successfully marked as Arrived & Offloaded.');
       }
 
       await fetchTrips();
@@ -94,11 +96,11 @@ export const DepotGateControl: React.FC<DepotGateControlProps> = ({
 
   // Filter trucks by category
   const departingTrucks = trips.filter(
-    t => t.status === 'pending_payment' || (t.status as string) === 'created'
+    t => t.status === 'pending_payment' || (t.status as string) === 'created' || (t.status as string) === 'trip_created'
   );
 
   const arrivingTrucks = trips.filter(
-    t => t.status === 'loaded_departed'
+    t => t.status === 'loaded_departed' || (t.status as string) === 'arrived_at_destination'
   );
 
   const completedTrucks = trips.filter(
@@ -407,35 +409,43 @@ export const DepotGateControl: React.FC<DepotGateControlProps> = ({
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {displayedArriving.map((trip) => {
+                const isAtDepotGate = (trip.status as string) === 'arrived_at_destination';
+
                 return (
                   <div
                     key={trip.id}
-                    className="bg-white border-2 border-emerald-200 rounded-3xl p-5 shadow-sm space-y-4 hover:border-emerald-400 transition-all flex flex-col justify-between"
+                    className={`bg-white border-2 rounded-3xl p-5 shadow-sm space-y-4 transition-all flex flex-col justify-between ${
+                      isAtDepotGate ? 'border-amber-400 bg-amber-50/20' : 'border-emerald-200 hover:border-emerald-400'
+                    }`}
                   >
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div>
                           <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block">
-                            In-Transit Truck
+                            {isAtDepotGate ? 'At Depot Offloading Bay' : 'In-Transit to Depot'}
                           </span>
                           <span className="text-lg font-black text-[#0A1F44] flex items-center gap-1.5 mt-0.5">
-                            <Truck className="w-4 h-4 text-emerald-600" />
+                            <Truck className={`w-4 h-4 ${isAtDepotGate ? 'text-amber-600' : 'text-emerald-600'}`} />
                             {trip.truck_number}
                           </span>
                         </div>
-                        <span className="bg-emerald-100 text-emerald-900 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
-                          Loaded & Returning
+                        <span className={`text-[10px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                          isAtDepotGate
+                            ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                            : 'bg-emerald-100 text-emerald-900 border border-emerald-200'
+                        }`}>
+                          {isAtDepotGate ? 'At Depot Bay' : 'Loaded & Returning'}
                         </span>
                       </div>
 
-                      <div className="bg-emerald-50/50 p-3 rounded-2xl space-y-1.5 text-xs border border-emerald-100">
+                      <div className="bg-slate-50 p-3 rounded-2xl space-y-1.5 text-xs border border-slate-100">
                         <div className="flex items-center justify-between text-slate-600">
                           <span className="flex items-center gap-1 font-semibold">
                             <Building className="w-3.5 h-3.5 text-slate-400" />
-                            Departed From:
+                            Supplier Origin:
                           </span>
-                          <span className="font-extrabold text-emerald-950">
-                            {trip.supplier_name || 'Factory'}
+                          <span className="font-extrabold text-[#0A1F44]">
+                            {trip.supplier_name || 'Plant'}
                           </span>
                         </div>
 
@@ -443,34 +453,45 @@ export const DepotGateControl: React.FC<DepotGateControlProps> = ({
                           <div className="flex items-center justify-between text-slate-600">
                             <span className="flex items-center gap-1 font-semibold">
                               <Clock className="w-3.5 h-3.5 text-slate-400" />
-                              Left Factory At:
+                              Left Supplier:
                             </span>
                             <span className="font-bold text-slate-700">
-                              {new Date(trip.loaded_departed_at).toLocaleString('en-GB', {
-                                day: '2-digit',
-                                month: 'short',
-                                hour: '2-digit',
-                                minute: '2-digit'
-                              })}
+                              {new Date(trip.loaded_departed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    <button
-                      id={`mark-arrived-offloaded-btn-${trip.id}`}
-                      disabled={actionInProgress === trip.id}
-                      onClick={() => handleCheckpoint(trip.id, 'arrived_offloaded')}
-                      className="w-full py-3 px-4 rounded-2xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md"
-                    >
-                      {actionInProgress === trip.id ? (
-                        <RefreshCw className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                      )}
-                      <span>Mark Arrived & Offloaded ✅</span>
-                    </button>
+                    {!isAtDepotGate ? (
+                      <button
+                        id={`mark-arrived-dest-btn-${trip.id}`}
+                        disabled={actionInProgress === trip.id}
+                        onClick={() => handleCheckpoint(trip.id, 'arrived_at_destination')}
+                        className="w-full py-3 px-4 rounded-2xl text-xs font-black bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                      >
+                        {actionInProgress === trip.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <MapPin className="w-4 h-4 text-blue-200" />
+                        )}
+                        <span>1. Mark Truck Arrived at Depot Gate</span>
+                      </button>
+                    ) : (
+                      <button
+                        id={`mark-arrived-offloaded-btn-${trip.id}`}
+                        disabled={actionInProgress === trip.id}
+                        onClick={() => handleCheckpoint(trip.id, 'arrived_offloaded')}
+                        className="w-full py-3 px-4 rounded-2xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                      >
+                        {actionInProgress === trip.id ? (
+                          <RefreshCw className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                        )}
+                        <span>2. Mark Offloaded & Complete Trip ✅</span>
+                      </button>
+                    )}
                   </div>
                 );
               })}

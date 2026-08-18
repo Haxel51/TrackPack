@@ -8,6 +8,8 @@ import {
   advanceTripCheckpoint
 } from '../../lib/api';
 import { getFleetTripNarrative } from '../../lib/fleetNarrative';
+import { FleetTripCard } from './FleetTripCard';
+import { FleetTripTimelineModal } from './FleetTripTimelineModal';
 import {
   Truck,
   Building2,
@@ -42,14 +44,25 @@ interface Trip {
   truck_number: string;
   supplier_id: string;
   supplier_name: string;
-  status: 'pending_payment' | 'left_warehouse' | 'loaded_departed' | 'completed';
+  status: 'pending_payment' | 'created' | 'trip_created' | 'left_warehouse' | 'arrived_at_supplier' | 'cargo_loaded' | 'loaded_departed' | 'arrived_at_destination' | 'completed';
   billing_method: 'per_trip' | 'monthly';
   trip_fee: number;
   payment_status: 'pending' | 'paid' | 'active_monthly';
   payment_reference?: string | null;
   left_warehouse_at?: string | null;
+  left_warehouse_by?: string | null;
+  arrived_at_supplier_at?: string | null;
+  arrived_at_supplier_by?: string | null;
+  cargo_loaded_at?: string | null;
+  cargo_loaded_by?: string | null;
   loaded_departed_at?: string | null;
+  loaded_departed_by?: string | null;
+  arrived_at_destination_at?: string | null;
+  arrived_at_destination_by?: string | null;
   arrived_offloaded_at?: string | null;
+  arrived_offloaded_by?: string | null;
+  waybill_number?: string | null;
+  cargo_notes?: string | null;
   expected_duration_minutes?: number;
   location_shares?: Array<{ timestamp: string; note: string; source?: string }>;
   created_at: string;
@@ -421,583 +434,29 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {filteredTrips.map(trip => {
+        <div className="grid grid-cols-1 gap-3.5" id="fleet-trip-list">
+          {filteredTrips.map((trip, idx) => {
             const driver = getDriverForTruck(trip.truck_id);
-            const currentStep = getStepProgress(trip.status);
-            const etaString = calculateETA(trip);
-            const lastUpdatedInfo = getLastUpdatedInfo(trip);
-            const latestLocationShare = trip.location_shares && trip.location_shares.length > 0
-              ? trip.location_shares[trip.location_shares.length - 1]
-              : null;
-            const narrativeInfo = getFleetTripNarrative(trip);
-
             return (
-              <div
+              <FleetTripCard
                 key={trip.id}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-2xl p-5 shadow-xl transition-all space-y-5"
-              >
-                {/* OVERDUE CHECKPOINT WARNING BANNER */}
-                {narrativeInfo.isOverdue && narrativeInfo.overdueWarning && (
-                  <div className="bg-amber-950/70 border border-amber-500/80 rounded-xl p-3.5 flex items-start space-x-3 text-amber-200 shadow-lg animate-pulse">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold uppercase tracking-wider text-amber-300">Overdue Checkpoint Alert</p>
-                        {driver && (
-                          <a
-                            href={`tel:${driver.phone_number}`}
-                            className="text-[11px] font-bold text-amber-300 hover:text-white bg-amber-500/20 hover:bg-amber-500/30 px-2.5 py-0.5 rounded-lg border border-amber-500/40 flex items-center space-x-1 transition-colors"
-                          >
-                            <Phone className="w-3 h-3" />
-                            <span>Call Driver ({driver.phone_number})</span>
-                          </a>
-                        )}
-                      </div>
-                      <p className="text-xs font-medium text-amber-100 leading-relaxed">
-                        {narrativeInfo.overdueWarning}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {/* TOP HEADER: TRUCK PLATE, SUPPLIER & BADGES */}
-                <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="p-3 bg-slate-800 text-amber-400 rounded-xl border border-slate-700 shrink-0">
-                      <Truck className="w-6 h-6" />
-                    </div>
-                    <div>
-                      <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-                        <span className="text-lg font-black text-white tracking-wide">{trip.truck_number}</span>
-                        <span className="text-xs text-slate-400 font-semibold">→</span>
-                        <span className="text-sm font-bold text-amber-300 flex items-center space-x-1">
-                          <Building2 className="w-3.5 h-3.5 shrink-0" />
-                          <span>{trip.supplier_name}</span>
-                        </span>
-                      </div>
-
-                      {/* Driver & Phone Info */}
-                      <div className="flex items-center space-x-3 text-xs text-slate-400 mt-1 flex-wrap gap-y-1">
-                        {driver ? (
-                          <span className="flex items-center space-x-1 text-slate-300 font-medium">
-                            <User className="w-3.5 h-3.5 text-slate-400" />
-                            <span>Driver: <strong>{driver.name}</strong></span>
-                            <a
-                              href={`tel:${driver.phone_number}`}
-                              className="text-amber-400 hover:underline flex items-center space-x-0.5 ml-1.5"
-                            >
-                              <Phone className="w-3 h-3" />
-                              <span>{driver.phone_number}</span>
-                            </a>
-                          </span>
-                        ) : (
-                          <span className="text-slate-500 italic">No assigned driver</span>
-                        )}
-                        <span>•</span>
-                        <span>Billing: <strong className="text-slate-200">{trip.billing_method.toUpperCase()}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* ETA & STATUS BADGE */}
-                  <div className="flex items-end md:items-end flex-col space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider border ${
-                        trip.status === 'completed'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                          : trip.status === 'loaded_departed'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
-                          : trip.status === 'left_warehouse'
-                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/40'
-                          : 'bg-slate-800 text-slate-300 border-slate-700'
-                      }`}>
-                        {trip.status.replace('_', ' ')}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center space-x-1.5 text-xs text-slate-300 bg-slate-950 px-2.5 py-1 rounded-lg border border-slate-800">
-                      <Clock className="w-3.5 h-3.5 text-amber-400" />
-                      <span className="font-semibold">{etaString}</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 7-STAGE EXECUTIVE VABTRAC JOURNEY TIMELINE */}
-                <div className="space-y-4 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-extrabold text-amber-400 uppercase tracking-widest flex items-center gap-1.5">
-                      <Truck className="w-3.5 h-3.5 text-amber-400" />
-                      <span>7-Stage Journey Tracking</span>
-                    </span>
-                    <span className="text-xs font-mono font-bold text-white bg-slate-900 border border-slate-800 px-2.5 py-1 rounded-lg">
-                      Stage {
-                        trip.status === 'completed' ? 7 :
-                        trip.status === 'loaded_departed' ? 5 :
-                        trip.status === 'left_warehouse' ? 3 : 1
-                      } of 7
-                    </span>
-                  </div>
-
-                  {/* Dynamic Progress Bar */}
-                  <div className="relative w-full bg-slate-900 rounded-full h-2 overflow-hidden border border-slate-800">
-                    <div
-                      className="bg-gradient-to-r from-amber-500 via-blue-500 to-emerald-500 h-full transition-all duration-500 rounded-full"
-                      style={{
-                        width: `${
-                          trip.status === 'completed' ? 100 :
-                          trip.status === 'loaded_departed' ? 72 :
-                          trip.status === 'left_warehouse' ? 42 : 15
-                        }%`
-                      }}
-                    />
-                  </div>
-
-                  {/* 7 Vertical Milestones */}
-                  <div className="relative pl-6 space-y-4 border-l-2 border-slate-800 ml-2 pt-1">
-                    {/* Stage 1 */}
-                    <div className="relative space-y-0.5">
-                      <div className="absolute -left-[31px] top-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5 text-slate-950 font-black" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className="text-xs font-bold text-white">1. Trip Booked & Assigned</p>
-                        <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-                          {trip.created_at ? new Date(trip.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Confirmed'}
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400">Truck & driver dispatched to {trip.supplier_name}</p>
-                    </div>
-
-                    {/* Stage 2 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.left_warehouse_at ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.left_warehouse_at ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-xs font-bold ${trip.left_warehouse_at ? 'text-white' : 'text-slate-500'}`}>2. Departed Origin Depot</p>
-                        {trip.left_warehouse_at && (
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-                            {new Date(trip.left_warehouse_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.left_warehouse_at ? 'Officially departed company warehouse' : 'Awaiting departure clearance'}
-                      </p>
-                    </div>
-
-                    {/* Stage 3 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.left_warehouse_at && !trip.loaded_departed_at ? 'bg-blue-500 animate-pulse' : trip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.loaded_departed_at ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <Activity className="w-2.5 h-2.5 text-white" />}
-                      </div>
-                      <p className={`text-xs font-bold ${trip.left_warehouse_at ? 'text-white' : 'text-slate-500'}`}>3. In-Transit to Supplier</p>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.left_warehouse_at ? `Highway transit in progress toward ${trip.supplier_name}` : 'Pending departure'}
-                      </p>
-                    </div>
-
-                    {/* Stage 4 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.loaded_departed_at ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />}
-                      </div>
-                      <p className={`text-xs font-bold ${trip.loaded_departed_at ? 'text-white' : 'text-slate-500'}`}>4. Arrived at Supplier / Factory</p>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.loaded_departed_at ? `Gate check-in verified at ${trip.supplier_name}` : `Awaiting arrival at ${trip.supplier_name}`}
-                      </p>
-                    </div>
-
-                    {/* Stage 5 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.loaded_departed_at ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-xs font-bold ${trip.loaded_departed_at ? 'text-white' : 'text-slate-500'}`}>5. Loaded & Cleared</p>
-                        {trip.loaded_departed_at && (
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-                            {new Date(trip.loaded_departed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.loaded_departed_at ? `Cargo loaded & weighbridge clearance authorized at ${trip.supplier_name}` : 'Pending factory loading'}
-                      </p>
-                    </div>
-
-                    {/* Stage 6 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.status === 'loaded_departed' ? 'bg-blue-500 animate-pulse' : trip.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.status === 'completed' ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <Activity className="w-2.5 h-2.5 text-white" />}
-                      </div>
-                      <p className={`text-xs font-bold ${trip.loaded_departed_at ? 'text-white' : 'text-slate-500'}`}>6. In-Transit Return / Delivering</p>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.loaded_departed_at ? 'Truck returning with loaded cargo' : 'Awaiting factory exit'}
-                      </p>
-                    </div>
-
-                    {/* Stage 7 */}
-                    <div className="relative space-y-0.5">
-                      <div className={`absolute -left-[31px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 flex items-center justify-center ${
-                        trip.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-800'
-                      }`}>
-                        {trip.status === 'completed' ? <Check className="w-2.5 h-2.5 text-slate-950 font-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-slate-600" />}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <p className={`text-xs font-bold ${trip.status === 'completed' ? 'text-white' : 'text-slate-500'}`}>7. Offloaded & Trip Completed</p>
-                        {trip.arrived_offloaded_at && (
-                          <span className="text-[10px] font-mono text-emerald-400 font-bold bg-emerald-950/60 border border-emerald-800/60 px-2 py-0.5 rounded">
-                            {new Date(trip.arrived_offloaded_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400">
-                        {trip.status === 'completed' ? 'Cargo received and trip finalized' : 'Awaiting destination offloading'}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* HUMAN-READABLE CHECKPOINT STATUS NARRATIVE */}
-                <div className={`p-4 rounded-xl border flex items-start space-x-3 transition-all ${
-                  trip.status === 'completed'
-                    ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-100'
-                    : trip.status === 'loaded_departed'
-                    ? 'bg-amber-950/30 border-amber-500/40 text-amber-100'
-                    : trip.status === 'left_warehouse'
-                    ? 'bg-blue-950/30 border-blue-500/40 text-blue-100'
-                    : 'bg-slate-950/60 border-slate-800 text-slate-200'
-                }`}>
-                  <div className="p-2 rounded-lg bg-slate-900 border border-slate-800 shrink-0 mt-0.5">
-                    {trip.status === 'completed' ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                    ) : trip.status === 'loaded_departed' ? (
-                      <Building2 className="w-5 h-5 text-amber-400" />
-                    ) : trip.status === 'left_warehouse' ? (
-                      <Truck className="w-5 h-5 text-blue-400" />
-                    ) : (
-                      <Clock className="w-5 h-5 text-slate-400" />
-                    )}
-                  </div>
-                  <div className="space-y-1 flex-1">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-400">
-                        Live Status Summary
-                      </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                        trip.status === 'completed'
-                          ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30'
-                          : trip.status === 'loaded_departed'
-                          ? 'bg-amber-500/20 text-amber-300 border-amber-500/30'
-                          : trip.status === 'left_warehouse'
-                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/30'
-                          : 'bg-slate-800 text-slate-400 border-slate-700'
-                      }`}>
-                        {narrativeInfo.headline}
-                      </span>
-                    </div>
-                    <p className="text-sm font-semibold leading-relaxed">
-                      "{narrativeInfo.narrative}"
-                    </p>
-                  </div>
-                </div>
-
-                {/* BOTTOM FOOTER: LAST UPDATE & QUICK ACTIONS */}
-                <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-3 bg-slate-950/60 p-3 rounded-xl border border-slate-800">
-                  <div className="space-y-0.5 text-xs">
-                    <p className="text-slate-300 font-semibold flex items-center space-x-1.5">
-                      <span className="w-2 h-2 rounded-full bg-amber-400" />
-                      <span>Last Checkpoint: <strong className="text-white">{lastUpdatedInfo.label}</strong></span>
-                      <span className="text-slate-500">({lastUpdatedInfo.time})</span>
-                    </p>
-
-                    {latestLocationShare && (
-                      <p className="text-[11px] text-slate-400 italic flex items-center space-x-1">
-                        <Navigation className="w-3 h-3 text-blue-400 shrink-0" />
-                        <span>Driver Broadcast: "{latestLocationShare.note}" ({new Date(latestLocationShare.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})</span>
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center space-x-2 w-full md:w-auto justify-end">
-                    {/* Checkpoint Override Buttons for CEO/Manager */}
-                    {['company', 'manager'].includes(userRole) && trip.status !== 'completed' && (
-                      <>
-                        {trip.status === 'pending_payment' && (
-                          <button
-                            onClick={() => handleAdvanceCheckpoint(trip.id, 'left_warehouse')}
-                            disabled={updatingCheckpoint}
-                            className="bg-blue-600 hover:bg-blue-500 text-white font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition-all cursor-pointer"
-                          >
-                            <Play className="w-3 h-3" />
-                            <span>Mark Left Depot</span>
-                          </button>
-                        )}
-                        {trip.status === 'left_warehouse' && (
-                          <button
-                            onClick={() => handleAdvanceCheckpoint(trip.id, 'loaded_departed')}
-                            disabled={updatingCheckpoint}
-                            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition-all cursor-pointer"
-                          >
-                            <Building2 className="w-3 h-3" />
-                            <span>Mark Loaded @ Factory</span>
-                          </button>
-                        )}
-                        {trip.status === 'loaded_departed' && (
-                          <button
-                            onClick={() => handleAdvanceCheckpoint(trip.id, 'arrived_offloaded')}
-                            disabled={updatingCheckpoint}
-                            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition-all cursor-pointer"
-                          >
-                            <CheckCircle2 className="w-3 h-3" />
-                            <span>Mark Completed</span>
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    <button
-                      onClick={() => setSelectedTrip(trip)}
-                      className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-slate-700 font-bold px-3 py-1.5 rounded-lg text-xs flex items-center space-x-1 transition-all cursor-pointer"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      <span>Audit Waybill</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
+                id={idx === 0 ? "fleet-trip-card-first" : undefined}
+                trip={trip}
+                driver={driver}
+                onSelect={(selected) => setSelectedTrip(selected as Trip)}
+              />
             );
           })}
         </div>
       )}
 
-      {/* FULL WAYBILL AUDIT TIMELINE MODAL */}
+      {/* 1-TAP DETAILED FLEET TRIP TIMELINE MODAL */}
       {selectedTrip && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-2xl w-full space-y-6 shadow-2xl relative my-8">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
-              <div>
-                <span className="text-xs font-bold text-amber-400 uppercase tracking-widest block">Fleet Trip Waybill Audit</span>
-                <h3 className="text-2xl font-black text-white mt-1">Truck: {selectedTrip.truck_number}</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Destination: {selectedTrip.supplier_name}</p>
-              </div>
-              <button
-                onClick={() => setSelectedTrip(null)}
-                className="p-2 bg-slate-800 text-slate-400 hover:text-white rounded-xl border border-slate-700 transition-colors cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* TRIP DETAILS & METRICS */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 bg-slate-950 p-4 rounded-2xl border border-slate-800">
-              <div>
-                <p className="text-[10px] text-slate-500 font-bold uppercase">Billing Method</p>
-                <p className="text-sm font-extrabold text-white mt-0.5">{selectedTrip.billing_method.toUpperCase()}</p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 font-bold uppercase">Payment Status</p>
-                <p className={`text-sm font-extrabold mt-0.5 ${
-                  selectedTrip.payment_status === 'paid' || selectedTrip.payment_status === 'active_monthly'
-                    ? 'text-emerald-400'
-                    : 'text-amber-400'
-                }`}>
-                  {selectedTrip.payment_status.toUpperCase()}
-                </p>
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-500 font-bold uppercase">Estimated Duration</p>
-                <p className="text-sm font-extrabold text-white mt-0.5">
-                  {selectedTrip.expected_duration_minutes || 180} mins (~3 hours)
-                </p>
-              </div>
-            </div>
-
-            {/* MODAL NARRATIVE & OVERDUE BANNER */}
-            {(() => {
-              const modalNarrative = getFleetTripNarrative(selectedTrip);
-              return (
-                <div className="space-y-3">
-                  {modalNarrative.isOverdue && modalNarrative.overdueWarning && (
-                    <div className="bg-amber-950/70 border border-amber-500/80 rounded-2xl p-4 flex items-start space-x-3 text-amber-200">
-                      <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                      <div>
-                        <p className="text-xs font-bold uppercase tracking-wider text-amber-300">Overdue Checkpoint Alert</p>
-                        <p className="text-xs font-medium text-amber-100 mt-1 leading-relaxed">{modalNarrative.overdueWarning}</p>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={`p-4 rounded-2xl border flex items-start space-x-3 ${
-                    selectedTrip.status === 'completed'
-                      ? 'bg-emerald-950/30 border-emerald-500/40 text-emerald-100'
-                      : selectedTrip.status === 'loaded_departed'
-                      ? 'bg-amber-950/30 border-amber-500/40 text-amber-100'
-                      : selectedTrip.status === 'left_warehouse'
-                      ? 'bg-blue-950/30 border-blue-500/40 text-blue-100'
-                      : 'bg-slate-950/60 border-slate-800 text-slate-200'
-                  }`}>
-                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 shrink-0 mt-0.5">
-                      {selectedTrip.status === 'completed' ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                      ) : selectedTrip.status === 'loaded_departed' ? (
-                        <Building2 className="w-5 h-5 text-amber-400" />
-                      ) : selectedTrip.status === 'left_warehouse' ? (
-                        <Truck className="w-5 h-5 text-blue-400" />
-                      ) : (
-                        <Clock className="w-5 h-5 text-slate-400" />
-                      )}
-                    </div>
-                    <div className="space-y-1 flex-1">
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                        Live Status Description
-                      </span>
-                      <p className="text-sm font-semibold leading-relaxed">
-                        "{modalNarrative.narrative}"
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* CHECKPOINT TIMELINE STAGES */}
-            <div className="space-y-4">
-              <h4 className="text-sm font-extrabold text-slate-200 flex items-center space-x-2">
-                <Calendar className="w-4 h-4 text-amber-400" />
-                <span>7-Stage Fleet Journey Audit Log</span>
-              </h4>
-
-              <div className="space-y-4 relative pl-4 border-l-2 border-slate-800 ml-2">
-                {/* 1. Trip Booked & Assigned */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className="absolute -left-[23px] top-0.5 w-4 h-4 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center">
-                    <Check className="w-2.5 h-2.5 text-slate-950 font-black" />
-                  </div>
-                  <p className="text-xs font-bold text-white">1. Trip Booked & Assigned</p>
-                  <p className="text-[11px] text-slate-400">
-                    Timestamp: {new Date(selectedTrip.created_at).toLocaleString()}
-                  </p>
-                </div>
-
-                {/* 2. Departed Origin Depot */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.left_warehouse_at ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">2. Departed Origin Depot</p>
-                  <p className="text-[11px] text-slate-400">
-                    Timestamp: {selectedTrip.left_warehouse_at ? new Date(selectedTrip.left_warehouse_at).toLocaleString() : 'Pending departure'}
-                  </p>
-                </div>
-
-                {/* 3. In-Transit to Supplier */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.left_warehouse_at && !selectedTrip.loaded_departed_at ? 'bg-blue-500 animate-pulse' : selectedTrip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">3. In-Transit to Supplier</p>
-                  <p className="text-[11px] text-slate-400">
-                    Status: {selectedTrip.left_warehouse_at ? `Highway transit en route to ${selectedTrip.supplier_name}` : 'Awaiting transit start'}
-                  </p>
-                </div>
-
-                {/* 4. Arrived at Supplier / Factory */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">4. Arrived at Supplier / Factory</p>
-                  <p className="text-[11px] text-slate-400">
-                    Status: {selectedTrip.loaded_departed_at ? `Checked in at ${selectedTrip.supplier_name}` : 'Awaiting arrival'}
-                  </p>
-                </div>
-
-                {/* 5. Loaded & Cleared */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.loaded_departed_at ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">5. Loaded & Cleared</p>
-                  <p className="text-[11px] text-slate-400">
-                    Timestamp: {selectedTrip.loaded_departed_at ? new Date(selectedTrip.loaded_departed_at).toLocaleString() : 'Pending weighbridge clearance'}
-                  </p>
-                </div>
-
-                {/* 6. In-Transit Return / Delivering */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.status === 'loaded_departed' ? 'bg-blue-500 animate-pulse' : selectedTrip.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">6. In-Transit Return / Delivering</p>
-                  <p className="text-[11px] text-slate-400">
-                    Status: {selectedTrip.status === 'loaded_departed' ? 'Returning with loaded cargo' : selectedTrip.status === 'completed' ? 'Return completed' : 'Awaiting departure from factory'}
-                  </p>
-                </div>
-
-                {/* 7. Offloaded & Trip Completed */}
-                <div className="relative pl-6 space-y-0.5">
-                  <div className={`absolute -left-[23px] top-0.5 w-4 h-4 rounded-full border-2 border-slate-900 ${
-                    selectedTrip.status === 'completed' ? 'bg-emerald-500' : 'bg-slate-800'
-                  }`} />
-                  <p className="text-xs font-bold text-white">7. Offloaded & Trip Completed</p>
-                  <p className="text-[11px] text-slate-400">
-                    Timestamp: {selectedTrip.arrived_offloaded_at ? new Date(selectedTrip.arrived_offloaded_at).toLocaleString() : 'Pending final offloading'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* DRIVER LOCATION BROADCAST LOGS */}
-            <div className="space-y-3">
-              <h4 className="text-sm font-extrabold text-slate-200 flex items-center space-x-2">
-                <Navigation className="w-4 h-4 text-blue-400" />
-                <span>Driver Live Location Broadcasts</span>
-              </h4>
-
-              {selectedTrip.location_shares && selectedTrip.location_shares.length > 0 ? (
-                <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
-                  {selectedTrip.location_shares.map((share, idx) => (
-                    <div key={idx} className="bg-slate-950 p-3 rounded-xl border border-slate-800 text-xs space-y-1">
-                      <div className="flex items-center justify-between text-slate-400 text-[10px]">
-                        <span className="font-bold text-amber-400">{share.source === 'requested' ? 'Requested Update' : 'Driver Location Update'}</span>
-                        <span>{new Date(share.timestamp).toLocaleString()}</span>
-                      </div>
-                      <p className="text-slate-200 font-medium">{share.note}</p>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-xs text-slate-500 italic bg-slate-950 p-3 rounded-xl border border-slate-800">
-                  No location broadcasts logged by driver for this trip yet.
-                </p>
-              )}
-            </div>
-
-            {/* MODAL FOOTER */}
-            <div className="flex justify-end pt-2 border-t border-slate-800">
-              <button
-                onClick={() => setSelectedTrip(null)}
-                className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs shadow-lg transition-all cursor-pointer"
-              >
-                Close Audit View
-              </button>
-            </div>
-          </div>
-        </div>
+        <FleetTripTimelineModal
+          trip={selectedTrip}
+          driver={getDriverForTruck(selectedTrip.truck_id)}
+          onClose={() => setSelectedTrip(null)}
+        />
       )}
     </div>
   );

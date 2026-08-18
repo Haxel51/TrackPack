@@ -31,15 +31,15 @@ export const ManagerDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine smart service mode for manager
+  // Determine smart service mode for manager (fresh backend overview prioritized)
   const serviceMode = (
-    user?.service_mode ||
-    user?.service_type ||
-    user?.manager_type ||
     overview?.service_mode ||
-    overview?.service_type ||
     overview?.manager_type ||
-    'parcel'
+    overview?.service_type ||
+    user?.service_mode ||
+    user?.manager_type ||
+    user?.service_type ||
+    'haulage'
   ) as string;
 
   const isFleetOnly = serviceMode === 'fleet' || serviceMode === 'haulage';
@@ -48,6 +48,15 @@ export const ManagerDashboard: React.FC = () => {
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills' | 'fleet' | 'live_board'>('overview');
+
+  // Synchronize active tab if current tab is not allowed for the manager's role
+  useEffect(() => {
+    if (isFleetOnly && (activeTab === 'staff' || activeTab === 'waybills')) {
+      setActiveTab('fleet');
+    } else if (isWaybillOnly && (activeTab === 'fleet' || activeTab === 'live_board')) {
+      setActiveTab('overview');
+    }
+  }, [isFleetOnly, isWaybillOnly, activeTab]);
 
   // Search & Filter for waybills
   const [searchTerm, setSearchTerm] = useState('');
@@ -466,92 +475,94 @@ export const ManagerDashboard: React.FC = () => {
                     </div>
 
                     {/* Fleet Park Summary Banner */}
-                    <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      <div className="space-y-1">
-                        <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
-                          <Truck className="text-[#F2A93B] w-5 h-5" />
-                          Fleet Logistics Operations: {overview.park_location}
-                        </h2>
-                        <p className="text-xs text-slate-300 max-w-2xl">
-                          As Fleet Manager, you supervise truck dispatches, haulage suppliers, driver assignments, and realtime milestone tracking from this depot.
-                        </p>
+                      <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                        <div className="space-y-1">
+                          <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
+                            <Truck className="text-[#F2A93B] w-5 h-5" />
+                            Fleet Logistics Operations: {overview.park_location}
+                          </h2>
+                          <p className="text-xs text-slate-300 max-w-2xl">
+                            As Fleet Manager, you supervise truck dispatches, haulage suppliers, driver assignments, and realtime milestone tracking from this depot.
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 w-full md:w-auto">
+                          <button
+                            onClick={() => setActiveTab('fleet')}
+                            className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
+                          >
+                            <Plus className="w-4 h-4" /> Launch New Trip
+                          </button>
+                          <button
+                            onClick={() => setActiveTab('live_board')}
+                            className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20"
+                          >
+                            <Activity className="w-4 h-4 text-emerald-400" /> Live Board
+                          </button>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button
-                          onClick={() => setActiveTab('fleet')}
-                          className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                        >
-                          <Plus className="w-4 h-4" /> Launch New Trip
-                        </button>
-                        <button
-                          onClick={() => setActiveTab('live_board')}
-                          className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20"
-                        >
-                          <Activity className="w-4 h-4 text-emerald-400" /> Live Board
-                        </button>
-                      </div>
-                    </div>
 
                     {/* Recent Fleet Trips */}
-                    <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <h3 className="text-base font-extrabold text-[#0A1F44]">Recent Haulage Trips at Park</h3>
-                          <p className="text-xs text-slate-500 font-medium mt-0.5">Trips originating from or destined for {overview.park_location}</p>
+                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                        <div className="flex justify-between items-center">
+                          <div>
+                            <h3 className="text-base font-extrabold text-[#0A1F44]">Recent Haulage Trips at Park</h3>
+                            <p className="text-xs text-slate-500 font-medium mt-0.5">Trips originating from or destined for {overview.park_location}</p>
+                          </div>
+                          <button
+                            onClick={() => setActiveTab('fleet')}
+                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                          >
+                            View All Trips <ArrowRight className="w-3.5 h-3.5" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => setActiveTab('fleet')}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                        >
-                          View All Trips <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
 
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                              <th className="pb-3 px-3">Trip ID</th>
-                              <th className="pb-3 px-3">Truck</th>
-                              <th className="pb-3 px-3">Supplier</th>
-                              <th className="pb-3 px-3">Driver</th>
-                              <th className="pb-3 px-3">Status</th>
-                              <th className="pb-3 px-3">Created</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                            {(overview.recent_trips || []).slice(0, 8).map((trip: any) => (
-                              <tr key={trip.id} className="hover:bg-slate-50/80">
-                                <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{trip.tracking_code || trip.id.substring(0, 8).toUpperCase()}</td>
-                                <td className="py-3 px-3 font-bold">{trip.truck_number || 'Truck'}</td>
-                                <td className="py-3 px-3">{trip.supplier_name || 'Supplier'}</td>
-                                <td className="py-3 px-3">{trip.driver_name || trip.driver_phone || 'Driver'}</td>
-                                <td className="py-3 px-3">
-                                  <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
-                                    trip.status === 'completed' || trip.status === 'arrived' ? 'bg-emerald-100 text-emerald-800' :
-                                    trip.status === 'in_transit' || trip.status === 'loaded_departed' ? 'bg-blue-100 text-blue-800' :
-                                    trip.status === 'loading' ? 'bg-amber-100 text-amber-800' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {(trip.status || 'created').replace('_', ' ')}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3 text-slate-400">
-                                  {trip.created_at ? new Date(trip.created_at).toLocaleDateString() : 'Recent'}
-                                </td>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-xs">
+                            <thead>
+                              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                                <th className="pb-3 px-3">Trip ID</th>
+                                <th className="pb-3 px-3">Truck</th>
+                                <th className="pb-3 px-3">Supplier</th>
+                                <th className="pb-3 px-3">Driver</th>
+                                <th className="pb-3 px-3">Status</th>
+                                <th className="pb-3 px-3">Created</th>
                               </tr>
-                            ))}
-                            {(!overview.recent_trips || overview.recent_trips.length === 0) && (
-                              <tr>
-                                <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
-                                  No trips recorded yet for this park. Click "Launch New Trip" in Fleet Operations to create one.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                              {(overview.recent_trips || []).slice(0, 8).map((trip: any) => (
+                                <tr key={trip.id} className="hover:bg-slate-50/80">
+                                  <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{trip.tracking_code || trip.id.substring(0, 8).toUpperCase()}</td>
+                                  <td className="py-3 px-3 font-bold">{trip.truck_number || 'Truck'}</td>
+                                  <td className="py-3 px-3">{trip.supplier_name || 'Supplier'}</td>
+                                  <td className="py-3 px-3 font-semibold text-slate-800">
+                                    {trip.driver_name || (trip.driver && trip.driver.name) || (trip.driver_phone ? `Driver (${trip.driver_phone})` : <span className="text-slate-400 font-normal">Unassigned</span>)}
+                                  </td>
+                                  <td className="py-3 px-3">
+                                    <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
+                                      trip.status === 'completed' || trip.status === 'arrived' ? 'bg-emerald-100 text-emerald-800' :
+                                      trip.status === 'in_transit' || trip.status === 'loaded_departed' ? 'bg-blue-100 text-blue-800' :
+                                      trip.status === 'loading' ? 'bg-amber-100 text-amber-800' :
+                                      'bg-slate-100 text-slate-700'
+                                    }`}>
+                                      {(trip.status || 'created').replace('_', ' ')}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-3 text-slate-400">
+                                    {trip.created_at ? new Date(trip.created_at).toLocaleDateString() : 'Recent'}
+                                  </td>
+                                </tr>
+                              ))}
+                              {(!overview.recent_trips || overview.recent_trips.length === 0) && (
+                                <tr>
+                                  <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
+                                    No trips recorded yet for this park. Click "Launch New Trip" in Fleet Operations to create one.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
                   </div>
                 )}
 
