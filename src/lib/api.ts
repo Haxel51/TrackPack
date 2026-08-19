@@ -790,7 +790,15 @@ export async function changeDriverPin(token: string, currentPin: string, newPin:
   });
 }
 
-export async function shareDriverLocation(token: string, tripId: string, data: { note?: string; source?: string }) {
+export async function shareDriverLocation(token: string, tripId: string, data: {
+  note?: string;
+  source?: string;
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  speed?: number | null;
+  preset?: string;
+}) {
   return safeFetch(`${API_BASE}/fleet/trips/${tripId}/share-location`, {
     method: 'POST',
     headers: {

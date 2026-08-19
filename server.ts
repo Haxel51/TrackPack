@@ -8199,14 +8199,24 @@ app.post("/api/auth/driver/login", async (req, res) => {
   if (!phone_number || !pin) return res.status(400).json({ error: "Phone number and PIN are required." });
 
   try {
-    const q = query(collection(db, "drivers"), where("phone_number", "==", phone_number.trim()));
-    const snap = await getDocs(q);
-    if (snap.empty) return res.status(401).json({ error: "Invalid phone number or PIN." });
+    const rawPhone = String(phone_number).trim();
+    const cleanPhone = rawPhone.replace(/\D/g, "");
+    const normalizedPhone = cleanPhone.startsWith("234") ? "0" + cleanPhone.slice(3) : cleanPhone;
+
+    // Search by raw or normalized phone number
+    const [snapRaw, snapNorm] = await Promise.all([
+      getDocs(query(collection(db, "drivers"), where("phone_number", "==", rawPhone))),
+      getDocs(query(collection(db, "drivers"), where("phone_number", "==", normalizedPhone)))
+    ]);
+
+    const candidateDocs = [...snapRaw.docs, ...snapNorm.docs];
+    if (candidateDocs.length === 0) return res.status(401).json({ error: "Invalid phone number or PIN." });
 
     let matchedDoc = null;
     let matchedData = null;
-    for (const d of snap.docs) {
+    for (const d of candidateDocs) {
       const data = d.data();
+      if (!data.pin_hash) continue;
       const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
       if (match) {
         matchedDoc = d;
@@ -8219,18 +8229,60 @@ app.post("/api/auth/driver/login", async (req, res) => {
       return res.status(401).json({ error: "Invalid phone number or PIN." });
     }
 
+    // Fetch truck & company metadata if available
+    let truckInfo: any = null;
+    if (matchedData.truck_id) {
+      try {
+        const truckSnap = await getDoc(doc(db, "trucks", matchedData.truck_id));
+        if (truckSnap.exists()) {
+          const td = truckSnap.data();
+          truckInfo = {
+            id: matchedData.truck_id,
+            truck_number: td.truck_number || td.plate_number,
+            plate_number: td.plate_number,
+            model: td.model,
+            capacity: td.capacity
+          };
+        }
+      } catch (e) {
+        console.warn("Could not load truck for driver login:", e);
+      }
+    }
+
+    let companyInfo: any = null;
+    if (matchedData.company_id) {
+      try {
+        const compSnap = await getDoc(doc(db, "companies", matchedData.company_id));
+        if (compSnap.exists()) {
+          const cd = compSnap.data();
+          companyInfo = {
+            id: matchedData.company_id,
+            name: cd.name,
+            phone: cd.phone || cd.emergency_phone || cd.contact_phone
+          };
+        }
+      } catch (e) {
+        console.warn("Could not load company for driver login:", e);
+      }
+    }
+
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const sessionUserData: any = {
+      name: matchedData.name || "Driver",
+      phone_number: matchedData.phone_number || "",
+      company_id: matchedData.company_id || null,
+      truck_id: matchedData.truck_id || null,
+      park_id: matchedData.park_id || null,
+      truck_number: truckInfo?.truck_number || null,
+      company_name: companyInfo?.name || null,
+      manager_phone: companyInfo?.phone || null
+    };
+
     await setDoc(doc(db, "sessions", token), {
       userId: matchedDoc.id,
       userRole: "driver",
-      userData: {
-        name: matchedData.name,
-        phone_number: matchedData.phone_number,
-        company_id: matchedData.company_id,
-        truck_id: matchedData.truck_id,
-        park_id: matchedData.park_id
-      },
+      userData: sessionUserData,
       createdAt: new Date().toISOString(),
       expiresAt
     });
@@ -8239,7 +8291,17 @@ app.post("/api/auth/driver/login", async (req, res) => {
       success: true,
       token,
       role: "driver",
-      user: { name: matchedData.name, truck_id: matchedData.truck_id, company_id: matchedData.company_id }
+      user: {
+        id: matchedDoc.id,
+        name: matchedData.name || "Driver",
+        phone_number: matchedData.phone_number || "",
+        truck_id: matchedData.truck_id || null,
+        truck_number: truckInfo?.truck_number || null,
+        truck: truckInfo || null,
+        company_id: matchedData.company_id || null,
+        company_name: companyInfo?.name || null,
+        manager_phone: companyInfo?.phone || null
+      }
     });
   } catch (err) {
     console.error("Error driver login:", err);
@@ -8399,8 +8461,16 @@ app.get("/api/fleet/trips", async (req, res) => {
 
     if (session.userRole === "supplier_staff" && session.userData?.supplier_id) {
       trips = trips.filter(t => t.supplier_id === session.userData.supplier_id);
-    } else if (session.userRole === "driver" && session.userData?.truck_id) {
-      trips = trips.filter(t => t.truck_id === session.userData.truck_id);
+    } else if (session.userRole === "driver") {
+      const driverId = session.userId;
+      const driverPhone = session.userData?.phone_number;
+      const driverTruckId = session.userData?.truck_id;
+      trips = trips.filter(t => 
+        (driverTruckId && t.truck_id === driverTruckId) ||
+        (t.driver_id && t.driver_id === driverId) ||
+        (driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone))) ||
+        (t.driver && t.driver.id === driverId)
+      );
     }
 
     res.json({ success: true, trips });
@@ -8977,7 +9047,7 @@ app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
     const session = await validateFleetSession(req);
     if (!session || session.userRole !== "driver") return res.status(403).json({ error: "Only drivers can share location." });
     const { id } = req.params;
-    const { note, source } = req.body; // source: 'proactive' | 'requested'
+    const { note, source, latitude, longitude, accuracy, speed, preset } = req.body;
 
     const tripRef = doc(db, "trips", id);
     const tripSnap = await getDoc(tripRef);
@@ -8988,15 +9058,44 @@ app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
       return res.status(402).json({ error: "Payment (₦1,000 per trip) or active monthly subscription required before starting live tracking." });
     }
 
-    const shares = trip.location_shares || [];
-    shares.push({
-      timestamp: new Date().toISOString(),
+    const now = new Date().toISOString();
+    const shareEntry: any = {
+      timestamp: now,
       note: note || "Driver shared live location update",
       source: source || "proactive"
-    });
+    };
 
-    await updateDoc(tripRef, { location_shares: shares });
-    res.json({ success: true, location_shares: shares });
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      shareEntry.latitude = latitude;
+      shareEntry.longitude = longitude;
+      if (typeof accuracy === "number") shareEntry.accuracy = accuracy;
+      if (typeof speed === "number") shareEntry.speed = speed;
+    }
+    if (preset) shareEntry.preset = preset;
+
+    const shares = trip.location_shares || [];
+    shares.push(shareEntry);
+
+    const updatePayload: any = {
+      location_shares: shares,
+      last_location_at: now,
+      last_location_note: note || "Driver shared live location update"
+    };
+
+    if (typeof latitude === "number" && typeof longitude === "number") {
+      updatePayload.last_location = {
+        latitude,
+        longitude,
+        accuracy: accuracy || null,
+        speed: speed || null,
+        note: note || "Driver shared live GPS location",
+        preset: preset || null,
+        timestamp: now
+      };
+    }
+
+    await updateDoc(tripRef, updatePayload);
+    res.json({ success: true, location_shares: shares, last_location: updatePayload.last_location });
   } catch (err) {
     console.error("Error POST /api/fleet/trips/:id/share-location:", err);
     res.status(500).json({ error: "Internal server error." });

@@ -927,18 +927,18 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-3 shadow-md flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 sm:pb-0 no-scrollbar">
           {[
-            { id: 'live_board', label: 'Live Board', icon: Activity },
-            { id: 'overview', label: 'Overview', icon: Building2 },
+            { id: 'live_board', label: 'Live Road Board 🚚', icon: Activity },
+            { id: 'overview', label: 'Overview 📊', icon: Building2 },
             { id: 'trucks', label: `Trucks (${trucks.length})`, icon: Truck },
-            { id: 'suppliers', label: `Suppliers (${suppliers.length})`, icon: Building2 },
+            { id: 'suppliers', label: `Factories & Places (${suppliers.length})`, icon: Building2 },
             { 
               id: 'staff_drivers', 
               label: userRole === 'company' 
-                ? `Managers & Staff (${managers.length + drivers.length + supplierStaff.length})` 
+                ? `Managers & Drivers (${managers.length + drivers.length + supplierStaff.length})` 
                 : `Drivers & Staff (${drivers.length + supplierStaff.length})`, 
               icon: Users 
             },
-            { id: 'trips', label: `Trips (${trips.length})`, icon: Calendar }
+            { id: 'trips', label: `Trip Bookings (${trips.length})`, icon: Calendar }
           ].map(tab => {
             const Icon = tab.icon;
             const isActive = activeSubTab === tab.id;

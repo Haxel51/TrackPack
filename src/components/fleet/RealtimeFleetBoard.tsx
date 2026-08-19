@@ -326,14 +326,14 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-black text-white tracking-tight">Real-Time Fleet Board</h2>
+                <h2 className="text-xl font-black text-white tracking-tight">Live Truck Road Board 🚚</h2>
                 <span className="inline-flex items-center space-x-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping mr-1" />
-                  LIVE FIRESTORE
+                  LIVE UPDATES
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Monitoring active round-trip haulage trucks, driver location logs & arrival estimates
+                See where all your company trucks, drivers, and goods are on the road in real-time
               </p>
             </div>
           </div>
@@ -356,27 +356,27 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
         {/* SUMMARY STAT CARDS */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Fleet Trucks</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Trucks</p>
             <p className="text-2xl font-black text-white mt-1">{totalTrucksCount}</p>
-            <span className="text-[10px] text-amber-400 font-medium">Registered units</span>
+            <span className="text-[10px] text-amber-400 font-medium">All registered trucks</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Active En Route</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Moving on Highway</p>
             <p className="text-2xl font-black text-blue-400 mt-1">{activeEnRouteCount}</p>
-            <span className="text-[10px] text-blue-300 font-medium">Trucks on highway</span>
+            <span className="text-[10px] text-blue-300 font-medium">Trucks currently traveling</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Loaded at Factory</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Goods Loaded</p>
             <p className="text-2xl font-black text-amber-400 mt-1">{loadingAtFactoryCount}</p>
-            <span className="text-[10px] text-amber-300 font-medium">Supplier loading bays</span>
+            <span className="text-[10px] text-amber-300 font-medium">Carrying cargo</span>
           </div>
 
           <div className="bg-slate-950/60 border border-slate-800/80 rounded-xl p-3.5">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Completed Trips</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Delivered & Back</p>
             <p className="text-2xl font-black text-emerald-400 mt-1">{completedTripsCount}</p>
-            <span className="text-[10px] text-emerald-300 font-medium">Offloaded & returned</span>
+            <span className="text-[10px] text-emerald-300 font-medium">Successfully delivered</span>
           </div>
         </div>
       </div>
@@ -390,7 +390,7 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by truck plate (e.g. LAG-452-XZ), driver name or supplier..."
+            placeholder="Search by truck number (e.g. LAG-452), driver name or factory..."
             className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-10 pr-4 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
           />
         </div>
@@ -398,11 +398,11 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
         {/* Status Filters */}
         <div className="flex items-center space-x-1.5 overflow-x-auto pb-1 md:pb-0">
           {[
-            { id: 'active', label: 'Active Trips' },
-            { id: 'all', label: 'All Trips' },
-            { id: 'left_warehouse', label: 'Departed Depot' },
-            { id: 'loaded_departed', label: 'Loaded @ Factory' },
-            { id: 'completed', label: 'Completed' }
+            { id: 'active', label: 'Active Trips 🚚' },
+            { id: 'all', label: 'All Trips 📋' },
+            { id: 'left_warehouse', label: 'Left Park 🛣️' },
+            { id: 'loaded_departed', label: 'On Road with Load 📦' },
+            { id: 'completed', label: 'Delivered 🎉' }
           ].map(f => (
             <button
               key={f.id}

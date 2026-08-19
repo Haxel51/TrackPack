@@ -60,24 +60,21 @@ interface FleetTripCardProps {
   id?: string;
 }
 
-/**
- * Returns clean color classes for status pill matching the Waybilla design system.
- */
 export function getFleetStatusBadgeStyle(status: string) {
   switch (status) {
     case 'completed':
     case 'arrived_offloaded':
       return 'bg-emerald-50 text-emerald-800 border-emerald-200';
     case 'arrived_at_destination':
-      return 'bg-emerald-50 text-emerald-900 border-emerald-300';
+      return 'bg-blue-50 text-blue-900 border-blue-300';
     case 'loaded_departed':
-      return 'bg-amber-50 text-amber-900 border-amber-200';
+      return 'bg-blue-50 text-blue-900 border-blue-200';
     case 'cargo_loaded':
       return 'bg-purple-50 text-purple-900 border-purple-200';
     case 'arrived_at_supplier':
-      return 'bg-blue-50 text-blue-900 border-blue-200';
+      return 'bg-purple-50 text-purple-900 border-purple-200';
     case 'left_warehouse':
-      return 'bg-sky-50 text-sky-900 border-sky-200';
+      return 'bg-amber-50 text-amber-900 border-amber-200';
     case 'pending_payment':
     case 'created':
     case 'trip_created':
@@ -90,23 +87,23 @@ export function getFleetStatusLabel(status: string) {
   switch (status) {
     case 'completed':
     case 'arrived_offloaded':
-      return 'COMPLETED';
+      return 'DELIVERED & DONE 🎉';
     case 'arrived_at_destination':
-      return 'AT DEPOT GATE';
+      return 'AT FACTORY GATE 🏢';
     case 'loaded_departed':
-      return 'RETURNING / IN-TRANSIT';
+      return 'ON HIGHWAY WITH GOODS 🚚💨';
     case 'cargo_loaded':
-      return 'LOADED & SEALED';
+      return 'GOODS LOADED 📦';
     case 'arrived_at_supplier':
-      return 'AT SUPPLIER PLANT';
+      return 'AT LOADING POINT 🏭';
     case 'left_warehouse':
-      return 'EN ROUTE TO PLANT';
+      return 'ON THE ROAD (EMPTY) 🛣️';
     case 'pending_payment':
-      return 'AWAITING PAYMENT';
+      return 'AWAITING PAYMENT 💳';
     case 'created':
     case 'trip_created':
     default:
-      return 'TRIP BOOKED';
+      return 'TRIP BOOKED 📋';
   }
 }
 
@@ -125,53 +122,53 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
     year: 'numeric'
   });
 
-  const originName = trip.origin_park || 'Origin Depot';
-  const supplierName = trip.supplier_name || 'Supplier Plant';
+  const originName = trip.origin_park || 'Loading Park';
+  const supplierName = trip.supplier_name || 'Destination Factory';
 
   return (
     <div
       id={id}
       onClick={() => onSelect(trip)}
-      className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-5 shadow-md hover:shadow-xl transition-all cursor-pointer flex items-center justify-between group"
+      className="bg-white border border-slate-200/90 hover:border-slate-300 rounded-2xl p-4 sm:p-5 shadow-md hover:shadow-xl transition-all cursor-pointer flex items-center justify-between group"
     >
-      <div className="space-y-3 flex-grow min-w-0 pr-4">
-        {/* Top Line: Truck Plate Tag, Trip Mode, Driver info, Overdue warning */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-black text-sm text-[#0A1F44] uppercase tracking-wider bg-slate-100 px-2.5 py-0.5 rounded flex items-center gap-1.5">
+      <div className="space-y-2.5 flex-grow min-w-0 pr-3 sm:pr-4">
+        {/* Top Line: Truck Plate Tag, Mode, Driver info, Overdue warning */}
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+          <span className="font-black text-xs sm:text-sm text-[#0A1F44] uppercase tracking-wider bg-slate-100 px-2.5 py-0.5 rounded flex items-center gap-1.5">
             <Truck className="w-3.5 h-3.5 text-[#F2A93B]" />
             {trip.truck_number}
           </span>
 
-          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest border bg-amber-50 text-amber-800 border-amber-200">
-            {trip.billing_method === 'monthly' ? 'MONTHLY FLEET' : 'PER-TRIP HAULAGE'}
+          <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider border bg-amber-50 text-amber-800 border-amber-200">
+            {trip.billing_method === 'monthly' ? 'MONTHLY TRUCK' : 'PAY-PER-TRIP'}
           </span>
 
           {driver && (
             <span className="bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
               <User className="w-3 h-3 text-indigo-500" />
-              {driver.name}
+              Driver: {driver.name}
             </span>
           )}
 
           {trip.waybill_number && (
             <span className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
               <FileText className="w-3 h-3 text-purple-500" />
-              Waybill: {trip.waybill_number}
+              Paper #{trip.waybill_number}
             </span>
           )}
 
           {narrativeInfo.isOverdue && (
             <span className="bg-red-50 text-red-700 border border-red-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
               <AlertTriangle className="w-3 h-3 text-red-600" />
-              DELAYED / OVERDUE
+              DELAYED ON ROAD
             </span>
           )}
         </div>
 
-        {/* Middle Line: Destination & Cargo Purpose */}
+        {/* Middle Line: Destination */}
         <div>
-          <h3 className="font-bold text-slate-800 text-base leading-snug truncate group-hover:text-blue-900 transition-colors">
-            {supplierName} Haulage
+          <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover:text-blue-900 transition-colors">
+            Trip to {supplierName}
             {trip.cargo_notes ? ` • ${trip.cargo_notes}` : ''}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
@@ -180,21 +177,21 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
         </div>
 
         {/* Bottom Line: Route, Date, Status Pill */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-slate-400 font-medium">
-          <span className="flex items-center gap-1 text-slate-700 font-bold">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-400 font-medium">
+          <span className="flex items-center gap-1 text-slate-700 font-bold text-[11px] sm:text-xs">
             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-            <span className="truncate max-w-[130px] sm:max-w-none">{originName}</span>
+            <span className="truncate max-w-[120px] sm:max-w-none">{originName}</span>
             <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
-            <span className="truncate max-w-[130px] sm:max-w-none text-[#0A1F44]">{supplierName}</span>
+            <span className="truncate max-w-[120px] sm:max-w-none text-[#0A1F44]">{supplierName}</span>
           </span>
 
-          <span className="flex items-center gap-1 text-slate-500">
+          <span className="flex items-center gap-1 text-slate-500 text-[11px]">
             <Calendar className="w-3.5 h-3.5 text-slate-300" />
             {formattedDate}
           </span>
 
           <span
-            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-widest border ${getFleetStatusBadgeStyle(
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${getFleetStatusBadgeStyle(
               trip.status
             )}`}
           >
