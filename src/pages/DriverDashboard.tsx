@@ -33,7 +33,7 @@ export const DriverDashboard: React.FC = () => {
   const watchIdRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
-  // Multi-tier Robust Location Permission Request
+  // Location Permission Request function
   const requestLocationPermission = useCallback(() => {
     setRequestingPermission(true);
     setPermissionError(null);
@@ -45,7 +45,6 @@ export const DriverDashboard: React.FC = () => {
       return;
     }
 
-    // Attempt 1: Fast network/cached acquisition (timeout 8s)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         if (!isMountedRef.current) return;
@@ -60,9 +59,9 @@ export const DriverDashboard: React.FC = () => {
         setPermissionError(null);
       },
       (error) => {
-        console.warn('Fast geolocation attempt notice:', error.code, error.message);
-        
-        // Attempt 2: Try High Accuracy GPS with generous timeout (20s)
+        console.warn('Geolocation request notice:', error.code, error.message);
+
+        // Fallback attempt with High Accuracy GPS
         navigator.geolocation.getCurrentPosition(
           (pos) => {
             if (!isMountedRef.current) return;
@@ -94,8 +93,8 @@ export const DriverDashboard: React.FC = () => {
           },
           {
             enableHighAccuracy: true,
-            timeout: 20000,
-            maximumAge: 60000
+            timeout: 15000,
+            maximumAge: 0
           }
         );
       },
@@ -107,21 +106,16 @@ export const DriverDashboard: React.FC = () => {
     );
   }, []);
 
-  // Check if browser permission was already granted previously
+  const handleGrantLocationClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault();
+    requestLocationPermission();
+  };
+
+  // Instantly prompt driver for location permission as soon as they land on the dashboard after login
   useEffect(() => {
     isMountedRef.current = true;
 
-    if (navigator.permissions && navigator.permissions.query) {
-      navigator.permissions.query({ name: 'geolocation' as PermissionName })
-        .then((result) => {
-          if (result.state === 'granted') {
-            requestLocationPermission();
-          }
-        })
-        .catch(() => {
-          // Fallback: wait for explicit user click
-        });
-    }
+    requestLocationPermission();
 
     return () => {
       isMountedRef.current = false;
@@ -237,7 +231,7 @@ export const DriverDashboard: React.FC = () => {
             <button
               type="button"
               id="grant-location-btn"
-              onClick={requestLocationPermission}
+              onClick={handleGrantLocationClick}
               disabled={requestingPermission}
               className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-98"
             >
