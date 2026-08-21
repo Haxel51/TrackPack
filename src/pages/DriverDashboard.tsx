@@ -10,14 +10,15 @@ import {
   Radio,
   AlertCircle,
   CheckCircle2,
-  Lock
+  Lock,
+  RefreshCw
 } from 'lucide-react';
 
 export const DriverDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
 
-  // Location Permission Gate State
-  const [hasLocationPermission, setHasLocationPermission] = useState<boolean | null>(null);
+  // Location Permission Gate State - default to false so gate displays until granted
+  const [hasLocationPermission, setHasLocationPermission] = useState<boolean>(false);
   const [permissionError, setPermissionError] = useState<string | null>(null);
   const [requestingPermission, setRequestingPermission] = useState(false);
 
@@ -32,18 +33,19 @@ export const DriverDashboard: React.FC = () => {
   const watchIdRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
-  // Mandatory Location Permission Request
+  // Multi-tier Robust Location Permission Request
   const requestLocationPermission = useCallback(() => {
     setRequestingPermission(true);
     setPermissionError(null);
 
     if (!('geolocation' in navigator)) {
-      setPermissionError('Your device does not support GPS Geolocation. Please use a device with GPS capability.');
+      setPermissionError('Your device or browser does not support GPS Geolocation.');
       setHasLocationPermission(false);
       setRequestingPermission(false);
       return;
     }
 
+    // Attempt 1: Fast network/cached acquisition (timeout 8s)
     navigator.geolocation.getCurrentPosition(
       (position) => {
         if (!isMountedRef.current) return;
@@ -55,30 +57,71 @@ export const DriverDashboard: React.FC = () => {
         };
         setHasLocationPermission(true);
         setRequestingPermission(false);
+        setPermissionError(null);
       },
       (error) => {
-        if (!isMountedRef.current) return;
-        console.warn('Geolocation access error:', error.message);
-        setHasLocationPermission(false);
-        setRequestingPermission(false);
-        if (error.code === error.PERMISSION_DENIED) {
-          setPermissionError('Location permission is mandatory. Please open your browser or device settings and set Location to "Always Allow" or "Allow While Using App".');
-        } else {
-          setPermissionError('Unable to acquire GPS fix. Please ensure your device Location/GPS is turned ON in system settings.');
-        }
+        console.warn('Fast geolocation attempt notice:', error.code, error.message);
+        
+        // Attempt 2: Try High Accuracy GPS with generous timeout (20s)
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            if (!isMountedRef.current) return;
+            latestCoordsRef.current = {
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+              accuracy: pos.coords.accuracy,
+              speed: pos.coords.speed
+            };
+            setHasLocationPermission(true);
+            setRequestingPermission(false);
+            setPermissionError(null);
+          },
+          (err2) => {
+            if (!isMountedRef.current) return;
+            console.warn('High accuracy fallback failed:', err2.code, err2.message);
+            setHasLocationPermission(false);
+            setRequestingPermission(false);
+
+            if (err2.code === err2.PERMISSION_DENIED) {
+              setPermissionError('Location permission was denied. Please tap "Grant Location Access" and select "Allow".');
+            } else if (err2.code === err2.POSITION_UNAVAILABLE) {
+              setPermissionError('GPS position unavailable. Please ensure your phone Location / GPS is turned ON.');
+            } else if (err2.code === err2.TIMEOUT) {
+              setPermissionError('GPS signal timed out. Please ensure phone Location/GPS is ON and tap again.');
+            } else {
+              setPermissionError(err2.message || 'Unable to access device location.');
+            }
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 20000,
+            maximumAge: 60000
+          }
+        );
       },
       {
-        enableHighAccuracy: true,
-        timeout: 12000,
-        maximumAge: 0
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 300000
       }
     );
   }, []);
 
-  // Check initial permission on mount
+  // Check if browser permission was already granted previously
   useEffect(() => {
     isMountedRef.current = true;
-    requestLocationPermission();
+
+    if (navigator.permissions && navigator.permissions.query) {
+      navigator.permissions.query({ name: 'geolocation' as PermissionName })
+        .then((result) => {
+          if (result.state === 'granted') {
+            requestLocationPermission();
+          }
+        })
+        .catch(() => {
+          // Fallback: wait for explicit user click
+        });
+    }
 
     return () => {
       isMountedRef.current = false;
@@ -109,7 +152,7 @@ export const DriverDashboard: React.FC = () => {
         {
           enableHighAccuracy: true,
           maximumAge: 10000,
-          timeout: 15000
+          timeout: 20000
         }
       );
     } catch (e) {
@@ -164,7 +207,7 @@ export const DriverDashboard: React.FC = () => {
   // ----------------------------------------------------
   // SCREEN 1: Mandatory Location Permission Prompt
   // ----------------------------------------------------
-  if (hasLocationPermission === false || (hasLocationPermission === null && requestingPermission)) {
+  if (!hasLocationPermission) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col justify-center items-center p-4 sm:p-6 text-slate-100">
         <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 text-center">
@@ -184,16 +227,19 @@ export const DriverDashboard: React.FC = () => {
           {permissionError && (
             <div className="bg-rose-500/10 border border-rose-500/30 text-rose-300 p-3.5 rounded-2xl text-xs text-left flex items-start gap-2.5">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <span>{permissionError}</span>
+              <div className="space-y-1">
+                <span className="font-semibold block">{permissionError}</span>
+              </div>
             </div>
           )}
 
           <div className="space-y-3 pt-2">
             <button
               type="button"
+              id="grant-location-btn"
               onClick={requestLocationPermission}
               disabled={requestingPermission}
-              className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-2"
+              className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 rounded-2xl text-sm transition-all shadow-lg cursor-pointer disabled:opacity-50 flex items-center justify-center space-x-2 active:scale-98"
             >
               {requestingPermission ? (
                 <>
@@ -210,8 +256,9 @@ export const DriverDashboard: React.FC = () => {
 
             <button
               type="button"
+              id="driver-logout-btn"
               onClick={logout}
-              className="w-full bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white font-medium py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+              className="w-full bg-slate-800/80 hover:bg-slate-700 text-slate-400 hover:text-white font-medium py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
             >
               Log Out
             </button>
