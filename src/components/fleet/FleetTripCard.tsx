@@ -28,6 +28,8 @@ export interface FleetTripCardData {
   payment_status?: string;
   left_warehouse_at?: string | null;
   left_warehouse_by?: string | null;
+  departed_at?: string | null;
+  departed_by?: string | null;
   arrived_at_supplier_at?: string | null;
   arrived_at_supplier_by?: string | null;
   cargo_loaded_at?: string | null;
@@ -36,6 +38,7 @@ export interface FleetTripCardData {
   loaded_departed_by?: string | null;
   arrived_at_destination_at?: string | null;
   arrived_at_destination_by?: string | null;
+  completed_at?: string | null;
   arrived_offloaded_at?: string | null;
   arrived_offloaded_by?: string | null;
   waybill_number?: string | null;
@@ -43,6 +46,18 @@ export interface FleetTripCardData {
   origin_park?: string | null;
   created_at: string;
   expected_duration_minutes?: number;
+  route_osrm?: {
+    leg1_minutes?: number;
+    leg2_minutes?: number;
+    distance_km?: number;
+    total_minutes?: number;
+  };
+  self_learned_eta?: {
+    display?: string;
+    sample_size?: number;
+    is_learned?: boolean;
+  };
+  audit_notes?: string[];
   location_shares?: Array<{ timestamp: string; note: string; source?: string }>;
 }
 
@@ -64,19 +79,23 @@ export function getFleetStatusBadgeStyle(status: string) {
   switch (status) {
     case 'completed':
     case 'arrived_offloaded':
+    case 'offloaded_completed':
       return 'bg-emerald-50 text-emerald-800 border-emerald-200';
     case 'arrived_at_destination':
       return 'bg-blue-50 text-blue-900 border-blue-300';
     case 'loaded_departed':
       return 'bg-blue-50 text-blue-900 border-blue-200';
+    case 'arrived_at_depot':
+    case 'arrived_at_supplier':
     case 'cargo_loaded':
       return 'bg-purple-50 text-purple-900 border-purple-200';
-    case 'arrived_at_supplier':
-      return 'bg-purple-50 text-purple-900 border-purple-200';
+    case 'left_garage':
+    case 'departed':
     case 'left_warehouse':
       return 'bg-amber-50 text-amber-900 border-amber-200';
     case 'pending_payment':
     case 'created':
+    case 'initiated':
     case 'trip_created':
     default:
       return 'bg-slate-100 text-slate-700 border-slate-200';
@@ -87,20 +106,24 @@ export function getFleetStatusLabel(status: string) {
   switch (status) {
     case 'completed':
     case 'arrived_offloaded':
-      return 'DELIVERED & DONE 🎉';
+    case 'offloaded_completed':
+      return 'OFFLOADED & COMPLETED 🎉';
     case 'arrived_at_destination':
-      return 'AT FACTORY GATE 🏢';
+      return 'ARRIVED AT DESTINATION 🏢';
     case 'loaded_departed':
-      return 'ON HIGHWAY WITH GOODS 🚚💨';
-    case 'cargo_loaded':
-      return 'GOODS LOADED 📦';
+      return 'LOADED & DEPARTED 🚚💨';
+    case 'arrived_at_depot':
     case 'arrived_at_supplier':
-      return 'AT LOADING POINT 🏭';
+    case 'cargo_loaded':
+      return 'ARRIVED AT DEPOT 🏭';
+    case 'left_garage':
+    case 'departed':
     case 'left_warehouse':
-      return 'ON THE ROAD (EMPTY) 🛣️';
+      return 'LEFT GARAGE 🛣️';
     case 'pending_payment':
       return 'AWAITING PAYMENT 💳';
     case 'created':
+    case 'initiated':
     case 'trip_created':
     default:
       return 'TRIP BOOKED 📋';
@@ -123,7 +146,7 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
   });
 
   const originName = trip.origin_park || 'Loading Park';
-  const supplierName = trip.supplier_name || 'Destination Factory';
+  const destinationName = trip.supplier_name || 'Destination Factory';
 
   return (
     <div
@@ -153,7 +176,7 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
           {trip.waybill_number && (
             <span className="bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1">
               <FileText className="w-3 h-3 text-purple-500" />
-              Paper #{trip.waybill_number}
+              Waybill #{trip.waybill_number}
             </span>
           )}
 
@@ -168,7 +191,7 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
         {/* Middle Line: Destination */}
         <div>
           <h3 className="font-bold text-slate-800 text-sm sm:text-base leading-snug truncate group-hover:text-blue-900 transition-colors">
-            Trip to {supplierName}
+            Trip to {destinationName}
             {trip.cargo_notes ? ` • ${trip.cargo_notes}` : ''}
           </h3>
           <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
@@ -182,7 +205,7 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
             <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <span className="truncate max-w-[120px] sm:max-w-none">{originName}</span>
             <ArrowRight className="w-3 h-3 text-slate-300 shrink-0" />
-            <span className="truncate max-w-[120px] sm:max-w-none text-[#0A1F44]">{supplierName}</span>
+            <span className="truncate max-w-[120px] sm:max-w-none text-[#0A1F44]">{destinationName}</span>
           </span>
 
           <span className="flex items-center gap-1 text-slate-500 text-[11px]">

@@ -63,7 +63,7 @@ export const DriverLogin: React.FC = () => {
             Driver Sign In
           </h2>
           <p className="text-xs sm:text-sm text-slate-400 max-w-xs mx-auto">
-            Welcome Oga Driver! Enter your phone and PIN to see your trip and send updates.
+            Enter your phone number and 6-digit PIN to connect your vehicle to live fleet tracking.
           </p>
         </div>
       </div>

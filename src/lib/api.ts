@@ -552,6 +552,22 @@ export async function advanceTripCheckpoint(token: string, tripId: string, check
   });
 }
 
+export async function changeFleetTripDestination(token: string, tripId: string, data: {
+  supplier_id?: string;
+  destination_name?: string;
+  latitude?: number;
+  longitude?: number;
+}) {
+  return safeFetch(`${API_BASE}/fleet/trips/${tripId}/change-destination`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+}
+
 export async function payTripFee(token: string, tripId: string, reference?: string) {
   return safeFetch(`${API_BASE}/fleet/trips/${tripId}/pay`, {
     method: 'POST',
@@ -599,6 +615,9 @@ export async function createFleetSupplier(token: string, data: {
   supplier_phone_number?: string;
   contact_name?: string;
   contact_phone?: string;
+  latitude?: number;
+  longitude?: number;
+  address?: string;
 }) {
   return safeFetch(`${API_BASE}/fleet/suppliers`, {
     method: 'POST',
@@ -844,5 +863,40 @@ export async function deleteFleetSupplierStaff(token: string, staffId: string) {
     }
   });
 }
+
+export async function getDriverActiveStatus(token: string) {
+  return safeFetch(`${API_BASE}/fleet/driver/active-status`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function syncDriverLocation(token: string, data: {
+  latitude: number;
+  longitude: number;
+  accuracy?: number;
+  speed?: number | null;
+}) {
+  return safeFetch(`${API_BASE}/fleet/driver/location-sync`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function pingFleetTruckLocation(token: string, truckId: string) {
+  return safeFetch(`${API_BASE}/fleet/trucks/${truckId}/ping-location`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
 
 

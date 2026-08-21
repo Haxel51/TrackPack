@@ -1,23 +1,53 @@
 /**
  * Simple, Easy-to-Understand Truck Journey & Live Status Explainer
- * Made in simple everyday words so drivers, park managers, and truck owners understand instantly!
+ * Generates warm, real-world narrative status language for all 5 journey checkpoints.
+ * Real values are filled in automatically without bracket placeholders.
  */
 
 export interface FleetTripNarrativeInput {
   truck_number: string;
-  supplier_name: string;
-  status: 'pending_payment' | 'created' | 'trip_created' | 'left_warehouse' | 'arrived_at_supplier' | 'cargo_loaded' | 'loaded_departed' | 'arrived_at_destination' | 'completed' | string;
+  supplier_name?: string | null;
+  depot_name?: string | null;
+  status:
+    | 'pending_payment'
+    | 'created'
+    | 'initiated'
+    | 'departed'
+    | 'left_garage'
+    | 'left_warehouse'
+    | 'arrived_at_depot'
+    | 'arrived_at_supplier'
+    | 'cargo_loaded'
+    | 'loaded_departed'
+    | 'arrived_at_destination'
+    | 'completed'
+    | 'arrived_offloaded'
+    | string;
   park_name?: string | null;
+  origin_park?: string | null;
   origin_name?: string | null;
   created_at?: string | null;
+  departed_at?: string | null;
   left_warehouse_at?: string | null;
   arrived_at_supplier_at?: string | null;
   cargo_loaded_at?: string | null;
   loaded_departed_at?: string | null;
   arrived_at_destination_at?: string | null;
+  completed_at?: string | null;
   arrived_offloaded_at?: string | null;
   waybill_number?: string | null;
   expected_duration_minutes?: number | null;
+  route_osrm?: {
+    leg1_minutes?: number;
+    leg2_minutes?: number;
+    distance_km?: number;
+    total_minutes?: number;
+  };
+  self_learned_eta?: {
+    display?: string;
+    sample_size?: number;
+    is_learned?: boolean;
+  };
 }
 
 export interface FleetNarrativeResult {
@@ -27,16 +57,14 @@ export interface FleetNarrativeResult {
   stageColor: 'slate' | 'blue' | 'amber' | 'emerald' | 'purple';
   isOverdue: boolean;
   overdueWarning?: string | null;
+  checkpointNumber: 1 | 2 | 3 | 4 | 5;
   formattedTimes: {
-    tripStarted?: string;
-    leftWarehouse?: string;
-    arrivedSupplier?: string;
-    cargoLoaded?: string;
+    leftGarage?: string;
+    arrivedDepot?: string;
     loadedDeparted?: string;
     arrivedDestination?: string;
-    expectedReturn?: string;
-    expectedNextCheckpointTime?: string;
-    tripCompleted?: string;
+    completed?: string;
+    expectedEta?: string;
   };
 }
 
@@ -52,168 +80,160 @@ export function formatTripTime(dateInput?: string | number | Date | null): strin
 }
 
 export function getFleetTripNarrative(trip: FleetTripNarrativeInput): FleetNarrativeResult {
-  const truckPlate = trip.truck_number?.trim() || 'Assigned Truck';
-  const warehouseName = trip.origin_name?.trim() || trip.park_name?.trim() || 'Loading Park';
-  const supplierName = trip.supplier_name?.trim() || 'Delivery Location';
+  const truckPlate = trip.truck_number?.trim() || 'Truck';
+  const garageName = trip.origin_park?.trim() || trip.origin_name?.trim() || trip.park_name?.trim() || 'Main Garage';
+  const depotName = trip.depot_name?.trim() || trip.supplier_name?.trim() || 'Supplier Depot';
+  const destinationName = trip.supplier_name?.trim() || 'Destination Location';
 
-  const defaultDurationMins = trip.expected_duration_minutes || 180;
+  const defaultDurationMins = trip.expected_duration_minutes || trip.route_osrm?.total_minutes || 180;
 
-  const startTimeRaw = trip.left_warehouse_at || trip.created_at;
-  const tripStartedFormatted = formatTripTime(startTimeRaw);
-  const leftWarehouseFormatted = formatTripTime(trip.left_warehouse_at);
-  const arrivedSupplierFormatted = formatTripTime(trip.arrived_at_supplier_at);
-  const cargoLoadedFormatted = formatTripTime(trip.cargo_loaded_at);
-  const loadedDepartedFormatted = formatTripTime(trip.loaded_departed_at);
-  const arrivedDestinationFormatted = formatTripTime(trip.arrived_at_destination_at);
-  const tripCompletedFormatted = formatTripTime(trip.arrived_offloaded_at);
+  const leftGarageRaw = trip.departed_at || trip.left_warehouse_at || trip.created_at;
+  const leftGarageFormatted = formatTripTime(leftGarageRaw);
+  const arrivedDepotFormatted = formatTripTime(trip.arrived_at_supplier_at);
+  const loadedDepartedFormatted = formatTripTime(trip.loaded_departed_at || trip.cargo_loaded_at);
+  const arrivedDestFormatted = formatTripTime(trip.arrived_at_destination_at);
+  const completedFormatted = formatTripTime(trip.completed_at || trip.arrived_offloaded_at);
 
-  let expectedReturnFormatted = 'N/A';
-  if (trip.left_warehouse_at) {
-    const leftTimeMs = new Date(trip.left_warehouse_at).getTime();
-    if (!isNaN(leftTimeMs)) {
-      const returnTime = new Date(leftTimeMs + defaultDurationMins * 60 * 1000);
-      expectedReturnFormatted = formatTripTime(returnTime);
+  let expectedEtaFormatted = 'N/A';
+  if (trip.loaded_departed_at) {
+    const loadedMs = new Date(trip.loaded_departed_at).getTime();
+    const leg2Mins = trip.route_osrm?.leg2_minutes || 90;
+    if (!isNaN(loadedMs)) {
+      expectedEtaFormatted = formatTripTime(new Date(loadedMs + leg2Mins * 60 * 1000));
     }
-  } else if (trip.created_at) {
-    const createdMs = new Date(trip.created_at).getTime();
-    if (!isNaN(createdMs)) {
-      const returnTime = new Date(createdMs + defaultDurationMins * 60 * 1000);
-      expectedReturnFormatted = formatTripTime(returnTime);
+  } else if (leftGarageRaw) {
+    const leftMs = new Date(leftGarageRaw).getTime();
+    if (!isNaN(leftMs)) {
+      expectedEtaFormatted = formatTripTime(new Date(leftMs + defaultDurationMins * 60 * 1000));
     }
   }
 
   const nowMs = Date.now();
   let isOverdue = false;
   let overdueWarning: string | null = null;
-  let expectedNextTime = 'N/A';
 
   const status = trip.status || 'created';
 
-  // Easy-to-understand messages for all 7 journey steps
-  if (status === 'completed' || trip.arrived_offloaded_at) {
+  // CHECKPOINT 5: Offloaded & Completed
+  if (status === 'completed' || status === 'arrived_offloaded' || trip.arrived_offloaded_at || trip.completed_at) {
     return {
-      headline: `Motor ${truckPlate} Don Deliver Complete! 🎉`,
-      narrative: `Truck ${truckPlate} has safely dropped all goods at ${supplierName} and completed the journey by ${tripCompletedFormatted}. Work done well! 👏`,
-      stageBadgeText: 'DELIVERED & DONE',
+      headline: `Motor ${truckPlate} Offloaded & Completed! 🎉`,
+      narrative: `Truck ${truckPlate} has been offloaded successfully. Trip completed at ${completedFormatted || 'completed time'}.`,
+      stageBadgeText: '5. OFFLOADED & COMPLETED',
       stageColor: 'emerald',
+      checkpointNumber: 5,
       isOverdue: false,
       formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
+        leftGarage: leftGarageFormatted,
+        arrivedDepot: arrivedDepotFormatted,
         loadedDeparted: loadedDepartedFormatted,
-        tripCompleted: tripCompletedFormatted
+        arrivedDestination: arrivedDestFormatted,
+        completed: completedFormatted
       }
     };
   }
 
-  if (status === 'arrived_at_destination') {
+  // CHECKPOINT 4: Arrived at Destination
+  if (status === 'arrived_at_destination' || trip.arrived_at_destination_at) {
     return {
-      headline: `Motor ${truckPlate} Don Reach Destination Gate 🏢`,
-      narrative: `Truck ${truckPlate} has arrived at ${supplierName} around ${arrivedDestinationFormatted}. Driver is waiting for the gate to open or offloading to start!`,
-      stageBadgeText: 'AT FACTORY GATE',
+      headline: `Motor ${truckPlate} Don Reach ${destinationName}! 🏢`,
+      narrative: `Truck ${truckPlate} has arrived at ${destinationName}. Arrived at ${arrivedDestFormatted || 'arrival time'}.`,
+      stageBadgeText: `4. ARRIVED AT ${destinationName.toUpperCase()}`,
       stageColor: 'blue',
+      checkpointNumber: 4,
       isOverdue: false,
       formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
+        leftGarage: leftGarageFormatted,
+        arrivedDepot: arrivedDepotFormatted,
         loadedDeparted: loadedDepartedFormatted,
-        arrivedDestination: arrivedDestinationFormatted
+        arrivedDestination: arrivedDestFormatted,
+        expectedEta: expectedEtaFormatted
       }
     };
   }
 
-  if (status === 'loaded_departed') {
-    // Check if on road too long (> 4 hours without update)
+  // CHECKPOINT 3: Loaded & Departed
+  if (status === 'loaded_departed' || status === 'cargo_loaded' || trip.loaded_departed_at) {
     if (trip.loaded_departed_at) {
       const loadedMs = new Date(trip.loaded_departed_at).getTime();
       const elapsedMins = (nowMs - loadedMs) / (1000 * 60);
       if (elapsedMins > 240) {
         isOverdue = true;
-        overdueWarning = `Truck ${truckPlate} has been moving on the road since ${loadedDepartedFormatted} (${Math.round(elapsedMins / 60)} hours ago). Oga, please ring the driver to confirm road condition! 📞`;
+        overdueWarning = `Truck ${truckPlate} has been moving on the road since ${loadedDepartedFormatted} (${Math.round(elapsedMins / 60)} hours ago). Please check road condition with driver.`;
       }
     }
 
     return {
-      headline: `Motor ${truckPlate} Dey Fly for Highway with Goods! 🚚💨`,
-      narrative: `Truck ${truckPlate} has finished loading goods at ${supplierName} and is now moving on the highway towards destination. Expected arrival by ${expectedReturnFormatted}.`,
-      stageBadgeText: 'ON HIGHWAY (LOADED)',
+      headline: `Motor ${truckPlate} Loaded & En Route with Goods! 🚚💨`,
+      narrative: `Truck ${truckPlate} has been loaded at ${depotName} and is now heading to ${destinationName}. Expected arrival by ${expectedEtaFormatted}.`,
+      stageBadgeText: '3. LOADED & DEPARTED',
       stageColor: 'blue',
+      checkpointNumber: 3,
       isOverdue,
       overdueWarning,
       formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
+        leftGarage: leftGarageFormatted,
+        arrivedDepot: arrivedDepotFormatted,
         loadedDeparted: loadedDepartedFormatted,
-        expectedReturn: expectedReturnFormatted
+        expectedEta: expectedEtaFormatted
       }
     };
   }
 
-  if (status === 'cargo_loaded') {
+  // CHECKPOINT 2: Arrived at Depot
+  if (status === 'arrived_at_depot' || status === 'arrived_at_supplier' || trip.arrived_at_supplier_at) {
     return {
-      headline: `Goods Loaded Inside Motor ${truckPlate} 📦`,
-      narrative: `All goods have been safely packed and sealed inside Truck ${truckPlate} at ${cargoLoadedFormatted}. Driver is starting engine to hit the road!`,
-      stageBadgeText: 'GOODS PACKED',
+      headline: `Motor ${truckPlate} Arrived at ${depotName} 🏭`,
+      narrative: `Truck ${truckPlate} has arrived at ${depotName} and is waiting to be loaded. Arrived at ${arrivedDepotFormatted || 'arrival time'}.`,
+      stageBadgeText: '2. ARRIVED AT DEPOT',
       stageColor: 'purple',
+      checkpointNumber: 2,
       isOverdue: false,
       formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
-        cargoLoaded: cargoLoadedFormatted
+        leftGarage: leftGarageFormatted,
+        arrivedDepot: arrivedDepotFormatted,
+        expectedEta: expectedEtaFormatted
       }
     };
   }
 
-  if (status === 'arrived_at_supplier') {
-    return {
-      headline: `Motor ${truckPlate} Don Land at Supplier / Factory 🏭`,
-      narrative: `Truck ${truckPlate} arrived at ${supplierName} at ${arrivedSupplierFormatted}. Awaiting forklift / workers to pack goods inside the truck.`,
-      stageBadgeText: 'AT LOADING POINT',
-      stageColor: 'purple',
-      isOverdue: false,
-      formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
-        arrivedSupplier: arrivedSupplierFormatted
-      }
-    };
-  }
-
-  if (status === 'left_warehouse') {
-    if (trip.left_warehouse_at) {
-      const leftMs = new Date(trip.left_warehouse_at).getTime();
+  // CHECKPOINT 1: Left Garage (or standard active trip)
+  if (status === 'left_garage' || status === 'departed' || status === 'left_warehouse' || status === 'initiated') {
+    if (leftGarageRaw) {
+      const leftMs = new Date(leftGarageRaw).getTime();
       const elapsedMins = (nowMs - leftMs) / (1000 * 60);
       if (elapsedMins > 180) {
         isOverdue = true;
-        overdueWarning = `Truck ${truckPlate} left ${warehouseName} since ${leftWarehouseFormatted} (${Math.round(elapsedMins / 60)} hours ago). Please check on driver! 📞`;
+        overdueWarning = `Truck ${truckPlate} left ${garageName} at ${leftGarageFormatted} (${Math.round(elapsedMins / 60)} hours ago). Please check on driver.`;
       }
     }
 
     return {
-      headline: `Motor ${truckPlate} Don Move from Park 🛣️`,
-      narrative: `Truck ${truckPlate} left ${warehouseName} at ${leftWarehouseFormatted} and is traveling to ${supplierName}. Journey in progress!`,
-      stageBadgeText: 'LEFT PARK / MOVING',
+      headline: `Motor ${truckPlate} Don Leave Garage 🛣️`,
+      narrative: `Truck ${truckPlate} has departed from ${garageName} and is heading to ${depotName}. Trip started at ${leftGarageFormatted}.`,
+      stageBadgeText: '1. LEFT GARAGE',
       stageColor: 'amber',
+      checkpointNumber: 1,
       isOverdue,
       overdueWarning,
       formattedTimes: {
-        tripStarted: tripStartedFormatted,
-        leftWarehouse: leftWarehouseFormatted,
-        expectedReturn: expectedReturnFormatted
+        leftGarage: leftGarageFormatted,
+        expectedEta: expectedEtaFormatted
       }
     };
   }
 
-  // Pending / Created
+  // Scheduled / Pending Payment
   return {
     headline: `Motor ${truckPlate} Scheduled for Trip 📋`,
-    narrative: `Truck ${truckPlate} is ready at ${warehouseName} to carry goods to ${supplierName}. Driver is warming engine to take off!`,
-    stageBadgeText: 'READY TO MOVE',
+    narrative: `Truck ${truckPlate} is preparing at ${garageName} to depart for ${depotName}.`,
+    stageBadgeText: 'TRIP SCHEDULED',
     stageColor: 'slate',
+    checkpointNumber: 1,
     isOverdue: false,
     formattedTimes: {
-      tripStarted: tripStartedFormatted,
-      expectedReturn: expectedReturnFormatted
+      leftGarage: leftGarageFormatted,
+      expectedEta: expectedEtaFormatted
     }
   };
 }

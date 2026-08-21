@@ -35,8 +35,9 @@ import {
   deleteCompanyManager
 } from '../../lib/api';
 import { getFleetTripNarrative } from '../../lib/fleetNarrative';
-import { Truck, Building2, Users, Plus, ShieldCheck, DollarSign, Calendar, AlertTriangle, CheckCircle2, Activity, X, Trash2, MapPin, ArrowRight, CreditCard, ExternalLink, UserCheck, AlertCircle, KeyRound, Copy, Check, Phone, Share2, MessageSquare } from 'lucide-react';
+import { Truck, Building2, Users, Plus, ShieldCheck, DollarSign, Calendar, AlertTriangle, CheckCircle2, Activity, X, Trash2, MapPin, ArrowRight, CreditCard, ExternalLink, UserCheck, AlertCircle, KeyRound, Copy, Check, Phone, Share2, MessageSquare, Radio } from 'lucide-react';
 import { RealtimeFleetBoard } from './RealtimeFleetBoard';
+import { LiveTruckMapModal } from './LiveTruckMapModal';
 
 interface FleetManagementViewProps {
   userRole: 'company' | 'manager' | 'staff';
@@ -122,6 +123,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
   const [tripTruckId, setTripTruckId] = useState('');
   const [tripSupplierId, setTripSupplierId] = useState('');
   const [submittingTrip, setSubmittingTrip] = useState(false);
+  const [mapTruckTarget, setMapTruckTarget] = useState<{ truck_id: string; truck_number: string } | null>(null);
   const [pendingPaystackTrip, setPendingPaystackTrip] = useState<{
     truck_id: string;
     supplier_id: string;
@@ -381,11 +383,13 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       setPinResultDialog({
         open: true,
         type: 'supplier_staff',
-        title: 'Supplier Staff Created',
+        title: 'Supplier Staff Account Registered',
         name: createdName,
         phone: createdPhone,
-        pin: data.pin,
-        message: 'Supplier staff account has been registered. Share the 6-digit PIN below with the staff member to sign in.'
+        pin: data.pin || undefined,
+        message: data.pin 
+          ? 'Supplier staff account has been registered with the specified PIN.' 
+          : 'Supplier staff account has been registered. The supplier will enter and set their own private PIN upon logging in to the Supplier Portal with their phone number.'
       });
       fetchData();
     } catch (err: any) {
@@ -565,18 +569,20 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
       } else if (type === 'supplier_staff') {
         const data = await resetFleetSupplierStaffPin(token, id, finalCustomPin);
         if (!data || !data.success) throw new Error(data?.error || 'Failed to reset Supplier Staff PIN.');
-        resultPin = data.pin;
-        resultMessage = 'Supplier Staff PIN has been reset successfully.';
+        resultPin = data.pin || '';
+        resultMessage = data.pin 
+          ? 'Supplier staff PIN has been configured.' 
+          : 'PIN cleared. The supplier will enter and set their own private PIN upon logging in to the Supplier Portal with their phone number.';
       }
 
       setPinResetDialog(null);
       setPinResultDialog({
         open: true,
         type,
-        title: `${type === 'manager' ? 'Manager' : type === 'driver' ? 'Driver' : 'Staff'} PIN Reset Successfully`,
+        title: `${type === 'manager' ? 'Manager' : type === 'driver' ? 'Driver' : 'Supplier Staff'} PIN Reset`,
         name,
         phone,
-        pin: resultPin,
+        pin: resultPin || undefined,
         message: resultMessage
       });
       fetchData();
@@ -1051,7 +1057,30 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                     </span>
                   </div>
 
-                  <p className="text-xs text-slate-400 font-medium">Park ID: <strong className="text-slate-200">{truck.park_id}</strong></p>
+                  <div className="flex items-center justify-between pt-1">
+                    <p className="text-xs text-slate-400 font-medium">Park ID: <strong className="text-slate-200">{truck.park_id}</strong></p>
+                    {trips.some(t => t.truck_id === truck.id && t.status !== 'completed' && t.status !== 'arrived_offloaded') ? (
+                      <button
+                        type="button"
+                        onClick={() => setMapTruckTarget({ truck_id: truck.id, truck_number: truck.truck_number })}
+                        className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs flex items-center space-x-1.5 transition-all shadow-md cursor-pointer"
+                        title="Silent GPS Ping on OpenStreetMap"
+                      >
+                        <MapPin className="w-3.5 h-3.5" />
+                        <span>📍 Check Location</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        title="No active trip — location unavailable"
+                        className="bg-slate-800/60 text-slate-500 border border-slate-700/50 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center space-x-1.5 cursor-not-allowed opacity-60"
+                      >
+                        <MapPin className="w-3.5 h-3.5 text-slate-600" />
+                        <span>📍 Check Location</span>
+                      </button>
+                    )}
+                  </div>
 
                   {isMonthly && (
                     <div className="bg-slate-950 p-3.5 rounded-xl text-xs space-y-2 border border-slate-800">
@@ -2380,16 +2409,16 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 />
               </div>
               <div>
-                <label className="block text-sm text-slate-300 mb-1">6-Digit PIN (Optional)</label>
+                <label className="block text-sm text-slate-300 mb-1">PIN (Optional - 4 or 6 Digits)</label>
                 <input
                   type="text"
                   value={suppStaffPin}
                   onChange={(e) => setSuppStaffPin(e.target.value)}
-                  placeholder="Leave blank to auto-generate 6-digit PIN"
+                  placeholder="Leave blank — supplier will set own PIN"
                   className="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-2 text-white"
                 />
                 <p className="text-[11px] text-slate-400 mt-1">
-                  Leave blank and the system will automatically generate a secure 6-digit PIN.
+                  Leave blank and the supplier will create and enter their own private PIN when logging in to the Supplier Portal.
                 </p>
               </div>
               <div className="flex space-x-3 pt-2">
@@ -2810,7 +2839,11 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                 </p>
               ) : (
                 <div className="space-y-3 pt-1">
-                  <p className="text-slate-300">Choose how to generate the new PIN:</p>
+                  <p className="text-slate-300">
+                    {pinResetDialog.type === 'supplier_staff' 
+                      ? 'Choose how to configure the supplier staff PIN:' 
+                      : 'Choose how to generate the new PIN:'}
+                  </p>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
@@ -2821,7 +2854,7 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                           : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
                       }`}
                     >
-                      ⚡ Auto-Generate
+                      {pinResetDialog.type === 'supplier_staff' ? '🚪 Supplier Sets Own PIN' : '⚡ Auto-Generate'}
                     </button>
                     <button
                       type="button"
@@ -2836,15 +2869,23 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
                     </button>
                   </div>
 
+                  {pinResetDialog.type === 'supplier_staff' && pinResetDialog.mode === 'auto' && (
+                    <p className="text-[11px] text-amber-300/90 bg-amber-500/10 border border-amber-500/20 rounded-xl p-2.5">
+                      Clears current PIN. The supplier will enter their phone number on the Supplier Portal and create their own private PIN.
+                    </p>
+                  )}
+
                   {pinResetDialog.mode === 'custom' && (
                     <div className="space-y-1 pt-1">
-                      <label className="text-[11px] font-bold text-slate-300">Enter 6-Digit PIN</label>
+                      <label className="text-[11px] font-bold text-slate-300">
+                        {pinResetDialog.type === 'supplier_staff' ? 'Enter 4 or 6-Digit PIN' : 'Enter 6-Digit PIN'}
+                      </label>
                       <input
                         type="password"
                         maxLength={6}
                         value={pinResetDialog.customPin}
                         onChange={(e) => setPinResetDialog(prev => prev ? { ...prev, customPin: e.target.value.replace(/\D/g, '').slice(0, 6) } : null)}
-                        placeholder="e.g. 123456"
+                        placeholder={pinResetDialog.type === 'supplier_staff' ? 'e.g. 1234 or 123456' : 'e.g. 123456'}
                         className="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-white font-mono text-sm tracking-widest focus:outline-none focus:border-amber-400 text-center"
                       />
                     </div>
@@ -3031,6 +3072,15 @@ export const FleetManagementView: React.FC<FleetManagementViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {mapTruckTarget && token && (
+        <LiveTruckMapModal
+          token={token}
+          truckId={mapTruckTarget.truck_id}
+          truckNumber={mapTruckTarget.truck_number}
+          onClose={() => setMapTruckTarget(null)}
+        />
       )}
     </div>
   );

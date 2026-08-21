@@ -3450,14 +3450,22 @@ app.post("/api/company/parks", async (req, res) => {
     if (!session) return;
     const companyId = session.userId;
 
-    const { park_name, park_location } = req.body;
-    if (!park_name || !park_location) {
+    const { park_name, park_location, latitude, longitude, formatted_address, place_name, coords } = req.body;
+    if (!park_name || (!park_location && !formatted_address && !place_name)) {
       return res.status(400).json({ error: "Park name and location/town are required." });
     }
 
+    const lat = typeof latitude === "number" ? latitude : (coords?.latitude || null);
+    const lng = typeof longitude === "number" ? longitude : (coords?.longitude || null);
+    const resolvedLocation = (park_location || formatted_address || place_name || "").trim();
+
     const newParkDoc = await addDoc(collection(db, "parks"), {
       park_name: park_name.trim(),
-      park_location: park_location.trim(),
+      park_location: resolvedLocation,
+      latitude: lat,
+      longitude: lng,
+      formatted_address: formatted_address || resolvedLocation,
+      place_name: place_name || park_name.trim(),
       company_id: companyId,
       created_at: new Date().toISOString()
     });
@@ -3467,7 +3475,9 @@ app.post("/api/company/parks", async (req, res) => {
       park: {
         id: newParkDoc.id,
         park_name: park_name.trim(),
-        park_location: park_location.trim(),
+        park_location: resolvedLocation,
+        latitude: lat,
+        longitude: lng,
         company_id: companyId,
         staff: []
       }
@@ -7349,6 +7359,256 @@ app.delete("/api/fleet/trucks/:id", async (req, res) => {
   }
 });
 
+// ==========================================
+// Fleet Geocoding & Routing Proxy Services (OSM Nominatim & OSRM)
+// ==========================================
+
+const NIGERIAN_POPULAR_LOCATIONS = [
+  { name: "Apapa Port Complex, Lagos", display_name: "Apapa Port Complex, Wharf Road, Apapa, Lagos, Nigeria", lat: 6.4474, lon: 3.3644 },
+  { name: "Tin Can Island Port, Lagos", display_name: "Tin Can Island Port, Apapa-Oshodi Expressway, Lagos, Nigeria", lat: 6.4385, lon: 3.3421 },
+  { name: "Ikeja Industrial Estate, Lagos", display_name: "Ikeja Industrial Estate, Oba Akran Avenue, Ikeja, Lagos, Nigeria", lat: 6.6018, lon: 3.3515 },
+  { name: "Lekki Free Trade Zone, Lagos", display_name: "Lekki Free Trade Zone, Ibeju-Lekki, Lagos, Nigeria", lat: 6.4253, lon: 3.9458 },
+  { name: "Alaba International Market, Lagos", display_name: "Alaba International Market, Ojo, Lagos, Nigeria", lat: 6.4619, lon: 3.1932 },
+  { name: "Dangote Cement Factory, Ibese, Ogun", display_name: "Dangote Cement Plant, Ibese, Yewa North, Ogun State, Nigeria", lat: 7.0058, lon: 3.0456 },
+  { name: "Sagamu Interchange Logistics Hub, Ogun", display_name: "Sagamu Interchange Hub, Lagos-Ibadan Expressway, Sagamu, Ogun State, Nigeria", lat: 6.8402, lon: 3.6496 },
+  { name: "Ota Industrial Zone, Ogun", display_name: "Ota Industrial Layout, Idiroko Road, Ota, Ogun State, Nigeria", lat: 6.6906, lon: 3.2361 },
+  { name: "Ibeto Industrial Complex, Nnewi, Anambra", display_name: "Ibeto Industrial Complex, Otolo, Nnewi, Anambra State, Nigeria", lat: 6.0198, lon: 6.9174 },
+  { name: "Onitsha Main Market & River Port, Anambra", display_name: "Onitsha Main Market, Marine Road, Onitsha, Anambra State, Nigeria", lat: 6.1518, lon: 6.7758 },
+  { name: "Dangote Cement Plant, Obajana, Kogi", display_name: "Dangote Cement Plant, Obajana, Lokoja LGA, Kogi State, Nigeria", lat: 7.9189, lon: 6.4262 },
+  { name: "Port Harcourt Wharf & Trans-Amadi, Rivers", display_name: "Trans-Amadi Industrial Layout, Port Harcourt, Rivers State, Nigeria", lat: 4.8156, lon: 7.0498 },
+  { name: "Onne Oil & Gas Free Zone, Rivers", display_name: "Federal Lighter Terminal, Onne Port, Eleme, Rivers State, Nigeria", lat: 4.7145, lon: 7.1567 },
+  { name: "BUA Cement Plant, Okpella, Edo", display_name: "BUA Cement Plant, Okpella, Etsako East, Edo State, Nigeria", lat: 7.2589, lon: 6.3478 },
+  { name: "Benin City Commercial Center, Edo", display_name: "Ring Road Commercial Hub, Benin City, Edo State, Nigeria", lat: 6.3350, lon: 5.6037 },
+  { name: "Dawanau Grain Market, Kano", display_name: "Dawanau International Market, Dawakin Tofa, Kano State, Nigeria", lat: 12.0682, lon: 8.4412 },
+  { name: "Bompai Industrial Area, Kano", display_name: "Bompai Industrial Estate, Nasarawa, Kano State, Nigeria", lat: 12.0234, lon: 8.5492 },
+  { name: "Idu Industrial Layout, Abuja FCT", display_name: "Idu Industrial Area, Phase 1, Abuja FCT, Nigeria", lat: 9.0345, lon: 7.3321 },
+  { name: "Oluyole Industrial Estate, Ibadan, Oyo", display_name: "Oluyole Industrial Estate, Ring Road, Ibadan, Oyo State, Nigeria", lat: 7.3524, lon: 3.8643 },
+  { name: "Ariaria International Market, Aba, Abia", display_name: "Ariaria International Market, Faulks Road, Aba, Abia State, Nigeria", lat: 5.1278, lon: 7.3389 },
+  { name: "Emene Industrial Area, Enugu", display_name: "Emene Industrial Layout, Airport Road, Enugu, Enugu State, Nigeria", lat: 6.4712, lon: 7.5583 },
+  { name: "Warri Refinery & Petrochemicals, Delta", display_name: "Warri Port & Refinery Area, Ekpan, Warri, Delta State, Nigeria", lat: 5.5442, lon: 5.7289 },
+  { name: "Kakuri Industrial Area, Kaduna", display_name: "Kakuri Industrial Estate, Kaduna South, Kaduna State, Nigeria", lat: 10.4578, lon: 7.4201 },
+  { name: "Calabar Export Processing Zone, Cross River", display_name: "Calabar Free Trade Zone, Port Road, Calabar, Cross River State, Nigeria", lat: 4.9757, lon: 8.3182 }
+];
+
+const geocodeCache = new Map<string, { data: any; expiresAt: number }>();
+
+// Search locations with Nominatim + Nigerian offline dataset fallback
+app.get("/api/fleet/geocode/search", async (req, res) => {
+  try {
+    const queryStr = String(req.query.q || "").trim();
+    if (!queryStr || queryStr.length < 2) {
+      return res.json({ success: true, results: [] });
+    }
+
+    const cacheKey = `search_${queryStr.toLowerCase()}`;
+    const cached = geocodeCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return res.json({ success: true, results: cached.data });
+    }
+
+    let results: any[] = [];
+
+    // Attempt Nominatim with timeout and valid User-Agent
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}&countrycodes=ng&limit=6&addressdetails=1`;
+      
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Waybilla-Fleet-Tracking-Platform/1.0 (info@waybilla.ng)"
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (Array.isArray(data) && data.length > 0) {
+          results = data.map((item: any) => ({
+            display_name: item.display_name,
+            latitude: parseFloat(item.lat),
+            longitude: parseFloat(item.lon),
+            address: item.address
+          }));
+        }
+      }
+    } catch (fetchErr) {
+      console.warn("Nominatim search request failed, using local Nigerian dataset:", (fetchErr as any)?.message);
+    }
+
+    // If Nominatim gave no results or was down, filter offline dataset
+    if (results.length === 0) {
+      const qLower = queryStr.toLowerCase();
+      const matched = NIGERIAN_POPULAR_LOCATIONS.filter(loc => 
+        loc.name.toLowerCase().includes(qLower) || 
+        loc.display_name.toLowerCase().includes(qLower)
+      );
+      results = matched.map(loc => ({
+        display_name: loc.display_name,
+        latitude: loc.lat,
+        longitude: loc.lon
+      }));
+    }
+
+    geocodeCache.set(cacheKey, { data: results, expiresAt: Date.now() + 1000 * 60 * 60 * 12 });
+    res.json({ success: true, results });
+  } catch (err) {
+    console.error("Error in /api/fleet/geocode/search:", err);
+    res.json({ success: true, results: [] });
+  }
+});
+
+// Reverse Geocode with Nominatim + Nearest Landmark Fallback
+app.get("/api/fleet/geocode/reverse", async (req, res) => {
+  try {
+    const lat = parseFloat(String(req.query.lat));
+    const lon = parseFloat(String(req.query.lon));
+
+    if (isNaN(lat) || isNaN(lon)) {
+      return res.status(400).json({ error: "Valid lat and lon are required." });
+    }
+
+    const cacheKey = `rev_${lat.toFixed(4)}_${lon.toFixed(4)}`;
+    const cached = geocodeCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) {
+      return res.json({ success: true, place_name: cached.data });
+    }
+
+    let placeName = "";
+
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: {
+          "Accept": "application/json",
+          "User-Agent": "Waybilla-Fleet-Tracking-Platform/1.0 (info@waybilla.ng)"
+        }
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data && data.display_name) {
+          const parts = data.display_name.split(", ");
+          placeName = parts.length > 3 ? parts.slice(0, 3).join(", ") : data.display_name;
+        }
+      }
+    } catch (fetchErr) {
+      console.warn("Nominatim reverse geocode request failed, calculating nearest landmark:", (fetchErr as any)?.message);
+    }
+
+    // Fallback: find closest known Nigerian hub or format coords
+    if (!placeName) {
+      let closestHub: typeof NIGERIAN_POPULAR_LOCATIONS[0] | null = null;
+      let minDistance = Infinity;
+
+      for (const loc of NIGERIAN_POPULAR_LOCATIONS) {
+        const dLat = (loc.lat - lat) * 111;
+        const dLon = (loc.lon - lon) * 111 * Math.cos((lat * Math.PI) / 180);
+        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestHub = loc;
+        }
+      }
+
+      if (closestHub && minDistance < 25) {
+        placeName = `Near ${closestHub.name} (~${minDistance.toFixed(1)} km)`;
+      } else {
+        placeName = `GPS Point (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
+      }
+    }
+
+    geocodeCache.set(cacheKey, { data: placeName, expiresAt: Date.now() + 1000 * 60 * 60 * 24 });
+    res.json({ success: true, place_name: placeName });
+  } catch (err) {
+    console.error("Error in /api/fleet/geocode/reverse:", err);
+    res.json({ success: true, place_name: "Pinned Location" });
+  }
+});
+
+// Routing distance and duration via OSRM with Haversine fallback
+app.get("/api/fleet/route/osrm", async (req, res) => {
+  try {
+    const originLat = parseFloat(String(req.query.origin_lat));
+    const originLng = parseFloat(String(req.query.origin_lng));
+    const destLat = parseFloat(String(req.query.dest_lat));
+    const destLng = parseFloat(String(req.query.dest_lng));
+
+    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
+      return res.status(400).json({ error: "Invalid coordinates provided." });
+    }
+
+    let distance_km = 0;
+    let duration_minutes = 0;
+
+    // Try OSRM driving route
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4000);
+      const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
+
+      const response = await fetch(url, {
+        signal: controller.signal,
+        headers: { "Accept": "application/json" }
+      });
+      clearTimeout(timeoutId);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.code === "Ok" && data.routes && data.routes.length > 0) {
+          const route = data.routes[0];
+          distance_km = Math.round((route.distance / 1000) * 10) / 10;
+          duration_minutes = Math.round(route.duration / 60);
+        }
+      }
+    } catch (osrmErr) {
+      console.warn("OSRM routing failed, calculating via road model:", (osrmErr as any)?.message);
+    }
+
+    // Fallback formula if OSRM unavailable
+    if (distance_km === 0) {
+      const R = 6371; // Earth radius km
+      const dLat = ((destLat - originLat) * Math.PI) / 180;
+      const dLon = ((destLng - originLng) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos((originLat * Math.PI) / 180) *
+          Math.cos((destLat * Math.PI) / 180) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      const straightLineKm = R * c;
+      // 1.25x Nigerian road curvature factor
+      distance_km = Math.round(straightLineKm * 1.25 * 10) / 10;
+      // Average 55 km/h for heavy trucks
+      duration_minutes = Math.max(15, Math.round((distance_km / 55) * 60));
+    }
+
+    const hrs = Math.floor(duration_minutes / 60);
+    const mins = duration_minutes % 60;
+    const duration_formatted = hrs > 0 
+      ? `${hrs} hr${hrs > 1 ? "s" : ""}${mins > 0 ? ` ${mins} min${mins > 1 ? "s" : ""}` : ""}` 
+      : `${mins} min${mins > 1 ? "s" : ""}`;
+
+    res.json({
+      success: true,
+      distance_km,
+      duration_minutes,
+      duration_formatted
+    });
+  } catch (err) {
+    console.error("Error in /api/fleet/route/osrm:", err);
+    res.status(500).json({ error: "Failed to compute route." });
+  }
+});
+
 // 4. Suppliers Endpoints
 app.get("/api/fleet/suppliers", async (req, res) => {
   try {
@@ -7376,11 +7636,26 @@ app.post("/api/fleet/suppliers", async (req, res) => {
     const companyId = getFleetCompanyId(session);
     if (!companyId) return res.status(400).json({ error: "Company not found." });
 
-    const { name, full_name, phone, supplier_full_name, supplier_phone_number, contact_name, contact_phone } = req.body;
+    const {
+      name,
+      full_name,
+      phone,
+      supplier_full_name,
+      supplier_phone_number,
+      contact_name,
+      contact_phone,
+      latitude,
+      longitude,
+      formatted_address,
+      place_name,
+      coords
+    } = req.body;
     if (!name) return res.status(400).json({ error: "Supplier name is required." });
 
     const supplierFullName = (supplier_full_name || full_name || contact_name || "").trim();
     const supplierPhone = (supplier_phone_number || phone || contact_phone || "").trim();
+    const lat = typeof latitude === "number" ? latitude : (coords?.latitude || null);
+    const lng = typeof longitude === "number" ? longitude : (coords?.longitude || null);
 
     const newDoc = await addDoc(collection(db, "suppliers"), {
       company_id: companyId,
@@ -7389,9 +7664,14 @@ app.post("/api/fleet/suppliers", async (req, res) => {
       supplier_full_name: supplierFullName,
       phone: supplierPhone,
       supplier_phone_number: supplierPhone,
+      latitude: lat,
+      longitude: lng,
+      formatted_address: formatted_address || null,
+      place_name: place_name || null,
       created_at: new Date().toISOString()
     });
 
+    // Also auto-create a supplier_staff record if phone is provided so they can login immediately
     // Also auto-create a supplier_staff record if phone is provided so they can login immediately
     if (supplierPhone) {
       const existingStaffQuery = query(
@@ -7401,15 +7681,15 @@ app.post("/api/fleet/suppliers", async (req, res) => {
       );
       const existingStaffSnap = await getDocs(existingStaffQuery);
       if (existingStaffSnap.empty) {
-        const defaultPin = "123456";
-        const hash = await bcrypt.hash(defaultPin, 10);
+        // Create uninitialized staff record: supplier will create their own PIN on login
         await addDoc(collection(db, "supplier_staff"), {
           company_id: companyId,
           supplier_id: newDoc.id,
           name: supplierFullName || name.trim(),
           phone_number: supplierPhone,
-          initial_pin: defaultPin,
-          pin_hash: hash,
+          initial_pin: null,
+          pin_hash: null,
+          has_custom_pin: false,
           status: "active",
           created_at: new Date().toISOString()
         });
@@ -7489,30 +7769,42 @@ app.post("/api/fleet/supplier-staff", async (req, res) => {
     }
 
     let finalPin = pin ? String(pin).trim() : "";
-    if (!finalPin || (finalPin.length !== 4 && finalPin.length !== 6) || !/^\d+$/.test(finalPin)) {
-      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
+    let hash: string | null = null;
+    let hasCustom = false;
+
+    // Only set PIN if explicitly provided by user (no auto-generated fallback PIN)
+    if (finalPin && (finalPin.length === 4 || finalPin.length === 6) && /^\d+$/.test(finalPin)) {
+      hash = await bcrypt.hash(finalPin, 10);
+      hasCustom = true;
+    } else {
+      finalPin = "";
     }
 
-    const hash = await bcrypt.hash(finalPin, 10);
     const newDoc = await addDoc(collection(db, "supplier_staff"), {
       company_id: companyId,
       supplier_id,
       name: name.trim(),
       phone_number: phone_number.trim(),
-      initial_pin: finalPin,
+      initial_pin: finalPin || null,
       pin_hash: hash,
+      has_custom_pin: hasCustom,
       status: "active",
       created_at: new Date().toISOString()
     });
 
-    res.json({ success: true, staff_id: newDoc.id, pin: finalPin });
+    res.json({ 
+      success: true, 
+      staff_id: newDoc.id, 
+      pin: finalPin || null,
+      requires_supplier_pin: !hasCustom 
+    });
   } catch (err) {
     console.error("Error POST /api/fleet/supplier-staff:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
 
-// Reset Supplier Staff PIN
+// Reset Supplier Staff PIN (no random generation; allows clearing so supplier sets own PIN or setting specific PIN)
 const handleResetSupplierStaffPinRoute = async (req: express.Request, res: express.Response) => {
   try {
     const session = await validateFleetSession(req);
@@ -7524,8 +7816,14 @@ const handleResetSupplierStaffPinRoute = async (req: express.Request, res: expre
     const { new_pin } = req.body || {};
 
     let finalPin = new_pin ? String(new_pin).trim() : "";
-    if (!finalPin || (finalPin.length !== 4 && finalPin.length !== 6) || !/^\d+$/.test(finalPin)) {
-      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
+    let newHash: string | null = null;
+    let hasCustom = false;
+
+    if (finalPin && (finalPin.length === 4 || finalPin.length === 6) && /^\d+$/.test(finalPin)) {
+      newHash = await bcrypt.hash(finalPin, 10);
+      hasCustom = true;
+    } else {
+      finalPin = "";
     }
 
     const staffRef = doc(db, "supplier_staff", id);
@@ -7533,10 +7831,10 @@ const handleResetSupplierStaffPinRoute = async (req: express.Request, res: expre
     if (!staffSnap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
 
     const staffData = staffSnap.data();
-    const newHash = await bcrypt.hash(finalPin, 10);
     await updateDoc(staffRef, {
       pin_hash: newHash,
-      initial_pin: finalPin,
+      initial_pin: finalPin || null,
+      has_custom_pin: hasCustom,
       updated_at: new Date().toISOString()
     });
 
@@ -7546,7 +7844,12 @@ const handleResetSupplierStaffPinRoute = async (req: express.Request, res: expre
       if (norm) await handlePinSuccess(`supplier_staff_${norm}`);
     }
 
-    res.json({ success: true, message: "Supplier staff PIN reset successfully.", pin: finalPin });
+    res.json({ 
+      success: true, 
+      message: hasCustom ? "Supplier staff PIN set successfully." : "PIN cleared. Supplier will set their own private PIN upon next login.", 
+      pin: finalPin || null,
+      requires_supplier_pin: !hasCustom
+    });
   } catch (err) {
     console.error("Error resetting supplier staff PIN:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -7644,17 +7947,16 @@ app.post("/api/auth/supplier-staff/check-phone", async (req, res) => {
         if (!existingStaffSnap.empty) {
           matchingDocs.push(existingStaffSnap.docs[0]);
         } else {
-          // Create staff record on the fly with default PIN 123456
-          const defaultPin = "123456";
-          const hash = await bcrypt.hash(defaultPin, 10);
+          // Create staff record on the fly: supplier will set their own PIN
           const staffName = suppData.full_name || suppData.supplier_full_name || suppData.name || "Supplier Staff";
           const newStaffRef = await addDoc(collection(db, "supplier_staff"), {
             company_id: companyId,
             supplier_id: suppDoc.id,
             name: staffName,
             phone_number: String(phone_number).trim(),
-            initial_pin: defaultPin,
-            pin_hash: hash,
+            initial_pin: null,
+            pin_hash: null,
+            has_custom_pin: false,
             status: "active",
             created_at: new Date().toISOString()
           });
@@ -7707,7 +8009,7 @@ app.post("/api/auth/supplier-staff/check-phone", async (req, res) => {
         ceo_name: ceoName,
         supplier_id: data.supplier_id,
         supplier_name: supplierName,
-        has_pin: !!data.has_custom_pin
+        has_pin: !!(data.has_custom_pin && data.pin_hash)
       });
     }
 
@@ -7880,6 +8182,13 @@ app.post("/api/auth/supplier-staff/login", async (req, res) => {
     }
 
     if (activeMatches.length === 0) {
+      const hasUnsetPin = matchingDocs.some(d => !d.data().pin_hash || !d.data().has_custom_pin);
+      if (hasUnsetPin) {
+        return res.status(401).json({ 
+          error: "No PIN created yet. Please select 'Set / Reset PIN' to create your secure PIN.",
+          requires_pin_setup: true
+        });
+      }
       return res.status(401).json({ error: "Invalid credentials or access disabled by transport company." });
     }
 
@@ -8850,6 +9159,47 @@ async function verifyFleetPayment(req: express.Request, res: express.Response, n
   }
 }
 
+// Helper for server-side OSRM Route Calculation
+async function serverCalculateOSRM(origin: { latitude: number; longitude: number }, destination: { latitude: number; longitude: number }) {
+  if (!origin?.latitude || !origin?.longitude || !destination?.latitude || !destination?.longitude) return null;
+  try {
+    const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=false`;
+    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
+    if (!response.ok) return null;
+    const data = await response.json();
+    if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) return null;
+    const route = data.routes[0];
+    const distance_km = Math.round((route.distance / 1000) * 10) / 10;
+    const duration_minutes = Math.round(route.duration / 60);
+    return { distance_km, duration_minutes };
+  } catch (e) {
+    return null;
+  }
+}
+
+// Helper for server-side Reverse Geocoding via Nominatim
+async function serverReverseGeocode(lat: number, lon: number): Promise<string> {
+  if (!lat || !lon) return "On the road";
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+    const response = await fetch(url, {
+      headers: {
+        'Accept': 'application/json',
+        'User-Agent': 'Waybilla-Nigeria-Fleet-Tracker/1.0'
+      }
+    });
+    if (!response.ok) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+    const data = await response.json();
+    if (data && data.display_name) {
+      const parts = data.display_name.split(', ');
+      return parts.length > 3 ? parts.slice(0, 3).join(', ') : data.display_name;
+    }
+    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  } catch (e) {
+    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
+  }
+}
+
 app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
   try {
     const session = await validateFleetSession(req);
@@ -8860,9 +9210,9 @@ app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
     const companyId = getFleetCompanyId(session);
     if (!companyId) return res.status(400).json({ error: "Company not found." });
 
-    const { truck_id, supplier_id, payment_reference } = req.body;
-    if (!truck_id || !supplier_id) {
-      return res.status(400).json({ error: "Truck and Supplier are required." });
+    const { truck_id, supplier_id, payment_reference, custom_destination_name, custom_destination_coords } = req.body;
+    if (!truck_id || (!supplier_id && !custom_destination_name)) {
+      return res.status(400).json({ error: "Truck and Supplier/Destination are required." });
     }
 
     // Check if trip document already exists for this payment_reference
@@ -8880,10 +9230,38 @@ app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
     if (!truckDoc.exists()) return res.status(404).json({ error: "Truck not found." });
     const truckData = truckDoc.data();
 
-    // Fetch supplier
-    const suppDoc = await getDoc(doc(db, "suppliers", supplier_id));
-    if (!suppDoc.exists()) return res.status(404).json({ error: "Supplier not found." });
-    const suppData = suppDoc.data();
+    // Fetch park/garage if available
+    let parkData: any = null;
+    let parkName = "Company Garage";
+    let parkCoords: any = null;
+    if (truckData.park_id) {
+      try {
+        const pDoc = await getDoc(doc(db, "parks", truckData.park_id));
+        if (pDoc.exists()) {
+          parkData = pDoc.data();
+          parkName = parkData.park_name || parkData.name || "Company Garage";
+          if (parkData.latitude && parkData.longitude) {
+            parkCoords = { latitude: parkData.latitude, longitude: parkData.longitude };
+          }
+        }
+      } catch (e) {}
+    }
+
+    // Fetch supplier or custom destination
+    let suppData: any = null;
+    let destinationName = custom_destination_name || "Destination Depot";
+    let destinationCoords: any = custom_destination_coords || null;
+
+    if (supplier_id) {
+      const suppDoc = await getDoc(doc(db, "suppliers", supplier_id));
+      if (suppDoc.exists()) {
+        suppData = suppDoc.data();
+        destinationName = suppData.name || destinationName;
+        if (suppData.latitude && suppData.longitude) {
+          destinationCoords = { latitude: suppData.latitude, longitude: suppData.longitude };
+        }
+      }
+    }
 
     // Look up assigned driver for this truck
     let driverId = truckData.driver_id || null;
@@ -8906,31 +9284,109 @@ app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
     const tripFee = verified.trip_fee !== undefined ? verified.trip_fee : 1000;
     const paymentStatus = verified.payment_status || "paid";
     const billingMethod = verified.billing_method || truckData.billing_method || "per_trip";
+    const now = new Date().toISOString();
+    const actorName = session.name || "Operations Staff";
 
+    // Calculate OSRM Route (Leg 1: Garage -> Supplier, Leg 2: Supplier -> Return)
+    let leg1_minutes = 90;
+    let leg2_minutes = 90;
+    let distance_km = 0;
+
+    if (parkCoords && destinationCoords) {
+      const leg1Result = await serverCalculateOSRM(parkCoords, destinationCoords);
+      if (leg1Result) {
+        leg1_minutes = leg1Result.duration_minutes;
+        distance_km = leg1Result.distance_km;
+      }
+      const leg2Result = await serverCalculateOSRM(destinationCoords, parkCoords);
+      if (leg2Result) {
+        leg2_minutes = leg2Result.duration_minutes;
+      }
+    }
+
+    // Calculate Self-Learning ETA from past completed trips on this route
+    let pastTripsDurations: number[] = [];
+    try {
+      const qPast = query(
+        collection(db, "trips"),
+        where("company_id", "==", companyId),
+        where("status", "==", "completed")
+      );
+      const pastSnap = await getDocs(qPast);
+      pastTripsDurations = pastSnap.docs
+        .map(d => d.data())
+        .filter(t => (t.supplier_id === supplier_id || t.supplier_name === destinationName) && t.total_duration_minutes)
+        .map(t => t.total_duration_minutes);
+    } catch (e) {}
+
+    const sampleSize = pastTripsDurations.length;
+    let selfLearnedDisplay = `Expected in ~${Math.round(leg1_minutes / 60)} hrs (OSRM estimate)`;
+    let learnedAverage = leg1_minutes + leg2_minutes;
+
+    if (sampleSize >= 5) {
+      const sum = pastTripsDurations.reduce((a, b) => a + b, 0);
+      learnedAverage = Math.round(sum / sampleSize);
+      if (sampleSize >= 10) {
+        const sorted = [...pastTripsDurations].sort((a, b) => a - b);
+        const minM = sorted[Math.floor(sampleSize * 0.15)] || Math.round(learnedAverage * 0.85);
+        const maxM = sorted[Math.min(sampleSize - 1, Math.ceil(sampleSize * 0.85))] || Math.round(learnedAverage * 1.15);
+        const minHrs = (minM / 60).toFixed(1);
+        const maxHrs = (maxM / 60).toFixed(1);
+        selfLearnedDisplay = `Expected in ${minHrs}h — ${maxHrs}h (Learned from ${sampleSize} trips 🧠)`;
+      } else {
+        selfLearnedDisplay = `Expected in ~${(learnedAverage / 60).toFixed(1)} hrs (Learned from ${sampleSize} trips 🧠)`;
+      }
+    }
+
+    // Trip creation means trip is immediately active ("departed")
     const newDoc = await addDoc(collection(db, "trips"), {
       company_id: companyId,
-      park_id: truckData.park_id,
+      park_id: truckData.park_id || null,
+      origin_park: parkName,
+      origin_coords: parkCoords,
       truck_id,
       truck_number: truckData.truck_number,
       driver_id: driverId,
       driver_name: driverName,
       driver_phone: driverPhone,
-      supplier_id,
-      supplier_name: suppData.name,
-      status: "initiated",
+      supplier_id: supplier_id || null,
+      supplier_name: destinationName,
+      destination_coords: destinationCoords,
+      status: "departed", // Trip creation starts immediately active
       billing_method: billingMethod,
       trip_fee: tripFee,
       payment_status: paymentStatus,
       payment_reference: payment_reference || null,
-      left_warehouse_at: null,
+      left_warehouse_at: now,
+      departed_at: now,
+      left_warehouse_by: actorName,
       loaded_departed_at: null,
       arrived_offloaded_at: null,
-      expected_duration_minutes: 180,
+      expected_duration_minutes: leg1_minutes + leg2_minutes,
+      route_osrm: {
+        leg1_minutes,
+        leg2_minutes,
+        distance_km,
+        total_minutes: leg1_minutes + leg2_minutes
+      },
+      self_learned_eta: {
+        display: selfLearnedDisplay,
+        sample_size: sampleSize,
+        is_learned: sampleSize >= 5
+      },
+      audit_notes: [`Trip created and marked Departed by ${actorName} at ${new Date().toLocaleTimeString()}`],
       location_shares: [],
-      created_at: new Date().toISOString()
+      created_at: now
     });
 
-    res.json({ success: true, trip_id: newDoc.id, payment_status: paymentStatus, trip_fee: tripFee });
+    res.json({
+      success: true,
+      trip_id: newDoc.id,
+      status: "departed",
+      payment_status: paymentStatus,
+      trip_fee: tripFee,
+      route_osrm: { leg1_minutes, leg2_minutes, distance_km }
+    });
   } catch (err) {
     console.error("Error POST /api/fleet/trips:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -8960,6 +9416,99 @@ app.post("/api/fleet/trips/:id/pay", async (req, res) => {
   }
 });
 
+// Mid-Trip Destination Change (CEO / Manager ONLY)
+app.post("/api/fleet/trips/:id/change-destination", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || (session.userRole !== "company" && session.userRole !== "manager" && session.userRole !== "admin")) {
+      return res.status(403).json({ error: "Unauthorized. Only CEO or Manager can change destination on an active trip." });
+    }
+
+    const { id } = req.params;
+    const { new_destination_name, new_destination_coords, new_supplier_id } = req.body;
+
+    if (!new_destination_name) {
+      return res.status(400).json({ error: "New destination name is required." });
+    }
+
+    const tripRef = doc(db, "trips", id);
+    const tripSnap = await getDoc(tripRef);
+    if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
+
+    const trip = tripSnap.data();
+    if (trip.status === "completed") {
+      return res.status(400).json({ error: "Cannot change destination for a completed trip." });
+    }
+
+    const oldDest = trip.supplier_name || "Original Destination";
+    const now = new Date().toISOString();
+    const actorName = session.name || session.userRole;
+    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+    const noteText = `Destination updated from ${oldDest} to ${new_destination_name} at ${formattedTime}`;
+
+    const auditNotes = trip.audit_notes || [];
+    auditNotes.push(noteText);
+
+    // Recalculate OSRM ETA from driver's last known location to new destination
+    let newLegMinutes = 90;
+    let newDistanceKm = 0;
+    const currentDriverLoc = trip.last_location || trip.origin_coords;
+
+    if (currentDriverLoc && new_destination_coords) {
+      const osrmRes = await serverCalculateOSRM(currentDriverLoc, new_destination_coords);
+      if (osrmRes) {
+        newLegMinutes = osrmRes.duration_minutes;
+        newDistanceKm = osrmRes.distance_km;
+      }
+    }
+
+    const updates: any = {
+      supplier_name: new_destination_name,
+      supplier_id: new_supplier_id || null,
+      destination_coords: new_destination_coords || null,
+      audit_notes: auditNotes,
+      updated_at: now
+    };
+
+    if (trip.route_osrm) {
+      updates.route_osrm = {
+        ...trip.route_osrm,
+        leg2_minutes: newLegMinutes,
+        distance_km: newDistanceKm || trip.route_osrm.distance_km,
+        total_minutes: (trip.route_osrm.leg1_minutes || 60) + newLegMinutes
+      };
+      updates.expected_duration_minutes = updates.route_osrm.total_minutes;
+    }
+
+    // Also update dynamic display for self_learned_eta
+    const hrs = Math.round(newLegMinutes / 60);
+    updates.self_learned_eta = {
+      display: `Expected arrival at ${new_destination_name} in ~${hrs > 0 ? `${hrs} hrs` : `${newLegMinutes} mins`} (OSRM recalculation)`,
+      sample_size: trip.self_learned_eta?.sample_size || 0,
+      is_learned: false
+    };
+
+    await updateDoc(tripRef, updates);
+
+    res.json({
+      success: true,
+      message: noteText,
+      new_destination: new_destination_name,
+      route_osrm: updates.route_osrm || null,
+      self_learned_eta: updates.self_learned_eta
+    });
+  } catch (err) {
+    console.error("Error POST /api/fleet/trips/:id/change-destination:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Streamlined 5 Checkpoints Handler:
+// 1: Left Garage (CEO / Manager / Staff)
+// 2: Arrived at Depot (Supplier / Depot Staff only)
+// 3: Loaded & Departed (Supplier / Depot Staff only)
+// 4: Arrived at Destination (CEO / Manager / Staff)
+// 5: Offloaded & Completed (CEO / Manager / Staff)
 app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
   try {
     const session = await validateFleetSession(req);
@@ -8973,63 +9522,84 @@ app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
     const trip = tripSnap.data();
 
     const now = new Date().toISOString();
-    const actorName = session.name || (session.userRole === "supplier_staff" ? "Supplier Officer" : "Depot Staff");
+    const actorName = session.name || (session.userRole === "supplier_staff" ? "Supplier Staff" : "Staff");
     const updates: any = { updated_at: now };
+    const auditNotes = trip.audit_notes || [];
 
-    if (checkpoint === "left_warehouse" || checkpoint === "departed_depot") {
-      // Stage 2: Marked by Depot Staff or Manager
-      if (session.userRole === "supplier_staff") {
-        return res.status(403).json({ error: "Suppliers cannot mark depot departure. This must be done by Depot Staff." });
+    const truckPlate = trip.truck_number || "Truck";
+    const garageName = trip.origin_park || "Garage";
+    const depotName = trip.depot_name || trip.supplier_name || "Depot";
+    const destName = trip.supplier_name || "Destination";
+    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
+
+    if (checkpoint === "left_garage" || checkpoint === "departed" || checkpoint === "left_warehouse") {
+      // CHECKPOINT 1: "Left Garage" — CEO, Manager, or Staff can tap this. Starts trip clock & activates driver GPS tracking.
+      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
+        return res.status(403).json({ error: "Supplier staff cannot mark Checkpoint 1 (Left Garage)." });
       }
-      if (trip.payment_status !== "paid" && trip.payment_status !== "active_monthly") {
-        return res.status(402).json({ error: "Payment required (₦1,000 per trip) or active monthly subscription before starting trip tracking." });
-      }
-      updates.status = "left_warehouse";
+      updates.status = "left_garage";
       updates.left_warehouse_at = now;
+      updates.departed_at = now;
       updates.left_warehouse_by = actorName;
-    } else if (checkpoint === "arrived_at_supplier") {
-      // Stage 3: Marked ONLY by Supplier
+      auditNotes.push(`Checkpoint 1 (Left Garage): Truck ${truckPlate} has departed from ${garageName} and is heading to ${depotName}. Trip started at ${formattedTime}. (Marked by ${actorName})`);
+      updates.audit_notes = auditNotes;
+
+    } else if (checkpoint === "arrived_at_depot" || checkpoint === "arrived_at_supplier") {
+      // CHECKPOINT 2: "Arrived at Depot" — STRICTLY Supplier/Depot Staff only
       if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
-        return res.status(403).json({ error: "Only the assigned Supplier plant staff can confirm truck arrival at their facility." });
+        return res.status(403).json({ error: "Strict access control: ONLY assigned Supplier/Depot Staff can tap Checkpoint 2 (Arrived at Depot)." });
       }
-      updates.status = "arrived_at_supplier";
+      updates.status = "arrived_at_depot";
       updates.arrived_at_supplier_at = now;
       updates.arrived_at_supplier_by = actorName;
-      if (notes) updates.supplier_arrival_notes = notes;
-    } else if (checkpoint === "cargo_loaded") {
-      // Stage 4: Marked ONLY by Supplier
+      auditNotes.push(`Checkpoint 2 (Arrived at Depot): Truck ${truckPlate} has arrived at ${depotName} and is waiting to be loaded. Arrived at ${formattedTime}. (Marked by ${actorName})`);
+      updates.audit_notes = auditNotes;
+
+    } else if (checkpoint === "loaded_departed" || checkpoint === "departed_supplier" || checkpoint === "cargo_loaded") {
+      // CHECKPOINT 3: "Loaded & Departed" — STRICTLY Supplier/Depot Staff only
       if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
-        return res.status(403).json({ error: "Only the Supplier can confirm cargo loading and sealing." });
-      }
-      updates.status = "cargo_loaded";
-      updates.cargo_loaded_at = now;
-      updates.cargo_loaded_by = actorName;
-      if (waybill_number) updates.waybill_number = waybill_number;
-      if (notes) updates.cargo_notes = notes;
-    } else if (checkpoint === "loaded_departed" || checkpoint === "departed_supplier") {
-      // Stage 5: Marked ONLY by Supplier
-      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
-        return res.status(403).json({ error: "Only the Supplier can mark truck departure from the supplier facility." });
+        return res.status(403).json({ error: "Strict access control: ONLY assigned Supplier/Depot Staff can tap Checkpoint 3 (Loaded & Departed)." });
       }
       updates.status = "loaded_departed";
       updates.loaded_departed_at = now;
       updates.loaded_departed_by = actorName;
-    } else if (checkpoint === "arrived_at_destination") {
-      // Stage 6: Marked by Depot Staff or Manager
-      if (session.userRole === "supplier_staff") {
-        return res.status(403).json({ error: "Supplier cannot mark destination arrival. This is recorded by Destination Depot Staff." });
+      if (waybill_number) updates.waybill_number = waybill_number;
+      if (notes) updates.cargo_notes = notes;
+      auditNotes.push(`Checkpoint 3 (Loaded & Departed): Truck ${truckPlate} has been loaded at ${depotName} and is now heading to ${destName}. (Marked by ${actorName} at ${formattedTime})`);
+      updates.audit_notes = auditNotes;
+
+    } else if (checkpoint === "arrived_at_destination" || checkpoint === "arrived_destination") {
+      // CHECKPOINT 4: "Arrived at Destination" — CEO, Manager, or Staff can tap this
+      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
+        return res.status(403).json({ error: "Supplier staff cannot mark destination arrival." });
       }
       updates.status = "arrived_at_destination";
       updates.arrived_at_destination_at = now;
       updates.arrived_at_destination_by = actorName;
-    } else if (checkpoint === "arrived_offloaded" || checkpoint === "completed") {
-      // Stage 7: Marked by Depot Staff or Manager
-      if (session.userRole === "supplier_staff") {
-        return res.status(403).json({ error: "Supplier cannot mark destination offloading. This is recorded by Depot Staff." });
+      auditNotes.push(`Checkpoint 4 (Arrived at Destination): Truck ${truckPlate} has arrived at ${destName}. Arrived at ${formattedTime}. (Marked by ${actorName})`);
+      updates.audit_notes = auditNotes;
+
+    } else if (checkpoint === "offloaded_completed" || checkpoint === "completed" || checkpoint === "arrived_offloaded") {
+      // CHECKPOINT 5: "Offloaded & Completed" — CEO, Manager, or Staff can tap this. Permanently terminates driver GPS tracking.
+      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
+        return res.status(403).json({ error: "Supplier staff cannot mark final trip completion." });
       }
       updates.status = "completed";
       updates.arrived_offloaded_at = now;
+      updates.completed_at = now;
       updates.arrived_offloaded_by = actorName;
+
+      // Calculate total actual duration for self-learning route engine
+      if (trip.left_warehouse_at || trip.departed_at || trip.created_at) {
+        const startTime = new Date(trip.left_warehouse_at || trip.departed_at || trip.created_at).getTime();
+        const endTime = new Date(now).getTime();
+        const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
+        updates.total_duration_minutes = durationMinutes;
+      }
+
+      auditNotes.push(`Checkpoint 5 (Offloaded & Completed): Truck ${truckPlate} has been offloaded successfully. Trip completed at ${formattedTime}. Driver GPS tracking permanently deactivated.`);
+      updates.audit_notes = auditNotes;
+
     } else {
       return res.status(400).json({ error: "Invalid checkpoint stage requested." });
     }
@@ -9098,6 +9668,282 @@ app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
     res.json({ success: true, location_shares: shares, last_location: updatePayload.last_location });
   } catch (err) {
     console.error("Error POST /api/fleet/trips/:id/share-location:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Driver Active Trip Status (Returns driver name, truck number, and active trip status)
+app.get("/api/fleet/driver/active-status", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || session.userRole !== "driver") {
+      return res.status(401).json({ error: "Unauthorized driver session." });
+    }
+
+    const driverId = session.userId;
+    const driverPhone = session.userData?.phone_number || "";
+    const driverTruckId = session.userData?.truck_id || "";
+    const companyId = session.userData?.company_id || getFleetCompanyId(session);
+
+    // Fetch driver doc to get latest truck assignment and name
+    let driverData = session.userData;
+    if (driverId) {
+      const drSnap = await getDoc(doc(db, "drivers", driverId));
+      if (drSnap.exists()) {
+        driverData = { id: drSnap.id, ...drSnap.data() };
+      }
+    }
+
+    const truckId = driverData?.truck_id || driverTruckId;
+    let truckNumber = "Unassigned Truck";
+    if (truckId) {
+      const trSnap = await getDoc(doc(db, "trucks", truckId));
+      if (trSnap.exists()) {
+        truckNumber = trSnap.data()?.truck_number || "Truck #" + truckId;
+      }
+    }
+
+    // Query active trips for this driver / truck
+    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+    const tripsSnap = await getDocs(qTrips);
+    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+    // Active trips = any trip not yet arrived_offloaded or completed
+    const activeTrips = allTrips.filter(t => {
+      const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
+      if (!isTripActive) return false;
+
+      const matchesTruck = truckId && t.truck_id === truckId;
+      const matchesDriverId = t.driver_id === driverId || (t.driver && t.driver.id === driverId);
+      const matchesPhone = driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone));
+
+      return matchesTruck || matchesDriverId || matchesPhone;
+    }).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+
+    const activeTrip = activeTrips[0] || null;
+
+    res.json({
+      success: true,
+      driver_name: driverData?.name || "Driver",
+      truck_number: truckNumber,
+      truck_id: truckId || null,
+      has_active_trip: Boolean(activeTrip),
+      active_trip: activeTrip ? {
+        id: activeTrip.id,
+        truck_number: activeTrip.truck_number || truckNumber,
+        status: activeTrip.status,
+        origin_park: activeTrip.origin_park || "Loading Park",
+        supplier_name: activeTrip.supplier_name || "Destination Depot",
+        created_at: activeTrip.created_at,
+        last_location: activeTrip.last_location || null
+      } : null,
+      active_trips_count: activeTrips.length
+    });
+  } catch (err) {
+    console.error("Error GET /api/fleet/driver/active-status:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Automatic Background Driver Location Sync (Tied strictly to active trips)
+app.post("/api/fleet/driver/location-sync", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || session.userRole !== "driver") {
+      return res.status(401).json({ error: "Unauthorized driver session." });
+    }
+
+    const { latitude, longitude, accuracy, speed } = req.body;
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({ error: "Valid latitude and longitude are required." });
+    }
+
+    const driverId = session.userId;
+    const driverPhone = session.userData?.phone_number || "";
+    const driverTruckId = session.userData?.truck_id || "";
+    const companyId = session.userData?.company_id || getFleetCompanyId(session);
+
+    // Query active trips
+    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+    const tripsSnap = await getDocs(qTrips);
+    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+    const activeTrips = allTrips.filter(t => {
+      const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
+      if (!isTripActive) return false;
+
+      const matchesTruck = driverTruckId && t.truck_id === driverTruckId;
+      const matchesDriverId = t.driver_id === driverId || (t.driver && t.driver.id === driverId);
+      const matchesPhone = driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone));
+
+      return matchesTruck || matchesDriverId || matchesPhone;
+    }).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
+
+    // OUTSIDE OF ACTIVE TRIPS — Driver cannot be tracked
+    if (activeTrips.length === 0) {
+      return res.json({
+        success: true,
+        tracked: false,
+        message: "No active trip. Driver location tracking is strictly disabled outside active trips."
+      });
+    }
+
+    const activeTrip = activeTrips[0];
+    const now = new Date().toISOString();
+
+    const locationFix: any = {
+      latitude,
+      longitude,
+      accuracy: typeof accuracy === "number" ? accuracy : null,
+      speed: typeof speed === "number" ? speed : null,
+      timestamp: now,
+      note: "Automatic background GPS sync",
+      source: "background_sync"
+    };
+
+    const shares = activeTrip.location_shares || [];
+    shares.push(locationFix);
+
+    const tripUpdate: any = {
+      last_location: locationFix,
+      last_location_at: now,
+      last_location_note: "Driver GPS continuous background ping",
+      location_shares: shares
+    };
+
+    const tripRef = doc(db, "trips", activeTrip.id);
+    await updateDoc(tripRef, tripUpdate);
+
+    // Also update truck doc last_location if truck_id exists
+    if (activeTrip.truck_id) {
+      try {
+        const truckRef = doc(db, "trucks", activeTrip.truck_id);
+        await updateDoc(truckRef, {
+          last_location: locationFix,
+          last_location_at: now
+        });
+      } catch (trErr) {
+        // non-blocking
+      }
+    }
+
+    res.json({
+      success: true,
+      tracked: true,
+      trip_id: activeTrip.id,
+      last_location: locationFix
+    });
+  } catch (err) {
+    console.error("Error POST /api/fleet/driver/location-sync:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// On-Demand Silent Location Ping for CEO / Manager / Staff (Tied to Truck)
+app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized. Only CEO, Manager, or Staff can ping truck location." });
+    }
+
+    const truckId = req.params.id;
+    const companyId = getFleetCompanyId(session);
+
+    // Get Truck document
+    const truckRef = doc(db, "trucks", truckId);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists()) {
+      return res.status(404).json({ error: "Truck not found." });
+    }
+    const truckData = { id: truckSnap.id, ...truckSnap.data() as any };
+
+    // Query active trips for this truck
+    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+    const tripsSnap = await getDocs(qTrips);
+    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+    const activeTrip = allTrips.find(t => 
+      t.truck_id === truckId && 
+      t.status !== "completed" && 
+      t.status !== "arrived_offloaded"
+    );
+
+    // IF NO ACTIVE TRIP EXISTS — Disable location check
+    if (!activeTrip) {
+      return res.status(400).json({
+        success: false,
+        error: "No active trip — location tracking inactive",
+        active: false
+      });
+    }
+
+    // Get driver details
+    let driverData: any = activeTrip.driver || null;
+    if (!driverData && activeTrip.driver_id) {
+      try {
+        const drSnap = await getDoc(doc(db, "drivers", activeTrip.driver_id));
+        if (drSnap.exists()) driverData = { id: drSnap.id, ...drSnap.data() };
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    // Record on-demand timestamped ping in trip location history
+    const now = new Date().toISOString();
+    const lastLoc = activeTrip.last_location || truckData.last_location || null;
+    const lat = lastLoc?.latitude || 6.5244;
+    const lng = lastLoc?.longitude || 3.3792;
+
+    const placeName = await serverReverseGeocode(lat, lng);
+
+    const pingEntry = {
+      timestamp: now,
+      latitude: lat,
+      longitude: lng,
+      accuracy: lastLoc?.accuracy || 15,
+      speed: lastLoc?.speed || null,
+      place_name: placeName,
+      note: `Location check (Pinged by ${session.userData?.name || session.name || "Operations Staff"})`,
+      source: "manager_ping"
+    };
+
+    const shares = activeTrip.location_shares || [];
+    shares.push(pingEntry);
+
+    await updateDoc(doc(db, "trips", activeTrip.id), {
+      location_shares: shares,
+      last_location_at: now,
+      last_location: pingEntry
+    });
+
+    res.json({
+      success: true,
+      active: true,
+      truck: {
+        id: truckData.id,
+        truck_number: truckData.truck_number,
+        park_id: truckData.park_id
+      },
+      driver: driverData ? {
+        name: driverData.name,
+        phone_number: driverData.phone_number || driverData.phone
+      } : { name: activeTrip.driver_name || "Assigned Driver", phone_number: activeTrip.driver_phone },
+      trip: {
+        id: activeTrip.id,
+        status: activeTrip.status,
+        origin_park: activeTrip.origin_park || "Company Garage",
+        supplier_name: activeTrip.supplier_name || "Destination Depot",
+        created_at: activeTrip.created_at,
+        cargo_notes: activeTrip.cargo_notes || null,
+        route_osrm: activeTrip.route_osrm || null,
+        self_learned_eta: activeTrip.self_learned_eta || null
+      },
+      location: pingEntry,
+      location_history: shares
+    });
+  } catch (err) {
+    console.error("Error POST /api/fleet/trucks/:id/ping-location:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
