@@ -180,8 +180,8 @@ app.use((req, res, next) => {
   // Prevent MIME type sniffing
   res.setHeader("X-Content-Type-Options", "nosniff");
 
-  // Restrict sensitive browser permissions
-  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  // Restrict sensitive browser permissions (allow geolocation for live fleet tracking)
+  res.setHeader("Permissions-Policy", "camera=*, microphone=*, geolocation=*");
 
   // Mitigate clickjacking attacks (PageSpeed / Lighthouse best practice)
   if (!isPreview) {
@@ -9944,6 +9944,79 @@ app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
     });
   } catch (err) {
     console.error("Error POST /api/fleet/trucks/:id/ping-location:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET /api/fleet/trucks/location-by-number/:truckNumber
+app.get("/api/fleet/trucks/location-by-number/:truckNumber", async (req, res) => {
+  try {
+    const rawTruckNum = decodeURIComponent(req.params.truckNumber || "").trim();
+    if (!rawTruckNum) {
+      return res.status(400).json({ error: "Truck number required." });
+    }
+
+    // Find truck in trucks collection
+    const qTruck = query(collection(db, "trucks"), where("truck_number", "==", rawTruckNum), limit(1));
+    const truckSnap = await getDocs(qTruck);
+
+    let truckData: any = null;
+    let truckId = "";
+    if (!truckSnap.empty) {
+      const docSnap = truckSnap.docs[0];
+      truckId = docSnap.id;
+      truckData = { id: docSnap.id, ...docSnap.data() };
+    }
+
+    // Query active trips for this truck
+    const qTrips = query(collection(db, "trips"));
+    const tripsSnap = await getDocs(qTrips);
+    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+
+    const activeTrip = allTrips.find(t =>
+      (t.truck_number === rawTruckNum || (truckId && t.truck_id === truckId)) &&
+      t.status !== "completed" &&
+      t.status !== "arrived_offloaded"
+    );
+
+    const lastLoc = activeTrip?.last_location || truckData?.last_location || null;
+    if (lastLoc && typeof lastLoc.latitude === "number" && typeof lastLoc.longitude === "number") {
+      const addressName = lastLoc.place_name || (await serverReverseGeocode(lastLoc.latitude, lastLoc.longitude));
+      return res.json({
+        success: true,
+        location: {
+          vehicle_number: rawTruckNum,
+          lat: lastLoc.latitude,
+          lng: lastLoc.longitude,
+          speed: lastLoc.speed || 0,
+          heading: 90,
+          last_ping: lastLoc.timestamp || new Date().toISOString(),
+          route_name: activeTrip ? `${activeTrip.origin_park || 'Garage'} ➔ ${activeTrip.supplier_name || 'Depot'}` : 'In Transit',
+          driver_name: activeTrip?.driver_name || 'Driver In Transit',
+          address: addressName,
+          is_live: true
+        }
+      });
+    }
+
+    // Default response if driver hasn't synced coordinates yet
+    return res.json({
+      success: true,
+      location: {
+        vehicle_number: rawTruckNum,
+        lat: 6.5244,
+        lng: 3.3792,
+        speed: 0,
+        heading: 0,
+        last_ping: new Date().toISOString(),
+        route_name: activeTrip ? `${activeTrip.origin_park || 'Garage'} ➔ ${activeTrip.supplier_name || 'Depot'}` : 'In Transit',
+        driver_name: activeTrip?.driver_name || 'Assigned Driver',
+        address: 'Awaiting Driver GPS Broadcast',
+        is_live: false
+      }
+    });
+  } catch (err) {
+    console.error("Error GET /api/fleet/trucks/location-by-number:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });

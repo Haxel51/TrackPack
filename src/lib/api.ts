@@ -898,5 +898,9 @@ export async function pingFleetTruckLocation(token: string, truckId: string) {
   });
 }
 
+export async function getVehicleLocation(truckNumber: string) {
+  return safeFetch(`${API_BASE}/fleet/trucks/location-by-number/${encodeURIComponent(truckNumber)}`);
+}
+
 
 
