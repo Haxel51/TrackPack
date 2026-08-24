@@ -59,6 +59,11 @@ export interface FleetTripCardData {
   };
   audit_notes?: string[];
   location_shares?: Array<{ timestamp: string; note: string; source?: string }>;
+  last_interference_alert?: {
+    type: string;
+    message: string;
+    timestamp: string;
+  };
 }
 
 export interface DriverInfo {
@@ -184,6 +189,13 @@ export const FleetTripCard: React.FC<FleetTripCardProps> = ({
             <span className="bg-red-50 text-red-700 border border-red-200 text-[10px] font-black px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse">
               <AlertTriangle className="w-3 h-3 text-red-600" />
               DELAYED ON ROAD
+            </span>
+          )}
+
+          {trip.last_interference_alert && (
+            <span className="bg-rose-600 text-white font-black text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1 animate-pulse shadow-sm">
+              <AlertTriangle className="w-3 h-3 text-amber-300" />
+              TRACKING INTERRUPTED
             </span>
           )}
         </div>

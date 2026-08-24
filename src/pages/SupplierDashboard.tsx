@@ -15,8 +15,11 @@ import {
   Phone,
   AlertCircle,
   PackageCheck,
-  ArrowRight
+  ArrowRight,
+  ExternalLink,
+  MapPin
 } from 'lucide-react';
+import { LiveTruckMapModal } from '../components/fleet/LiveTruckMapModal';
 
 export const SupplierDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -26,6 +29,7 @@ export const SupplierDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+  const [trackingTrip, setTrackingTrip] = useState<any | null>(null);
 
   const fetchMyCompanies = async () => {
     if (!token) return;
@@ -290,47 +294,68 @@ export const SupplierDashboard: React.FC = () => {
                   )}
                 </div>
 
-                {/* Checkpoint Action Buttons based on stage */}
-                {!isAtDepot ? (
-                  /* Step 2: Mark Arrived at Depot */
+                {/* Action Buttons */}
+                <div className="space-y-2.5">
                   <button
                     type="button"
-                    onClick={() => handleArrivedAtDepot(trip.id)}
-                    disabled={isSubmitting}
-                    className="w-full bg-purple-600 hover:bg-purple-500 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                    onClick={() => setTrackingTrip(trip)}
+                    className="w-full bg-[#4285F4] hover:bg-[#3367D6] text-white font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
                   >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <PackageCheck className="w-5 h-5" />
-                        <span>Tap Checkpoint 2: Mark Arrived at Depot</span>
-                      </>
-                    )}
+                    <ExternalLink className="w-4 h-4" />
+                    <span>Track Live GPS in Google Maps</span>
                   </button>
-                ) : (
-                  /* Step 3: Mark Loaded & Departed */
-                  <button
-                    type="button"
-                    onClick={() => handleLoadedAndDeparted(trip.id)}
-                    disabled={isSubmitting}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.99]"
-                  >
-                    {isSubmitting ? (
-                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-5 h-5" />
-                        <span>Tap Checkpoint 3: Mark Loaded &amp; Departed</span>
-                      </>
-                    )}
-                  </button>
-                )}
+
+                  {!isAtDepot ? (
+                    /* Step 2: Mark Arrived at Depot */
+                    <button
+                      type="button"
+                      onClick={() => handleArrivedAtDepot(trip.id)}
+                      disabled={isSubmitting}
+                      className="w-full bg-purple-600 hover:bg-purple-500 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg shadow-purple-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                    >
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <PackageCheck className="w-5 h-5" />
+                          <span>Tap Checkpoint 2: Mark Arrived at Depot</span>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    /* Step 3: Mark Loaded & Departed */
+                    <button
+                      type="button"
+                      onClick={() => handleLoadedAndDeparted(trip.id)}
+                      disabled={isSubmitting}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold py-3.5 px-6 rounded-2xl shadow-lg shadow-emerald-950/50 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 active:scale-[0.99]"
+                    >
+                      {isSubmitting ? (
+                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-5 h-5" />
+                          <span>Tap Checkpoint 3: Mark Loaded &amp; Departed</span>
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
         </div>
       </main>
+
+      {/* Live Truck GPS Modal via Google Maps */}
+      {trackingTrip && token && (
+        <LiveTruckMapModal
+          token={token}
+          truckId={trackingTrip.truck_id || trackingTrip.id}
+          truckNumber={trackingTrip.truck_number || 'Truck'}
+          onClose={() => setTrackingTrip(null)}
+        />
+      )}
     </div>
   );
 };

@@ -5,6 +5,7 @@ import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
 import { FleetManagementView } from '../components/fleet/FleetManagementView';
 import { RealtimeFleetBoard } from '../components/fleet/RealtimeFleetBoard';
+import { FleetInterferenceAlertBanner } from '../components/fleet/FleetInterferenceAlertBanner';
 import {
   getManagerOverview,
   getManagerStaff,
@@ -380,6 +381,15 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6">
+        {/* DRIVER INTERFERENCE ALERT BANNER FOR MANAGER */}
+        {token && (
+          <FleetInterferenceAlertBanner 
+            token={token} 
+            userRole="manager" 
+            onAlertClick={() => setActiveTab('fleet')} 
+          />
+        )}
+
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-semibold">
             <AlertCircle className="w-5 h-5 shrink-0" />

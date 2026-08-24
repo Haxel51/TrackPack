@@ -35,6 +35,7 @@ import {
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { FleetManagementView } from '../components/fleet/FleetManagementView';
 import { RealtimeFleetBoard } from '../components/fleet/RealtimeFleetBoard';
+import { FleetInterferenceAlertBanner } from '../components/fleet/FleetInterferenceAlertBanner';
 import { updateFleetConfig, updateCompanyManagerRole, resetCompanyManagerPin } from '../lib/api';
 
 // Inline Skeleton Component for Progressive Loading
@@ -1164,6 +1165,14 @@ export const CompanyDashboard: React.FC = () => {
 
         {/* WORKSPACE AREA (Progressive/skeleton loadings inside here) */}
         <main className="lg:col-span-9 space-y-6" id="dashboard-tab-content">
+          {/* DRIVER INTERFERENCE ALERT BANNER FOR CEO */}
+          {token && (
+            <FleetInterferenceAlertBanner 
+              token={token} 
+              userRole="company" 
+              onAlertClick={() => setActiveTab('fleet')} 
+            />
+          )}
           
           {/* TAB: FLEET TRIP TRACKING */}
           {activeTab === 'fleet' && (

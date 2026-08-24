@@ -25,6 +25,7 @@ import {
 } from '../../lib/api';
 import { FleetTripTimelineModal } from './FleetTripTimelineModal';
 import { FleetTripCard } from './FleetTripCard';
+import { FleetInterferenceAlertBanner } from './FleetInterferenceAlertBanner';
 
 interface Driver {
   id: string;
@@ -197,6 +198,9 @@ export const RealtimeFleetBoard: React.FC<RealtimeFleetBoardProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* DRIVER INTERFERENCE REAL-TIME ALERTS */}
+      {token && <FleetInterferenceAlertBanner token={token} userRole={user?.role} />}
+
       {/* HEADER METRICS BANNER */}
       <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-2xl relative overflow-hidden">
         <div className="absolute -top-12 -right-12 w-48 h-48 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />

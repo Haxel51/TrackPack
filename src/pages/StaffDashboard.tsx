@@ -11,6 +11,7 @@ import { DepotGateControl } from '../components/staff/DepotGateControl';
 import { getOutgoingBuses, getIncomingBuses, getFleetConfig, getFleetTrips } from '../lib/api';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
+import { FleetInterferenceAlertBanner } from '../components/fleet/FleetInterferenceAlertBanner';
 
 type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history' | 'depot_gate';
 
@@ -162,6 +163,9 @@ export const StaffDashboard: React.FC = () => {
       default:
         return (
           <div className="max-w-5xl mx-auto space-y-8">
+            {/* Real-time Driver Interference Alert for Staff */}
+            {token && <FleetInterferenceAlertBanner token={token} userRole="staff" />}
+
             {/* Header info block */}
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">

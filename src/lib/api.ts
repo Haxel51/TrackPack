@@ -898,9 +898,65 @@ export async function pingFleetTruckLocation(token: string, truckId: string) {
   });
 }
 
+export async function updateFleetTripDestination(token: string, tripId: string, data: {
+  destination_type: 'company' | 'customer';
+  customer_name?: string;
+  customer_address?: string;
+  customer_phone?: string;
+  customer_lat?: number | null;
+  customer_lng?: number | null;
+  supplier_id?: string;
+  supplier_name?: string;
+  notes?: string;
+}) {
+  return safeFetch(`${API_BASE}/fleet/trips/${tripId}/update-destination`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+}
+
 export async function getVehicleLocation(truckNumber: string) {
   return safeFetch(`${API_BASE}/fleet/trucks/location-by-number/${encodeURIComponent(truckNumber)}`);
 }
+
+export async function getFleetAlerts(token: string) {
+  if (!token) return { success: true, alerts: [] };
+  return safeFetch(`${API_BASE}/fleet/alerts`, {
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
+export async function dismissFleetAlert(token: string, alertId: string) {
+  return safeFetch(`${API_BASE}/fleet/alerts/${alertId}/dismiss`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    }
+  });
+}
+
+export async function sendDriverInterferenceAlert(token: string, data: {
+  alert_type: 'app_deleted' | 'permission_disabled' | 'app_killed';
+  trip_id?: string;
+}) {
+  return safeFetch(`${API_BASE}/fleet/driver/interference-alert`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(data)
+  });
+}
+
 
 
 

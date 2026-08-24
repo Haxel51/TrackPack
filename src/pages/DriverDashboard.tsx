@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { getDriverActiveStatus, syncDriverLocation } from '../lib/api';
+import { getDriverActiveStatus, syncDriverLocation, sendDriverInterferenceAlert } from '../lib/api';
 import { Logo } from '../components/Logo';
 import {
   Truck,
@@ -13,7 +13,13 @@ import {
   Lock,
   RefreshCw,
   Navigation,
-  Smartphone
+  Smartphone,
+  ShieldAlert,
+  Compass,
+  ExternalLink,
+  ArrowRight,
+  Building2,
+  Route
 } from 'lucide-react';
 
 export const DriverDashboard: React.FC = () => {
@@ -28,12 +34,90 @@ export const DriverDashboard: React.FC = () => {
   const [driverName, setDriverName] = useState<string>(user?.name || 'Driver');
   const [truckNumber, setTruckNumber] = useState<string>('Unassigned');
   const [hasActiveTrip, setHasActiveTrip] = useState<boolean>(false);
+  const [activeTripId, setActiveTripId] = useState<string | null>(null);
+  const [activeTripDetails, setActiveTripDetails] = useState<any>(null);
   const [loadingStatus, setLoadingStatus] = useState<boolean>(true);
 
-  // Latest Coordinates Reference for synchronization
+  // Latest Coordinates Reference for synchronization & offline buffer
   const latestCoordsRef = useRef<{ latitude: number; longitude: number; accuracy: number; speed?: number | null } | null>(null);
+  const offlineCoordsQueueRef = useRef<Array<{ latitude: number; longitude: number; accuracy: number; speed?: number | null; timestamp: string }>>([]);
   const watchIdRef = useRef<number | null>(null);
+  const wakeLockRef = useRef<any>(null);
   const isMountedRef = useRef<boolean>(true);
+  const activeTripRef = useRef<boolean>(false);
+  const activeTripIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    activeTripRef.current = hasActiveTrip;
+    activeTripIdRef.current = activeTripId;
+  }, [hasActiveTrip, activeTripId]);
+
+  // Screen Wake Lock to prevent driver phone sleep while driving on active trip
+  useEffect(() => {
+    const acquireWakeLock = async () => {
+      if ('wakeLock' in navigator && hasActiveTrip && document.visibilityState === 'visible') {
+        try {
+          wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        } catch (err) {
+          // Wake lock may fail if battery saver is on
+        }
+      }
+    };
+
+    acquireWakeLock();
+
+    const handleVis = () => {
+      if (document.visibilityState === 'visible' && hasActiveTrip) {
+        acquireWakeLock();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVis);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVis);
+      if (wakeLockRef.current) {
+        wakeLockRef.current.release().catch(() => {});
+        wakeLockRef.current = null;
+      }
+    };
+  }, [hasActiveTrip]);
+
+  // Handle visibility change and beforeunload to detect app closing/killed while trip is active
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden' && activeTripRef.current && token) {
+        // Send a quick keep-alive / app-hidden notice
+        syncDriverLocation(token, {
+          latitude: latestCoordsRef.current?.latitude || 6.5244,
+          longitude: latestCoordsRef.current?.longitude || 3.3792,
+          is_heartbeat: true
+        } as any).catch(() => {});
+      }
+    };
+
+    const handleBeforeUnload = () => {
+      if (activeTripRef.current && token) {
+        const payload = JSON.stringify({
+          alert_type: 'app_killed',
+          trip_id: activeTripIdRef.current
+        });
+        if (navigator.sendBeacon) {
+          navigator.sendBeacon('/api/fleet/driver/interference-alert', payload);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handleBeforeUnload);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handleBeforeUnload);
+    };
+  }, [token]);
 
   // Initial passive check for granted browser permission
   useEffect(() => {
@@ -47,7 +131,27 @@ export const DriverDashboard: React.FC = () => {
             setHasLocationPermission(true);
             setActivationStatus('success');
             setActivationMessage('Live GPS Connected');
+          } else if (res.state === 'denied') {
+            setHasLocationPermission(false);
+            setActivationStatus('error');
+            setActivationMessage('Location permission is disabled on your device.');
           }
+
+          res.onchange = () => {
+            if (res.state === 'denied' && activeTripRef.current && token) {
+              setHasLocationPermission(false);
+              setActivationStatus('error');
+              setActivationMessage('⚠️ Location permission was disabled.');
+              sendDriverInterferenceAlert(token, {
+                alert_type: 'permission_disabled',
+                trip_id: activeTripIdRef.current || undefined
+              }).catch(() => {});
+            } else if (res.state === 'granted') {
+              setHasLocationPermission(true);
+              setActivationStatus('success');
+              setActivationMessage('Live GPS Connected');
+            }
+          };
         })
         .catch(() => {});
     }
@@ -58,7 +162,7 @@ export const DriverDashboard: React.FC = () => {
         navigator.geolocation.clearWatch(watchIdRef.current);
       }
     };
-  }, []);
+  }, [token]);
 
   // Primary Direct User Gesture Click Handler to Trigger Native Browser Location Prompt
   const handleRequestLocationPermission = (e?: React.MouseEvent) => {
@@ -95,6 +199,12 @@ export const DriverDashboard: React.FC = () => {
 
         if (error.code === error.PERMISSION_DENIED) {
           setActivationMessage('Location access is blocked by browser settings. Tap "Activate Network Location" below or allow location in Chrome settings.');
+          if (activeTripRef.current && token) {
+            sendDriverInterferenceAlert(token, {
+              alert_type: 'permission_disabled',
+              trip_id: activeTripIdRef.current || undefined
+            }).catch(() => {});
+          }
         } else if (error.code === error.POSITION_UNAVAILABLE) {
           setActivationMessage('GPS hardware signal unavailable. Ensure location is turned ON in phone quick settings.');
         } else if (error.code === error.TIMEOUT) {
@@ -140,6 +250,12 @@ export const DriverDashboard: React.FC = () => {
         },
         (err) => {
           console.warn('High-accuracy GPS watch notice:', err.message);
+          if (err.code === err.PERMISSION_DENIED && activeTripRef.current && token) {
+            sendDriverInterferenceAlert(token, {
+              alert_type: 'permission_disabled',
+              trip_id: activeTripIdRef.current || undefined
+            }).catch(() => {});
+          }
         },
         {
           enableHighAccuracy: true,
@@ -157,7 +273,7 @@ export const DriverDashboard: React.FC = () => {
         watchIdRef.current = null;
       }
     };
-  }, [hasLocationPermission]);
+  }, [hasLocationPermission, token]);
 
   // Fetch driver active trip status & sync location to server
   const checkStatusAndSync = useCallback(async () => {
@@ -171,10 +287,23 @@ export const DriverDashboard: React.FC = () => {
         setDriverName(res.driver_name || user?.name || 'Driver');
         setTruckNumber(res.truck_number || 'Unassigned');
         setHasActiveTrip(Boolean(res.has_active_trip));
+        setActiveTripDetails(res.active_trip || null);
+        if (res.active_trip?.id) {
+          setActiveTripId(res.active_trip.id);
+        }
 
         // Sync coordinates if trip is active and coordinates exist
-        if (res.has_active_trip && latestCoordsRef.current) {
-          await syncDriverLocation(token, latestCoordsRef.current);
+        if (res.has_active_trip) {
+          if (latestCoordsRef.current) {
+            await syncDriverLocation(token, latestCoordsRef.current);
+          } else {
+            // Keep-alive heartbeat
+            await syncDriverLocation(token, {
+              latitude: 6.5244,
+              longitude: 3.3792,
+              is_heartbeat: true
+            } as any);
+          }
         }
       }
     } catch (err) {
@@ -253,21 +382,56 @@ export const DriverDashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* Live Location Activation Section */}
+          {/* Active Trip Details - Waybilla Pure Digital Waybill */}
+          {hasActiveTrip && (
+            <div className="bg-slate-950/80 border border-amber-500/30 rounded-2xl p-4 text-left space-y-3 shadow-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <Route className="w-3.5 h-3.5" /> Active Haulage Assignment
+                </span>
+                <span className="bg-emerald-500/20 text-emerald-300 text-[10px] font-extrabold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  En Route
+                </span>
+              </div>
+
+              <div className="space-y-2 text-xs">
+                <div className="flex items-start gap-2 text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0 mt-1"></span>
+                  <div className="min-w-0">
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Origin Terminal / Park</span>
+                    <strong className="text-white truncate block">{activeTripDetails?.origin_park || 'Company Garage'}</strong>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-2 text-slate-300">
+                  <span className="w-2 h-2 rounded-full bg-blue-400 shrink-0 mt-1"></span>
+                  <div className="min-w-0">
+                    <span className="text-slate-400 block text-[10px] uppercase font-semibold">Delivery Destination</span>
+                    <strong className="text-white truncate block">{activeTripDetails?.supplier_name || 'IBeto Cement Company'}</strong>
+                    {activeTripDetails?.supplier_address && (
+                      <span className="text-slate-400 text-[11px] block">{activeTripDetails.supplier_address}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Live Location Background Telemetry */}
           <div className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 sm:p-5 text-left space-y-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <MapPin className="w-5 h-5 text-amber-400 shrink-0" />
-                <span className="text-sm font-extrabold text-white">Live Location Access</span>
+                <span className="text-sm font-extrabold text-white">Fleet Telemetry Status</span>
               </div>
               {hasLocationPermission ? (
-                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1">
+                <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[11px] font-black px-2.5 py-1 rounded-full flex items-center gap-1.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
-                  Active
+                  Connected
                 </span>
               ) : (
                 <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[11px] font-black px-2.5 py-1 rounded-full">
-                  Action Required
+                  Permission Needed
                 </span>
               )}
             </div>
@@ -293,6 +457,9 @@ export const DriverDashboard: React.FC = () => {
             {/* Location Action Buttons */}
             {!hasLocationPermission ? (
               <div className="space-y-2.5 pt-1">
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Allow GPS location access once so fleet dispatch and management can track trip compliance automatically.
+                </p>
                 <button
                   type="button"
                   id="grant-location-access-btn"
@@ -308,7 +475,7 @@ export const DriverDashboard: React.FC = () => {
                   ) : (
                     <>
                       <ShieldCheck className="w-5 h-5" />
-                      <span>Grant Location Access</span>
+                      <span>Allow Location Access (One-Time)</span>
                     </>
                   )}
                 </button>
@@ -326,7 +493,7 @@ export const DriverDashboard: React.FC = () => {
             ) : (
               <div className="bg-emerald-950/40 border border-emerald-500/20 p-3 rounded-xl text-xs text-emerald-300 flex items-center gap-2">
                 <Radio className="w-4 h-4 text-emerald-400 animate-pulse shrink-0" />
-                <span>Automated GPS tracking is active for your trip. Safe driving! 🚚💨</span>
+                <span>Automatic GPS telemetry active. Dispatch is monitoring your trip safely.</span>
               </div>
             )}
           </div>

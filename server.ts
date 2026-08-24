@@ -6826,6 +6826,189 @@ app.get("/api/admin/revenue", async (req, res) => {
 
 // ---------------- FLEET TRIP TRACKING API ENDPOINTS ----------------
 
+// Helper to broadcast driver interference alerts to CEO, Manager, and Staff
+async function notifyDriverInterference(
+  companyId: string,
+  tripId: string,
+  alertType: 'app_deleted' | 'permission_disabled' | 'app_killed',
+  details: {
+    driverName?: string;
+    driverPhone?: string;
+    truckNumber?: string;
+    lastLocationNote?: string;
+  }
+) {
+  if (!companyId) return;
+
+  let rawDriverName = (details.driverName || "").trim();
+  let driverName = rawDriverName;
+  if (!driverName || driverName.toLowerCase() === "driver" || driverName.toLowerCase() === "driver driver") {
+    driverName = "Assigned Driver";
+  }
+
+  const truckPlate = (details.truckNumber || "Unassigned").trim();
+  const driverPhone = (details.driverPhone || "").trim();
+
+  let alertTitle = "Interference Detected";
+  let alertMessage = "";
+  if (alertType === "app_deleted") {
+    alertTitle = "App Removed / Device Offline";
+    alertMessage = `⚠️ Driver ${driverName} has removed the Waybilla app from his phone — Truck ${truckPlate} location tracking is no longer active. Please investigate.`;
+  } else if (alertType === "permission_disabled") {
+    alertTitle = "Location Permission Revoked";
+    alertMessage = `⚠️ Driver ${driverName} has disabled location permission on his phone — Truck ${truckPlate} cannot be tracked. Please investigate.`;
+  } else if (alertType === "app_killed") {
+    alertTitle = "App Terminated in Background";
+    alertMessage = `⚠️ Waybilla is no longer running on Driver ${driverName}'s phone — Truck ${truckPlate} tracking may be interrupted. Please check in.`;
+  }
+
+  const now = new Date().toISOString();
+  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  // Format WhatsApp message text for 1-click dispatch
+  const whatsappMsgText = `🚨 *WAYBILLA FLEET SECURITY ALERT*\n\n` +
+    `*Status:* ${alertTitle}\n` +
+    `*Truck:* ${truckPlate}\n` +
+    `*Driver:* ${driverName}${driverPhone ? ` (${driverPhone})` : ''}\n\n` +
+    `${alertMessage}\n\n` +
+    `*Time:* ${timeStr}\n` +
+    `_Live Tracking Management Portal: Waybilla Nigeria_`;
+
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsgText)}`;
+  const driverDirectWhatsappUrl = driverPhone ? `https://wa.me/${driverPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`⚠️ Notice from Fleet HQ: Waybilla location tracking on Truck ${truckPlate} is interrupted. Please open the Waybilla app to resume live tracking.`)}` : null;
+
+  const alertPayload = {
+    trip_id: tripId,
+    company_id: companyId,
+    alert_type: alertType,
+    driver_name: driverName,
+    driver_phone: driverPhone || null,
+    truck_number: truckPlate,
+    message: alertMessage,
+    whatsapp_message: whatsappMsgText,
+    whatsapp_url: whatsappUrl,
+    driver_whatsapp_url: driverDirectWhatsappUrl,
+    target_roles: ["company", "manager", "staff"],
+    created_at: now,
+    read: false
+  };
+
+  try {
+    // 1. Store in fleet_alerts collection
+    await addDoc(collection(db, "fleet_alerts"), alertPayload);
+
+    // 2. Attach alert log to trip document
+    if (tripId) {
+      const tripRef = doc(db, "trips", tripId);
+      const tripSnap = await getDoc(tripRef);
+      if (tripSnap.exists()) {
+        const currentData = tripSnap.data() as any;
+        const currentAlerts = currentData.interference_alerts || [];
+        currentAlerts.push({
+          type: alertType,
+          message: alertMessage,
+          driver_name: driverName,
+          truck_number: truckPlate,
+          timestamp: now
+        });
+        await updateDoc(tripRef, {
+          interference_alerts: currentAlerts,
+          last_interference_alert: {
+            type: alertType,
+            message: alertMessage,
+            driver_name: driverName,
+            truck_number: truckPlate,
+            timestamp: now,
+            whatsapp_url: whatsappUrl,
+            driver_whatsapp_url: driverDirectWhatsappUrl
+          }
+        });
+      }
+    }
+    console.log(`[WATCHDOG] Alert (${alertType}) created for Truck ${truckPlate} / Driver ${driverName} (Company: ${companyId})`);
+  } catch (err) {
+    console.error("Error creating driver interference alert in db:", err);
+  }
+}
+
+// ---------------- AUTOMATED 5-MINUTE SERVER-SIDE FLEET WATCHDOG DAEMON ----------------
+let isWatchdogRunning = false;
+async function runFleetInterferenceWatchdog() {
+  if (isWatchdogRunning) return;
+  isWatchdogRunning = true;
+  try {
+    const tripsSnap = await getDocs(collection(db, "trips"));
+    const nowMs = Date.now();
+
+    for (const d of tripsSnap.docs) {
+      const trip = { id: d.id, ...d.data() as any };
+      const isActive = trip.status && trip.status !== "completed" && trip.status !== "arrived_offloaded";
+      if (!isActive) continue;
+
+      // PRODUCTION GUARD: Only monitor trips where a real driver has actively started live tracking
+      const isTrackingActive = trip.tracking_active === true || trip.driver_connected === true || trip.is_live_tracking === true;
+      if (!isTrackingActive) continue;
+
+      // Only check real driver pings (do NOT fallback to trip.created_at)
+      const lastPing = trip.last_location_at || trip.last_heartbeat_at;
+      if (!lastPing) continue;
+
+      const diffMs = nowMs - new Date(lastPing).getTime();
+      const diffMinutes = diffMs / (1000 * 60);
+
+      // Check if we've already raised an alert recently (within 15 mins) to prevent spam
+      const lastAlertTime = trip.last_interference_alert?.timestamp ? new Date(trip.last_interference_alert.timestamp).getTime() : 0;
+      const minutesSinceLastAlert = (nowMs - lastAlertTime) / (1000 * 60);
+
+      // Trigger if inactive for >= 5 minutes and no alert in last 15 minutes
+      if (diffMinutes >= 5 && minutesSinceLastAlert >= 15) {
+        let rawDriver = (trip.driver_name || trip.driver?.name || "").trim();
+        if (!rawDriver || rawDriver.toLowerCase() === "driver" || rawDriver.toLowerCase() === "driver driver" || rawDriver.toLowerCase() === "assigned driver") {
+          rawDriver = "Driver";
+        }
+        const truckNum = trip.truck_number || "Truck";
+        const driverPhone = trip.driver_phone || trip.driver?.phone_number || "";
+        const alertType = diffMinutes >= 15 ? "app_deleted" : "app_killed";
+
+        await notifyDriverInterference(trip.company_id, trip.id, alertType, {
+          driverName: rawDriver,
+          driverPhone,
+          truckNumber: truckNum,
+          lastLocationNote: trip.last_location_note || ""
+        });
+      }
+    }
+  } catch (daemonErr) {
+    console.error("[WATCHDOG] Error running fleet interference watchdog daemon:", daemonErr);
+  } finally {
+    isWatchdogRunning = false;
+  }
+}
+
+// Clean up stale mock/test alerts on startup
+async function cleanupStaleTestAlerts() {
+  try {
+    const alertsSnap = await getDocs(collection(db, "fleet_alerts"));
+    for (const d of alertsSnap.docs) {
+      await deleteDoc(doc(db, "fleet_alerts", d.id));
+    }
+
+    const tripsSnap = await getDocs(collection(db, "trips"));
+    for (const d of tripsSnap.docs) {
+      const data = d.data() as any;
+      if (data.last_interference_alert || (data.interference_alerts && data.interference_alerts.length > 0)) {
+        await updateDoc(doc(db, "trips", d.id), {
+          last_interference_alert: null,
+          interference_alerts: []
+        });
+      }
+    }
+    console.log("[CLEANUP] Successfully purged stale/test fleet interference alerts for production readiness.");
+  } catch (err) {
+    console.warn("[CLEANUP] Error clearing test fleet alerts:", err);
+  }
+}
+
 // Helper to validate request session and extract company_id & role
 async function validateFleetSession(req: any) {
   const authHeader = req.headers.authorization || "";
@@ -9200,6 +9383,154 @@ async function serverReverseGeocode(lat: number, lon: number): Promise<string> {
   }
 }
 
+// Enterprise Nigerian Industrial & Commercial Hub Coordinate Resolver
+async function lookupNigerianIndustrialCoords(
+  rawName: string,
+  rawAddress?: string
+): Promise<{ latitude: number; longitude: number; name: string; address: string } | null> {
+  const queryText = `${rawName || ""} ${rawAddress || ""}`.toLowerCase().trim();
+  if (!queryText) return null;
+
+  // 1. Precise Match on Nigerian Industrial Manufacturers & Cement Depots
+  if (queryText.includes("ibeto") || queryText.includes("ibetto")) {
+    if (queryText.includes("port harcourt") || queryText.includes("bundu") || queryText.includes("marine base")) {
+      return {
+        latitude: 4.7550,
+        longitude: 7.0250,
+        name: "IBeto Cement / Group Terminal",
+        address: "Bundu Waterside, Port Harcourt, Rivers State"
+      };
+    }
+    return {
+      latitude: 6.0145,
+      longitude: 6.9182,
+      name: "IBeto Cement / Industrial Group",
+      address: "IBeto Industrial Avenue, Nnewi, Anambra State"
+    };
+  }
+
+  if (queryText.includes("innoson") || queryText.includes("ivm")) {
+    return {
+      latitude: 6.0220,
+      longitude: 6.9250,
+      name: "Innoson Vehicle Manufacturing (IVM)",
+      address: "Innoson Industrial Complex, Nnewi, Anambra State"
+    };
+  }
+
+  if (queryText.includes("cutix")) {
+    return {
+      latitude: 6.0180,
+      longitude: 6.9150,
+      name: "Cutix Cables Plc",
+      address: "Cutix Industrial Complex, Otolo, Nnewi, Anambra State"
+    };
+  }
+
+  if (queryText.includes("chicason") || queryText.includes("a-z petroleum")) {
+    return {
+      latitude: 6.0120,
+      longitude: 6.9200,
+      name: "Chicason Group / A-Z Petroleum",
+      address: "Chicason Drive, Nnewi, Anambra State"
+    };
+  }
+
+  if (queryText.includes("dangote")) {
+    if (queryText.includes("ibese")) {
+      return { latitude: 6.9833, longitude: 3.0333, name: "Dangote Cement Plant Ibese", address: "Ibese, Ogun State" };
+    }
+    if (queryText.includes("gboko")) {
+      return { latitude: 7.3167, longitude: 8.9833, name: "Dangote Cement Gboko", address: "Gboko, Benue State" };
+    }
+    if (queryText.includes("refinery") || queryText.includes("lekki") || queryText.includes("free zone")) {
+      return { latitude: 6.4350, longitude: 4.0250, name: "Dangote Refinery & Petrochemicals", address: "Lekki Free Trade Zone, Lagos" };
+    }
+    return { latitude: 7.9150, longitude: 6.4250, name: "Dangote Cement Plant Obajana", address: "Obajana, Kogi State" };
+  }
+
+  if (queryText.includes("bua")) {
+    if (queryText.includes("kalambaina") || queryText.includes("sokoto")) {
+      return { latitude: 13.0200, longitude: 5.1800, name: "BUA Cement Kalambaina", address: "Kalambaina, Sokoto State" };
+    }
+    return { latitude: 7.2600, longitude: 6.3400, name: "BUA Cement Plant Okpella", address: "Okpella, Edo State" };
+  }
+
+  if (queryText.includes("lafarge") || queryText.includes("wapco")) {
+    if (queryText.includes("sagamu") || queryText.includes("shagamu")) {
+      return { latitude: 6.8333, longitude: 3.6500, name: "Lafarge Cement Sagamu", address: "Sagamu, Ogun State" };
+    }
+    if (queryText.includes("mfamosing") || queryText.includes("calabar")) {
+      return { latitude: 5.0500, longitude: 8.5333, name: "Lafarge Cement Mfamosing", address: "Calabar, Cross River State" };
+    }
+    if (queryText.includes("ashaka")) {
+      return { latitude: 10.9500, longitude: 11.4500, name: "Ashaka Cement Plc", address: "Ashaka, Gombe State" };
+    }
+    return { latitude: 6.9000, longitude: 3.2167, name: "Lafarge Cement Ewekoro", address: "Ewekoro, Ogun State" };
+  }
+
+  // 2. Nigerian City & Industrial Hub Keyword Resolution
+  if (queryText.includes("nnewi")) {
+    return { latitude: 6.0180, longitude: 6.9150, name: rawName, address: "Nnewi Industrial Zone, Anambra State" };
+  }
+  if (queryText.includes("onitsha")) {
+    return { latitude: 6.1450, longitude: 6.7850, name: rawName, address: "Harbour Industrial Estate, Onitsha, Anambra State" };
+  }
+  if (queryText.includes("ojo") || queryText.includes("alaba")) {
+    return { latitude: 6.4600, longitude: 3.1900, name: rawName, address: "Ojo Commercial Area, Lagos State" };
+  }
+  if (queryText.includes("apapa") || queryText.includes("wharf")) {
+    return { latitude: 6.4440, longitude: 3.3640, name: rawName, address: "Wharf Road, Apapa Port, Lagos" };
+  }
+  if (queryText.includes("ikeja") || queryText.includes("oba akran")) {
+    return { latitude: 6.5980, longitude: 3.3480, name: rawName, address: "Ikeja Industrial Estate, Lagos" };
+  }
+  if (queryText.includes("agbara")) {
+    return { latitude: 6.5167, longitude: 3.1000, name: rawName, address: "Agbara Industrial Estate, Ogun State" };
+  }
+  if (queryText.includes("aba") || queryText.includes("ariaria") || queryText.includes("osisioma")) {
+    return { latitude: 5.1200, longitude: 7.3500, name: rawName, address: "Osisioma Industrial Zone, Aba, Abia State" };
+  }
+  if (queryText.includes("port harcourt") || queryText.includes("trans-amadi") || queryText.includes("trans amadi")) {
+    return { latitude: 4.8200, longitude: 7.0350, name: rawName, address: "Trans-Amadi Industrial Layout, Port Harcourt, Rivers State" };
+  }
+  if (queryText.includes("kano") || queryText.includes("bompai") || queryText.includes("sharada")) {
+    return { latitude: 12.0022, longitude: 8.5919, name: rawName, address: "Sharada Industrial Phase, Kano State" };
+  }
+  if (queryText.includes("abuja") || queryText.includes("idu")) {
+    return { latitude: 9.0450, longitude: 7.3250, name: rawName, address: "Idu Industrial Layout, Abuja FCT" };
+  }
+
+  // 3. Dynamic Nominatim Geocode Fallback
+  try {
+    const searchUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
+      queryText + " Nigeria"
+    )}&countrycodes=ng&format=json&limit=1`;
+    const res = await fetch(searchUrl, {
+      headers: {
+        Accept: "application/json",
+        "User-Agent": "Waybilla-Nigeria-Fleet-Tracker/1.0"
+      }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data) && data.length > 0) {
+        const item = data[0];
+        return {
+          latitude: parseFloat(item.lat),
+          longitude: parseFloat(item.lon),
+          name: rawName,
+          address: item.display_name || `${rawName}, Nigeria`
+        };
+      }
+    }
+  } catch (e) {
+    // Non-blocking fallback
+  }
+
+  return null;
+}
+
 app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
   try {
     const session = await validateFleetSession(req);
@@ -9753,10 +10084,7 @@ app.post("/api/fleet/driver/location-sync", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized driver session." });
     }
 
-    const { latitude, longitude, accuracy, speed } = req.body;
-    if (typeof latitude !== "number" || typeof longitude !== "number") {
-      return res.status(400).json({ error: "Valid latitude and longitude are required." });
-    }
+    const { latitude, longitude, accuracy, speed, event, event_type, is_heartbeat } = req.body;
 
     const driverId = session.userId;
     const driverPhone = session.userData?.phone_number || "";
@@ -9790,6 +10118,67 @@ app.post("/api/fleet/driver/location-sync", async (req, res) => {
 
     const activeTrip = activeTrips[0];
     const now = new Date().toISOString();
+    const driverName = session.userData?.name || activeTrip.driver_name || "Driver";
+    const truckNumber = activeTrip.truck_number || "Unassigned";
+
+    // Handle interference events explicitly sent by driver app (e.g. permission_disabled or app_lifecycle)
+    const alertTrigger = event_type || event;
+    if (alertTrigger === "permission_disabled" || alertTrigger === "location_disabled") {
+      await notifyDriverInterference(companyId, activeTrip.id, "permission_disabled", {
+        driverName,
+        truckNumber
+      });
+      return res.json({
+        success: true,
+        alert_recorded: true,
+        message: "Location permission disabled alert registered."
+      });
+    }
+
+    if (alertTrigger === "app_killed") {
+      await notifyDriverInterference(companyId, activeTrip.id, "app_killed", {
+        driverName,
+        truckNumber
+      });
+      return res.json({
+        success: true,
+        alert_recorded: true,
+        message: "App killed alert registered."
+      });
+    }
+
+    if (alertTrigger === "app_deleted") {
+      await notifyDriverInterference(companyId, activeTrip.id, "app_deleted", {
+        driverName,
+        truckNumber
+      });
+      return res.json({
+        success: true,
+        alert_recorded: true,
+        message: "App deleted alert registered."
+      });
+    }
+
+    // Heartbeat ping without fresh coordinates (e.g. keep-alive)
+    if (is_heartbeat && (typeof latitude !== "number" || typeof longitude !== "number")) {
+      const tripRef = doc(db, "trips", activeTrip.id);
+      await updateDoc(tripRef, {
+        tracking_active: true,
+        driver_connected: true,
+        last_heartbeat_at: now,
+        last_seen_at: now,
+        last_interference_alert: null // clear alert on active heartbeat reconnect
+      });
+      return res.json({
+        success: true,
+        heartbeat: true,
+        trip_id: activeTrip.id
+      });
+    }
+
+    if (typeof latitude !== "number" || typeof longitude !== "number") {
+      return res.status(400).json({ error: "Valid latitude and longitude are required." });
+    }
 
     const locationFix: any = {
       latitude,
@@ -9805,9 +10194,15 @@ app.post("/api/fleet/driver/location-sync", async (req, res) => {
     shares.push(locationFix);
 
     const tripUpdate: any = {
+      tracking_active: true,
+      driver_connected: true,
+      has_driver_started: true,
       last_location: locationFix,
       last_location_at: now,
+      last_heartbeat_at: now,
+      last_seen_at: now,
       last_location_note: "Driver GPS continuous background ping",
+      last_interference_alert: null, // clear interference alert on successful live GPS reconnect
       location_shares: shares
     };
 
@@ -9820,7 +10215,8 @@ app.post("/api/fleet/driver/location-sync", async (req, res) => {
         const truckRef = doc(db, "trucks", activeTrip.truck_id);
         await updateDoc(truckRef, {
           last_location: locationFix,
-          last_location_at: now
+          last_location_at: now,
+          last_seen_at: now
         });
       } catch (trErr) {
         // non-blocking
@@ -9835,6 +10231,119 @@ app.post("/api/fleet/driver/location-sync", async (req, res) => {
     });
   } catch (err) {
     console.error("Error POST /api/fleet/driver/location-sync:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// Explicit Driver Interference Alert Endpoint (Permission disabled / App state / Offline / Test trigger)
+app.post("/api/fleet/driver/interference-alert", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session) {
+      return res.status(401).json({ error: "Unauthorized session." });
+    }
+
+    const { alert_type, trip_id } = req.body;
+    if (!["app_deleted", "permission_disabled", "app_killed"].includes(alert_type)) {
+      return res.status(400).json({ error: "Invalid alert_type. Must be app_deleted, permission_disabled, or app_killed." });
+    }
+
+    const companyId = session.userData?.company_id || getFleetCompanyId(session);
+    if (!companyId) {
+      return res.status(400).json({ error: "Company association missing." });
+    }
+
+    // Find trip
+    let targetTrip: any = null;
+    if (trip_id) {
+      const tSnap = await getDoc(doc(db, "trips", trip_id));
+      if (tSnap.exists()) {
+        targetTrip = { id: tSnap.id, ...tSnap.data() as any };
+      }
+    }
+
+    if (!targetTrip) {
+      // Find active trip for driver
+      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
+      const tripsSnap = await getDocs(qTrips);
+      const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
+      targetTrip = allTrips.find(t => {
+        const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
+        if (!isTripActive) return false;
+        if (session.userRole === "driver") {
+          return t.driver_id === session.userId || (t.driver && t.driver.id === session.userId) || t.truck_id === session.userData?.truck_id;
+        }
+        return true;
+      });
+    }
+
+    const driverName = targetTrip?.driver_name || targetTrip?.driver?.name || session.userData?.name || "Driver";
+    const truckPlate = targetTrip?.truck_number || "Unassigned";
+
+    await notifyDriverInterference(companyId, targetTrip?.id || "", alert_type, {
+      driverName,
+      truckNumber: truckPlate
+    });
+
+    res.json({
+      success: true,
+      message: `Driver interference alert (${alert_type}) dispatched to CEO, Manager, and Staff.`
+    });
+  } catch (err) {
+    console.error("Error in POST /api/fleet/driver/interference-alert:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET /api/fleet/alerts - Retrieve interference and operational alerts for CEO, Manager, Staff
+app.get("/api/fleet/alerts", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const companyId = getFleetCompanyId(session);
+    if (!companyId) return res.json({ success: true, alerts: [] });
+
+    // Query active unacknowledged alerts for this company
+    const qAlerts = query(
+      collection(db, "fleet_alerts"),
+      where("company_id", "==", companyId)
+    );
+    const alertsSnap = await getDocs(qAlerts);
+    const alerts = alertsSnap.docs
+      .map(d => ({ id: d.id, ...d.data() as any }))
+      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+    res.json({
+      success: true,
+      alerts
+    });
+  } catch (err) {
+    console.error("Error in GET /api/fleet/alerts:", err);
+    res.status(500).json({ error: "Internal server error.", alerts: [] });
+  }
+});
+
+// POST /api/fleet/alerts/:id/dismiss - Dismiss or acknowledge an alert
+app.post("/api/fleet/alerts/:id/dismiss", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const alertId = req.params.id;
+    await updateDoc(doc(db, "fleet_alerts", alertId), {
+      read: true,
+      dismissed_at: new Date().toISOString(),
+      dismissed_by: session.userData?.name || session.name || "User"
+    });
+
+    res.json({ success: true, message: "Alert dismissed." });
+  } catch (err) {
+    console.error("Error dismissing alert:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -9917,6 +10426,97 @@ app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
       last_location: pingEntry
     });
 
+    // Fetch supplier and park details for destination & origin coordinates
+    let supplierInfo: any = null;
+    if (activeTrip.supplier_id) {
+      try {
+        const sSnap = await getDoc(doc(db, "suppliers", activeTrip.supplier_id));
+        if (sSnap.exists()) {
+          const sData = sSnap.data() as any;
+          supplierInfo = {
+            id: sSnap.id,
+            name: sData.name || activeTrip.supplier_name,
+            address: sData.address || sData.location || "Destination Facility",
+            latitude: sData.latitude || sData.lat || null,
+            longitude: sData.longitude || sData.lng || null
+          };
+        }
+      } catch (sErr) {
+        // non-blocking
+      }
+    }
+
+    // If destination coordinates missing, resolve via Nigerian Industrial Directory
+    if ((!supplierInfo || !supplierInfo.latitude || !supplierInfo.longitude) && (activeTrip.supplier_name || activeTrip.destination_name)) {
+      const targetName = activeTrip.supplier_name || activeTrip.destination_name || "Destination Depot";
+      const geoResolved = await lookupNigerianIndustrialCoords(targetName, supplierInfo?.address);
+      if (geoResolved) {
+        supplierInfo = {
+          ...(supplierInfo || {}),
+          name: targetName,
+          address: geoResolved.address || supplierInfo?.address || "Industrial Facility",
+          latitude: geoResolved.latitude,
+          longitude: geoResolved.longitude
+        };
+      }
+    }
+
+    let parkInfo: any = null;
+    const parkId = activeTrip.park_id || truckData.park_id;
+    if (parkId) {
+      try {
+        const pSnap = await getDoc(doc(db, "parks", parkId));
+        if (pSnap.exists()) {
+          const pData = pSnap.data() as any;
+          parkInfo = {
+            id: pSnap.id,
+            name: pData.name || activeTrip.origin_park,
+            address: pData.address || pData.location || "Origin Terminal / Garage",
+            latitude: pData.latitude || pData.lat || null,
+            longitude: pData.longitude || pData.lng || null
+          };
+        }
+      } catch (pErr) {
+        // non-blocking
+      }
+    }
+
+    // If origin coordinates missing, resolve via Nigerian Directory
+    if ((!parkInfo || !parkInfo.latitude || !parkInfo.longitude) && activeTrip.origin_park) {
+      const geoResolved = await lookupNigerianIndustrialCoords(activeTrip.origin_park, parkInfo?.address);
+      if (geoResolved) {
+        parkInfo = {
+          ...(parkInfo || {}),
+          name: activeTrip.origin_park,
+          address: geoResolved.address || "Origin Terminal",
+          latitude: geoResolved.latitude,
+          longitude: geoResolved.longitude
+        };
+      }
+    }
+
+    let customerInfo: any = null;
+    if (activeTrip.destination_type === 'customer' || activeTrip.customer_name || activeTrip.customer_address) {
+      let custLat = typeof activeTrip.customer_lat === 'number' ? activeTrip.customer_lat : null;
+      let custLng = typeof activeTrip.customer_lng === 'number' ? activeTrip.customer_lng : null;
+
+      if (!custLat || !custLng) {
+        const geoCust = await lookupNigerianIndustrialCoords(activeTrip.customer_name || "", activeTrip.customer_address || "");
+        if (geoCust) {
+          custLat = geoCust.latitude;
+          custLng = geoCust.longitude;
+        }
+      }
+
+      customerInfo = {
+        name: activeTrip.customer_name || "Direct Customer Delivery",
+        address: activeTrip.customer_address || "Customer Delivery Address",
+        phone_number: activeTrip.customer_phone || null,
+        latitude: custLat,
+        longitude: custLng
+      };
+    }
+
     res.json({
       success: true,
       active: true,
@@ -9932,12 +10532,17 @@ app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
       trip: {
         id: activeTrip.id,
         status: activeTrip.status,
-        origin_park: activeTrip.origin_park || "Company Garage",
-        supplier_name: activeTrip.supplier_name || "Destination Depot",
+        origin_park: activeTrip.origin_park || parkInfo?.name || "Company Garage",
+        origin_info: parkInfo,
+        supplier_name: activeTrip.supplier_name || supplierInfo?.name || "Destination Depot",
+        destination_info: supplierInfo,
+        destination_type: activeTrip.destination_type || (customerInfo ? 'customer' : 'company'),
+        customer_info: customerInfo,
         created_at: activeTrip.created_at,
         cargo_notes: activeTrip.cargo_notes || null,
         route_osrm: activeTrip.route_osrm || null,
-        self_learned_eta: activeTrip.self_learned_eta || null
+        self_learned_eta: activeTrip.self_learned_eta || null,
+        checkpoints: activeTrip.checkpoints || []
       },
       location: pingEntry,
       location_history: shares
@@ -9945,6 +10550,79 @@ app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
   } catch (err) {
     console.error("Error POST /api/fleet/trucks/:id/ping-location:", err);
     res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// POST /api/fleet/trips/:id/update-destination - Mid-trip redirection to Customer or Company
+app.post("/api/fleet/trips/:id/update-destination", async (req, res) => {
+  try {
+    const session = await validateFleetSession(req);
+    if (!session || !["company", "manager", "staff", "admin", "driver"].includes(session.userRole)) {
+      return res.status(403).json({ error: "Unauthorized." });
+    }
+
+    const tripId = req.params.id;
+    const {
+      destination_type,
+      customer_name,
+      customer_address,
+      customer_phone,
+      customer_lat,
+      customer_lng,
+      supplier_id,
+      supplier_name,
+      notes
+    } = req.body;
+
+    const tripRef = doc(db, "trips", tripId);
+    const tripSnap = await getDoc(tripRef);
+    if (!tripSnap.exists()) {
+      return res.status(404).json({ error: "Trip not found." });
+    }
+
+    const now = new Date().toISOString();
+    const updateData: any = {
+      destination_type: destination_type || 'company',
+      updated_at: now
+    };
+
+    if (destination_type === 'customer') {
+      updateData.customer_name = customer_name || 'Customer';
+      updateData.customer_address = customer_address || 'Customer Delivery Address';
+      updateData.customer_phone = customer_phone || null;
+      if (typeof customer_lat === 'number' && typeof customer_lng === 'number') {
+        updateData.customer_lat = customer_lat;
+        updateData.customer_lng = customer_lng;
+      }
+    } else {
+      if (supplier_id) updateData.supplier_id = supplier_id;
+      if (supplier_name) updateData.supplier_name = supplier_name;
+    }
+
+    if (notes) {
+      updateData.reroute_notes = notes;
+    }
+
+    const existingCheckpoints = tripSnap.data()?.checkpoints || [];
+    existingCheckpoints.push({
+      type: "reroute_destination",
+      title: destination_type === 'customer' 
+        ? `Rerouted to Customer: ${customer_name || 'Customer'}` 
+        : `Destination Set: ${supplier_name || 'Company Facility'}`,
+      description: destination_type === 'customer'
+        ? `Delivery target redirected mid-trip to customer at ${customer_address || 'Customer Location'}`
+        : `Delivery target set to company facility depot`,
+      timestamp: now,
+      recorded_by: session.userData?.name || session.name || "Fleet Operations"
+    });
+    updateData.checkpoints = existingCheckpoints;
+
+    await updateDoc(tripRef, updateData);
+
+    res.json({ success: true, message: "Destination updated successfully." });
+  } catch (err) {
+    console.error("Error updating trip destination:", err);
+    res.status(500).json({ error: "Failed to update trip destination." });
   }
 });
 
@@ -10042,10 +10720,23 @@ async function startServer() {
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
+      // Clean up stale mock/test alerts for production readiness
+      cleanupStaleTestAlerts().catch((err) => {
+        console.warn("[CLEANUP] Background alert cleanup error:", err);
+      });
+
       // Run database seed & cleanup asynchronously in background without blocking server startup
       seedDatabase().catch((err) => {
         console.warn("[SEED] Background database cleanup error (non-fatal):", err);
       });
+
+      // Start automated Fleet Interference Watchdog Daemon (runs every 60s, checks 5-min ping thresholds on active driver trips)
+      setInterval(() => {
+        runFleetInterferenceWatchdog().catch((err) => {
+          console.error("[WATCHDOG] Background interval error:", err);
+        });
+      }, 60 * 1000);
+      console.log("[WATCHDOG] Automated 5-minute Fleet Tracking Daemon active.");
     });
   } catch (error) {
     console.error("Failed to start server:", error);
