@@ -1,8 +1,19 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Default-deny catch-all
     match /{document=**} {
       allow read, write: if false;
+    }
+
+    // Garage locations (Fleet Tracking)
+    match /fleetTracking_garages/{garageId} {
+      allow read, write: if false; // Accessed securely via server API
+    }
+
+    // Supplier locations (Fleet Tracking)
+    match /fleetTracking_suppliers/{supplierId} {
+      allow read, write: if false; // Accessed securely via server API
     }
   }
 }

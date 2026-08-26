@@ -147,12 +147,13 @@ app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' https://js.paystack.co https://www.google.com https://www.gstatic.com; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
-      "img-src 'self' data: https: blob:; " +
-      "connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com; " +
+      "script-src 'self' 'unsafe-inline' https://maps.googleapis.com https://*.googleapis.com https://www.google.com https://*.google.com https://www.gstatic.com https://*.gstatic.com https://js.paystack.co; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://*.gstatic.com; " +
+      "img-src 'self' data: https: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; " +
+      "connect-src 'self' https://*.googleapis.com https://maps.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co; " +
+      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com https://*.google.com https://*.googleusercontent.com; " +
+      "worker-src 'self' blob:; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
@@ -164,12 +165,13 @@ app.use((req, res, next) => {
     res.setHeader(
       "Content-Security-Policy",
       "default-src 'self'; " +
-      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co https://www.google.com https://www.gstatic.com; " +
-      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-      "font-src 'self' data: https://fonts.gstatic.com; " +
-      "img-src 'self' data: https: blob:; " +
-      "connect-src 'self' ws: wss: https://*.googleapis.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co https://www.google.com; " +
-      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com; " +
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://maps.googleapis.com https://*.googleapis.com https://www.google.com https://*.google.com https://www.gstatic.com https://*.gstatic.com https://js.paystack.co; " +
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com; " +
+      "font-src 'self' data: https://fonts.gstatic.com https://*.gstatic.com; " +
+      "img-src 'self' data: https: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com; " +
+      "connect-src 'self' ws: wss: https://*.googleapis.com https://maps.googleapis.com https://*.gstatic.com https://*.google.com https://*.firebaseio.com https://*.paystack.co https://api.paystack.co; " +
+      "frame-src 'self' https://*.paystack.co https://checkout.paystack.com https://www.google.com https://*.google.com https://*.googleusercontent.com; " +
+      "worker-src 'self' blob:; " +
       frameAncestors +
       "object-src 'none'; " +
       "base-uri 'self'; " +
@@ -3275,41 +3277,6 @@ app.get("/api/company/overview", async (req, res) => {
 
     const compDoc = await getDoc(doc(db, "companies", companyId));
     const compData = compDoc.exists() ? compDoc.data() : {};
-    const isFleetOnly = compData.service_mode === 'fleet' || compData.service_type === 'fleet';
-
-    if (isFleetOnly) {
-      const qTrucks = query(collection(db, "trucks"), where("company_id", "==", companyId));
-      const snapTrucks = await getDocs(qTrucks);
-      const trucks = snapTrucks.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-      const snapTrips = await getDocs(qTrips);
-      const trips = snapTrips.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      const qDrivers = query(collection(db, "drivers"), where("company_id", "==", companyId));
-      const snapDrivers = await getDocs(qDrivers);
-      const drivers = snapDrivers.docs.map(d => ({ id: d.id, ...d.data() }));
-
-      const activeTripsCount = trips.filter((t: any) => t.status === 'active' || t.status === 'in_transit').length;
-
-      const sortedTrips = [...trips].sort((a: any, b: any) => {
-        const dateA = new Date(a.created_at || a.date || 0).getTime();
-        const dateB = new Date(b.created_at || b.date || 0).getTime();
-        return dateB - dateA;
-      });
-
-      return res.json({
-        success: true,
-        is_fleet_only: true,
-        stats: {
-          total_trucks: trucks.length,
-          active_trips: activeTripsCount,
-          total_drivers: drivers.length,
-          total_earnings_month: 0
-        },
-        recent_activity: sortedTrips.slice(0, 5)
-      });
-    }
 
     // Get all waybills for this company
     const qWb = query(collection(db, "waybills"), where("company_id", "==", companyId));
@@ -3363,34 +3330,15 @@ app.get("/api/company/overview", async (req, res) => {
       .filter(p => (nowTime - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneMonthMs)
       .reduce((sum, p) => sum + (Number(p.company_share) || 0), 0);
 
-    const isBoth = compData.service_mode === 'both' || compData.service_type === 'both';
-    let fleetStats = { total_trucks: 0, active_trips: 0, total_drivers: 0 };
-    if (isBoth) {
-      const qTrucks = query(collection(db, "trucks"), where("company_id", "==", companyId));
-      const snapTrucks = await getDocs(qTrucks);
-      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-      const snapTrips = await getDocs(qTrips);
-      const qDrivers = query(collection(db, "drivers"), where("company_id", "==", companyId));
-      const snapDrivers = await getDocs(qDrivers);
-      const activeTripsCount = snapTrips.docs.map(d => d.data()).filter((t: any) => t.status === 'active' || t.status === 'in_transit').length;
-      fleetStats = {
-        total_trucks: snapTrucks.docs.length,
-        active_trips: activeTripsCount,
-        total_drivers: snapDrivers.docs.length
-      };
-    }
-
     res.json({
       success: true,
       is_fleet_only: false,
-      is_both: isBoth,
-      service_mode: compData.service_mode || compData.service_type || 'parcel',
+      is_both: false,
       stats: {
         total_shipments_week: shipmentsWeek,
         total_shipments_month: shipmentsMonth,
         total_active_staff: activeStaffCount,
-        total_earnings_month: Math.round(totalEarningsMonth),
-        ...fleetStats
+        total_earnings_month: Math.round(totalEarningsMonth)
       },
       recent_activity: recentWaybills
     });
@@ -4210,101 +4158,19 @@ app.get("/api/manager/overview", async (req, res) => {
       return rest;
     });
 
-    // Query Fleet Data for Manager's Company
-    const [trucksSnap, driversSnap, tripsSnap] = await Promise.all([
-      getDocs(query(collection(db, "trucks"), where("company_id", "==", company_id))),
-      getDocs(query(collection(db, "drivers"), where("company_id", "==", company_id))),
-      getDocs(query(collection(db, "trips"), where("company_id", "==", company_id)))
-    ]);
-
-    const allTrucks = trucksSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const allDrivers = driversSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    const activeTripsCount = allTrips.filter(t => 
-      t.status === "in_transit" || 
-      t.status === "loading" || 
-      t.status === "loaded_departed" || 
-      t.status === "created" || 
-      t.status === "initiated" || 
-      t.status === "left_warehouse" || 
-      t.status === "arrived_at_supplier" || 
-      t.status === "cargo_loaded" || 
-      t.status === "arrived_at_destination"
-    ).length;
-    
-    const completedTripsCount = allTrips.filter(t => 
-      t.status === "completed" || 
-      t.status === "arrived" || 
-      t.status === "delivered" || 
-      t.status === "arrived_offloaded"
-    ).length;
-
-    // Build driver lookup maps
-    const driverByTruckId = new Map<string, any>();
-    const driverById = new Map<string, any>();
-    allDrivers.forEach(dr => {
-      driverById.set(dr.id, dr);
-      if (dr.truck_id) driverByTruckId.set(dr.truck_id, dr);
-    });
-
-    const enrichedTrips = allTrips.map(t => {
-      let matchedDriver = (t.driver_id && driverById.get(t.driver_id)) || (t.truck_id && driverByTruckId.get(t.truck_id));
-      if (!matchedDriver && t.truck_id) {
-        const matchedTruck = allTrucks.find(trk => trk.id === t.truck_id);
-        if (matchedTruck && matchedTruck.driver_id) {
-          matchedDriver = driverById.get(matchedTruck.driver_id);
-        }
-      }
-      if (!matchedDriver && allDrivers.length > 0) {
-        matchedDriver = allDrivers[0];
-      }
-
-      const driverName = (t.driver_name && t.driver_name !== "Driver") ? t.driver_name : (matchedDriver ? matchedDriver.name : "Unassigned");
-      const driverPhone = t.driver_phone || (matchedDriver ? matchedDriver.phone_number : null);
-
-      return {
-        ...t,
-        driver_name: driverName,
-        driver_phone: driverPhone,
-        driver: matchedDriver ? { id: matchedDriver.id, name: matchedDriver.name, phone_number: matchedDriver.phone_number } : (t.driver || { name: driverName, phone_number: driverPhone })
-      };
-    });
-
-    const sortedTrips = [...enrichedTrips].sort((a, b) => {
-      const da = new Date(a.created_at || 0).getTime();
-      const db_ = new Date(b.created_at || 0).getTime();
-      return db_ - da;
-    });
-    const recentTrips = sortedTrips.slice(0, 10);
-
     res.json({
       success: true,
       company_name: companyName,
       park_location,
       park_id,
-      service_mode: effectiveMode,
-      service_type: effectiveMode,
-      manager_type: effectiveMode,
-      is_fleet_only: effectiveMode === "fleet" || effectiveMode === "haulage",
-      is_waybill_only: effectiveMode === "parcel" || effectiveMode === "package" || effectiveMode === "waybill",
-      is_both: effectiveMode === "both" || effectiveMode === "all",
       stats: {
         volume: { today: volumeToday, week: volumeWeek, month: volumeMonth },
         tracking_fees: { today: trackingFeesToday, week: trackingFeesWeek, month: trackingFeesMonth },
         shipping_fees: { today: shippingFeesToday, week: shippingFeesWeek, month: shippingFeesMonth },
         active_staff_count: activeStaffCount
       },
-      fleet_stats: {
-        total_trucks: allTrucks.length,
-        total_drivers: allDrivers.length,
-        active_trips: activeTripsCount,
-        completed_trips: completedTripsCount,
-        total_trips: allTrips.length
-      },
       staff: staffList,
-      recent_waybills: recentWaybills,
-      recent_trips: recentTrips
+      recent_waybills: recentWaybills
     });
   } catch (err) {
     console.error("Error in GET /api/manager/overview:", err);
@@ -6824,217 +6690,20 @@ app.get("/api/admin/revenue", async (req, res) => {
   }
 });
 
-// ---------------- FLEET TRIP TRACKING API ENDPOINTS ----------------
-
-// Helper to broadcast driver interference alerts to CEO, Manager, and Staff
-async function notifyDriverInterference(
-  companyId: string,
-  tripId: string,
-  alertType: 'app_deleted' | 'permission_disabled' | 'app_killed',
-  details: {
-    driverName?: string;
-    driverPhone?: string;
-    truckNumber?: string;
-    lastLocationNote?: string;
-  }
-) {
-  if (!companyId) return;
-
-  let rawDriverName = (details.driverName || "").trim();
-  let driverName = rawDriverName;
-  if (!driverName || driverName.toLowerCase() === "driver" || driverName.toLowerCase() === "driver driver") {
-    driverName = "Assigned Driver";
-  }
-
-  const truckPlate = (details.truckNumber || "Unassigned").trim();
-  const driverPhone = (details.driverPhone || "").trim();
-
-  let alertTitle = "Interference Detected";
-  let alertMessage = "";
-  if (alertType === "app_deleted") {
-    alertTitle = "App Removed / Device Offline";
-    alertMessage = `⚠️ Driver ${driverName} has removed the Waybilla app from his phone — Truck ${truckPlate} location tracking is no longer active. Please investigate.`;
-  } else if (alertType === "permission_disabled") {
-    alertTitle = "Location Permission Revoked";
-    alertMessage = `⚠️ Driver ${driverName} has disabled location permission on his phone — Truck ${truckPlate} cannot be tracked. Please investigate.`;
-  } else if (alertType === "app_killed") {
-    alertTitle = "App Terminated in Background";
-    alertMessage = `⚠️ Waybilla is no longer running on Driver ${driverName}'s phone — Truck ${truckPlate} tracking may be interrupted. Please check in.`;
-  }
-
-  const now = new Date().toISOString();
-  const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-  // Format WhatsApp message text for 1-click dispatch
-  const whatsappMsgText = `🚨 *WAYBILLA FLEET SECURITY ALERT*\n\n` +
-    `*Status:* ${alertTitle}\n` +
-    `*Truck:* ${truckPlate}\n` +
-    `*Driver:* ${driverName}${driverPhone ? ` (${driverPhone})` : ''}\n\n` +
-    `${alertMessage}\n\n` +
-    `*Time:* ${timeStr}\n` +
-    `_Live Tracking Management Portal: Waybilla Nigeria_`;
-
-  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(whatsappMsgText)}`;
-  const driverDirectWhatsappUrl = driverPhone ? `https://wa.me/${driverPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`⚠️ Notice from Fleet HQ: Waybilla location tracking on Truck ${truckPlate} is interrupted. Please open the Waybilla app to resume live tracking.`)}` : null;
-
-  const alertPayload = {
-    trip_id: tripId,
-    company_id: companyId,
-    alert_type: alertType,
-    driver_name: driverName,
-    driver_phone: driverPhone || null,
-    truck_number: truckPlate,
-    message: alertMessage,
-    whatsapp_message: whatsappMsgText,
-    whatsapp_url: whatsappUrl,
-    driver_whatsapp_url: driverDirectWhatsappUrl,
-    target_roles: ["company", "manager", "staff"],
-    created_at: now,
-    read: false
-  };
-
-  try {
-    // 1. Store in fleet_alerts collection
-    await addDoc(collection(db, "fleet_alerts"), alertPayload);
-
-    // 2. Attach alert log to trip document
-    if (tripId) {
-      const tripRef = doc(db, "trips", tripId);
-      const tripSnap = await getDoc(tripRef);
-      if (tripSnap.exists()) {
-        const currentData = tripSnap.data() as any;
-        const currentAlerts = currentData.interference_alerts || [];
-        currentAlerts.push({
-          type: alertType,
-          message: alertMessage,
-          driver_name: driverName,
-          truck_number: truckPlate,
-          timestamp: now
-        });
-        await updateDoc(tripRef, {
-          interference_alerts: currentAlerts,
-          last_interference_alert: {
-            type: alertType,
-            message: alertMessage,
-            driver_name: driverName,
-            truck_number: truckPlate,
-            timestamp: now,
-            whatsapp_url: whatsappUrl,
-            driver_whatsapp_url: driverDirectWhatsappUrl
-          }
-        });
-      }
-    }
-    console.log(`[WATCHDOG] Alert (${alertType}) created for Truck ${truckPlate} / Driver ${driverName} (Company: ${companyId})`);
-  } catch (err) {
-    console.error("Error creating driver interference alert in db:", err);
-  }
-}
-
-// ---------------- AUTOMATED 5-MINUTE SERVER-SIDE FLEET WATCHDOG DAEMON ----------------
-let isWatchdogRunning = false;
-async function runFleetInterferenceWatchdog() {
-  if (isWatchdogRunning) return;
-  isWatchdogRunning = true;
-  try {
-    const tripsSnap = await getDocs(collection(db, "trips"));
-    const nowMs = Date.now();
-
-    for (const d of tripsSnap.docs) {
-      const trip = { id: d.id, ...d.data() as any };
-      const isActive = trip.status && trip.status !== "completed" && trip.status !== "arrived_offloaded";
-      if (!isActive) continue;
-
-      // PRODUCTION GUARD: Only monitor trips where a real driver has actively started live tracking
-      const isTrackingActive = trip.tracking_active === true || trip.driver_connected === true || trip.is_live_tracking === true;
-      if (!isTrackingActive) continue;
-
-      // Only check real driver pings (do NOT fallback to trip.created_at)
-      const lastPing = trip.last_location_at || trip.last_heartbeat_at;
-      if (!lastPing) continue;
-
-      const diffMs = nowMs - new Date(lastPing).getTime();
-      const diffMinutes = diffMs / (1000 * 60);
-
-      // Check if we've already raised an alert recently (within 15 mins) to prevent spam
-      const lastAlertTime = trip.last_interference_alert?.timestamp ? new Date(trip.last_interference_alert.timestamp).getTime() : 0;
-      const minutesSinceLastAlert = (nowMs - lastAlertTime) / (1000 * 60);
-
-      // Trigger if inactive for >= 5 minutes and no alert in last 15 minutes
-      if (diffMinutes >= 5 && minutesSinceLastAlert >= 15) {
-        let rawDriver = (trip.driver_name || trip.driver?.name || "").trim();
-        if (!rawDriver || rawDriver.toLowerCase() === "driver" || rawDriver.toLowerCase() === "driver driver" || rawDriver.toLowerCase() === "assigned driver") {
-          rawDriver = "Driver";
-        }
-        const truckNum = trip.truck_number || "Truck";
-        const driverPhone = trip.driver_phone || trip.driver?.phone_number || "";
-        const alertType = diffMinutes >= 15 ? "app_deleted" : "app_killed";
-
-        await notifyDriverInterference(trip.company_id, trip.id, alertType, {
-          driverName: rawDriver,
-          driverPhone,
-          truckNumber: truckNum,
-          lastLocationNote: trip.last_location_note || ""
-        });
-      }
-    }
-  } catch (daemonErr) {
-    console.error("[WATCHDOG] Error running fleet interference watchdog daemon:", daemonErr);
-  } finally {
-    isWatchdogRunning = false;
-  }
-}
-
-// Clean up stale mock/test alerts on startup
-async function cleanupStaleTestAlerts() {
-  try {
-    const alertsSnap = await getDocs(collection(db, "fleet_alerts"));
-    for (const d of alertsSnap.docs) {
-      await deleteDoc(doc(db, "fleet_alerts", d.id));
-    }
-
-    const tripsSnap = await getDocs(collection(db, "trips"));
-    for (const d of tripsSnap.docs) {
-      const data = d.data() as any;
-      if (data.last_interference_alert || (data.interference_alerts && data.interference_alerts.length > 0)) {
-        await updateDoc(doc(db, "trips", d.id), {
-          last_interference_alert: null,
-          interference_alerts: []
-        });
-      }
-    }
-    console.log("[CLEANUP] Successfully purged stale/test fleet interference alerts for production readiness.");
-  } catch (err) {
-    console.warn("[CLEANUP] Error clearing test fleet alerts:", err);
-  }
-}
-
-// Helper to validate request session and extract company_id & role
-async function validateFleetSession(req: any) {
-  const authHeader = req.headers.authorization || "";
-  const token = authHeader.replace("Bearer ", "").trim();
-  if (!token) return null;
-  const session = await validateSession(token);
-  return session;
-}
-
-function getFleetCompanyId(session: any): string | null {
-  if (!session) return null;
-  if (session.userRole === "company") return session.userId;
-  return session.userData?.company_id || session.company_id || null;
-}
-
-// GET /api/parks - Fetch company parks/depots for fleet/company/staff
+// GET /api/parks - Fetch company parks/depots for waybill/company/staff
 app.get("/api/parks", async (req, res) => {
   try {
-    const session = await validateFleetSession(req);
     let companyId = "";
-    if (session) {
-      companyId = getFleetCompanyId(session) || session.userId || "";
-    } else {
-      const compSession = await validateCompanySessionFromHeader(req, res);
-      if (compSession) {
-        companyId = compSession.userId;
+    const authHeader = req.headers.authorization || "";
+    const token = authHeader.replace("Bearer ", "").trim();
+    if (token) {
+      const session = await validateSession(token);
+      if (session) {
+        if (session.userRole === "company") {
+          companyId = session.userId;
+        } else if (session.userData?.company_id) {
+          companyId = session.userData.company_id;
+        }
       }
     }
 
@@ -7053,3649 +6722,396 @@ app.get("/api/parks", async (req, res) => {
   }
 });
 
-// 1. Get Company Service Type
-app.get("/api/fleet/config", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized session." });
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, service_type: "package", company_name: "" });
+// ==========================================
+// FLEET TRACKING: STEP 1 - LOCATIONS ENDPOINTS
+// ==========================================
 
-    const compDoc = await getDoc(doc(db, "companies", companyId));
-    if (!compDoc.exists()) return res.json({ success: true, service_type: "package", company_name: "" });
-    const compData = compDoc.data();
-    res.json({
-      success: true,
-      service_type: compData.service_type || "package",
-      company_name: compData.company_name
-    });
-  } catch (err) {
-    console.error("Error GET /api/fleet/config:", err);
-    res.status(500).json({ error: "Internal server error." });
+// Helper to get company ID from session
+async function getCompanyIdFromToken(req: express.Request): Promise<{ companyId: string; session: any } | null> {
+  const authHeader = req.headers.authorization || "";
+  const token = authHeader.replace("Bearer ", "").trim();
+  if (!token) return null;
+  const session = await validateSession(token);
+  if (!session) return null;
+
+  let companyId = "";
+  if (session.userRole === "company") {
+    companyId = session.userId;
+  } else if (session.userData?.company_id) {
+    companyId = session.userData.company_id;
+  }
+
+  if (!companyId) return null;
+  return { companyId, session };
+}
+
+// 1. GET /api/fleet-tracking/garage - Fetch company garage
+app.get("/api/fleet-tracking/garage", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const garageRef = doc(db, "fleetTracking_garages", authInfo.companyId);
+    const snap = await getDoc(garageRef);
+    if (!snap.exists()) {
+      return res.json({ success: true, garage: null });
+    }
+
+    res.json({ success: true, garage: { id: snap.id, ...snap.data() } });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/garage:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
 
-// 2. Update Company Service Type / Operation Mode
-app.put("/api/fleet/config", async (req, res) => {
+// 2. POST /api/fleet-tracking/garage - Save / Update garage address
+app.post("/api/fleet-tracking/garage", async (req, res) => {
   try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "company") return res.status(403).json({ error: "Only company owner can update service type." });
-    let { service_type, service_mode } = req.body;
-    let mode = service_type || service_mode;
-    if (mode === 'parcel') mode = 'package';
-    if (!["package", "fleet", "both"].includes(mode)) {
-      return res.status(400).json({ error: "Invalid service type. Must be package (waybills), fleet, or both." });
-    }
-    await updateDoc(doc(db, "companies", session.userId), {
-      service_type: mode,
-      service_mode: mode
-    });
-    
-    // Also update session if available
-    try {
-      await updateDoc(doc(db, "sessions", session.token), {
-        "userData.service_type": mode,
-        "userData.service_mode": mode
-      });
-    } catch (e) {
-      // Session doc update non-critical
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    res.json({ success: true, service_type: mode, service_mode: mode });
-  } catch (err) {
-    console.error("Error PUT /api/fleet/config:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 3. Trucks Endpoints
-app.get("/api/fleet/trucks", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, trucks: [] });
-
-    const parkId = session.userData?.park_id;
-
-    const q = query(collection(db, "trucks"), where("company_id", "==", companyId));
-    const snap = await getDocs(q);
-    let rawTrucks = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    const now = new Date();
-    const updatedTrucks = await Promise.all(
-      rawTrucks.map(async (truck) => {
-        let { billing_method, monthly_active_until, auto_renew } = truck;
-        let modified = false;
-
-        if (billing_method === "monthly" && monthly_active_until) {
-          const activeUntil = new Date(monthly_active_until);
-          if (activeUntil <= now) {
-            // Plan expired!
-            if (auto_renew) {
-              // Attempt Paystack auto-charge simulation (succcess extends 30 days)
-              const newActiveUntil = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000).toISOString();
-              monthly_active_until = newActiveUntil;
-              modified = true;
-            } else {
-              // Fallback automatically to per-trip (no manual intervention required from Owner)
-              billing_method = "per_trip";
-              modified = true;
-            }
-          }
-        }
-
-        if (modified) {
-          await updateDoc(doc(db, "trucks", truck.id), {
-            billing_method,
-            monthly_active_until,
-            auto_renew
-          });
-        }
-
-        let days_remaining = 0;
-        let warning_5_days = false;
-        let is_expired = false;
-
-        if (billing_method === "monthly" && monthly_active_until) {
-          const activeUntil = new Date(monthly_active_until);
-          const diffMs = activeUntil.getTime() - now.getTime();
-          days_remaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
-          if (diffMs <= 0) {
-            is_expired = true;
-          } else if (days_remaining <= 5) {
-            warning_5_days = true;
-          }
-        }
-
-        return {
-          ...truck,
-          billing_method,
-          monthly_active_until,
-          auto_renew: Boolean(auto_renew),
-          days_remaining,
-          warning_5_days,
-          is_expired
-        };
-      })
-    );
-
-    let trucks = updatedTrucks;
-    res.json({ success: true, trucks });
-  } catch (err) {
-    console.error("Error GET /api/fleet/trucks:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/trucks", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.status(400).json({ error: "Company not found." });
-
-    const { truck_number, park_id, billing_method, auto_renew } = req.body;
-
-    if (!truck_number || !truck_number.trim()) {
-      return res.status(400).json({ error: "Truck number is required." });
+    const { address_text, lat, lng } = req.body;
+    if (!address_text || typeof address_text !== "string") {
+      return res.status(400).json({ error: "Address text is required." });
     }
 
-    const targetParkId = park_id || session.userData?.park_id || "main";
-    const method = billing_method === "monthly" ? "monthly" : "per_trip";
-    const renew = Boolean(auto_renew);
-    const monthlyActiveUntil = method === "monthly" ? new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() : null;
+    const garageRef = doc(db, "fleetTracking_garages", authInfo.companyId);
+    const existingSnap = await getDoc(garageRef);
 
-    const newDoc = await addDoc(collection(db, "trucks"), {
-      company_id: companyId,
-      park_id: targetParkId,
-      truck_number: truck_number.trim(),
-      billing_method: method,
-      auto_renew: renew,
-      monthly_active_until: monthlyActiveUntil,
-      created_at: new Date().toISOString()
-    });
+    const now = new Date().toISOString();
+    let updatedData: any = {
+      company_id: authInfo.companyId,
+      address_text: address_text.trim(),
+      updated_at: now
+    };
 
-    res.json({ success: true, truck_id: newDoc.id });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trucks:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.put("/api/fleet/trucks/:id", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { id } = req.params;
-    const { truck_number, billing_method, auto_renew } = req.body;
-
-    const truckRef = doc(db, "trucks", id);
-    const snap = await getDoc(truckRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
-
-    const updates: any = {};
-    if (truck_number) updates.truck_number = truck_number.trim();
-    if (billing_method && ["per_trip", "monthly"].includes(billing_method)) {
-      updates.billing_method = billing_method;
-      if (billing_method === "monthly" && !snap.data().monthly_active_until) {
-        updates.monthly_active_until = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-      }
-    }
-    if (typeof auto_renew === "boolean") {
-      updates.auto_renew = auto_renew;
-    }
-
-    await updateDoc(truckRef, updates);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error PUT /api/fleet/trucks/:id:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 3b. Initiate or Renew Monthly Subscription (₦3,500 via Paystack)
-app.post("/api/fleet/trucks/:id/subscribe-monthly", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { id } = req.params;
-    const { auto_renew, reference } = req.body;
-
-    const truckRef = doc(db, "trucks", id);
-    const snap = await getDoc(truckRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
-
-    const truckData = snap.data();
-    const companyId = getFleetCompanyId(session) || truckData.company_id;
-    const payRef = reference || `fleet_sub_${id}_${Date.now()}`;
-    const renewChoice = auto_renew !== undefined ? Boolean(auto_renew) : false;
-    const email = session.userData?.email || "customer@fleet.com";
-
-    // Store pending subscription record in Firestore
-    await setDoc(doc(db, "fleet_pending_subscriptions", payRef), {
-      truck_id: id,
-      truck_number: truckData.truck_number,
-      auto_renew: renewChoice,
-      amount: 3500,
-      company_id: companyId,
-      status: "pending",
-      created_at: new Date().toISOString()
-    });
-
-    let checkout_url = "";
-    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
-    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
-
-    if (hasPaystackKey) {
-      try {
-        const payload: any = {
-          email,
-          amount: 3500 * 100, // ₦3,500 in kobo
-          reference: payRef,
-          metadata: {
-            type: "fleet_monthly_sub",
-            truck_id: id,
-            auto_renew: renewChoice,
-            company_id: companyId
-          }
-        };
-
-        if (companyId) {
-          const compSnap = await getDoc(doc(db, "companies", companyId));
-          if (compSnap.exists() && compSnap.data().paystack_subaccount_code) {
-            payload.subaccount = compSnap.data().paystack_subaccount_code;
-            payload.bearer = "account";
-          }
-        }
-
-        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const initData = await initRes.json();
-        if (initRes.ok && initData.status && initData.data) {
-          checkout_url = initData.data.authorization_url || "";
-        } else {
-          console.error("Paystack sub init notice:", initData?.message || initData);
-        }
-      } catch (paystackErr) {
-        console.error("Failed to connect to Paystack API for monthly sub:", paystackErr);
-      }
-    }
-
-    if (!checkout_url) {
-      checkout_url = `https://checkout.paystack.com/demo-${payRef}`;
-    }
-
-    res.json({
-      success: true,
-      reference: payRef,
-      checkout_url,
-      amount: 3500,
-      truck_number: truckData.truck_number,
-      email
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trucks/:id/subscribe-monthly:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 3b-2. Verify Monthly Subscription Session (₦3,500)
-app.post("/api/fleet/trucks/:id/verify-subscription", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { id } = req.params;
-    const { reference } = req.body;
-
-    if (!reference) {
-      return res.status(400).json({ error: "Reference is required." });
-    }
-
-    const truckRef = doc(db, "trucks", id);
-    const truckSnap = await getDoc(truckRef);
-    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
-
-    const pendingRef = doc(db, "fleet_pending_subscriptions", reference);
-    const pendingSnap = await getDoc(pendingRef);
-
-    const now = new Date();
-    const newActiveUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-
-    // Check if webhook already confirmed it
-    if (pendingSnap.exists() && pendingSnap.data().status === "confirmed") {
-      await updateDoc(truckRef, {
-        billing_method: "monthly",
-        monthly_active_until: newActiveUntil,
-        auto_renew: pendingSnap.data().auto_renew !== undefined ? pendingSnap.data().auto_renew : false,
-        last_subscription_reference: reference,
-        last_subscribed_at: now.toISOString()
-      });
-
-      return res.json({
-        success: true,
-        verified: true,
-        monthly_active_until: newActiveUntil
-      });
-    }
-
-    // Check server Paystack API directly
-    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
-    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
-
-    if (hasPaystackKey) {
-      try {
-        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-          headers: { "Authorization": `Bearer ${key}` }
-        });
-        const vData = await verifyRes.json();
-        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
-          const renewChoice = pendingSnap.exists() ? pendingSnap.data().auto_renew : false;
-          if (pendingSnap.exists()) {
-            await updateDoc(pendingRef, { status: "confirmed", confirmed_at: now.toISOString() });
-          }
-
-          await updateDoc(truckRef, {
-            billing_method: "monthly",
-            monthly_active_until: newActiveUntil,
-            auto_renew: renewChoice,
-            last_subscription_reference: reference,
-            last_subscribed_at: now.toISOString()
-          });
-
-          return res.json({
-            success: true,
-            verified: true,
-            monthly_active_until: newActiveUntil
-          });
-        }
-      } catch (paystackErr) {
-        console.error("Paystack subscription verify error:", paystackErr);
-      }
+    if (existingSnap.exists()) {
+      const existing = existingSnap.data();
+      updatedData = {
+        ...existing,
+        ...updatedData
+      };
     } else {
-      // Sandbox auto-activate fallback if no secret key set
-      const renewChoice = pendingSnap.exists() ? pendingSnap.data().auto_renew : false;
-      if (pendingSnap.exists()) {
-        await updateDoc(pendingRef, { status: "confirmed", confirmed_at: now.toISOString() });
-      }
-
-      await updateDoc(truckRef, {
-        billing_method: "monthly",
-        monthly_active_until: newActiveUntil,
-        auto_renew: renewChoice,
-        last_subscription_reference: reference,
-        last_subscribed_at: now.toISOString()
-      });
-
-      return res.json({
-        success: true,
-        verified: true,
-        monthly_active_until: newActiveUntil
-      });
+      updatedData.lat = null;
+      updatedData.lng = null;
+      updatedData.location_confirmed = false;
+      updatedData.confirmed_by = null;
+      updatedData.confirmed_at = null;
     }
 
-    res.json({
-      success: true,
-      verified: false,
-      message: "Monthly subscription payment verification pending..."
-    });
-  } catch (err) {
-    console.error("Error verifying monthly subscription:", err);
-    res.status(500).json({ error: "Internal server error." });
+    if (lat !== undefined && lng !== undefined && lat !== null && lng !== null) {
+      updatedData.lat = Number(lat);
+      updatedData.lng = Number(lng);
+    }
+
+    await setDoc(garageRef, updatedData, { merge: true });
+    res.json({ success: true, garage: { id: authInfo.companyId, ...updatedData } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/garage:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
 
-// 3c. Update Truck Billing Method (Switch to Per-Trip or Monthly)
-app.put("/api/fleet/trucks/:id/billing", async (req, res) => {
+// 3. POST /api/fleet-tracking/garage/confirm - Confirm garage coordinates
+app.post("/api/fleet-tracking/garage/confirm", async (req, res) => {
   try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { id } = req.params;
-    const { billing_method, auto_renew } = req.body;
-
-    if (!["per_trip", "monthly"].includes(billing_method)) {
-      return res.status(400).json({ error: "Invalid billing method." });
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    const truckRef = doc(db, "trucks", id);
-    const snap = await getDoc(truckRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
+    const { lat, lng, confirmed_by } = req.body;
+    const numLat = Number(lat);
+    const numLng = Number(lng);
 
-    const truck = snap.data();
-    const updates: any = { billing_method };
+    if (isNaN(numLat) || isNaN(numLng)) {
+      return res.status(400).json({ error: "Valid latitude and longitude numbers are required." });
+    }
 
-    if (billing_method === "per_trip") {
-      // Switching to per-trip: no payment triggered.
-      if (typeof auto_renew === "boolean") updates.auto_renew = auto_renew;
-      await updateDoc(truckRef, updates);
-      return res.json({ success: true, billing_method, auto_renew: updates.auto_renew });
-    } else if (billing_method === "monthly") {
-      // Check if truck already has a active valid monthly subscription
-      const now = new Date();
-      const hasActiveSub = truck.monthly_active_until && new Date(truck.monthly_active_until) > now;
+    const garageRef = doc(db, "fleetTracking_garages", authInfo.companyId);
+    const snap = await getDoc(garageRef);
 
-      if (hasActiveSub) {
-        if (typeof auto_renew === "boolean") updates.auto_renew = auto_renew;
-        await updateDoc(truckRef, updates);
-        return res.json({
-          success: true,
-          billing_method: "monthly",
-          monthly_active_until: truck.monthly_active_until,
-          auto_renew: updates.auto_renew
-        });
+    const now = new Date().toISOString();
+    const confirmedBy = confirmed_by || authInfo.session?.userData?.name || authInfo.session?.userRole || "Manager";
+
+    const updatePayload: any = {
+      lat: numLat,
+      lng: numLng,
+      location_confirmed: true,
+      confirmed_by: confirmedBy,
+      confirmed_at: now,
+      updated_at: now
+    };
+
+    if (!snap.exists()) {
+      updatePayload.company_id = authInfo.companyId;
+      updatePayload.address_text = "Company Garage";
+    }
+
+    await setDoc(garageRef, updatePayload, { merge: true });
+    const refreshed = await getDoc(garageRef);
+    res.json({ success: true, garage: { id: refreshed.id, ...refreshed.data() } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/garage/confirm:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 4. GET /api/fleet-tracking/suppliers - List company suppliers
+app.get("/api/fleet-tracking/suppliers", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const q = query(
+      collection(db, "fleetTracking_suppliers"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap = await getDocs(q);
+    const suppliers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Sort by created_at descending in memory
+    suppliers.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+
+    res.json({ success: true, suppliers });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/suppliers:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 5. POST /api/fleet-tracking/suppliers - Create supplier location
+app.post("/api/fleet-tracking/suppliers", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const { name, address_text, lat, lng } = req.body;
+    if (!name || !address_text) {
+      return res.status(400).json({ error: "Supplier name and address are required." });
+    }
+
+    const now = new Date().toISOString();
+    const hasCoords = lat !== undefined && lat !== null && lng !== undefined && lng !== null && !isNaN(Number(lat)) && !isNaN(Number(lng));
+
+    const newSupplier = {
+      company_id: authInfo.companyId,
+      name: name.trim(),
+      address_text: address_text.trim(),
+      lat: hasCoords ? Number(lat) : null,
+      lng: hasCoords ? Number(lng) : null,
+      location_confirmed: hasCoords,
+      confirmed_by: hasCoords ? (authInfo.session?.userData?.name || authInfo.session?.userRole || "Manager") : null,
+      confirmed_at: hasCoords ? now : null,
+      created_at: now,
+      updated_at: now
+    };
+
+    const docRef = await addDoc(collection(db, "fleetTracking_suppliers"), newSupplier);
+    res.json({ success: true, supplier: { id: docRef.id, ...newSupplier } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/suppliers:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 6. PUT /api/fleet-tracking/suppliers/:id - Update supplier
+app.put("/api/fleet-tracking/suppliers/:id", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const supplierId = req.params.id;
+    const supRef = doc(db, "fleetTracking_suppliers", supplierId);
+    const snap = await getDoc(supRef);
+
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Supplier not found." });
+    }
+
+    const currentData = snap.data();
+    if (currentData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    const { name, address_text, lat, lng } = req.body;
+    const now = new Date().toISOString();
+    const updates: any = { updated_at: now };
+
+    if (name) updates.name = name.trim();
+    if (address_text) updates.address_text = address_text.trim();
+    if (lat !== undefined && lng !== undefined) {
+      if (lat === null || lng === null) {
+        updates.lat = null;
+        updates.lng = null;
+        updates.location_confirmed = false;
       } else {
-        // Truck has no active monthly plan: prompt frontend to initiate ₦3,500 Paystack payment
-        return res.status(402).json({
-          error: "Subscription payment required to activate monthly plan (₦3,500).",
-          requires_subscription: true,
-          amount: 3500,
-          truck_id: id,
-          truck_number: truck.truck_number
-        });
+        updates.lat = Number(lat);
+        updates.lng = Number(lng);
       }
     }
-  } catch (err) {
-    console.error("Error PUT /api/fleet/trucks/:id/billing:", err);
-    res.status(500).json({ error: "Internal server error." });
+
+    await updateDoc(supRef, updates);
+    const updatedSnap = await getDoc(supRef);
+    res.json({ success: true, supplier: { id: supplierId, ...updatedSnap.data() } });
+  } catch (err: any) {
+    console.error("Error PUT /api/fleet-tracking/suppliers/:id:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
 
-app.delete("/api/fleet/trucks/:id", async (req, res) => {
+// 7. POST /api/fleet-tracking/suppliers/:id/confirm - Confirm coordinates
+app.post("/api/fleet-tracking/suppliers/:id/confirm", async (req, res) => {
   try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    const { id } = req.params;
-
-    const truckRef = doc(db, "trucks", id);
-    const snap = await getDoc(truckRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Truck not found." });
-
-    if (snap.data().company_id !== companyId) {
-      return res.status(403).json({ error: "Unauthorized." });
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    await deleteDoc(truckRef);
-    res.json({ success: true, message: "Truck deleted successfully." });
-  } catch (err) {
-    console.error("Error DELETE /api/fleet/trucks/:id:", err);
-    res.status(500).json({ error: "Internal server error." });
+    const supplierId = req.params.id;
+    const supRef = doc(db, "fleetTracking_suppliers", supplierId);
+    const snap = await getDoc(supRef);
+
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Supplier not found." });
+    }
+
+    const currentData = snap.data();
+    if (currentData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    const { lat, lng, confirmed_by } = req.body;
+    const numLat = Number(lat);
+    const numLng = Number(lng);
+
+    if (isNaN(numLat) || isNaN(numLng)) {
+      return res.status(400).json({ error: "Valid latitude and longitude numbers are required." });
+    }
+
+    const now = new Date().toISOString();
+    const confirmedBy = confirmed_by || authInfo.session?.userData?.name || authInfo.session?.userRole || "Manager";
+
+    const updates = {
+      lat: numLat,
+      lng: numLng,
+      location_confirmed: true,
+      confirmed_by: confirmedBy,
+      confirmed_at: now,
+      updated_at: now
+    };
+
+    await updateDoc(supRef, updates);
+    const updatedSnap = await getDoc(supRef);
+    res.json({ success: true, supplier: { id: supplierId, ...updatedSnap.data() } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/suppliers/:id/confirm:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
 
-// ==========================================
-// Fleet Geocoding & Routing Proxy Services (OSM Nominatim & OSRM)
-// ==========================================
-
-const NIGERIAN_POPULAR_LOCATIONS = [
-  { name: "Apapa Port Complex, Lagos", display_name: "Apapa Port Complex, Wharf Road, Apapa, Lagos, Nigeria", lat: 6.4474, lon: 3.3644 },
-  { name: "Tin Can Island Port, Lagos", display_name: "Tin Can Island Port, Apapa-Oshodi Expressway, Lagos, Nigeria", lat: 6.4385, lon: 3.3421 },
-  { name: "Ikeja Industrial Estate, Lagos", display_name: "Ikeja Industrial Estate, Oba Akran Avenue, Ikeja, Lagos, Nigeria", lat: 6.6018, lon: 3.3515 },
-  { name: "Lekki Free Trade Zone, Lagos", display_name: "Lekki Free Trade Zone, Ibeju-Lekki, Lagos, Nigeria", lat: 6.4253, lon: 3.9458 },
-  { name: "Alaba International Market, Lagos", display_name: "Alaba International Market, Ojo, Lagos, Nigeria", lat: 6.4619, lon: 3.1932 },
-  { name: "Dangote Cement Factory, Ibese, Ogun", display_name: "Dangote Cement Plant, Ibese, Yewa North, Ogun State, Nigeria", lat: 7.0058, lon: 3.0456 },
-  { name: "Sagamu Interchange Logistics Hub, Ogun", display_name: "Sagamu Interchange Hub, Lagos-Ibadan Expressway, Sagamu, Ogun State, Nigeria", lat: 6.8402, lon: 3.6496 },
-  { name: "Ota Industrial Zone, Ogun", display_name: "Ota Industrial Layout, Idiroko Road, Ota, Ogun State, Nigeria", lat: 6.6906, lon: 3.2361 },
-  { name: "Ibeto Industrial Complex, Nnewi, Anambra", display_name: "Ibeto Industrial Complex, Otolo, Nnewi, Anambra State, Nigeria", lat: 6.0198, lon: 6.9174 },
-  { name: "Onitsha Main Market & River Port, Anambra", display_name: "Onitsha Main Market, Marine Road, Onitsha, Anambra State, Nigeria", lat: 6.1518, lon: 6.7758 },
-  { name: "Dangote Cement Plant, Obajana, Kogi", display_name: "Dangote Cement Plant, Obajana, Lokoja LGA, Kogi State, Nigeria", lat: 7.9189, lon: 6.4262 },
-  { name: "Port Harcourt Wharf & Trans-Amadi, Rivers", display_name: "Trans-Amadi Industrial Layout, Port Harcourt, Rivers State, Nigeria", lat: 4.8156, lon: 7.0498 },
-  { name: "Onne Oil & Gas Free Zone, Rivers", display_name: "Federal Lighter Terminal, Onne Port, Eleme, Rivers State, Nigeria", lat: 4.7145, lon: 7.1567 },
-  { name: "BUA Cement Plant, Okpella, Edo", display_name: "BUA Cement Plant, Okpella, Etsako East, Edo State, Nigeria", lat: 7.2589, lon: 6.3478 },
-  { name: "Benin City Commercial Center, Edo", display_name: "Ring Road Commercial Hub, Benin City, Edo State, Nigeria", lat: 6.3350, lon: 5.6037 },
-  { name: "Dawanau Grain Market, Kano", display_name: "Dawanau International Market, Dawakin Tofa, Kano State, Nigeria", lat: 12.0682, lon: 8.4412 },
-  { name: "Bompai Industrial Area, Kano", display_name: "Bompai Industrial Estate, Nasarawa, Kano State, Nigeria", lat: 12.0234, lon: 8.5492 },
-  { name: "Idu Industrial Layout, Abuja FCT", display_name: "Idu Industrial Area, Phase 1, Abuja FCT, Nigeria", lat: 9.0345, lon: 7.3321 },
-  { name: "Oluyole Industrial Estate, Ibadan, Oyo", display_name: "Oluyole Industrial Estate, Ring Road, Ibadan, Oyo State, Nigeria", lat: 7.3524, lon: 3.8643 },
-  { name: "Ariaria International Market, Aba, Abia", display_name: "Ariaria International Market, Faulks Road, Aba, Abia State, Nigeria", lat: 5.1278, lon: 7.3389 },
-  { name: "Emene Industrial Area, Enugu", display_name: "Emene Industrial Layout, Airport Road, Enugu, Enugu State, Nigeria", lat: 6.4712, lon: 7.5583 },
-  { name: "Warri Refinery & Petrochemicals, Delta", display_name: "Warri Port & Refinery Area, Ekpan, Warri, Delta State, Nigeria", lat: 5.5442, lon: 5.7289 },
-  { name: "Kakuri Industrial Area, Kaduna", display_name: "Kakuri Industrial Estate, Kaduna South, Kaduna State, Nigeria", lat: 10.4578, lon: 7.4201 },
-  { name: "Calabar Export Processing Zone, Cross River", display_name: "Calabar Free Trade Zone, Port Road, Calabar, Cross River State, Nigeria", lat: 4.9757, lon: 8.3182 }
-];
-
-const geocodeCache = new Map<string, { data: any; expiresAt: number }>();
-
-// Search locations with Nominatim + Nigerian offline dataset fallback
-app.get("/api/fleet/geocode/search", async (req, res) => {
+// 8. DELETE /api/fleet-tracking/suppliers/:id - Delete supplier
+app.delete("/api/fleet-tracking/suppliers/:id", async (req, res) => {
   try {
-    const queryStr = String(req.query.q || "").trim();
-    if (!queryStr || queryStr.length < 2) {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const supplierId = req.params.id;
+    const supRef = doc(db, "fleetTracking_suppliers", supplierId);
+    const snap = await getDoc(supRef);
+
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Supplier not found." });
+    }
+
+    const currentData = snap.data();
+    if (currentData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    await deleteDoc(supRef);
+    res.json({ success: true, message: "Supplier deleted successfully." });
+  } catch (err: any) {
+    console.error("Error DELETE /api/fleet-tracking/suppliers/:id:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 9. GET /api/fleet-tracking/google-maps-config - Fetch Google Maps configuration & API Key
+app.get("/api/fleet-tracking/google-maps-config", (req, res) => {
+  const apiKey =
+    process.env.GOOGLE_MAPS_API_KEY ||
+    process.env.VITE_GOOGLE_MAPS_API_KEY ||
+    process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
+    "";
+  res.json({
+    success: true,
+    apiKey: apiKey.trim(),
+  });
+});
+
+// 10. GET /api/fleet-tracking/geocode - Google Geocoding & Address Autocomplete Proxy
+app.get("/api/fleet-tracking/geocode", async (req, res) => {
+  try {
+    const query = String(req.query.query || "").trim();
+    if (!query) {
+      return res.status(400).json({ success: false, error: "Query parameter is required." });
+    }
+
+    const apiKey =
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.VITE_GOOGLE_MAPS_API_KEY ||
+      process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
+      "";
+
+    if (!apiKey) {
+      return res.status(500).json({
+        success: false,
+        error: "Google Maps API Key is not configured on the server.",
+      });
+    }
+
+    const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey.trim()}`;
+    const gRes = await fetch(gUrl);
+    if (!gRes.ok) {
+      return res.status(502).json({ success: false, error: `Google Maps Geocoding API returned status ${gRes.status}` });
+    }
+
+    const gData = await gRes.json();
+    if (gData.status === "OK" && gData.results && gData.results.length > 0) {
+      const results = gData.results.map((r: any) => ({
+        id: r.place_id,
+        name: r.formatted_address,
+        lat: r.geometry.location.lat,
+        lng: r.geometry.location.lng,
+        source: "google",
+      }));
+      return res.json({ success: true, results });
+    }
+
+    if (gData.status === "ZERO_RESULTS") {
       return res.json({ success: true, results: [] });
     }
 
-    const cacheKey = `search_${queryStr.toLowerCase()}`;
-    const cached = geocodeCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return res.json({ success: true, results: cached.data });
-    }
-
-    let results: any[] = [];
-
-    // Attempt Nominatim with timeout and valid User-Agent
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(queryStr)}&countrycodes=ng&limit=6&addressdetails=1`;
-      
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Waybilla-Fleet-Tracking-Platform/1.0 (info@waybilla.ng)"
-        }
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (Array.isArray(data) && data.length > 0) {
-          results = data.map((item: any) => ({
-            display_name: item.display_name,
-            latitude: parseFloat(item.lat),
-            longitude: parseFloat(item.lon),
-            address: item.address
-          }));
-        }
-      }
-    } catch (fetchErr) {
-      console.warn("Nominatim search request failed, using local Nigerian dataset:", (fetchErr as any)?.message);
-    }
-
-    // If Nominatim gave no results or was down, filter offline dataset
-    if (results.length === 0) {
-      const qLower = queryStr.toLowerCase();
-      const matched = NIGERIAN_POPULAR_LOCATIONS.filter(loc => 
-        loc.name.toLowerCase().includes(qLower) || 
-        loc.display_name.toLowerCase().includes(qLower)
-      );
-      results = matched.map(loc => ({
-        display_name: loc.display_name,
-        latitude: loc.lat,
-        longitude: loc.lon
-      }));
-    }
-
-    geocodeCache.set(cacheKey, { data: results, expiresAt: Date.now() + 1000 * 60 * 60 * 12 });
-    res.json({ success: true, results });
-  } catch (err) {
-    console.error("Error in /api/fleet/geocode/search:", err);
-    res.json({ success: true, results: [] });
-  }
-});
-
-// Reverse Geocode with Nominatim + Nearest Landmark Fallback
-app.get("/api/fleet/geocode/reverse", async (req, res) => {
-  try {
-    const lat = parseFloat(String(req.query.lat));
-    const lon = parseFloat(String(req.query.lon));
-
-    if (isNaN(lat) || isNaN(lon)) {
-      return res.status(400).json({ error: "Valid lat and lon are required." });
-    }
-
-    const cacheKey = `rev_${lat.toFixed(4)}_${lon.toFixed(4)}`;
-    const cached = geocodeCache.get(cacheKey);
-    if (cached && cached.expiresAt > Date.now()) {
-      return res.json({ success: true, place_name: cached.data });
-    }
-
-    let placeName = "";
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
-
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: {
-          "Accept": "application/json",
-          "User-Agent": "Waybilla-Fleet-Tracking-Platform/1.0 (info@waybilla.ng)"
-        }
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.display_name) {
-          const parts = data.display_name.split(", ");
-          placeName = parts.length > 3 ? parts.slice(0, 3).join(", ") : data.display_name;
-        }
-      }
-    } catch (fetchErr) {
-      console.warn("Nominatim reverse geocode request failed, calculating nearest landmark:", (fetchErr as any)?.message);
-    }
-
-    // Fallback: find closest known Nigerian hub or format coords
-    if (!placeName) {
-      let closestHub: typeof NIGERIAN_POPULAR_LOCATIONS[0] | null = null;
-      let minDistance = Infinity;
-
-      for (const loc of NIGERIAN_POPULAR_LOCATIONS) {
-        const dLat = (loc.lat - lat) * 111;
-        const dLon = (loc.lon - lon) * 111 * Math.cos((lat * Math.PI) / 180);
-        const dist = Math.sqrt(dLat * dLat + dLon * dLon);
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestHub = loc;
-        }
-      }
-
-      if (closestHub && minDistance < 25) {
-        placeName = `Near ${closestHub.name} (~${minDistance.toFixed(1)} km)`;
-      } else {
-        placeName = `GPS Point (${lat.toFixed(4)}, ${lon.toFixed(4)})`;
-      }
-    }
-
-    geocodeCache.set(cacheKey, { data: placeName, expiresAt: Date.now() + 1000 * 60 * 60 * 24 });
-    res.json({ success: true, place_name: placeName });
-  } catch (err) {
-    console.error("Error in /api/fleet/geocode/reverse:", err);
-    res.json({ success: true, place_name: "Pinned Location" });
-  }
-});
-
-// Routing distance and duration via OSRM with Haversine fallback
-app.get("/api/fleet/route/osrm", async (req, res) => {
-  try {
-    const originLat = parseFloat(String(req.query.origin_lat));
-    const originLng = parseFloat(String(req.query.origin_lng));
-    const destLat = parseFloat(String(req.query.dest_lat));
-    const destLng = parseFloat(String(req.query.dest_lng));
-
-    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
-      return res.status(400).json({ error: "Invalid coordinates provided." });
-    }
-
-    let distance_km = 0;
-    let duration_minutes = 0;
-
-    // Try OSRM driving route
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 4000);
-      const url = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=false`;
-
-      const response = await fetch(url, {
-        signal: controller.signal,
-        headers: { "Accept": "application/json" }
-      });
-      clearTimeout(timeoutId);
-
-      if (response.ok) {
-        const data = await response.json();
-        if (data.code === "Ok" && data.routes && data.routes.length > 0) {
-          const route = data.routes[0];
-          distance_km = Math.round((route.distance / 1000) * 10) / 10;
-          duration_minutes = Math.round(route.duration / 60);
-        }
-      }
-    } catch (osrmErr) {
-      console.warn("OSRM routing failed, calculating via road model:", (osrmErr as any)?.message);
-    }
-
-    // Fallback formula if OSRM unavailable
-    if (distance_km === 0) {
-      const R = 6371; // Earth radius km
-      const dLat = ((destLat - originLat) * Math.PI) / 180;
-      const dLon = ((destLng - originLng) * Math.PI) / 180;
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos((originLat * Math.PI) / 180) *
-          Math.cos((destLat * Math.PI) / 180) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      const straightLineKm = R * c;
-      // 1.25x Nigerian road curvature factor
-      distance_km = Math.round(straightLineKm * 1.25 * 10) / 10;
-      // Average 55 km/h for heavy trucks
-      duration_minutes = Math.max(15, Math.round((distance_km / 55) * 60));
-    }
-
-    const hrs = Math.floor(duration_minutes / 60);
-    const mins = duration_minutes % 60;
-    const duration_formatted = hrs > 0 
-      ? `${hrs} hr${hrs > 1 ? "s" : ""}${mins > 0 ? ` ${mins} min${mins > 1 ? "s" : ""}` : ""}` 
-      : `${mins} min${mins > 1 ? "s" : ""}`;
-
-    res.json({
-      success: true,
-      distance_km,
-      duration_minutes,
-      duration_formatted
+    return res.status(400).json({
+      success: false,
+      error: gData.error_message || `Google Geocoding status: ${gData.status}`,
     });
-  } catch (err) {
-    console.error("Error in /api/fleet/route/osrm:", err);
-    res.status(500).json({ error: "Failed to compute route." });
-  }
-});
-
-// 4. Suppliers Endpoints
-app.get("/api/fleet/suppliers", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, suppliers: [] });
-
-    const q = query(collection(db, "suppliers"), where("company_id", "==", companyId));
-    const snap = await getDocs(q);
-    const suppliers = snap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    res.json({ success: true, suppliers });
-  } catch (err) {
-    console.error("Error GET /api/fleet/suppliers:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/suppliers", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.status(400).json({ error: "Company not found." });
-
-    const {
-      name,
-      full_name,
-      phone,
-      supplier_full_name,
-      supplier_phone_number,
-      contact_name,
-      contact_phone,
-      latitude,
-      longitude,
-      formatted_address,
-      place_name,
-      coords
-    } = req.body;
-    if (!name) return res.status(400).json({ error: "Supplier name is required." });
-
-    const supplierFullName = (supplier_full_name || full_name || contact_name || "").trim();
-    const supplierPhone = (supplier_phone_number || phone || contact_phone || "").trim();
-    const lat = typeof latitude === "number" ? latitude : (coords?.latitude || null);
-    const lng = typeof longitude === "number" ? longitude : (coords?.longitude || null);
-
-    const newDoc = await addDoc(collection(db, "suppliers"), {
-      company_id: companyId,
-      name: name.trim(),
-      full_name: supplierFullName,
-      supplier_full_name: supplierFullName,
-      phone: supplierPhone,
-      supplier_phone_number: supplierPhone,
-      latitude: lat,
-      longitude: lng,
-      formatted_address: formatted_address || null,
-      place_name: place_name || null,
-      created_at: new Date().toISOString()
-    });
-
-    // Also auto-create a supplier_staff record if phone is provided so they can login immediately
-    // Also auto-create a supplier_staff record if phone is provided so they can login immediately
-    if (supplierPhone) {
-      const existingStaffQuery = query(
-        collection(db, "supplier_staff"),
-        where("company_id", "==", companyId),
-        where("phone_number", "==", supplierPhone)
-      );
-      const existingStaffSnap = await getDocs(existingStaffQuery);
-      if (existingStaffSnap.empty) {
-        // Create uninitialized staff record: supplier will create their own PIN on login
-        await addDoc(collection(db, "supplier_staff"), {
-          company_id: companyId,
-          supplier_id: newDoc.id,
-          name: supplierFullName || name.trim(),
-          phone_number: supplierPhone,
-          initial_pin: null,
-          pin_hash: null,
-          has_custom_pin: false,
-          status: "active",
-          created_at: new Date().toISOString()
-        });
-      }
-    }
-
-    res.json({ success: true, supplier_id: newDoc.id });
-  } catch (err) {
-    console.error("Error POST /api/fleet/suppliers:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.delete("/api/fleet/suppliers/:id", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    const { id } = req.params;
-
-    const suppRef = doc(db, "suppliers", id);
-    const snap = await getDoc(suppRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Supplier not found." });
-
-    if (snap.data().company_id !== companyId) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    await deleteDoc(suppRef);
-    res.json({ success: true, message: "Supplier deleted successfully." });
-  } catch (err) {
-    console.error("Error DELETE /api/fleet/suppliers/:id:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 5. Supplier Staff Endpoints & Login
-app.get("/api/fleet/supplier-staff", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, supplier_staff: [] });
-
-    const q = query(collection(db, "supplier_staff"), where("company_id", "==", companyId));
-    const snap = await getDocs(q);
-    const staffList = snap.docs.map(d => {
-      const data = d.data();
-      delete data.pin_hash;
-      return { id: d.id, ...data };
-    });
-    res.json({ success: true, supplier_staff: staffList });
-  } catch (err) {
-    console.error("Error GET /api/fleet/supplier-staff:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/supplier-staff", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.status(400).json({ error: "Company not found." });
-
-    const { supplier_id, name, phone_number, pin } = req.body;
-
-    if (!supplier_id || !name || !phone_number) {
-      return res.status(400).json({ error: "Supplier, name, and phone number are required." });
-    }
-    if (!isValid11DigitPhone(phone_number)) {
-      return res.status(400).json({ error: "Phone number must be 11 digits." });
-    }
-
-    let finalPin = pin ? String(pin).trim() : "";
-    let hash: string | null = null;
-    let hasCustom = false;
-
-    // Only set PIN if explicitly provided by user (no auto-generated fallback PIN)
-    if (finalPin && (finalPin.length === 4 || finalPin.length === 6) && /^\d+$/.test(finalPin)) {
-      hash = await bcrypt.hash(finalPin, 10);
-      hasCustom = true;
-    } else {
-      finalPin = "";
-    }
-
-    const newDoc = await addDoc(collection(db, "supplier_staff"), {
-      company_id: companyId,
-      supplier_id,
-      name: name.trim(),
-      phone_number: phone_number.trim(),
-      initial_pin: finalPin || null,
-      pin_hash: hash,
-      has_custom_pin: hasCustom,
-      status: "active",
-      created_at: new Date().toISOString()
-    });
-
-    res.json({ 
-      success: true, 
-      staff_id: newDoc.id, 
-      pin: finalPin || null,
-      requires_supplier_pin: !hasCustom 
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/supplier-staff:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Reset Supplier Staff PIN (no random generation; allows clearing so supplier sets own PIN or setting specific PIN)
-const handleResetSupplierStaffPinRoute = async (req: express.Request, res: express.Response) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const { id } = req.params;
-    const { new_pin } = req.body || {};
-
-    let finalPin = new_pin ? String(new_pin).trim() : "";
-    let newHash: string | null = null;
-    let hasCustom = false;
-
-    if (finalPin && (finalPin.length === 4 || finalPin.length === 6) && /^\d+$/.test(finalPin)) {
-      newHash = await bcrypt.hash(finalPin, 10);
-      hasCustom = true;
-    } else {
-      finalPin = "";
-    }
-
-    const staffRef = doc(db, "supplier_staff", id);
-    const staffSnap = await getDoc(staffRef);
-    if (!staffSnap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
-
-    const staffData = staffSnap.data();
-    await updateDoc(staffRef, {
-      pin_hash: newHash,
-      initial_pin: finalPin || null,
-      has_custom_pin: hasCustom,
-      updated_at: new Date().toISOString()
-    });
-
-    if (staffData.phone_number) {
-      await handlePinSuccess(`supplier_staff_${staffData.phone_number}`);
-      const norm = normalizeNigerianPhone(staffData.phone_number);
-      if (norm) await handlePinSuccess(`supplier_staff_${norm}`);
-    }
-
-    res.json({ 
-      success: true, 
-      message: hasCustom ? "Supplier staff PIN set successfully." : "PIN cleared. Supplier will set their own private PIN upon next login.", 
-      pin: finalPin || null,
-      requires_supplier_pin: !hasCustom
-    });
-  } catch (err) {
-    console.error("Error resetting supplier staff PIN:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-};
-app.put("/api/fleet/supplier-staff/:id/reset-pin", handleResetSupplierStaffPinRoute);
-app.post("/api/fleet/supplier-staff/:id/reset-pin", handleResetSupplierStaffPinRoute);
-
-// Toggle Supplier Staff Status (Active / Disabled)
-app.put("/api/fleet/supplier-staff/:id/status", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { id } = req.params;
-    const { status } = req.body; // 'active' | 'disabled'
-
-    if (!["active", "disabled"].includes(status)) {
-      return res.status(400).json({ error: "Status must be active or disabled." });
-    }
-
-    const staffRef = doc(db, "supplier_staff", id);
-    const snap = await getDoc(staffRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
-
-    await updateDoc(staffRef, { status, updated_at: new Date().toISOString() });
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error updating supplier staff status:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.delete("/api/fleet/supplier-staff/:id", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    const { id } = req.params;
-
-    const staffRef = doc(db, "supplier_staff", id);
-    const snap = await getDoc(staffRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Supplier staff not found." });
-
-    if (snap.data().company_id !== companyId) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    await deleteDoc(staffRef);
-    res.json({ success: true, message: "Supplier staff deleted successfully." });
-  } catch (err) {
-    console.error("Error DELETE /api/fleet/supplier-staff/:id:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Check Supplier Staff Phone (Stage 1 for Supplier Portal login matching company & CEO)
-app.post("/api/auth/supplier-staff/check-phone", async (req, res) => {
-  const { phone_number } = req.body;
-  if (!phone_number) return res.status(400).json({ error: "Phone number is required." });
-
-  try {
-    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
-    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
-    let matchingDocs = allStaffSnap.docs.filter(d => {
-      const data = d.data();
-      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
-      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
-    });
-
-    // If no supplier_staff found, check suppliers collection as fallback and auto-provision staff profile
-    if (matchingDocs.length === 0) {
-      const allSuppliersSnap = await getDocs(collection(db, "suppliers"));
-      const matchingSuppliers = allSuppliersSnap.docs.filter(d => {
-        const data = d.data();
-        const sPhone = String(data.phone || data.supplier_phone_number || "").replace(/\D/g, "");
-        return sPhone === cleanInputPhone || sPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(sPhone);
-      });
-
-      for (const suppDoc of matchingSuppliers) {
-        const suppData = suppDoc.data();
-        const companyId = suppData.company_id;
-        if (!companyId) continue;
-
-        // Check if supplier_staff already exists for this supplier
-        const existingStaffQuery = query(
-          collection(db, "supplier_staff"),
-          where("company_id", "==", companyId),
-          where("supplier_id", "==", suppDoc.id)
-        );
-        const existingStaffSnap = await getDocs(existingStaffQuery);
-        if (!existingStaffSnap.empty) {
-          matchingDocs.push(existingStaffSnap.docs[0]);
-        } else {
-          // Create staff record on the fly: supplier will set their own PIN
-          const staffName = suppData.full_name || suppData.supplier_full_name || suppData.name || "Supplier Staff";
-          const newStaffRef = await addDoc(collection(db, "supplier_staff"), {
-            company_id: companyId,
-            supplier_id: suppDoc.id,
-            name: staffName,
-            phone_number: String(phone_number).trim(),
-            initial_pin: null,
-            pin_hash: null,
-            has_custom_pin: false,
-            status: "active",
-            created_at: new Date().toISOString()
-          });
-          const createdDoc = await getDoc(newStaffRef);
-          if (createdDoc.exists()) {
-            matchingDocs.push(createdDoc as any);
-          }
-        }
-      }
-    }
-
-    if (matchingDocs.length === 0) {
-      return res.status(404).json({ error: "Phone number is not assigned to any supplier/depot staff profile." });
-    }
-
-    const staffProfiles: any[] = [];
-    let staffName = "Supplier Staff";
-
-    for (const d of matchingDocs) {
-      const data = d.data();
-      if (data.status === "disabled") continue;
-
-      staffName = data.name || staffName;
-
-      let companyName = "Transport Partner";
-      let ceoName = "Company Admin";
-      if (data.company_id) {
-        const compDoc = await getDoc(doc(db, "companies", data.company_id));
-        if (compDoc.exists()) {
-          const compData = compDoc.data();
-          companyName = compData.company_name || compData.name || companyName;
-          ceoName = compData.owner_name || compData.ceo_name || compData.contact_name || ceoName;
-        }
-      }
-
-      let supplierName = "Depot";
-      if (data.supplier_id) {
-        const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
-        if (suppDoc.exists()) {
-          supplierName = suppDoc.data().name || supplierName;
-        }
-      }
-
-      staffProfiles.push({
-        staff_id: d.id,
-        name: data.name,
-        phone_number: data.phone_number,
-        company_id: data.company_id,
-        company_name: companyName,
-        ceo_name: ceoName,
-        supplier_id: data.supplier_id,
-        supplier_name: supplierName,
-        has_pin: !!(data.has_custom_pin && data.pin_hash)
-      });
-    }
-
-    if (staffProfiles.length === 0) {
-      return res.status(403).json({ error: "Access has been disabled for this staff profile." });
-    }
-
-    res.json({
-      success: true,
-      registered: true,
-      staff_name: staffName,
-      companies: staffProfiles
-    });
-  } catch (err) {
-    console.error("Error check supplier staff phone:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Supplier Staff Set / Create Custom PIN Endpoint
-app.post("/api/auth/supplier-staff/set-pin", async (req, res) => {
-  const { phone_number, pin, confirm_pin, company_id } = req.body;
-  const cleanPhone = String(phone_number || "").trim();
-  const cleanPin = String(pin || "").trim();
-  const cleanConfirm = String(confirm_pin || "").trim();
-
-  if (!cleanPhone || !cleanPin) {
-    return res.status(400).json({ error: "Phone number and PIN are required." });
-  }
-
-  if (cleanPin.length < 4 || cleanPin.length > 6 || !/^\d+$/.test(cleanPin)) {
-    return res.status(400).json({ error: "PIN must be 4 to 6 digits." });
-  }
-
-  if (cleanConfirm && cleanPin !== cleanConfirm) {
-    return res.status(400).json({ error: "PINs do not match." });
-  }
-
-  try {
-    const cleanInputPhone = cleanPhone.replace(/\D/g, "");
-    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
-    const matchingDocs = allStaffSnap.docs.filter(d => {
-      const data = d.data();
-      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
-      if (company_id && data.company_id !== company_id) return false;
-      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
-    });
-
-    if (matchingDocs.length === 0) {
-      return res.status(404).json({ error: "No supplier staff account found for this phone number and transport partner." });
-    }
-
-    const docSnap = matchingDocs[0];
-    const data = docSnap.data();
-
-    if (data.status === "disabled") {
-      return res.status(403).json({ error: "Access to this account has been disabled." });
-    }
-
-    const hashedPin = await bcrypt.hash(cleanPin, 10);
-    await updateDoc(doc(db, "supplier_staff", docSnap.id), {
-      pin_hash: hashedPin,
-      has_custom_pin: true,
-      initial_pin: cleanPin,
-      updated_at: new Date().toISOString()
-    });
-
-    let companyName = "Transport Partner";
-    if (data.company_id) {
-      const compDoc = await getDoc(doc(db, "companies", data.company_id));
-      if (compDoc.exists()) {
-        companyName = compDoc.data().company_name || compDoc.data().name || companyName;
-      }
-    }
-
-    let supplierName = "Depot";
-    if (data.supplier_id) {
-      const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
-      if (suppDoc.exists()) {
-        supplierName = suppDoc.data().name || supplierName;
-      }
-    }
-
-    const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    await setDoc(doc(db, "sessions", token), {
-      userId: docSnap.id,
-      userRole: "supplier_staff",
-      userData: {
-        name: data.name,
-        phone_number: data.phone_number,
-        company_id: data.company_id,
-        supplier_id: data.supplier_id,
-        company_name: companyName,
-        supplier_name: supplierName
-      },
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
-
-    res.json({
-      success: true,
-      token,
-      role: "supplier_staff",
-      user: {
-        name: data.name,
-        phone_number: data.phone_number,
-        supplier_id: data.supplier_id,
-        supplier_name: supplierName,
-        company_id: data.company_id,
-        company_name: companyName
-      }
-    });
-  } catch (err) {
-    console.error("Error setting supplier staff PIN:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Supplier Staff Login with Multi-Company Partner Detection
-app.post("/api/auth/supplier-staff/login", async (req, res) => {
-  const { phone_number, pin } = req.body;
-  if (!phone_number || !pin) return res.status(400).json({ error: "Phone number and PIN are required." });
-
-  try {
-    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
-    const allStaffSnap = await getDocs(collection(db, "supplier_staff"));
-    const matchingDocs = allStaffSnap.docs.filter(d => {
-      const data = d.data();
-      const dbPhone = String(data.phone_number || "").replace(/\D/g, "");
-      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
-    });
-
-    if (matchingDocs.length === 0) return res.status(401).json({ error: "Invalid phone number or PIN." });
-
-    const activeMatches: any[] = [];
-    for (const d of matchingDocs) {
-      const data = d.data();
-      if (data.status === "disabled") continue; // Skip disabled accounts for this company
-
-      const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
-      if (match) {
-        // Fetch company name
-        let companyName = "Transport Partner";
-        if (data.company_id) {
-          const compDoc = await getDoc(doc(db, "companies", data.company_id));
-          if (compDoc.exists()) {
-            companyName = compDoc.data().company_name || compDoc.data().name || companyName;
-          }
-        }
-        // Fetch supplier name
-        let supplierName = "Factory";
-        if (data.supplier_id) {
-          const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
-          if (suppDoc.exists()) {
-            supplierName = suppDoc.data().name || supplierName;
-          }
-        }
-
-        activeMatches.push({
-          staff_id: d.id,
-          name: data.name,
-          phone_number: data.phone_number,
-          company_id: data.company_id,
-          company_name: companyName,
-          supplier_id: data.supplier_id,
-          supplier_name: supplierName
-        });
-      }
-    }
-
-    if (activeMatches.length === 0) {
-      const hasUnsetPin = matchingDocs.some(d => !d.data().pin_hash || !d.data().has_custom_pin);
-      if (hasUnsetPin) {
-        return res.status(401).json({ 
-          error: "No PIN created yet. Please select 'Set / Reset PIN' to create your secure PIN.",
-          requires_pin_setup: true
-        });
-      }
-      return res.status(401).json({ error: "Invalid credentials or access disabled by transport company." });
-    }
-
-    if (activeMatches.length > 1) {
-      return res.json({
-        success: true,
-        multi_company: true,
-        companies: activeMatches,
-        phone_number: phone_number.trim(),
-        pin: String(pin).trim()
-      });
-    }
-
-    // Exactly 1 company match
-    const selected = activeMatches[0];
-    const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    await setDoc(doc(db, "sessions", token), {
-      userId: selected.staff_id,
-      userRole: "supplier_staff",
-      userData: {
-        name: selected.name,
-        phone_number: selected.phone_number,
-        company_id: selected.company_id,
-        supplier_id: selected.supplier_id,
-        company_name: selected.company_name,
-        supplier_name: selected.supplier_name
-      },
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
-
-    res.json({
-      success: true,
-      multi_company: false,
-      token,
-      role: "supplier_staff",
-      user: {
-        name: selected.name,
-        phone_number: selected.phone_number,
-        supplier_id: selected.supplier_id,
-        supplier_name: selected.supplier_name,
-        company_id: selected.company_id,
-        company_name: selected.company_name
-      }
-    });
-  } catch (err) {
-    console.error("Error supplier staff login:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Supplier Staff Select Company (for Multi-Company users during login)
-app.post("/api/auth/supplier-staff/select-company", async (req, res) => {
-  const { phone_number, pin, company_id } = req.body;
-  if (!phone_number || !pin || !company_id) {
-    return res.status(400).json({ error: "Phone number, PIN, and selected company are required." });
-  }
-
-  try {
-    const cleanInputPhone = String(phone_number).replace(/\D/g, "");
-    const q = query(
-      collection(db, "supplier_staff"),
-      where("company_id", "==", company_id)
-    );
-    const snap = await getDocs(q);
-    const docSnap = snap.docs.find(d => {
-      const dbPhone = String(d.data().phone_number || "").replace(/\D/g, "");
-      return dbPhone === cleanInputPhone || dbPhone.endsWith(cleanInputPhone) || cleanInputPhone.endsWith(dbPhone);
-    });
-
-    if (!docSnap) return res.status(401).json({ error: "No account found for this transport partner." });
-
-    const data = docSnap.data();
-
-    if (data.status === "disabled") {
-      return res.status(403).json({ error: "Access to this transport company has been disabled." });
-    }
-
-    const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
-    if (!match) return res.status(401).json({ error: "Invalid credentials." });
-
-    // Get company name
-    let companyName = "Transport Partner";
-    const compDoc = await getDoc(doc(db, "companies", company_id));
-    if (compDoc.exists()) {
-      companyName = compDoc.data().company_name || compDoc.data().name || companyName;
-    }
-
-    // Get supplier name
-    let supplierName = "Factory";
-    if (data.supplier_id) {
-      const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
-      if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
-    }
-
-    const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    await setDoc(doc(db, "sessions", token), {
-      userId: docSnap.id,
-      userRole: "supplier_staff",
-      userData: {
-        name: data.name,
-        phone_number: data.phone_number,
-        company_id: data.company_id,
-        supplier_id: data.supplier_id,
-        company_name: companyName,
-        supplier_name: supplierName
-      },
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
-
-    res.json({
-      success: true,
-      token,
-      role: "supplier_staff",
-      user: {
-        name: data.name,
-        phone_number: data.phone_number,
-        supplier_id: data.supplier_id,
-        supplier_name: supplierName,
-        company_id: data.company_id,
-        company_name: companyName
-      }
-    });
-  } catch (err) {
-    console.error("Error selecting company for supplier staff:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Fetch all linked transport companies for logged-in supplier staff
-app.get("/api/fleet/supplier-staff/my-companies", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "supplier_staff") {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
-
-    const phone = session.userData?.phone_number;
-    if (!phone) return res.json({ success: true, companies: [] });
-
-    const q = query(collection(db, "supplier_staff"), where("phone_number", "==", phone));
-    const snap = await getDocs(q);
-
-    const companiesList: any[] = [];
-    for (const d of snap.docs) {
-      const data = d.data();
-      if (data.status === "disabled") continue;
-
-      let companyName = "Transport Partner";
-      const compDoc = await getDoc(doc(db, "companies", data.company_id));
-      if (compDoc.exists()) companyName = compDoc.data().company_name || compDoc.data().name || companyName;
-
-      let supplierName = "Factory";
-      if (data.supplier_id) {
-        const suppDoc = await getDoc(doc(db, "suppliers", data.supplier_id));
-        if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
-      }
-
-      companiesList.push({
-        company_id: data.company_id,
-        company_name: companyName,
-        supplier_id: data.supplier_id,
-        supplier_name: supplierName,
-        is_current: data.company_id === session.userData.company_id
-      });
-    }
-
-    res.json({ success: true, companies: companiesList });
-  } catch (err) {
-    console.error("Error fetching supplier companies:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Switch active transport company for logged-in supplier staff
-app.post("/api/fleet/supplier-staff/switch-company", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "supplier_staff") {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
-
-    const { target_company_id } = req.body;
-    if (!target_company_id) return res.status(400).json({ error: "Target company ID is required." });
-
-    const phone = session.userData?.phone_number;
-    const q = query(
-      collection(db, "supplier_staff"),
-      where("phone_number", "==", phone),
-      where("company_id", "==", target_company_id)
-    );
-    const snap = await getDocs(q);
-    if (snap.empty) return res.status(403).json({ error: "No active access to this transport company." });
-
-    const matchDoc = snap.docs[0];
-    const matchData = matchDoc.data();
-    if (matchData.status === "disabled") {
-      return res.status(403).json({ error: "Access to this transport company is disabled." });
-    }
-
-    let companyName = "Transport Partner";
-    const compDoc = await getDoc(doc(db, "companies", target_company_id));
-    if (compDoc.exists()) companyName = compDoc.data().company_name || compDoc.data().name || companyName;
-
-    let supplierName = "Factory";
-    if (matchData.supplier_id) {
-      const suppDoc = await getDoc(doc(db, "suppliers", matchData.supplier_id));
-      if (suppDoc.exists()) supplierName = suppDoc.data().name || supplierName;
-    }
-
-    // Update session token
-    const tokenHeader = req.headers.authorization?.split(" ")[1];
-    if (tokenHeader) {
-      await updateDoc(doc(db, "sessions", tokenHeader), {
-        userId: matchDoc.id,
-        userData: {
-          ...session.userData,
-          company_id: target_company_id,
-          supplier_id: matchData.supplier_id,
-          company_name: companyName,
-          supplier_name: supplierName
-        }
-      });
-    }
-
-    res.json({
-      success: true,
-      user: {
-        name: session.userData.name,
-        phone_number: session.userData.phone_number,
-        company_id: target_company_id,
-        company_name: companyName,
-        supplier_id: matchData.supplier_id,
-        supplier_name: supplierName
-      }
-    });
-  } catch (err) {
-    console.error("Error switching supplier company:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 6. Drivers Endpoints & Login
-app.get("/api/fleet/drivers", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, drivers: [] });
-
-    const parkId = session.userData?.park_id;
-
-    const q = query(collection(db, "drivers"), where("company_id", "==", companyId));
-    const snap = await getDocs(q);
-    let drivers = snap.docs.map(d => {
-      const data = d.data();
-      delete data.pin_hash;
-      return { id: d.id, ...data };
-    });
-
-    res.json({ success: true, drivers });
-  } catch (err) {
-    console.error("Error GET /api/fleet/drivers:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/drivers", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.status(400).json({ error: "Company not found." });
-
-    const { name, phone_number, pin, truck_id, park_id } = req.body;
-
-    if (!name || !phone_number || !truck_id) {
-      return res.status(400).json({ error: "Name, phone number, and assigned truck are required." });
-    }
-    if (!isValid11DigitPhone(phone_number)) {
-      return res.status(400).json({ error: "Phone number must be 11 digits." });
-    }
-
-    // Auto-generate 6-digit PIN if not provided
-    let finalPin = pin ? String(pin).trim() : "";
-    if (!finalPin || finalPin.length !== 6 || !/^\d+$/.test(finalPin)) {
-      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
-    }
-
-    const targetParkId = park_id || session.userData?.park_id || "main";
-    const hash = await bcrypt.hash(finalPin, 10);
-    const newDoc = await addDoc(collection(db, "drivers"), {
-      company_id: companyId,
-      park_id: targetParkId,
-      truck_id,
-      name: name.trim(),
-      phone_number: phone_number.trim(),
-      initial_pin: finalPin,
-      pin_hash: hash,
-      created_at: new Date().toISOString()
-    });
-
-    res.json({ success: true, driver_id: newDoc.id, pin: finalPin });
-  } catch (err) {
-    console.error("Error POST /api/fleet/drivers:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/auth/driver/login", async (req, res) => {
-  const { phone_number, pin } = req.body;
-  if (!phone_number || !pin) return res.status(400).json({ error: "Phone number and PIN are required." });
-
-  try {
-    const rawPhone = String(phone_number).trim();
-    const cleanPhone = rawPhone.replace(/\D/g, "");
-    const normalizedPhone = cleanPhone.startsWith("234") ? "0" + cleanPhone.slice(3) : cleanPhone;
-
-    // Search by raw or normalized phone number
-    const [snapRaw, snapNorm] = await Promise.all([
-      getDocs(query(collection(db, "drivers"), where("phone_number", "==", rawPhone))),
-      getDocs(query(collection(db, "drivers"), where("phone_number", "==", normalizedPhone)))
-    ]);
-
-    const candidateDocs = [...snapRaw.docs, ...snapNorm.docs];
-    if (candidateDocs.length === 0) return res.status(401).json({ error: "Invalid phone number or PIN." });
-
-    let matchedDoc = null;
-    let matchedData = null;
-    for (const d of candidateDocs) {
-      const data = d.data();
-      if (!data.pin_hash) continue;
-      const match = await bcrypt.compare(String(pin).trim(), data.pin_hash);
-      if (match) {
-        matchedDoc = d;
-        matchedData = data;
-        break;
-      }
-    }
-
-    if (!matchedDoc || !matchedData) {
-      return res.status(401).json({ error: "Invalid phone number or PIN." });
-    }
-
-    // Fetch truck & company metadata if available
-    let truckInfo: any = null;
-    if (matchedData.truck_id) {
-      try {
-        const truckSnap = await getDoc(doc(db, "trucks", matchedData.truck_id));
-        if (truckSnap.exists()) {
-          const td = truckSnap.data();
-          truckInfo = {
-            id: matchedData.truck_id,
-            truck_number: td.truck_number || td.plate_number,
-            plate_number: td.plate_number,
-            model: td.model,
-            capacity: td.capacity
-          };
-        }
-      } catch (e) {
-        console.warn("Could not load truck for driver login:", e);
-      }
-    }
-
-    let companyInfo: any = null;
-    if (matchedData.company_id) {
-      try {
-        const compSnap = await getDoc(doc(db, "companies", matchedData.company_id));
-        if (compSnap.exists()) {
-          const cd = compSnap.data();
-          companyInfo = {
-            id: matchedData.company_id,
-            name: cd.name,
-            phone: cd.phone || cd.emergency_phone || cd.contact_phone
-          };
-        }
-      } catch (e) {
-        console.warn("Could not load company for driver login:", e);
-      }
-    }
-
-    const token = generateSessionToken();
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
-    const sessionUserData: any = {
-      name: matchedData.name || "Driver",
-      phone_number: matchedData.phone_number || "",
-      company_id: matchedData.company_id || null,
-      truck_id: matchedData.truck_id || null,
-      park_id: matchedData.park_id || null,
-      truck_number: truckInfo?.truck_number || null,
-      company_name: companyInfo?.name || null,
-      manager_phone: companyInfo?.phone || null
-    };
-
-    await setDoc(doc(db, "sessions", token), {
-      userId: matchedDoc.id,
-      userRole: "driver",
-      userData: sessionUserData,
-      createdAt: new Date().toISOString(),
-      expiresAt
-    });
-
-    res.json({
-      success: true,
-      token,
-      role: "driver",
-      user: {
-        id: matchedDoc.id,
-        name: matchedData.name || "Driver",
-        phone_number: matchedData.phone_number || "",
-        truck_id: matchedData.truck_id || null,
-        truck_number: truckInfo?.truck_number || null,
-        truck: truckInfo || null,
-        company_id: matchedData.company_id || null,
-        company_name: companyInfo?.name || null,
-        manager_phone: companyInfo?.phone || null
-      }
-    });
-  } catch (err) {
-    console.error("Error driver login:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Driver change own PIN
-app.put("/api/auth/driver/change-pin", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "driver") {
-      return res.status(401).json({ error: "Unauthorized." });
-    }
-
-    const { current_pin, new_pin } = req.body;
-    if (!current_pin || !new_pin || String(new_pin).trim().length !== 6) {
-      return res.status(400).json({ error: "Current PIN and a new 6-digit PIN are required." });
-    }
-
-    const driverRef = doc(db, "drivers", session.userId);
-    const driverSnap = await getDoc(driverRef);
-    if (!driverSnap.exists()) return res.status(404).json({ error: "Driver account not found." });
-
-    const driverData = driverSnap.data();
-    const match = await bcrypt.compare(String(current_pin).trim(), driverData.pin_hash);
-    if (!match) return res.status(401).json({ error: "Current PIN is incorrect." });
-
-    const newHash = await bcrypt.hash(String(new_pin).trim(), 10);
-    await updateDoc(driverRef, { pin_hash: newHash, updated_at: new Date().toISOString() });
-
-    res.json({ success: true, message: "PIN updated successfully." });
-  } catch (err) {
-    console.error("Error changing driver PIN:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// CEO / Manager reset driver PIN
-const handleResetDriverPinRoute = async (req: express.Request, res: express.Response) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const { id } = req.params;
-    const { new_pin } = req.body || {};
-    
-    let finalPin = new_pin ? String(new_pin).trim() : "";
-    if (!finalPin || finalPin.length !== 6 || !/^\d+$/.test(finalPin)) {
-      finalPin = Math.floor(100000 + Math.random() * 900000).toString();
-    }
-
-    const driverRef = doc(db, "drivers", id);
-    const driverSnap = await getDoc(driverRef);
-    if (!driverSnap.exists()) return res.status(404).json({ error: "Driver not found." });
-
-    const driverData = driverSnap.data();
-    const newHash = await bcrypt.hash(finalPin, 10);
-    await updateDoc(driverRef, {
-      pin_hash: newHash,
-      initial_pin: finalPin,
-      updated_at: new Date().toISOString()
-    });
-
-    if (driverData.phone_number) {
-      await handlePinSuccess(`drv_${driverData.phone_number}`);
-      const norm = normalizeNigerianPhone(driverData.phone_number);
-      if (norm) await handlePinSuccess(`drv_${norm}`);
-    }
-
-    res.json({ success: true, message: "Driver PIN reset successfully.", pin: finalPin });
-  } catch (err) {
-    console.error("Error resetting driver PIN:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-};
-app.put("/api/fleet/drivers/:id/reset-pin", handleResetDriverPinRoute);
-app.post("/api/fleet/drivers/:id/reset-pin", handleResetDriverPinRoute);
-
-app.delete("/api/fleet/drivers/:id", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager")) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-    const companyId = getFleetCompanyId(session);
-    const { id } = req.params;
-
-    const driverRef = doc(db, "drivers", id);
-    const snap = await getDoc(driverRef);
-    if (!snap.exists()) return res.status(404).json({ error: "Driver not found." });
-
-    if (snap.data().company_id !== companyId) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    await deleteDoc(driverRef);
-    res.json({ success: true, message: "Driver deleted successfully." });
-  } catch (err) {
-    console.error("Error DELETE /api/fleet/drivers/:id:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// 7. Trips Endpoints & Checkpoints
-app.get("/api/fleet/trips", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, trips: [] });
-
-    const q = query(collection(db, "trips"), where("company_id", "==", companyId));
-    const [snap, driversSnap, trucksSnap] = await Promise.all([
-      getDocs(q),
-      getDocs(query(collection(db, "drivers"), where("company_id", "==", companyId))),
-      getDocs(query(collection(db, "trucks"), where("company_id", "==", companyId)))
-    ]);
-
-    const allDrivers = driversSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-    const allTrucks = trucksSnap.docs.map(t => ({ id: t.id, ...t.data() as any }));
-
-    const driverByTruckId = new Map<string, any>();
-    const driverById = new Map<string, any>();
-    allDrivers.forEach(dr => {
-      driverById.set(dr.id, dr);
-      if (dr.truck_id) driverByTruckId.set(dr.truck_id, dr);
-    });
-
-    let trips = snap.docs.map(d => {
-      const data = d.data() as any;
-      let matchedDriver = (data.driver_id && driverById.get(data.driver_id)) || (data.truck_id && driverByTruckId.get(data.truck_id));
-      if (!matchedDriver && data.truck_id) {
-        const matchedTruck = allTrucks.find(t => t.id === data.truck_id);
-        if (matchedTruck && matchedTruck.driver_id) {
-          matchedDriver = driverById.get(matchedTruck.driver_id);
-        }
-      }
-      if (!matchedDriver && allDrivers.length > 0) {
-        matchedDriver = allDrivers[0];
-      }
-
-      const driverName = (data.driver_name && data.driver_name !== "Driver") ? data.driver_name : (matchedDriver ? matchedDriver.name : "Unassigned");
-      const driverPhone = data.driver_phone || (matchedDriver ? matchedDriver.phone_number : null);
-
-      return {
-        id: d.id,
-        ...data,
-        driver_name: driverName,
-        driver_phone: driverPhone,
-        driver: matchedDriver ? { id: matchedDriver.id, name: matchedDriver.name, phone_number: matchedDriver.phone_number } : (data.driver || { name: driverName, phone_number: driverPhone })
-      };
-    });
-
-    if (session.userRole === "supplier_staff" && session.userData?.supplier_id) {
-      trips = trips.filter(t => t.supplier_id === session.userData.supplier_id);
-    } else if (session.userRole === "driver") {
-      const driverId = session.userId;
-      const driverPhone = session.userData?.phone_number;
-      const driverTruckId = session.userData?.truck_id;
-      trips = trips.filter(t => 
-        (driverTruckId && t.truck_id === driverTruckId) ||
-        (t.driver_id && t.driver_id === driverId) ||
-        (driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone))) ||
-        (t.driver && t.driver.id === driverId)
-      );
-    }
-
-    res.json({ success: true, trips });
-  } catch (err) {
-    console.error("Error GET /api/fleet/trips:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// --- FLEET TRIP PAYMENT GATE & MIDDLEWARE ---
-
-// 1. Initiate Temporary Pending Payment Session (No trip record created)
-app.post("/api/fleet/payments/initiate", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const { truck_id, supplier_id } = req.body;
-    if (!truck_id || !supplier_id) {
-      return res.status(400).json({ error: "Truck and Supplier are required." });
-    }
-
-    const truckRef = doc(db, "trucks", truck_id);
-    const truckSnap = await getDoc(truckRef);
-    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
-    const truckData = truckSnap.data();
-
-    const suppRef = doc(db, "suppliers", supplier_id);
-    const suppSnap = await getDoc(suppRef);
-    if (!suppSnap.exists()) return res.status(404).json({ error: "Supplier not found." });
-    const suppData = suppSnap.data();
-
-    const companyId = getFleetCompanyId(session) || truckData.company_id;
-    const reference = `fleet_trip_${truck_id}_${supplier_id}_${Date.now()}`;
-    const email = session.userData?.email || "customer@fleet.com";
-
-    // Store ONLY a temporary pending payment record in Firestore
-    await setDoc(doc(db, "fleet_pending_payments", reference), {
-      reference,
-      truck_id,
-      supplier_id,
-      company_id: companyId,
-      truck_number: truckData.truck_number,
-      supplier_name: suppData.name,
-      amount: 1000,
-      status: "pending",
-      created_at: new Date().toISOString()
-    });
-
-    let checkout_url = "";
-    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
-    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
-
-    if (hasPaystackKey) {
-      try {
-        const payload: any = {
-          email,
-          amount: 1000 * 100, // ₦1,000 in kobo
-          reference,
-          metadata: {
-            type: "fleet_per_trip",
-            truck_id,
-            supplier_id,
-            company_id: companyId
-          }
-        };
-
-        if (companyId) {
-          const compSnap = await getDoc(doc(db, "companies", companyId));
-          if (compSnap.exists() && compSnap.data().paystack_subaccount_code) {
-            payload.subaccount = compSnap.data().paystack_subaccount_code;
-            payload.bearer = "account";
-          }
-        }
-
-        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
-          method: "POST",
-          headers: {
-            "Authorization": `Bearer ${key}`,
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const initData = await initRes.json();
-        if (initRes.ok && initData.status && initData.data) {
-          checkout_url = initData.data.authorization_url || "";
-        } else {
-          console.error("Paystack transaction initialize notice:", initData?.message || initData);
-        }
-      } catch (paystackErr) {
-        console.error("Failed to connect to Paystack API:", paystackErr);
-      }
-    }
-
-    if (!checkout_url) {
-      checkout_url = `https://checkout.paystack.com/demo-${reference}`;
-    }
-
-    res.json({
-      success: true,
-      reference,
-      checkout_url,
-      amount: 1000,
-      truck_number: truckData.truck_number,
-      email
-    });
-  } catch (err) {
-    console.error("Error initiating fleet trip payment:", err);
-    res.status(500).json({ error: "Failed to initiate payment session." });
-  }
-});
-
-// 2. Poll / Verify Fleet Trip Payment Session
-app.post("/api/fleet/payments/verify-session", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-
-    const { reference } = req.body;
-    if (!reference) return res.status(400).json({ error: "Reference is required." });
-
-    // A) Check if trip document was already created by Paystack Webhook
-    const tripQuery = query(collection(db, "trips"), where("payment_reference", "==", reference), limit(1));
-    const tripSnap = await getDocs(tripQuery);
-    if (!tripSnap.empty) {
-      const tripDoc = tripSnap.docs[0];
-      return res.json({
-        success: true,
-        verified: true,
-        trip_id: tripDoc.id,
-        trip: { id: tripDoc.id, ...tripDoc.data() }
-      });
-    }
-
-    // B) Check pending payment session record
-    const pendingRef = doc(db, "fleet_pending_payments", reference);
-    const pendingSnap = await getDoc(pendingRef);
-    if (!pendingSnap.exists()) {
-      return res.status(404).json({ error: "Payment session not found." });
-    }
-
-    const pendingData = pendingSnap.data();
-
-    if (pendingData.status === "confirmed") {
-      // Payment confirmed by webhook! Ensure trip document exists now
-      const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
-      const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
-
-      if (truckSnap.exists() && suppSnap.exists()) {
-        const truckData = truckSnap.data();
-        const suppData = suppSnap.data();
-
-        const newTrip = await addDoc(collection(db, "trips"), {
-          company_id: pendingData.company_id || truckData.company_id,
-          park_id: truckData.park_id,
-          truck_id: pendingData.truck_id,
-          truck_number: truckData.truck_number,
-          supplier_id: pendingData.supplier_id,
-          supplier_name: suppData.name,
-          status: "initiated",
-          billing_method: "per_trip",
-          trip_fee: 1000,
-          payment_status: "paid",
-          payment_reference: reference,
-          left_warehouse_at: null,
-          loaded_departed_at: null,
-          arrived_offloaded_at: null,
-          expected_duration_minutes: 180,
-          location_shares: [],
-          created_at: new Date().toISOString()
-        });
-
-        return res.json({
-          success: true,
-          verified: true,
-          trip_id: newTrip.id
-        });
-      }
-    }
-
-    // C) Server-side Paystack API verification fallback if webhook was slightly delayed
-    const hasPaystackKey = process.env.PAYSTACK_SECRET_KEY &&
-                           !process.env.PAYSTACK_SECRET_KEY.startsWith("MY_") &&
-                           process.env.PAYSTACK_SECRET_KEY.trim() !== "";
-    if (hasPaystackKey) {
-      try {
-        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
-          headers: { "Authorization": `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-        });
-        const vData = await verifyRes.json();
-        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
-          await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
-
-          const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
-          const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
-
-          if (truckSnap.exists() && suppSnap.exists()) {
-            const truckData = truckSnap.data();
-            const suppData = suppSnap.data();
-
-            const newTrip = await addDoc(collection(db, "trips"), {
-              company_id: pendingData.company_id || truckData.company_id,
-              park_id: truckData.park_id,
-              truck_id: pendingData.truck_id,
-              truck_number: truckData.truck_number,
-              supplier_id: pendingData.supplier_id,
-              supplier_name: suppData.name,
-              status: "initiated",
-              billing_method: "per_trip",
-              trip_fee: 1000,
-              payment_status: "paid",
-              payment_reference: reference,
-              left_warehouse_at: null,
-              loaded_departed_at: null,
-              arrived_offloaded_at: null,
-              expected_duration_minutes: 180,
-              location_shares: [],
-              created_at: new Date().toISOString()
-            });
-
-            return res.json({
-              success: true,
-              verified: true,
-              trip_id: newTrip.id
-            });
-          }
-        }
-      } catch (pErr) {
-        console.error("Paystack API direct verification error:", pErr);
-      }
-    }
-
-    // D) Sandbox / Demo fallback: if no live Paystack key is set, auto-confirm for sandbox testing
-    if (!hasPaystackKey) {
-      await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
-      const truckSnap = await getDoc(doc(db, "trucks", pendingData.truck_id));
-      const suppSnap = await getDoc(doc(db, "suppliers", pendingData.supplier_id));
-
-      if (truckSnap.exists() && suppSnap.exists()) {
-        const truckData = truckSnap.data();
-        const suppData = suppSnap.data();
-
-        const newTrip = await addDoc(collection(db, "trips"), {
-          company_id: pendingData.company_id || truckData.company_id,
-          park_id: truckData.park_id,
-          truck_id: pendingData.truck_id,
-          truck_number: truckData.truck_number,
-          supplier_id: pendingData.supplier_id,
-          supplier_name: suppData.name,
-          status: "initiated",
-          billing_method: "per_trip",
-          trip_fee: 1000,
-          payment_status: "paid",
-          payment_reference: reference,
-          left_warehouse_at: null,
-          loaded_departed_at: null,
-          arrived_offloaded_at: null,
-          expected_duration_minutes: 180,
-          location_shares: [],
-          created_at: new Date().toISOString()
-        });
-
-        return res.json({
-          success: true,
-          verified: true,
-          trip_id: newTrip.id
-        });
-      }
-    }
-
-    res.json({
-      success: true,
-      verified: false,
-      message: "Payment verification pending. Please wait a moment for Paystack webhook confirmation..."
-    });
-  } catch (err) {
-    console.error("Error verifying fleet payment session:", err);
-    res.status(500).json({ error: "Failed to verify payment session." });
-  }
-});
-
-// 3. Server-side Middleware: verifyFleetPayment
-async function verifyFleetPayment(req: express.Request, res: express.Response, next: express.NextFunction) {
-  try {
-    const { truck_id, supplier_id, payment_reference } = req.body;
-    if (!truck_id) {
-      return res.status(400).json({ error: "Truck ID is required." });
-    }
-
-    const truckRef = doc(db, "trucks", truck_id);
-    const truckSnap = await getDoc(truckRef);
-    if (!truckSnap.exists()) return res.status(404).json({ error: "Truck not found." });
-    const truck = truckSnap.data();
-    const now = new Date();
-
-    // Check Monthly Plan Server-Side
-    if (truck.billing_method === "monthly") {
-      if (!truck.monthly_active_until || new Date(truck.monthly_active_until) <= now) {
-        const expiredOnStr = truck.monthly_active_until
-          ? new Date(truck.monthly_active_until).toLocaleDateString("en-GB", { day: 'numeric', month: 'short', year: 'numeric' })
-          : "recent date";
-        return res.status(402).json({
-          error: `This truck's monthly plan expired on ${expiredOnStr}. Please renew your monthly plan or switch to per-trip to continue tracking.`,
-          expired_monthly: true,
-          expired_on: truck.monthly_active_until,
-          truck_id,
-          truck_number: truck.truck_number
-        });
-      }
-      (req as any).verifiedPayment = {
-        payment_status: "active_monthly",
-        trip_fee: 0,
-        billing_method: "monthly"
-      };
-      return next();
-    }
-
-    // Check Per-Trip (₦1,000) Server-Side Payment Verification
-    if (!payment_reference) {
-      return res.status(402).json({
-        error: "Payment required. Please complete ₦1,000 Paystack payment before trip creation.",
-        requires_payment: true,
-        amount: 1000,
-        truck_id,
-        truck_number: truck.truck_number
-      });
-    }
-
-    const pendingRef = doc(db, "fleet_pending_payments", payment_reference);
-    const pendingSnap = await getDoc(pendingRef);
-
-    if (!pendingSnap.exists()) {
-      return res.status(403).json({ error: "No pending payment session found for this reference." });
-    }
-
-    const pendingData = pendingSnap.data();
-
-    if (pendingData.status !== "confirmed") {
-      // Check Paystack API directly as fallback
-      const hasPaystackKey = process.env.PAYSTACK_SECRET_KEY &&
-                             !process.env.PAYSTACK_SECRET_KEY.startsWith("MY_") &&
-                             process.env.PAYSTACK_SECRET_KEY.trim() !== "";
-      if (hasPaystackKey) {
-        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${payment_reference}`, {
-          headers: { "Authorization": `Bearer ${process.env.PAYSTACK_SECRET_KEY}` }
-        });
-        const vData = await verifyRes.json();
-        if (verifyRes.ok && vData.status && vData.data && vData.data.status === "success") {
-          await updateDoc(pendingRef, { status: "confirmed", confirmed_at: new Date().toISOString() });
-          (req as any).verifiedPayment = {
-            payment_status: "paid",
-            trip_fee: 1000,
-            payment_reference,
-            billing_method: "per_trip"
-          };
-          return next();
-        }
-      }
-
-      return res.status(403).json({ error: "Payment not confirmed by Paystack webhook. Please wait a moment and try again." });
-    }
-
-    (req as any).verifiedPayment = {
-      payment_status: "paid",
-      trip_fee: 1000,
-      payment_reference,
-      billing_method: "per_trip"
-    };
-
-    next();
-  } catch (err) {
-    console.error("Error in verifyFleetPayment middleware:", err);
-    res.status(500).json({ error: "Internal server error during payment verification." });
-  }
-}
-
-// Helper for server-side OSRM Route Calculation
-async function serverCalculateOSRM(origin: { latitude: number; longitude: number }, destination: { latitude: number; longitude: number }) {
-  if (!origin?.latitude || !origin?.longitude || !destination?.latitude || !destination?.longitude) return null;
-  try {
-    const url = `https://router.project-osrm.org/route/v1/driving/${origin.longitude},${origin.latitude};${destination.longitude},${destination.latitude}?overview=false`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    if (!response.ok) return null;
-    const data = await response.json();
-    if (data.code !== 'Ok' || !data.routes || data.routes.length === 0) return null;
-    const route = data.routes[0];
-    const distance_km = Math.round((route.distance / 1000) * 10) / 10;
-    const duration_minutes = Math.round(route.duration / 60);
-    return { distance_km, duration_minutes };
-  } catch (e) {
-    return null;
-  }
-}
-
-// Helper for server-side Reverse Geocoding via Nominatim
-async function serverReverseGeocode(lat: number, lon: number): Promise<string> {
-  if (!lat || !lon) return "On the road";
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
-    const response = await fetch(url, {
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Waybilla-Nigeria-Fleet-Tracker/1.0'
-      }
-    });
-    if (!response.ok) return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-    const data = await response.json();
-    if (data && data.display_name) {
-      const parts = data.display_name.split(', ');
-      return parts.length > 3 ? parts.slice(0, 3).join(', ') : data.display_name;
-    }
-    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-  } catch (e) {
-    return `${lat.toFixed(4)}, ${lon.toFixed(4)}`;
-  }
-}
-
-// Enterprise Nigerian Industrial & Commercial Hub Coordinate Resolver
-async function lookupNigerianIndustrialCoords(
-  rawName: string,
-  rawAddress?: string
-): Promise<{ latitude: number; longitude: number; name: string; address: string } | null> {
-  const queryText = `${rawName || ""} ${rawAddress || ""}`.toLowerCase().trim();
-  if (!queryText) return null;
-
-  // 1. Precise Match on Nigerian Industrial Manufacturers & Cement Depots
-  if (queryText.includes("ibeto") || queryText.includes("ibetto")) {
-    if (queryText.includes("port harcourt") || queryText.includes("bundu") || queryText.includes("marine base")) {
-      return {
-        latitude: 4.7550,
-        longitude: 7.0250,
-        name: "IBeto Cement / Group Terminal",
-        address: "Bundu Waterside, Port Harcourt, Rivers State"
-      };
-    }
-    return {
-      latitude: 6.0145,
-      longitude: 6.9182,
-      name: "IBeto Cement / Industrial Group",
-      address: "IBeto Industrial Avenue, Nnewi, Anambra State"
-    };
-  }
-
-  if (queryText.includes("innoson") || queryText.includes("ivm")) {
-    return {
-      latitude: 6.0220,
-      longitude: 6.9250,
-      name: "Innoson Vehicle Manufacturing (IVM)",
-      address: "Innoson Industrial Complex, Nnewi, Anambra State"
-    };
-  }
-
-  if (queryText.includes("cutix")) {
-    return {
-      latitude: 6.0180,
-      longitude: 6.9150,
-      name: "Cutix Cables Plc",
-      address: "Cutix Industrial Complex, Otolo, Nnewi, Anambra State"
-    };
-  }
-
-  if (queryText.includes("chicason") || queryText.includes("a-z petroleum")) {
-    return {
-      latitude: 6.0120,
-      longitude: 6.9200,
-      name: "Chicason Group / A-Z Petroleum",
-      address: "Chicason Drive, Nnewi, Anambra State"
-    };
-  }
-
-  if (queryText.includes("dangote")) {
-    if (queryText.includes("ibese")) {
-      return { latitude: 6.9833, longitude: 3.0333, name: "Dangote Cement Plant Ibese", address: "Ibese, Ogun State" };
-    }
-    if (queryText.includes("gboko")) {
-      return { latitude: 7.3167, longitude: 8.9833, name: "Dangote Cement Gboko", address: "Gboko, Benue State" };
-    }
-    if (queryText.includes("refinery") || queryText.includes("lekki") || queryText.includes("free zone")) {
-      return { latitude: 6.4350, longitude: 4.0250, name: "Dangote Refinery & Petrochemicals", address: "Lekki Free Trade Zone, Lagos" };
-    }
-    return { latitude: 7.9150, longitude: 6.4250, name: "Dangote Cement Plant Obajana", address: "Obajana, Kogi State" };
-  }
-
-  if (queryText.includes("bua")) {
-    if (queryText.includes("kalambaina") || queryText.includes("sokoto")) {
-      return { latitude: 13.0200, longitude: 5.1800, name: "BUA Cement Kalambaina", address: "Kalambaina, Sokoto State" };
-    }
-    return { latitude: 7.2600, longitude: 6.3400, name: "BUA Cement Plant Okpella", address: "Okpella, Edo State" };
-  }
-
-  if (queryText.includes("lafarge") || queryText.includes("wapco")) {
-    if (queryText.includes("sagamu") || queryText.includes("shagamu")) {
-      return { latitude: 6.8333, longitude: 3.6500, name: "Lafarge Cement Sagamu", address: "Sagamu, Ogun State" };
-    }
-    if (queryText.includes("mfamosing") || queryText.includes("calabar")) {
-      return { latitude: 5.0500, longitude: 8.5333, name: "Lafarge Cement Mfamosing", address: "Calabar, Cross River State" };
-    }
-    if (queryText.includes("ashaka")) {
-      return { latitude: 10.9500, longitude: 11.4500, name: "Ashaka Cement Plc", address: "Ashaka, Gombe State" };
-    }
-    return { latitude: 6.9000, longitude: 3.2167, name: "Lafarge Cement Ewekoro", address: "Ewekoro, Ogun State" };
-  }
-
-  // 2. Nigerian City & Industrial Hub Keyword Resolution
-  if (queryText.includes("nnewi")) {
-    return { latitude: 6.0180, longitude: 6.9150, name: rawName, address: "Nnewi Industrial Zone, Anambra State" };
-  }
-  if (queryText.includes("onitsha")) {
-    return { latitude: 6.1450, longitude: 6.7850, name: rawName, address: "Harbour Industrial Estate, Onitsha, Anambra State" };
-  }
-  if (queryText.includes("ojo") || queryText.includes("alaba")) {
-    return { latitude: 6.4600, longitude: 3.1900, name: rawName, address: "Ojo Commercial Area, Lagos State" };
-  }
-  if (queryText.includes("apapa") || queryText.includes("wharf")) {
-    return { latitude: 6.4440, longitude: 3.3640, name: rawName, address: "Wharf Road, Apapa Port, Lagos" };
-  }
-  if (queryText.includes("ikeja") || queryText.includes("oba akran")) {
-    return { latitude: 6.5980, longitude: 3.3480, name: rawName, address: "Ikeja Industrial Estate, Lagos" };
-  }
-  if (queryText.includes("agbara")) {
-    return { latitude: 6.5167, longitude: 3.1000, name: rawName, address: "Agbara Industrial Estate, Ogun State" };
-  }
-  if (queryText.includes("aba") || queryText.includes("ariaria") || queryText.includes("osisioma")) {
-    return { latitude: 5.1200, longitude: 7.3500, name: rawName, address: "Osisioma Industrial Zone, Aba, Abia State" };
-  }
-  if (queryText.includes("port harcourt") || queryText.includes("trans-amadi") || queryText.includes("trans amadi")) {
-    return { latitude: 4.8200, longitude: 7.0350, name: rawName, address: "Trans-Amadi Industrial Layout, Port Harcourt, Rivers State" };
-  }
-  if (queryText.includes("kano") || queryText.includes("bompai") || queryText.includes("sharada")) {
-    return { latitude: 12.0022, longitude: 8.5919, name: rawName, address: "Sharada Industrial Phase, Kano State" };
-  }
-  if (queryText.includes("abuja") || queryText.includes("idu")) {
-    return { latitude: 9.0450, longitude: 7.3250, name: rawName, address: "Idu Industrial Layout, Abuja FCT" };
-  }
-
-  // 3. Dynamic Nominatim Geocode Fallback
-  try {
-    const searchUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      queryText + " Nigeria"
-    )}&countrycodes=ng&format=json&limit=1`;
-    const res = await fetch(searchUrl, {
-      headers: {
-        Accept: "application/json",
-        "User-Agent": "Waybilla-Nigeria-Fleet-Tracker/1.0"
-      }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const item = data[0];
-        return {
-          latitude: parseFloat(item.lat),
-          longitude: parseFloat(item.lon),
-          name: rawName,
-          address: item.display_name || `${rawName}, Nigeria`
-        };
-      }
-    }
-  } catch (e) {
-    // Non-blocking fallback
-  }
-
-  return null;
-}
-
-app.post("/api/fleet/trips", verifyFleetPayment, async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.status(400).json({ error: "Company not found." });
-
-    const { truck_id, supplier_id, payment_reference, custom_destination_name, custom_destination_coords } = req.body;
-    if (!truck_id || (!supplier_id && !custom_destination_name)) {
-      return res.status(400).json({ error: "Truck and Supplier/Destination are required." });
-    }
-
-    // Check if trip document already exists for this payment_reference
-    if (payment_reference) {
-      const tripQuery = query(collection(db, "trips"), where("payment_reference", "==", payment_reference), limit(1));
-      const existingTrips = await getDocs(tripQuery);
-      if (!existingTrips.empty) {
-        const tripDoc = existingTrips.docs[0];
-        return res.json({ success: true, trip_id: tripDoc.id, payment_status: "paid", trip_fee: 1000 });
-      }
-    }
-
-    // Fetch truck
-    const truckDoc = await getDoc(doc(db, "trucks", truck_id));
-    if (!truckDoc.exists()) return res.status(404).json({ error: "Truck not found." });
-    const truckData = truckDoc.data();
-
-    // Fetch park/garage if available
-    let parkData: any = null;
-    let parkName = "Company Garage";
-    let parkCoords: any = null;
-    if (truckData.park_id) {
-      try {
-        const pDoc = await getDoc(doc(db, "parks", truckData.park_id));
-        if (pDoc.exists()) {
-          parkData = pDoc.data();
-          parkName = parkData.park_name || parkData.name || "Company Garage";
-          if (parkData.latitude && parkData.longitude) {
-            parkCoords = { latitude: parkData.latitude, longitude: parkData.longitude };
-          }
-        }
-      } catch (e) {}
-    }
-
-    // Fetch supplier or custom destination
-    let suppData: any = null;
-    let destinationName = custom_destination_name || "Destination Depot";
-    let destinationCoords: any = custom_destination_coords || null;
-
-    if (supplier_id) {
-      const suppDoc = await getDoc(doc(db, "suppliers", supplier_id));
-      if (suppDoc.exists()) {
-        suppData = suppDoc.data();
-        destinationName = suppData.name || destinationName;
-        if (suppData.latitude && suppData.longitude) {
-          destinationCoords = { latitude: suppData.latitude, longitude: suppData.longitude };
-        }
-      }
-    }
-
-    // Look up assigned driver for this truck
-    let driverId = truckData.driver_id || null;
-    let driverName = truckData.driver_name || null;
-    let driverPhone = truckData.driver_phone || null;
-
-    if (!driverName) {
-      const driverQuery = query(collection(db, "drivers"), where("truck_id", "==", truck_id), limit(1));
-      const driverSnap = await getDocs(driverQuery);
-      if (!driverSnap.empty) {
-        const dDoc = driverSnap.docs[0];
-        const dData = dDoc.data();
-        driverId = dDoc.id;
-        driverName = dData.name || null;
-        driverPhone = dData.phone_number || null;
-      }
-    }
-
-    const verified = (req as any).verifiedPayment || {};
-    const tripFee = verified.trip_fee !== undefined ? verified.trip_fee : 1000;
-    const paymentStatus = verified.payment_status || "paid";
-    const billingMethod = verified.billing_method || truckData.billing_method || "per_trip";
-    const now = new Date().toISOString();
-    const actorName = session.name || "Operations Staff";
-
-    // Calculate OSRM Route (Leg 1: Garage -> Supplier, Leg 2: Supplier -> Return)
-    let leg1_minutes = 90;
-    let leg2_minutes = 90;
-    let distance_km = 0;
-
-    if (parkCoords && destinationCoords) {
-      const leg1Result = await serverCalculateOSRM(parkCoords, destinationCoords);
-      if (leg1Result) {
-        leg1_minutes = leg1Result.duration_minutes;
-        distance_km = leg1Result.distance_km;
-      }
-      const leg2Result = await serverCalculateOSRM(destinationCoords, parkCoords);
-      if (leg2Result) {
-        leg2_minutes = leg2Result.duration_minutes;
-      }
-    }
-
-    // Calculate Self-Learning ETA from past completed trips on this route
-    let pastTripsDurations: number[] = [];
-    try {
-      const qPast = query(
-        collection(db, "trips"),
-        where("company_id", "==", companyId),
-        where("status", "==", "completed")
-      );
-      const pastSnap = await getDocs(qPast);
-      pastTripsDurations = pastSnap.docs
-        .map(d => d.data())
-        .filter(t => (t.supplier_id === supplier_id || t.supplier_name === destinationName) && t.total_duration_minutes)
-        .map(t => t.total_duration_minutes);
-    } catch (e) {}
-
-    const sampleSize = pastTripsDurations.length;
-    let selfLearnedDisplay = `Expected in ~${Math.round(leg1_minutes / 60)} hrs (OSRM estimate)`;
-    let learnedAverage = leg1_minutes + leg2_minutes;
-
-    if (sampleSize >= 5) {
-      const sum = pastTripsDurations.reduce((a, b) => a + b, 0);
-      learnedAverage = Math.round(sum / sampleSize);
-      if (sampleSize >= 10) {
-        const sorted = [...pastTripsDurations].sort((a, b) => a - b);
-        const minM = sorted[Math.floor(sampleSize * 0.15)] || Math.round(learnedAverage * 0.85);
-        const maxM = sorted[Math.min(sampleSize - 1, Math.ceil(sampleSize * 0.85))] || Math.round(learnedAverage * 1.15);
-        const minHrs = (minM / 60).toFixed(1);
-        const maxHrs = (maxM / 60).toFixed(1);
-        selfLearnedDisplay = `Expected in ${minHrs}h — ${maxHrs}h (Learned from ${sampleSize} trips 🧠)`;
-      } else {
-        selfLearnedDisplay = `Expected in ~${(learnedAverage / 60).toFixed(1)} hrs (Learned from ${sampleSize} trips 🧠)`;
-      }
-    }
-
-    // Trip creation means trip is immediately active ("departed")
-    const newDoc = await addDoc(collection(db, "trips"), {
-      company_id: companyId,
-      park_id: truckData.park_id || null,
-      origin_park: parkName,
-      origin_coords: parkCoords,
-      truck_id,
-      truck_number: truckData.truck_number,
-      driver_id: driverId,
-      driver_name: driverName,
-      driver_phone: driverPhone,
-      supplier_id: supplier_id || null,
-      supplier_name: destinationName,
-      destination_coords: destinationCoords,
-      status: "departed", // Trip creation starts immediately active
-      billing_method: billingMethod,
-      trip_fee: tripFee,
-      payment_status: paymentStatus,
-      payment_reference: payment_reference || null,
-      left_warehouse_at: now,
-      departed_at: now,
-      left_warehouse_by: actorName,
-      loaded_departed_at: null,
-      arrived_offloaded_at: null,
-      expected_duration_minutes: leg1_minutes + leg2_minutes,
-      route_osrm: {
-        leg1_minutes,
-        leg2_minutes,
-        distance_km,
-        total_minutes: leg1_minutes + leg2_minutes
-      },
-      self_learned_eta: {
-        display: selfLearnedDisplay,
-        sample_size: sampleSize,
-        is_learned: sampleSize >= 5
-      },
-      audit_notes: [`Trip created and marked Departed by ${actorName} at ${new Date().toLocaleTimeString()}`],
-      location_shares: [],
-      created_at: now
-    });
-
-    res.json({
-      success: true,
-      trip_id: newDoc.id,
-      status: "departed",
-      payment_status: paymentStatus,
-      trip_fee: tripFee,
-      route_osrm: { leg1_minutes, leg2_minutes, distance_km }
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trips:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/trips/:id/pay", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const { id } = req.params;
-    const { reference } = req.body;
-
-    const tripRef = doc(db, "trips", id);
-    const tripSnap = await getDoc(tripRef);
-    if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
-
-    await updateDoc(tripRef, {
-      payment_status: "paid",
-      payment_reference: reference || `ref_${Date.now()}`
-    });
-
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trips/:id/pay:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Mid-Trip Destination Change (CEO / Manager ONLY)
-app.post("/api/fleet/trips/:id/change-destination", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || (session.userRole !== "company" && session.userRole !== "manager" && session.userRole !== "admin")) {
-      return res.status(403).json({ error: "Unauthorized. Only CEO or Manager can change destination on an active trip." });
-    }
-
-    const { id } = req.params;
-    const { new_destination_name, new_destination_coords, new_supplier_id } = req.body;
-
-    if (!new_destination_name) {
-      return res.status(400).json({ error: "New destination name is required." });
-    }
-
-    const tripRef = doc(db, "trips", id);
-    const tripSnap = await getDoc(tripRef);
-    if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
-
-    const trip = tripSnap.data();
-    if (trip.status === "completed") {
-      return res.status(400).json({ error: "Cannot change destination for a completed trip." });
-    }
-
-    const oldDest = trip.supplier_name || "Original Destination";
-    const now = new Date().toISOString();
-    const actorName = session.name || session.userRole;
-    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-    const noteText = `Destination updated from ${oldDest} to ${new_destination_name} at ${formattedTime}`;
-
-    const auditNotes = trip.audit_notes || [];
-    auditNotes.push(noteText);
-
-    // Recalculate OSRM ETA from driver's last known location to new destination
-    let newLegMinutes = 90;
-    let newDistanceKm = 0;
-    const currentDriverLoc = trip.last_location || trip.origin_coords;
-
-    if (currentDriverLoc && new_destination_coords) {
-      const osrmRes = await serverCalculateOSRM(currentDriverLoc, new_destination_coords);
-      if (osrmRes) {
-        newLegMinutes = osrmRes.duration_minutes;
-        newDistanceKm = osrmRes.distance_km;
-      }
-    }
-
-    const updates: any = {
-      supplier_name: new_destination_name,
-      supplier_id: new_supplier_id || null,
-      destination_coords: new_destination_coords || null,
-      audit_notes: auditNotes,
-      updated_at: now
-    };
-
-    if (trip.route_osrm) {
-      updates.route_osrm = {
-        ...trip.route_osrm,
-        leg2_minutes: newLegMinutes,
-        distance_km: newDistanceKm || trip.route_osrm.distance_km,
-        total_minutes: (trip.route_osrm.leg1_minutes || 60) + newLegMinutes
-      };
-      updates.expected_duration_minutes = updates.route_osrm.total_minutes;
-    }
-
-    // Also update dynamic display for self_learned_eta
-    const hrs = Math.round(newLegMinutes / 60);
-    updates.self_learned_eta = {
-      display: `Expected arrival at ${new_destination_name} in ~${hrs > 0 ? `${hrs} hrs` : `${newLegMinutes} mins`} (OSRM recalculation)`,
-      sample_size: trip.self_learned_eta?.sample_size || 0,
-      is_learned: false
-    };
-
-    await updateDoc(tripRef, updates);
-
-    res.json({
-      success: true,
-      message: noteText,
-      new_destination: new_destination_name,
-      route_osrm: updates.route_osrm || null,
-      self_learned_eta: updates.self_learned_eta
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trips/:id/change-destination:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Streamlined 5 Checkpoints Handler:
-// 1: Left Garage (CEO / Manager / Staff)
-// 2: Arrived at Depot (Supplier / Depot Staff only)
-// 3: Loaded & Departed (Supplier / Depot Staff only)
-// 4: Arrived at Destination (CEO / Manager / Staff)
-// 5: Offloaded & Completed (CEO / Manager / Staff)
-app.post("/api/fleet/trips/:id/checkpoint", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) return res.status(401).json({ error: "Unauthorized." });
-    const { id } = req.params;
-    const { checkpoint, waybill_number, notes } = req.body;
-
-    const tripRef = doc(db, "trips", id);
-    const tripSnap = await getDoc(tripRef);
-    if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
-    const trip = tripSnap.data();
-
-    const now = new Date().toISOString();
-    const actorName = session.name || (session.userRole === "supplier_staff" ? "Supplier Staff" : "Staff");
-    const updates: any = { updated_at: now };
-    const auditNotes = trip.audit_notes || [];
-
-    const truckPlate = trip.truck_number || "Truck";
-    const garageName = trip.origin_park || "Garage";
-    const depotName = trip.depot_name || trip.supplier_name || "Depot";
-    const destName = trip.supplier_name || "Destination";
-    const formattedTime = new Date().toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
-
-    if (checkpoint === "left_garage" || checkpoint === "departed" || checkpoint === "left_warehouse") {
-      // CHECKPOINT 1: "Left Garage" — CEO, Manager, or Staff can tap this. Starts trip clock & activates driver GPS tracking.
-      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
-        return res.status(403).json({ error: "Supplier staff cannot mark Checkpoint 1 (Left Garage)." });
-      }
-      updates.status = "left_garage";
-      updates.left_warehouse_at = now;
-      updates.departed_at = now;
-      updates.left_warehouse_by = actorName;
-      auditNotes.push(`Checkpoint 1 (Left Garage): Truck ${truckPlate} has departed from ${garageName} and is heading to ${depotName}. Trip started at ${formattedTime}. (Marked by ${actorName})`);
-      updates.audit_notes = auditNotes;
-
-    } else if (checkpoint === "arrived_at_depot" || checkpoint === "arrived_at_supplier") {
-      // CHECKPOINT 2: "Arrived at Depot" — STRICTLY Supplier/Depot Staff only
-      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
-        return res.status(403).json({ error: "Strict access control: ONLY assigned Supplier/Depot Staff can tap Checkpoint 2 (Arrived at Depot)." });
-      }
-      updates.status = "arrived_at_depot";
-      updates.arrived_at_supplier_at = now;
-      updates.arrived_at_supplier_by = actorName;
-      auditNotes.push(`Checkpoint 2 (Arrived at Depot): Truck ${truckPlate} has arrived at ${depotName} and is waiting to be loaded. Arrived at ${formattedTime}. (Marked by ${actorName})`);
-      updates.audit_notes = auditNotes;
-
-    } else if (checkpoint === "loaded_departed" || checkpoint === "departed_supplier" || checkpoint === "cargo_loaded") {
-      // CHECKPOINT 3: "Loaded & Departed" — STRICTLY Supplier/Depot Staff only
-      if (session.userRole !== "supplier_staff" && session.userRole !== "supplier") {
-        return res.status(403).json({ error: "Strict access control: ONLY assigned Supplier/Depot Staff can tap Checkpoint 3 (Loaded & Departed)." });
-      }
-      updates.status = "loaded_departed";
-      updates.loaded_departed_at = now;
-      updates.loaded_departed_by = actorName;
-      if (waybill_number) updates.waybill_number = waybill_number;
-      if (notes) updates.cargo_notes = notes;
-      auditNotes.push(`Checkpoint 3 (Loaded & Departed): Truck ${truckPlate} has been loaded at ${depotName} and is now heading to ${destName}. (Marked by ${actorName} at ${formattedTime})`);
-      updates.audit_notes = auditNotes;
-
-    } else if (checkpoint === "arrived_at_destination" || checkpoint === "arrived_destination") {
-      // CHECKPOINT 4: "Arrived at Destination" — CEO, Manager, or Staff can tap this
-      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
-        return res.status(403).json({ error: "Supplier staff cannot mark destination arrival." });
-      }
-      updates.status = "arrived_at_destination";
-      updates.arrived_at_destination_at = now;
-      updates.arrived_at_destination_by = actorName;
-      auditNotes.push(`Checkpoint 4 (Arrived at Destination): Truck ${truckPlate} has arrived at ${destName}. Arrived at ${formattedTime}. (Marked by ${actorName})`);
-      updates.audit_notes = auditNotes;
-
-    } else if (checkpoint === "offloaded_completed" || checkpoint === "completed" || checkpoint === "arrived_offloaded") {
-      // CHECKPOINT 5: "Offloaded & Completed" — CEO, Manager, or Staff can tap this. Permanently terminates driver GPS tracking.
-      if (session.userRole === "supplier_staff" || session.userRole === "supplier") {
-        return res.status(403).json({ error: "Supplier staff cannot mark final trip completion." });
-      }
-      updates.status = "completed";
-      updates.arrived_offloaded_at = now;
-      updates.completed_at = now;
-      updates.arrived_offloaded_by = actorName;
-
-      // Calculate total actual duration for self-learning route engine
-      if (trip.left_warehouse_at || trip.departed_at || trip.created_at) {
-        const startTime = new Date(trip.left_warehouse_at || trip.departed_at || trip.created_at).getTime();
-        const endTime = new Date(now).getTime();
-        const durationMinutes = Math.round((endTime - startTime) / (1000 * 60));
-        updates.total_duration_minutes = durationMinutes;
-      }
-
-      auditNotes.push(`Checkpoint 5 (Offloaded & Completed): Truck ${truckPlate} has been offloaded successfully. Trip completed at ${formattedTime}. Driver GPS tracking permanently deactivated.`);
-      updates.audit_notes = auditNotes;
-
-    } else {
-      return res.status(400).json({ error: "Invalid checkpoint stage requested." });
-    }
-
-    await updateDoc(tripRef, updates);
-    res.json({ success: true, status: updates.status, updated_at: now });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trips/:id/checkpoint:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-app.post("/api/fleet/trips/:id/share-location", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "driver") return res.status(403).json({ error: "Only drivers can share location." });
-    const { id } = req.params;
-    const { note, source, latitude, longitude, accuracy, speed, preset } = req.body;
-
-    const tripRef = doc(db, "trips", id);
-    const tripSnap = await getDoc(tripRef);
-    if (!tripSnap.exists()) return res.status(404).json({ error: "Trip not found." });
-    const trip = tripSnap.data();
-
-    if (trip.payment_status !== "paid" && trip.payment_status !== "active_monthly") {
-      return res.status(402).json({ error: "Payment (₦1,000 per trip) or active monthly subscription required before starting live tracking." });
-    }
-
-    const now = new Date().toISOString();
-    const shareEntry: any = {
-      timestamp: now,
-      note: note || "Driver shared live location update",
-      source: source || "proactive"
-    };
-
-    if (typeof latitude === "number" && typeof longitude === "number") {
-      shareEntry.latitude = latitude;
-      shareEntry.longitude = longitude;
-      if (typeof accuracy === "number") shareEntry.accuracy = accuracy;
-      if (typeof speed === "number") shareEntry.speed = speed;
-    }
-    if (preset) shareEntry.preset = preset;
-
-    const shares = trip.location_shares || [];
-    shares.push(shareEntry);
-
-    const updatePayload: any = {
-      location_shares: shares,
-      last_location_at: now,
-      last_location_note: note || "Driver shared live location update"
-    };
-
-    if (typeof latitude === "number" && typeof longitude === "number") {
-      updatePayload.last_location = {
-        latitude,
-        longitude,
-        accuracy: accuracy || null,
-        speed: speed || null,
-        note: note || "Driver shared live GPS location",
-        preset: preset || null,
-        timestamp: now
-      };
-    }
-
-    await updateDoc(tripRef, updatePayload);
-    res.json({ success: true, location_shares: shares, last_location: updatePayload.last_location });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trips/:id/share-location:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Driver Active Trip Status (Returns driver name, truck number, and active trip status)
-app.get("/api/fleet/driver/active-status", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "driver") {
-      return res.status(401).json({ error: "Unauthorized driver session." });
-    }
-
-    const driverId = session.userId;
-    const driverPhone = session.userData?.phone_number || "";
-    const driverTruckId = session.userData?.truck_id || "";
-    const companyId = session.userData?.company_id || getFleetCompanyId(session);
-
-    // Fetch driver doc to get latest truck assignment and name
-    let driverData = session.userData;
-    if (driverId) {
-      const drSnap = await getDoc(doc(db, "drivers", driverId));
-      if (drSnap.exists()) {
-        driverData = { id: drSnap.id, ...drSnap.data() };
-      }
-    }
-
-    const truckId = driverData?.truck_id || driverTruckId;
-    let truckNumber = "Unassigned Truck";
-    if (truckId) {
-      const trSnap = await getDoc(doc(db, "trucks", truckId));
-      if (trSnap.exists()) {
-        truckNumber = trSnap.data()?.truck_number || "Truck #" + truckId;
-      }
-    }
-
-    // Query active trips for this driver / truck
-    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-    const tripsSnap = await getDocs(qTrips);
-    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    // Active trips = any trip not yet arrived_offloaded or completed
-    const activeTrips = allTrips.filter(t => {
-      const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
-      if (!isTripActive) return false;
-
-      const matchesTruck = truckId && t.truck_id === truckId;
-      const matchesDriverId = t.driver_id === driverId || (t.driver && t.driver.id === driverId);
-      const matchesPhone = driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone));
-
-      return matchesTruck || matchesDriverId || matchesPhone;
-    }).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-
-    const activeTrip = activeTrips[0] || null;
-
-    res.json({
-      success: true,
-      driver_name: driverData?.name || "Driver",
-      truck_number: truckNumber,
-      truck_id: truckId || null,
-      has_active_trip: Boolean(activeTrip),
-      active_trip: activeTrip ? {
-        id: activeTrip.id,
-        truck_number: activeTrip.truck_number || truckNumber,
-        status: activeTrip.status,
-        origin_park: activeTrip.origin_park || "Loading Park",
-        supplier_name: activeTrip.supplier_name || "Destination Depot",
-        created_at: activeTrip.created_at,
-        last_location: activeTrip.last_location || null
-      } : null,
-      active_trips_count: activeTrips.length
-    });
-  } catch (err) {
-    console.error("Error GET /api/fleet/driver/active-status:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Automatic Background Driver Location Sync (Tied strictly to active trips)
-app.post("/api/fleet/driver/location-sync", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || session.userRole !== "driver") {
-      return res.status(401).json({ error: "Unauthorized driver session." });
-    }
-
-    const { latitude, longitude, accuracy, speed, event, event_type, is_heartbeat } = req.body;
-
-    const driverId = session.userId;
-    const driverPhone = session.userData?.phone_number || "";
-    const driverTruckId = session.userData?.truck_id || "";
-    const companyId = session.userData?.company_id || getFleetCompanyId(session);
-
-    // Query active trips
-    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-    const tripsSnap = await getDocs(qTrips);
-    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    const activeTrips = allTrips.filter(t => {
-      const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
-      if (!isTripActive) return false;
-
-      const matchesTruck = driverTruckId && t.truck_id === driverTruckId;
-      const matchesDriverId = t.driver_id === driverId || (t.driver && t.driver.id === driverId);
-      const matchesPhone = driverPhone && (t.driver_phone === driverPhone || (t.driver && t.driver.phone_number === driverPhone));
-
-      return matchesTruck || matchesDriverId || matchesPhone;
-    }).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime());
-
-    // OUTSIDE OF ACTIVE TRIPS — Driver cannot be tracked
-    if (activeTrips.length === 0) {
-      return res.json({
-        success: true,
-        tracked: false,
-        message: "No active trip. Driver location tracking is strictly disabled outside active trips."
-      });
-    }
-
-    const activeTrip = activeTrips[0];
-    const now = new Date().toISOString();
-    const driverName = session.userData?.name || activeTrip.driver_name || "Driver";
-    const truckNumber = activeTrip.truck_number || "Unassigned";
-
-    // Handle interference events explicitly sent by driver app (e.g. permission_disabled or app_lifecycle)
-    const alertTrigger = event_type || event;
-    if (alertTrigger === "permission_disabled" || alertTrigger === "location_disabled") {
-      await notifyDriverInterference(companyId, activeTrip.id, "permission_disabled", {
-        driverName,
-        truckNumber
-      });
-      return res.json({
-        success: true,
-        alert_recorded: true,
-        message: "Location permission disabled alert registered."
-      });
-    }
-
-    if (alertTrigger === "app_killed") {
-      await notifyDriverInterference(companyId, activeTrip.id, "app_killed", {
-        driverName,
-        truckNumber
-      });
-      return res.json({
-        success: true,
-        alert_recorded: true,
-        message: "App killed alert registered."
-      });
-    }
-
-    if (alertTrigger === "app_deleted") {
-      await notifyDriverInterference(companyId, activeTrip.id, "app_deleted", {
-        driverName,
-        truckNumber
-      });
-      return res.json({
-        success: true,
-        alert_recorded: true,
-        message: "App deleted alert registered."
-      });
-    }
-
-    // Heartbeat ping without fresh coordinates (e.g. keep-alive)
-    if (is_heartbeat && (typeof latitude !== "number" || typeof longitude !== "number")) {
-      const tripRef = doc(db, "trips", activeTrip.id);
-      await updateDoc(tripRef, {
-        tracking_active: true,
-        driver_connected: true,
-        last_heartbeat_at: now,
-        last_seen_at: now,
-        last_interference_alert: null // clear alert on active heartbeat reconnect
-      });
-      return res.json({
-        success: true,
-        heartbeat: true,
-        trip_id: activeTrip.id
-      });
-    }
-
-    if (typeof latitude !== "number" || typeof longitude !== "number") {
-      return res.status(400).json({ error: "Valid latitude and longitude are required." });
-    }
-
-    const locationFix: any = {
-      latitude,
-      longitude,
-      accuracy: typeof accuracy === "number" ? accuracy : null,
-      speed: typeof speed === "number" ? speed : null,
-      timestamp: now,
-      note: "Automatic background GPS sync",
-      source: "background_sync"
-    };
-
-    const shares = activeTrip.location_shares || [];
-    shares.push(locationFix);
-
-    const tripUpdate: any = {
-      tracking_active: true,
-      driver_connected: true,
-      has_driver_started: true,
-      last_location: locationFix,
-      last_location_at: now,
-      last_heartbeat_at: now,
-      last_seen_at: now,
-      last_location_note: "Driver GPS continuous background ping",
-      last_interference_alert: null, // clear interference alert on successful live GPS reconnect
-      location_shares: shares
-    };
-
-    const tripRef = doc(db, "trips", activeTrip.id);
-    await updateDoc(tripRef, tripUpdate);
-
-    // Also update truck doc last_location if truck_id exists
-    if (activeTrip.truck_id) {
-      try {
-        const truckRef = doc(db, "trucks", activeTrip.truck_id);
-        await updateDoc(truckRef, {
-          last_location: locationFix,
-          last_location_at: now,
-          last_seen_at: now
-        });
-      } catch (trErr) {
-        // non-blocking
-      }
-    }
-
-    res.json({
-      success: true,
-      tracked: true,
-      trip_id: activeTrip.id,
-      last_location: locationFix
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/driver/location-sync:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// Explicit Driver Interference Alert Endpoint (Permission disabled / App state / Offline / Test trigger)
-app.post("/api/fleet/driver/interference-alert", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session) {
-      return res.status(401).json({ error: "Unauthorized session." });
-    }
-
-    const { alert_type, trip_id } = req.body;
-    if (!["app_deleted", "permission_disabled", "app_killed"].includes(alert_type)) {
-      return res.status(400).json({ error: "Invalid alert_type. Must be app_deleted, permission_disabled, or app_killed." });
-    }
-
-    const companyId = session.userData?.company_id || getFleetCompanyId(session);
-    if (!companyId) {
-      return res.status(400).json({ error: "Company association missing." });
-    }
-
-    // Find trip
-    let targetTrip: any = null;
-    if (trip_id) {
-      const tSnap = await getDoc(doc(db, "trips", trip_id));
-      if (tSnap.exists()) {
-        targetTrip = { id: tSnap.id, ...tSnap.data() as any };
-      }
-    }
-
-    if (!targetTrip) {
-      // Find active trip for driver
-      const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-      const tripsSnap = await getDocs(qTrips);
-      const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-      targetTrip = allTrips.find(t => {
-        const isTripActive = t.status !== "completed" && t.status !== "arrived_offloaded";
-        if (!isTripActive) return false;
-        if (session.userRole === "driver") {
-          return t.driver_id === session.userId || (t.driver && t.driver.id === session.userId) || t.truck_id === session.userData?.truck_id;
-        }
-        return true;
-      });
-    }
-
-    const driverName = targetTrip?.driver_name || targetTrip?.driver?.name || session.userData?.name || "Driver";
-    const truckPlate = targetTrip?.truck_number || "Unassigned";
-
-    await notifyDriverInterference(companyId, targetTrip?.id || "", alert_type, {
-      driverName,
-      truckNumber: truckPlate
-    });
-
-    res.json({
-      success: true,
-      message: `Driver interference alert (${alert_type}) dispatched to CEO, Manager, and Staff.`
-    });
-  } catch (err) {
-    console.error("Error in POST /api/fleet/driver/interference-alert:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// GET /api/fleet/alerts - Retrieve interference and operational alerts for CEO, Manager, Staff
-app.get("/api/fleet/alerts", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const companyId = getFleetCompanyId(session);
-    if (!companyId) return res.json({ success: true, alerts: [] });
-
-    // Query active unacknowledged alerts for this company
-    const qAlerts = query(
-      collection(db, "fleet_alerts"),
-      where("company_id", "==", companyId)
-    );
-    const alertsSnap = await getDocs(qAlerts);
-    const alerts = alertsSnap.docs
-      .map(d => ({ id: d.id, ...d.data() as any }))
-      .sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
-
-    res.json({
-      success: true,
-      alerts
-    });
-  } catch (err) {
-    console.error("Error in GET /api/fleet/alerts:", err);
-    res.status(500).json({ error: "Internal server error.", alerts: [] });
-  }
-});
-
-// POST /api/fleet/alerts/:id/dismiss - Dismiss or acknowledge an alert
-app.post("/api/fleet/alerts/:id/dismiss", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const alertId = req.params.id;
-    await updateDoc(doc(db, "fleet_alerts", alertId), {
-      read: true,
-      dismissed_at: new Date().toISOString(),
-      dismissed_by: session.userData?.name || session.name || "User"
-    });
-
-    res.json({ success: true, message: "Alert dismissed." });
-  } catch (err) {
-    console.error("Error dismissing alert:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// On-Demand Silent Location Ping for CEO / Manager / Staff (Tied to Truck)
-app.post("/api/fleet/trucks/:id/ping-location", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff", "admin"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized. Only CEO, Manager, or Staff can ping truck location." });
-    }
-
-    const truckId = req.params.id;
-    const companyId = getFleetCompanyId(session);
-
-    // Get Truck document
-    const truckRef = doc(db, "trucks", truckId);
-    const truckSnap = await getDoc(truckRef);
-    if (!truckSnap.exists()) {
-      return res.status(404).json({ error: "Truck not found." });
-    }
-    const truckData = { id: truckSnap.id, ...truckSnap.data() as any };
-
-    // Query active trips for this truck
-    const qTrips = query(collection(db, "trips"), where("company_id", "==", companyId));
-    const tripsSnap = await getDocs(qTrips);
-    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    const activeTrip = allTrips.find(t => 
-      t.truck_id === truckId && 
-      t.status !== "completed" && 
-      t.status !== "arrived_offloaded"
-    );
-
-    // IF NO ACTIVE TRIP EXISTS — Disable location check
-    if (!activeTrip) {
-      return res.status(400).json({
-        success: false,
-        error: "No active trip — location tracking inactive",
-        active: false
-      });
-    }
-
-    // Get driver details
-    let driverData: any = activeTrip.driver || null;
-    if (!driverData && activeTrip.driver_id) {
-      try {
-        const drSnap = await getDoc(doc(db, "drivers", activeTrip.driver_id));
-        if (drSnap.exists()) driverData = { id: drSnap.id, ...drSnap.data() };
-      } catch (e) {
-        // fallback
-      }
-    }
-
-    // Record on-demand timestamped ping in trip location history
-    const now = new Date().toISOString();
-    const lastLoc = activeTrip.last_location || truckData.last_location || null;
-    const lat = lastLoc?.latitude || 6.5244;
-    const lng = lastLoc?.longitude || 3.3792;
-
-    const placeName = await serverReverseGeocode(lat, lng);
-
-    const pingEntry = {
-      timestamp: now,
-      latitude: lat,
-      longitude: lng,
-      accuracy: lastLoc?.accuracy || 15,
-      speed: lastLoc?.speed || null,
-      place_name: placeName,
-      note: `Location check (Pinged by ${session.userData?.name || session.name || "Operations Staff"})`,
-      source: "manager_ping"
-    };
-
-    const shares = activeTrip.location_shares || [];
-    shares.push(pingEntry);
-
-    await updateDoc(doc(db, "trips", activeTrip.id), {
-      location_shares: shares,
-      last_location_at: now,
-      last_location: pingEntry
-    });
-
-    // Fetch supplier and park details for destination & origin coordinates
-    let supplierInfo: any = null;
-    if (activeTrip.supplier_id) {
-      try {
-        const sSnap = await getDoc(doc(db, "suppliers", activeTrip.supplier_id));
-        if (sSnap.exists()) {
-          const sData = sSnap.data() as any;
-          supplierInfo = {
-            id: sSnap.id,
-            name: sData.name || activeTrip.supplier_name,
-            address: sData.address || sData.location || "Destination Facility",
-            latitude: sData.latitude || sData.lat || null,
-            longitude: sData.longitude || sData.lng || null
-          };
-        }
-      } catch (sErr) {
-        // non-blocking
-      }
-    }
-
-    // If destination coordinates missing, resolve via Nigerian Industrial Directory
-    if ((!supplierInfo || !supplierInfo.latitude || !supplierInfo.longitude) && (activeTrip.supplier_name || activeTrip.destination_name)) {
-      const targetName = activeTrip.supplier_name || activeTrip.destination_name || "Destination Depot";
-      const geoResolved = await lookupNigerianIndustrialCoords(targetName, supplierInfo?.address);
-      if (geoResolved) {
-        supplierInfo = {
-          ...(supplierInfo || {}),
-          name: targetName,
-          address: geoResolved.address || supplierInfo?.address || "Industrial Facility",
-          latitude: geoResolved.latitude,
-          longitude: geoResolved.longitude
-        };
-      }
-    }
-
-    let parkInfo: any = null;
-    const parkId = activeTrip.park_id || truckData.park_id;
-    if (parkId) {
-      try {
-        const pSnap = await getDoc(doc(db, "parks", parkId));
-        if (pSnap.exists()) {
-          const pData = pSnap.data() as any;
-          parkInfo = {
-            id: pSnap.id,
-            name: pData.name || activeTrip.origin_park,
-            address: pData.address || pData.location || "Origin Terminal / Garage",
-            latitude: pData.latitude || pData.lat || null,
-            longitude: pData.longitude || pData.lng || null
-          };
-        }
-      } catch (pErr) {
-        // non-blocking
-      }
-    }
-
-    // If origin coordinates missing, resolve via Nigerian Directory
-    if ((!parkInfo || !parkInfo.latitude || !parkInfo.longitude) && activeTrip.origin_park) {
-      const geoResolved = await lookupNigerianIndustrialCoords(activeTrip.origin_park, parkInfo?.address);
-      if (geoResolved) {
-        parkInfo = {
-          ...(parkInfo || {}),
-          name: activeTrip.origin_park,
-          address: geoResolved.address || "Origin Terminal",
-          latitude: geoResolved.latitude,
-          longitude: geoResolved.longitude
-        };
-      }
-    }
-
-    let customerInfo: any = null;
-    if (activeTrip.destination_type === 'customer' || activeTrip.customer_name || activeTrip.customer_address) {
-      let custLat = typeof activeTrip.customer_lat === 'number' ? activeTrip.customer_lat : null;
-      let custLng = typeof activeTrip.customer_lng === 'number' ? activeTrip.customer_lng : null;
-
-      if (!custLat || !custLng) {
-        const geoCust = await lookupNigerianIndustrialCoords(activeTrip.customer_name || "", activeTrip.customer_address || "");
-        if (geoCust) {
-          custLat = geoCust.latitude;
-          custLng = geoCust.longitude;
-        }
-      }
-
-      customerInfo = {
-        name: activeTrip.customer_name || "Direct Customer Delivery",
-        address: activeTrip.customer_address || "Customer Delivery Address",
-        phone_number: activeTrip.customer_phone || null,
-        latitude: custLat,
-        longitude: custLng
-      };
-    }
-
-    res.json({
-      success: true,
-      active: true,
-      truck: {
-        id: truckData.id,
-        truck_number: truckData.truck_number,
-        park_id: truckData.park_id
-      },
-      driver: driverData ? {
-        name: driverData.name,
-        phone_number: driverData.phone_number || driverData.phone
-      } : { name: activeTrip.driver_name || "Assigned Driver", phone_number: activeTrip.driver_phone },
-      trip: {
-        id: activeTrip.id,
-        status: activeTrip.status,
-        origin_park: activeTrip.origin_park || parkInfo?.name || "Company Garage",
-        origin_info: parkInfo,
-        supplier_name: activeTrip.supplier_name || supplierInfo?.name || "Destination Depot",
-        destination_info: supplierInfo,
-        destination_type: activeTrip.destination_type || (customerInfo ? 'customer' : 'company'),
-        customer_info: customerInfo,
-        created_at: activeTrip.created_at,
-        cargo_notes: activeTrip.cargo_notes || null,
-        route_osrm: activeTrip.route_osrm || null,
-        self_learned_eta: activeTrip.self_learned_eta || null,
-        checkpoints: activeTrip.checkpoints || []
-      },
-      location: pingEntry,
-      location_history: shares
-    });
-  } catch (err) {
-    console.error("Error POST /api/fleet/trucks/:id/ping-location:", err);
-    res.status(500).json({ error: "Internal server error." });
-  }
-});
-
-// POST /api/fleet/trips/:id/update-destination - Mid-trip redirection to Customer or Company
-app.post("/api/fleet/trips/:id/update-destination", async (req, res) => {
-  try {
-    const session = await validateFleetSession(req);
-    if (!session || !["company", "manager", "staff", "admin", "driver"].includes(session.userRole)) {
-      return res.status(403).json({ error: "Unauthorized." });
-    }
-
-    const tripId = req.params.id;
-    const {
-      destination_type,
-      customer_name,
-      customer_address,
-      customer_phone,
-      customer_lat,
-      customer_lng,
-      supplier_id,
-      supplier_name,
-      notes
-    } = req.body;
-
-    const tripRef = doc(db, "trips", tripId);
-    const tripSnap = await getDoc(tripRef);
-    if (!tripSnap.exists()) {
-      return res.status(404).json({ error: "Trip not found." });
-    }
-
-    const now = new Date().toISOString();
-    const updateData: any = {
-      destination_type: destination_type || 'company',
-      updated_at: now
-    };
-
-    if (destination_type === 'customer') {
-      updateData.customer_name = customer_name || 'Customer';
-      updateData.customer_address = customer_address || 'Customer Delivery Address';
-      updateData.customer_phone = customer_phone || null;
-      if (typeof customer_lat === 'number' && typeof customer_lng === 'number') {
-        updateData.customer_lat = customer_lat;
-        updateData.customer_lng = customer_lng;
-      }
-    } else {
-      if (supplier_id) updateData.supplier_id = supplier_id;
-      if (supplier_name) updateData.supplier_name = supplier_name;
-    }
-
-    if (notes) {
-      updateData.reroute_notes = notes;
-    }
-
-    const existingCheckpoints = tripSnap.data()?.checkpoints || [];
-    existingCheckpoints.push({
-      type: "reroute_destination",
-      title: destination_type === 'customer' 
-        ? `Rerouted to Customer: ${customer_name || 'Customer'}` 
-        : `Destination Set: ${supplier_name || 'Company Facility'}`,
-      description: destination_type === 'customer'
-        ? `Delivery target redirected mid-trip to customer at ${customer_address || 'Customer Location'}`
-        : `Delivery target set to company facility depot`,
-      timestamp: now,
-      recorded_by: session.userData?.name || session.name || "Fleet Operations"
-    });
-    updateData.checkpoints = existingCheckpoints;
-
-    await updateDoc(tripRef, updateData);
-
-    res.json({ success: true, message: "Destination updated successfully." });
-  } catch (err) {
-    console.error("Error updating trip destination:", err);
-    res.status(500).json({ error: "Failed to update trip destination." });
-  }
-});
-
-// GET /api/fleet/trucks/location-by-number/:truckNumber
-app.get("/api/fleet/trucks/location-by-number/:truckNumber", async (req, res) => {
-  try {
-    const rawTruckNum = decodeURIComponent(req.params.truckNumber || "").trim();
-    if (!rawTruckNum) {
-      return res.status(400).json({ error: "Truck number required." });
-    }
-
-    // Find truck in trucks collection
-    const qTruck = query(collection(db, "trucks"), where("truck_number", "==", rawTruckNum), limit(1));
-    const truckSnap = await getDocs(qTruck);
-
-    let truckData: any = null;
-    let truckId = "";
-    if (!truckSnap.empty) {
-      const docSnap = truckSnap.docs[0];
-      truckId = docSnap.id;
-      truckData = { id: docSnap.id, ...docSnap.data() };
-    }
-
-    // Query active trips for this truck
-    const qTrips = query(collection(db, "trips"));
-    const tripsSnap = await getDocs(qTrips);
-    const allTrips = tripsSnap.docs.map(d => ({ id: d.id, ...d.data() as any }));
-
-    const activeTrip = allTrips.find(t =>
-      (t.truck_number === rawTruckNum || (truckId && t.truck_id === truckId)) &&
-      t.status !== "completed" &&
-      t.status !== "arrived_offloaded"
-    );
-
-    const lastLoc = activeTrip?.last_location || truckData?.last_location || null;
-    if (lastLoc && typeof lastLoc.latitude === "number" && typeof lastLoc.longitude === "number") {
-      const addressName = lastLoc.place_name || (await serverReverseGeocode(lastLoc.latitude, lastLoc.longitude));
-      return res.json({
-        success: true,
-        location: {
-          vehicle_number: rawTruckNum,
-          lat: lastLoc.latitude,
-          lng: lastLoc.longitude,
-          speed: lastLoc.speed || 0,
-          heading: 90,
-          last_ping: lastLoc.timestamp || new Date().toISOString(),
-          route_name: activeTrip ? `${activeTrip.origin_park || 'Garage'} ➔ ${activeTrip.supplier_name || 'Depot'}` : 'In Transit',
-          driver_name: activeTrip?.driver_name || 'Driver In Transit',
-          address: addressName,
-          is_live: true
-        }
-      });
-    }
-
-    // Default response if driver hasn't synced coordinates yet
-    return res.json({
-      success: true,
-      location: {
-        vehicle_number: rawTruckNum,
-        lat: 6.5244,
-        lng: 3.3792,
-        speed: 0,
-        heading: 0,
-        last_ping: new Date().toISOString(),
-        route_name: activeTrip ? `${activeTrip.origin_park || 'Garage'} ➔ ${activeTrip.supplier_name || 'Depot'}` : 'In Transit',
-        driver_name: activeTrip?.driver_name || 'Assigned Driver',
-        address: 'Awaiting Driver GPS Broadcast',
-        is_live: false
-      }
-    });
-  } catch (err) {
-    console.error("Error GET /api/fleet/trucks/location-by-number:", err);
-    res.status(500).json({ error: "Internal server error." });
+  } catch (err: any) {
+    console.error("Error in /api/fleet-tracking/geocode:", err);
+    res.status(500).json({ success: false, error: err?.message || "Geocoding failed." });
   }
 });
 
@@ -10720,23 +7136,10 @@ async function startServer() {
 
     app.listen(PORT, "0.0.0.0", () => {
       console.log(`Server running on http://localhost:${PORT}`);
-      // Clean up stale mock/test alerts for production readiness
-      cleanupStaleTestAlerts().catch((err) => {
-        console.warn("[CLEANUP] Background alert cleanup error:", err);
-      });
-
       // Run database seed & cleanup asynchronously in background without blocking server startup
       seedDatabase().catch((err) => {
         console.warn("[SEED] Background database cleanup error (non-fatal):", err);
       });
-
-      // Start automated Fleet Interference Watchdog Daemon (runs every 60s, checks 5-min ping thresholds on active driver trips)
-      setInterval(() => {
-        runFleetInterferenceWatchdog().catch((err) => {
-          console.error("[WATCHDOG] Background interval error:", err);
-        });
-      }, 60 * 1000);
-      console.log("[WATCHDOG] Automated 5-minute Fleet Tracking Daemon active.");
     });
   } catch (error) {
     console.error("Failed to start server:", error);

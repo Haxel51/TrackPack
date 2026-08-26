@@ -3,9 +3,6 @@ import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
-import { FleetManagementView } from '../components/fleet/FleetManagementView';
-import { RealtimeFleetBoard } from '../components/fleet/RealtimeFleetBoard';
-import { FleetInterferenceAlertBanner } from '../components/fleet/FleetInterferenceAlertBanner';
 import {
   getManagerOverview,
   getManagerStaff,
@@ -18,8 +15,9 @@ import {
 import {
   Building2, MapPin, Users, Package, DollarSign, Plus, RefreshCw, Key,
   CheckCircle, XCircle, LogOut, Search, Filter, ShieldCheck, UserCheck, AlertCircle, Eye, Trash2, Power,
-  Truck, Activity, Navigation, Clock, ChevronRight, ArrowRight, TrendingUp
+  ChevronRight, ArrowRight, Navigation
 } from 'lucide-react';
+import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocationsView';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -32,32 +30,8 @@ export const ManagerDashboard: React.FC = () => {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Determine smart service mode for manager (fresh backend overview prioritized)
-  const serviceMode = (
-    overview?.service_mode ||
-    overview?.manager_type ||
-    overview?.service_type ||
-    user?.service_mode ||
-    user?.manager_type ||
-    user?.service_type ||
-    'haulage'
-  ) as string;
-
-  const isFleetOnly = serviceMode === 'fleet' || serviceMode === 'haulage';
-  const isWaybillOnly = serviceMode === 'parcel' || serviceMode === 'package' || serviceMode === 'waybill';
-  const isBoth = serviceMode === 'both' || serviceMode === 'all';
-
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills' | 'fleet' | 'live_board'>('overview');
-
-  // Synchronize active tab if current tab is not allowed for the manager's role
-  useEffect(() => {
-    if (isFleetOnly && (activeTab === 'staff' || activeTab === 'waybills')) {
-      setActiveTab('fleet');
-    } else if (isWaybillOnly && (activeTab === 'fleet' || activeTab === 'live_board')) {
-      setActiveTab('overview');
-    }
-  }, [isFleetOnly, isWaybillOnly, activeTab]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills' | 'fleet_locations'>('overview');
 
   // Search & Filter for waybills
   const [searchTerm, setSearchTerm] = useState('');
@@ -99,13 +73,13 @@ export const ManagerDashboard: React.FC = () => {
     message,
     confirmText = 'Confirm',
     cancelText = 'Cancel',
-    onConfirm,
+    onConfirm
   }: {
     title: string;
     message: string;
     confirmText?: string;
     cancelText?: string;
-    onConfirm: () => Promise<void>;
+    onConfirm: () => Promise<void> | void;
   }) => {
     setCustomConfirmModal({
       open: true,
@@ -121,28 +95,34 @@ export const ManagerDashboard: React.FC = () => {
           await onConfirm();
           setCustomConfirmModal(prev => ({ ...prev, open: false, submitting: false }));
         } catch (err: any) {
-          setCustomConfirmModal(prev => ({ ...prev, submitting: false, error: err.message || 'Action failed' }));
+          setCustomConfirmModal(prev => ({
+            ...prev,
+            submitting: false,
+            error: err?.message || 'Operation failed. Please try again.'
+          }));
         }
-      },
+      }
     });
   };
 
   const fetchData = async () => {
-    if (!token) return;
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (!activeToken) return;
+
     try {
       setError(null);
-      const [ovRes, staffRes, wbRes] = await Promise.all([
-        getManagerOverview(token),
-        getManagerStaff(token),
-        getManagerWaybills(token)
+      const [overviewRes, staffRes, waybillsRes] = await Promise.all([
+        getManagerOverview(activeToken),
+        getManagerStaff(activeToken),
+        getManagerWaybills(activeToken)
       ]);
 
-      if (ovRes.success) setOverview(ovRes);
+      if (overviewRes.success) setOverview(overviewRes);
       if (staffRes.success) setStaffList(staffRes.staff || []);
-      if (wbRes.success) setWaybills(wbRes.waybills || []);
-    } catch (err) {
-      console.error('Error fetching manager dashboard data:', err);
-      setError('Failed to load dashboard data. Please check your connection.');
+      if (waybillsRes.success) setWaybills(waybillsRes.waybills || []);
+    } catch (err: any) {
+      console.error('Failed to fetch manager data:', err);
+      setError(err?.message || 'Failed to load manager dashboard.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -160,22 +140,18 @@ export const ManagerDashboard: React.FC = () => {
 
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!newStaffName.trim()) {
+      setCreateStaffError('Staff name is required');
+      return;
+    }
+
     const activeToken = token || localStorage.getItem('auth_token');
     if (!activeToken) return;
-    if (!newStaffName.trim()) {
-      setCreateStaffError('Staff name is required.');
-      return;
-    }
-
-    if (newStaffPhone.trim() && !/^\d{11}$/.test(newStaffPhone.trim())) {
-      setCreateStaffError('Phone number must be a valid 11-digit phone number (e.g. 08012345678).');
-      return;
-    }
-
-    setCreateStaffLoading(true);
-    setCreateStaffError(null);
 
     try {
+      setCreateStaffLoading(true);
+      setCreateStaffError(null);
+
       const res = await createManagerStaff(activeToken, {
         name: newStaffName.trim(),
         phone: newStaffPhone.trim() || undefined
@@ -186,16 +162,16 @@ export const ManagerDashboard: React.FC = () => {
         setNewStaffName('');
         setNewStaffPhone('');
         setPinModal({
-          title: 'New Staff PIN Generated',
-          name: res.staff.name,
+          title: 'Staff Created Successfully',
+          name: res.name || newStaffName.trim(),
           pin: res.pin
         });
         fetchData();
       } else {
-        setCreateStaffError(res.error || 'Failed to create staff.');
+        setCreateStaffError(res.error || 'Failed to create staff member.');
       }
-    } catch (err) {
-      setCreateStaffError('An error occurred. Please try again.');
+    } catch (err: any) {
+      setCreateStaffError(err?.message || 'Failed to create staff.');
     } finally {
       setCreateStaffLoading(false);
     }
@@ -278,33 +254,13 @@ export const ManagerDashboard: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Dynamic Navigation Tabs
-  const navTabs = isFleetOnly
-    ? [
-        { id: 'overview' as const, label: 'Fleet Overview', icon: TrendingUp },
-        { id: 'fleet' as const, label: 'Fleet & Trips', icon: Truck },
-        { id: 'live_board' as const, label: 'Live Board', icon: Activity },
-      ]
-    : isWaybillOnly
-    ? [
-        { id: 'overview' as const, label: t('overview') || 'Overview', icon: Building2 },
-        { id: 'staff' as const, label: `${t('staffMembers') || 'Staff'} (${staffList.length})`, icon: Users },
-        { id: 'waybills' as const, label: `${t('waybillHistory') || 'Waybills'} (${waybills.length})`, icon: Package },
-      ]
-    : [
-        { id: 'overview' as const, label: t('overview') || 'Overview', icon: Building2 },
-        { id: 'staff' as const, label: `${t('staffMembers') || 'Staff'} (${staffList.length})`, icon: Users },
-        { id: 'waybills' as const, label: `${t('waybills') || 'Waybills'} (${waybills.length})`, icon: Package },
-        { id: 'fleet' as const, label: 'Fleet & Trips', icon: Truck },
-        { id: 'live_board' as const, label: 'Live Board', icon: Activity },
-      ];
-
-  // Role Badge Label
-  const roleBadgeLabel = isFleetOnly
-    ? '🚛 Fleet Manager'
-    : isWaybillOnly
-    ? '📦 Waybill Manager'
-    : '⚡ Branch Manager (Waybill & Fleet)';
+  // Navigation Tabs
+  const navTabs = [
+    { id: 'overview' as const, label: t('overview') || 'Overview', icon: Building2 },
+    { id: 'staff' as const, label: `${t('staffMembers') || 'Staff'} (${staffList.length})`, icon: Users },
+    { id: 'waybills' as const, label: `${t('waybillHistory') || 'Waybills'} (${waybills.length})`, icon: Package },
+    { id: 'fleet_locations' as const, label: 'Fleet Locations 📍', icon: Navigation },
+  ];
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] text-slate-800 pb-12 w-full overflow-x-hidden">
@@ -319,7 +275,7 @@ export const ManagerDashboard: React.FC = () => {
                   {user?.company_name || overview?.company_name || 'Transport Company'}
                 </h1>
                 <span className="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full uppercase whitespace-nowrap">
-                  {roleBadgeLabel}
+                  📦 Waybill Manager
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-300 flex items-center gap-1.5 mt-0.5 truncate">
@@ -355,7 +311,7 @@ export const ManagerDashboard: React.FC = () => {
           </div>
         </div>
 
-        {/* Dynamic Tab Navigation (Horizontal Scroll on Mobile) */}
+        {/* Tab Navigation */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex border-t border-white/10 gap-1.5 sm:gap-2 pt-2 overflow-x-auto scrollbar-none pb-1">
           {navTabs.map((tab) => {
             const Icon = tab.icon;
@@ -381,15 +337,6 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 pt-4 sm:pt-6 space-y-6">
-        {/* DRIVER INTERFERENCE ALERT BANNER FOR MANAGER */}
-        {token && (
-          <FleetInterferenceAlertBanner 
-            token={token} 
-            userRole="manager" 
-            onAlertClick={() => setActiveTab('fleet')} 
-          />
-        )}
-
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-2xl flex items-center gap-3 text-red-600 text-sm font-semibold">
             <AlertCircle className="w-5 h-5 shrink-0" />
@@ -404,556 +351,171 @@ export const ManagerDashboard: React.FC = () => {
           </div>
         ) : (
           <>
-            {/* ========================================================================= */}
             {/* TAB: OVERVIEW */}
-            {/* ========================================================================= */}
             {activeTab === 'overview' && overview && (
               <div className="space-y-6">
-
-                {/* 1. FLEET-ONLY OVERVIEW VIEW */}
-                {isFleetOnly && (
-                  <div className="space-y-6">
-                    {/* Fleet Key Metrics */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                      {/* Trucks at Park */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
-                            <Truck className="w-5 h-5 text-amber-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full uppercase">Park Fleet</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Assigned Trucks</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.fleet_stats?.total_trucks || 0} <span className="text-xs text-slate-400 font-semibold">Vehicles</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-medium">
-                          Registered at {overview.park_location}
-                        </p>
+                {/* Metrics Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
+                  {/* Waybill Volume */}
+                  <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
+                        <Package className="w-5 h-5 text-[#0A1F44]" />
                       </div>
-
-                      {/* Active Drivers */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
-                            <Users className="w-5 h-5 text-blue-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full uppercase">Drivers</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Drivers</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.fleet_stats?.total_drivers || 0} <span className="text-xs text-slate-400 font-semibold">On Duty</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-medium">
-                          Assigned to park trips & haulage
-                        </p>
-                      </div>
-
-                      {/* Active Trips */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-indigo-50 rounded-2xl flex items-center justify-center">
-                            <Activity className="w-5 h-5 text-indigo-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2.5 py-1 rounded-full uppercase">In Transit</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Active Trips</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.fleet_stats?.active_trips || 0} <span className="text-xs text-slate-400 font-semibold">Moving</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-medium">
-                          Active en route & loading
-                        </p>
-                      </div>
-
-                      {/* Completed Trips */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center">
-                            <CheckCircle className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">Delivered</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Completed Haulage</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.fleet_stats?.completed_trips || 0} <span className="text-xs text-slate-400 font-semibold">Trips</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-medium">
-                          Successfully arrived & verified
-                        </p>
-                      </div>
+                      <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase">Volume</span>
                     </div>
-
-                    {/* Fleet Park Summary Banner */}
-                      <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                        <div className="space-y-1">
-                          <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
-                            <Truck className="text-[#F2A93B] w-5 h-5" />
-                            Fleet Logistics Operations: {overview.park_location}
-                          </h2>
-                          <p className="text-xs text-slate-300 max-w-2xl">
-                            As Fleet Manager, you supervise truck dispatches, haulage suppliers, driver assignments, and realtime milestone tracking from this depot.
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-3 w-full md:w-auto">
-                          <button
-                            onClick={() => setActiveTab('fleet')}
-                            className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer"
-                          >
-                            <Plus className="w-4 h-4" /> Launch New Trip
-                          </button>
-                          <button
-                            onClick={() => setActiveTab('live_board')}
-                            className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer border border-white/20"
-                          >
-                            <Activity className="w-4 h-4 text-emerald-400" /> Live Board
-                          </button>
-                        </div>
-                      </div>
-
-                    {/* Recent Fleet Trips */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h3 className="text-base font-extrabold text-[#0A1F44]">Recent Haulage Trips at Park</h3>
-                            <p className="text-xs text-slate-500 font-medium mt-0.5">Trips originating from or destined for {overview.park_location}</p>
-                          </div>
-                          <button
-                            onClick={() => setActiveTab('fleet')}
-                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                          >
-                            View All Trips <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead>
-                              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                                <th className="pb-3 px-3">Trip ID</th>
-                                <th className="pb-3 px-3">Truck</th>
-                                <th className="pb-3 px-3">Supplier</th>
-                                <th className="pb-3 px-3">Driver</th>
-                                <th className="pb-3 px-3">Status</th>
-                                <th className="pb-3 px-3">Created</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                              {(overview.recent_trips || []).slice(0, 8).map((trip: any) => (
-                                <tr key={trip.id} className="hover:bg-slate-50/80">
-                                  <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{trip.tracking_code || trip.id.substring(0, 8).toUpperCase()}</td>
-                                  <td className="py-3 px-3 font-bold">{trip.truck_number || 'Truck'}</td>
-                                  <td className="py-3 px-3">{trip.supplier_name || 'Supplier'}</td>
-                                  <td className="py-3 px-3 font-semibold text-slate-800">
-                                    {trip.driver_name || (trip.driver && trip.driver.name) || (trip.driver_phone ? `Driver (${trip.driver_phone})` : <span className="text-slate-400 font-normal">Unassigned</span>)}
-                                  </td>
-                                  <td className="py-3 px-3">
-                                    <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
-                                      trip.status === 'completed' || trip.status === 'arrived' ? 'bg-emerald-100 text-emerald-800' :
-                                      trip.status === 'in_transit' || trip.status === 'loaded_departed' ? 'bg-blue-100 text-blue-800' :
-                                      trip.status === 'loading' ? 'bg-amber-100 text-amber-800' :
-                                      'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {(trip.status || 'created').replace('_', ' ')}
-                                    </span>
-                                  </td>
-                                  <td className="py-3 px-3 text-slate-400">
-                                    {trip.created_at ? new Date(trip.created_at).toLocaleDateString() : 'Recent'}
-                                  </td>
-                                </tr>
-                              ))}
-                              {(!overview.recent_trips || overview.recent_trips.length === 0) && (
-                                <tr>
-                                  <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
-                                    No trips recorded yet for this park. Click "Launch New Trip" in Fleet Operations to create one.
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                  </div>
-                )}
-
-                {/* 2. WAYBILL-ONLY OVERVIEW VIEW */}
-                {isWaybillOnly && (
-                  <div className="space-y-6">
-                    {/* Metrics Cards Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
-                      {/* Waybill Volume */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
-                            <Package className="w-5 h-5 text-[#0A1F44]" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full uppercase">Volume</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Park Waybills</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.stats?.volume?.today || 0} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Week</span>
-                            <span className="font-extrabold text-[#0A1F44]">{overview.stats?.volume?.week || 0}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Month</span>
-                            <span className="font-extrabold text-[#0A1F44]">{overview.stats?.volume?.month || 0}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Gross Tracking Fees */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-amber-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full uppercase">Tracking Fee</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Tracking Fee Total</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">₦{(overview.stats?.tracking_fees?.today || 0).toLocaleString()} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Week</span>
-                            <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.tracking_fees?.week || 0).toLocaleString()}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Month</span>
-                            <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.tracking_fees?.month || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Gross Shipping Fees */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center">
-                            <DollarSign className="w-5 h-5 text-emerald-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">Shipping Fee</span>
-                        </div>
-                        <div>
-                          <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Shipping Fee Total</p>
-                          <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">₦{(overview.stats?.shipping_fees?.today || 0).toLocaleString()} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
-                        </div>
-                        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Week</span>
-                            <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.shipping_fees?.week || 0).toLocaleString()}</span>
-                          </div>
-                          <div>
-                            <span className="text-slate-400 block font-semibold">This Month</span>
-                            <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.shipping_fees?.month || 0).toLocaleString()}</span>
-                          </div>
-                        </div>
-                      </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Park Waybills</p>
+                      <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">{overview.stats?.volume?.today || 0} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
                     </div>
-
-                    {/* Park Quick Summary Box */}
-                    <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      <div className="space-y-1">
-                        <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
-                          <MapPin className="text-[#F2A93B] w-5 h-5" />
-                          Park Location: {overview.park_location}
-                        </h2>
-                        <p className="text-xs text-slate-300">
-                          As Manager, you have full supervisory control over staff operations, PIN resets, and waybill volume tracking at this park.
-                        </p>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Week</span>
+                        <span className="font-extrabold text-[#0A1F44]">{overview.stats?.volume?.week || 0}</span>
                       </div>
-                      <div className="flex items-center gap-3 bg-white/10 px-4 py-3 rounded-2xl backdrop-blur-sm">
-                        <Users className="w-5 h-5 text-indigo-300" />
-                        <div>
-                          <p className="text-xs text-slate-300 font-semibold">Active Staff On Duty</p>
-                          <p className="text-base sm:text-lg font-black text-white">{overview.stats?.active_staff_count || 0} Staff Members</p>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recent Park Waybills */}
-                    <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
-                      <div className="flex justify-between items-center">
-                        <h3 className="text-base font-extrabold text-[#0A1F44]">Recent Waybills at Park</h3>
-                        <button
-                          onClick={() => setActiveTab('waybills')}
-                          className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                        >
-                          View Full History <ArrowRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-left text-xs">
-                          <thead>
-                            <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
-                              <th className="pb-3 px-3">Tracking Code</th>
-                              <th className="pb-3 px-3">Sender</th>
-                              <th className="pb-3 px-3">Receiver</th>
-                              <th className="pb-3 px-3">Status</th>
-                              <th className="pb-3 px-3">Payment</th>
-                              <th className="pb-3 px-3">Fee</th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                            {(overview.recent_waybills || []).slice(0, 8).map((wb: any) => (
-                              <tr key={wb.id} className="hover:bg-slate-50/80">
-                                <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{wb.tracking_code}</td>
-                                <td className="py-3 px-3">{wb.sender_name}</td>
-                                <td className="py-3 px-3">{wb.receiver_name}</td>
-                                <td className="py-3 px-3">
-                                  <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
-                                    wb.status === 'collected' ? 'bg-emerald-100 text-emerald-800' :
-                                    wb.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
-                                    wb.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
-                                    'bg-slate-100 text-slate-700'
-                                  }`}>
-                                    {wb.status.replace('_', ' ')}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3">
-                                  <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] uppercase ${
-                                    wb.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
-                                  }`}>
-                                    {wb.paid ? 'Paid' : 'Unpaid'}
-                                  </span>
-                                </td>
-                                <td className="py-3 px-3 font-bold text-[#0A1F44]">
-                                  ₦{(Number(wb.shipping_fee) || 0).toLocaleString()}
-                                </td>
-                              </tr>
-                            ))}
-                            {(!overview.recent_waybills || overview.recent_waybills.length === 0) && (
-                              <tr>
-                                <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
-                                  No waybills recorded yet at this park.
-                                </td>
-                              </tr>
-                            )}
-                          </tbody>
-                        </table>
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Month</span>
+                        <span className="font-extrabold text-[#0A1F44]">{overview.stats?.volume?.month || 0}</span>
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* 3. BOTH / DUAL-MODE OVERVIEW VIEW */}
-                {isBoth && (
-                  <div className="space-y-6">
-                    {/* Unified Branch Summary Banner */}
-                    <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
-                            <MapPin className="text-[#F2A93B] w-5 h-5" />
-                            Branch Hub: {overview.park_location}
-                          </h2>
-                          <span className="bg-amber-400/20 text-amber-300 border border-amber-400/30 text-[10px] font-extrabold px-2 py-0.5 rounded-full uppercase">
-                            Waybill & Fleet Integrated
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-300 max-w-2xl">
-                          Full branch oversight: Monitor park staff waybill volume and dispatch haulage trucks simultaneously.
-                        </p>
+                  {/* Gross Tracking Fees */}
+                  <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-amber-600" />
                       </div>
-                      <div className="flex items-center gap-3 w-full md:w-auto">
-                        <button
-                          onClick={() => setActiveTab('staff')}
-                          className="flex-1 md:flex-initial bg-white/10 hover:bg-white/20 text-white font-bold px-3.5 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer border border-white/20"
-                        >
-                          <Users className="w-4 h-4 text-indigo-300" /> Manage Staff ({overview.stats?.active_staff_count || 0})
-                        </button>
-                        <button
-                          onClick={() => setActiveTab('fleet')}
-                          className="flex-1 md:flex-initial bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                        >
-                          <Truck className="w-4 h-4" /> Fleet ({overview.fleet_stats?.total_trucks || 0})
-                        </button>
-                      </div>
+                      <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full uppercase">Tracking Fee</span>
                     </div>
-
-                    {/* Dual Grid: Waybill Metrics + Fleet Metrics */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-                      {/* Waybills Today */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="w-9 h-9 bg-blue-50 rounded-2xl flex items-center justify-center">
-                            <Package className="w-4.5 h-4.5 text-[#0A1F44]" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full uppercase">Waybills</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase">Waybills Today</p>
-                          <p className="text-2xl font-black text-[#0A1F44] mt-0.5">{overview.stats?.volume?.today || 0}</p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-semibold">
-                          Week: <strong>{overview.stats?.volume?.week || 0}</strong> • Month: <strong>{overview.stats?.volume?.month || 0}</strong>
-                        </p>
-                      </div>
-
-                      {/* Gross Shipping Fees Today */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="w-9 h-9 bg-emerald-50 rounded-2xl flex items-center justify-center">
-                            <DollarSign className="w-4.5 h-4.5 text-emerald-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full uppercase">Revenue</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase">Shipping Fees Today</p>
-                          <p className="text-2xl font-black text-[#0A1F44] mt-0.5">₦{(overview.stats?.shipping_fees?.today || 0).toLocaleString()}</p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-semibold">
-                          Tracking: <strong>₦{(overview.stats?.tracking_fees?.today || 0).toLocaleString()}</strong>
-                        </p>
-                      </div>
-
-                      {/* Trucks & Drivers */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="w-9 h-9 bg-amber-50 rounded-2xl flex items-center justify-center">
-                            <Truck className="w-4.5 h-4.5 text-amber-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full uppercase">Park Fleet</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase">Registered Trucks</p>
-                          <p className="text-2xl font-black text-[#0A1F44] mt-0.5">{overview.fleet_stats?.total_trucks || 0} <span className="text-xs text-slate-400 font-semibold">Trucks</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-semibold">
-                          Drivers on Duty: <strong>{overview.fleet_stats?.total_drivers || 0}</strong>
-                        </p>
-                      </div>
-
-                      {/* Active Haulage Trips */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-2">
-                        <div className="flex items-center justify-between">
-                          <div className="w-9 h-9 bg-indigo-50 rounded-2xl flex items-center justify-center">
-                            <Activity className="w-4.5 h-4.5 text-indigo-600" />
-                          </div>
-                          <span className="text-[10px] font-extrabold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-full uppercase">Haulage</span>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-bold text-slate-400 uppercase">Active Trips</p>
-                          <p className="text-2xl font-black text-[#0A1F44] mt-0.5">{overview.fleet_stats?.active_trips || 0} <span className="text-xs text-slate-400 font-semibold">Moving</span></p>
-                        </div>
-                        <p className="text-[11px] text-slate-500 pt-1 border-t border-slate-100 font-semibold">
-                          Completed: <strong>{overview.fleet_stats?.completed_trips || 0} Trips</strong>
-                        </p>
-                      </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Tracking Fee Total</p>
+                      <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">₦{(overview.stats?.tracking_fees?.today || 0).toLocaleString()} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
                     </div>
-
-                    {/* Dual Recent Activity Tables */}
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {/* Left: Recent Waybills */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-sm font-extrabold text-[#0A1F44]">Recent Waybills</h3>
-                          <button
-                            onClick={() => setActiveTab('waybills')}
-                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                          >
-                            All ({waybills.length}) <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead>
-                              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                                <th className="pb-2">Code</th>
-                                <th className="pb-2">Receiver</th>
-                                <th className="pb-2">Status</th>
-                                <th className="pb-2 text-right">Fee</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                              {(overview.recent_waybills || []).slice(0, 5).map((wb: any) => (
-                                <tr key={wb.id} className="hover:bg-slate-50/80">
-                                  <td className="py-2.5 font-mono font-bold text-[#0A1F44]">{wb.tracking_code}</td>
-                                  <td className="py-2.5">{wb.receiver_name}</td>
-                                  <td className="py-2.5">
-                                    <span className={`px-2 py-0.5 rounded-full font-extrabold text-[9px] uppercase ${
-                                      wb.status === 'collected' ? 'bg-emerald-100 text-emerald-800' :
-                                      wb.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
-                                      'bg-slate-100 text-slate-700'
-                                    }`}>
-                                      {wb.status.replace('_', ' ')}
-                                    </span>
-                                  </td>
-                                  <td className="py-2.5 text-right font-bold text-[#0A1F44]">
-                                    ₦{(Number(wb.shipping_fee) || 0).toLocaleString()}
-                                  </td>
-                                </tr>
-                              ))}
-                              {(!overview.recent_waybills || overview.recent_waybills.length === 0) && (
-                                <tr>
-                                  <td colSpan={4} className="text-center py-6 text-slate-400 font-medium">No waybills yet.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Week</span>
+                        <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.tracking_fees?.week || 0).toLocaleString()}</span>
                       </div>
-
-                      {/* Right: Recent Fleet Trips */}
-                      <div className="bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm space-y-4">
-                        <div className="flex justify-between items-center">
-                          <h3 className="text-sm font-extrabold text-[#0A1F44]">Recent Haulage Trips</h3>
-                          <button
-                            onClick={() => setActiveTab('fleet')}
-                            className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
-                          >
-                            All Trips <ArrowRight className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                        <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs">
-                            <thead>
-                              <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
-                                <th className="pb-2">Trip</th>
-                                <th className="pb-2">Truck</th>
-                                <th className="pb-2">Supplier</th>
-                                <th className="pb-2 text-right">Status</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                              {(overview.recent_trips || []).slice(0, 5).map((trip: any) => (
-                                <tr key={trip.id} className="hover:bg-slate-50/80">
-                                  <td className="py-2.5 font-mono font-bold text-[#0A1F44]">{trip.tracking_code || trip.id.substring(0, 8).toUpperCase()}</td>
-                                  <td className="py-2.5 font-bold">{trip.truck_number || 'Truck'}</td>
-                                  <td className="py-2.5">{trip.supplier_name || 'Supplier'}</td>
-                                  <td className="py-2.5 text-right">
-                                    <span className={`px-2 py-0.5 rounded-full font-extrabold text-[9px] uppercase ${
-                                      trip.status === 'completed' || trip.status === 'arrived' ? 'bg-emerald-100 text-emerald-800' :
-                                      trip.status === 'in_transit' || trip.status === 'loaded_departed' ? 'bg-blue-100 text-blue-800' :
-                                      'bg-amber-100 text-amber-800'
-                                    }`}>
-                                      {(trip.status || 'created').replace('_', ' ')}
-                                    </span>
-                                  </td>
-                                </tr>
-                              ))}
-                              {(!overview.recent_trips || overview.recent_trips.length === 0) && (
-                                <tr>
-                                  <td colSpan={4} className="text-center py-6 text-slate-400 font-medium">No haulage trips yet.</td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Month</span>
+                        <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.tracking_fees?.month || 0).toLocaleString()}</span>
                       </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Gross Shipping Fees */}
+                  <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="w-10 h-10 bg-emerald-50 rounded-2xl flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-full uppercase">Shipping Fee</span>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Shipping Fee Total</p>
+                      <p className="text-2xl sm:text-3xl font-black text-[#0A1F44] mt-1">₦{(overview.stats?.shipping_fees?.today || 0).toLocaleString()} <span className="text-xs text-slate-400 font-semibold">Today</span></p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 text-xs">
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Week</span>
+                        <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.shipping_fees?.week || 0).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 block font-semibold">This Month</span>
+                        <span className="font-extrabold text-[#0A1F44]">₦{(overview.stats?.shipping_fees?.month || 0).toLocaleString()}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Park Quick Summary Box */}
+                <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div className="space-y-1">
+                    <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
+                      <MapPin className="text-[#F2A93B] w-5 h-5" />
+                      Park Location: {overview.park_location}
+                    </h2>
+                    <p className="text-xs text-slate-300">
+                      As Manager, you have full supervisory control over staff operations, PIN resets, and waybill volume tracking at this park.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 bg-white/10 px-4 py-3 rounded-2xl backdrop-blur-sm">
+                    <Users className="w-5 h-5 text-indigo-300" />
+                    <div>
+                      <p className="text-xs text-slate-300 font-semibold">Active Staff On Duty</p>
+                      <p className="text-base sm:text-lg font-black text-white">{overview.stats?.active_staff_count || 0} Staff Members</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Recent Park Waybills */}
+                <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-base font-extrabold text-[#0A1F44]">Recent Waybills at Park</h3>
+                    <button
+                      onClick={() => setActiveTab('waybills')}
+                      className="text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1 cursor-pointer"
+                    >
+                      View Full History <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase tracking-wider">
+                          <th className="pb-3 px-3">Tracking Code</th>
+                          <th className="pb-3 px-3">Sender</th>
+                          <th className="pb-3 px-3">Receiver</th>
+                          <th className="pb-3 px-3">Status</th>
+                          <th className="pb-3 px-3">Payment</th>
+                          <th className="pb-3 px-3">Fee</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                        {(overview.recent_waybills || []).slice(0, 8).map((wb: any) => (
+                          <tr key={wb.id} className="hover:bg-slate-50/80">
+                            <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{wb.tracking_code}</td>
+                            <td className="py-3 px-3">{wb.sender_name}</td>
+                            <td className="py-3 px-3">{wb.receiver_name}</td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
+                                wb.status === 'collected' ? 'bg-emerald-100 text-emerald-800' :
+                                wb.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
+                                wb.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
+                                'bg-slate-100 text-slate-700'
+                              }`}>
+                                {wb.status.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`px-2 py-0.5 rounded-full font-extrabold text-[10px] uppercase ${
+                                wb.paid ? 'bg-emerald-100 text-emerald-800' : 'bg-red-100 text-red-800'
+                              }`}>
+                                {wb.paid ? 'Paid' : 'Unpaid'}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-bold text-[#0A1F44]">
+                              ₦{(Number(wb.shipping_fee) || 0).toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!overview.recent_waybills || overview.recent_waybills.length === 0) && (
+                          <tr>
+                            <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
+                              No waybills recorded yet at this park.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* TAB: STAFF MEMBERS (Only for Waybill / Dual-Mode Managers) */}
-            {/* ========================================================================= */}
+            {/* TAB: STAFF MEMBERS */}
             {activeTab === 'staff' && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm">
@@ -1062,9 +624,7 @@ export const ManagerDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* TAB: WAYBILL REGISTER (Only for Waybill / Dual-Mode Managers) */}
-            {/* ========================================================================= */}
+            {/* TAB: WAYBILL REGISTER */}
             {activeTab === 'waybills' && (
               <div className="space-y-6">
                 {/* Search & Filters */}
@@ -1158,21 +718,10 @@ export const ManagerDashboard: React.FC = () => {
               </div>
             )}
 
-            {/* ========================================================================= */}
-            {/* TAB: FLEET OPERATIONS (Only for Fleet / Dual-Mode Managers) */}
-            {/* ========================================================================= */}
-            {activeTab === 'fleet' && (
+            {/* TAB: FLEET LOCATIONS */}
+            {activeTab === 'fleet_locations' && (
               <div className="space-y-6">
-                <FleetManagementView userRole="manager" />
-              </div>
-            )}
-
-            {/* ========================================================================= */}
-            {/* TAB: LIVE FLEET BOARD (Only for Fleet / Dual-Mode Managers) */}
-            {/* ========================================================================= */}
-            {activeTab === 'live_board' && (
-              <div className="space-y-6">
-                <RealtimeFleetBoard />
+                <FleetLocationsView token={token || ''} userName={user?.name || 'Manager'} />
               </div>
             )}
           </>

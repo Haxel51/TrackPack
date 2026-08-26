@@ -1,0 +1,47 @@
+{
+  "entities": {
+    "FleetGarage": {
+      "title": "FleetGarage",
+      "description": "Company garage origin location for fleet operations",
+      "type": "object",
+      "properties": {
+        "address_text": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "location_confirmed": { "type": "boolean" },
+        "confirmed_by": { "type": "string" },
+        "confirmed_at": { "type": "string" },
+        "company_id": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["address_text", "location_confirmed", "company_id"]
+    },
+    "FleetSupplier": {
+      "title": "FleetSupplier",
+      "description": "Supplier or company destination location for fleet operations",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address_text": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "location_confirmed": { "type": "boolean" },
+        "confirmed_by": { "type": "string" },
+        "confirmed_at": { "type": "string" },
+        "company_id": { "type": "string" },
+        "created_at": { "type": "string" }
+      },
+      "required": ["name", "address_text", "location_confirmed", "company_id"]
+    }
+  },
+  "firestore": {
+    "/fleetTracking_garages/{garageId}": {
+      "schema": { "$ref": "#/entities/FleetGarage" },
+      "description": "Garage location configuration documents"
+    },
+    "/fleetTracking_suppliers/{supplierId}": {
+      "schema": { "$ref": "#/entities/FleetSupplier" },
+      "description": "Registered destination and supplier locations"
+    }
+  }
+}

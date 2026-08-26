@@ -1,1 +1,6 @@
 @import "tailwindcss";
+
+/* Google Maps Container Fixes */
+.gm-style {
+  font-family: inherit;
+}

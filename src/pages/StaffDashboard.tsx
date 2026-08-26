@@ -1,55 +1,37 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { LogOut, Briefcase, MapPin, Shield, Plus, Truck, FileText, AlertTriangle, Bell, ArrowRight, HelpCircle, X, CheckCircle2, Phone, Sparkles, Receipt, Package, Building } from 'lucide-react';
+import { LogOut, Briefcase, MapPin, Plus, Truck, FileText, AlertTriangle, ArrowRight, HelpCircle, X, CheckCircle2, Receipt, Package } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
 import { OutgoingBuses } from '../components/staff/OutgoingBuses';
 import { IncomingBuses } from '../components/staff/IncomingBuses';
 import { WaybillHistory } from '../components/staff/WaybillHistory';
-import { DepotGateControl } from '../components/staff/DepotGateControl';
-import { getOutgoingBuses, getIncomingBuses, getFleetConfig, getFleetTrips } from '../lib/api';
+import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
-import { FleetInterferenceAlertBanner } from '../components/fleet/FleetInterferenceAlertBanner';
 
-type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history' | 'depot_gate';
+type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history';
 
 export const StaffDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
   const [screen, setScreen] = useState<StaffScreen>('menu');
   const [showStaffGuideModal, setShowStaffGuideModal] = useState<boolean>(false);
-  const [serviceType, setServiceType] = useState<'package' | 'fleet' | 'both'>('both');
   
   // Operational alert counts
   const [outgoingCount, setOutgoingCount] = useState<number>(0);
   const [incomingInTransitCount, setIncomingInTransitCount] = useState<number>(0);
   const [pendingPickupCount, setPendingPickupCount] = useState<number>(0);
-  const [fleetDepartingCount, setFleetDepartingCount] = useState<number>(0);
-  const [fleetArrivingCount, setFleetArrivingCount] = useState<number>(0);
 
   const originPark = user?.park_location || 'Nnewi';
-
-  const fetchCompanyConfig = async () => {
-    if (!token) return;
-    try {
-      const data = await getFleetConfig(token);
-      if (data && data.success && data.service_type) {
-        setServiceType(data.service_type);
-      }
-    } catch {
-      // Ignore background refresh errors
-    }
-  };
 
   const fetchCounts = async () => {
     if (!token) return;
     try {
-      const [outRes, incRes, fleetRes] = await Promise.allSettled([
+      const [outRes, incRes] = await Promise.allSettled([
         getOutgoingBuses(token),
-        getIncomingBuses(token),
-        getFleetTrips(token)
+        getIncomingBuses(token)
       ]);
 
       if (outRes.status === 'fulfilled' && outRes.value?.success && Array.isArray(outRes.value.buses)) {
@@ -73,24 +55,12 @@ export const StaffDashboard: React.FC = () => {
         });
         setPendingPickupCount(pickups);
       }
-
-      if (fleetRes.status === 'fulfilled' && fleetRes.value?.success && Array.isArray(fleetRes.value.trips)) {
-        const departing = fleetRes.value.trips.filter(
-          (t: any) => t.status === 'pending_payment' || t.status === 'created'
-        );
-        const arriving = fleetRes.value.trips.filter(
-          (t: any) => t.status === 'loaded_departed'
-        );
-        setFleetDepartingCount(departing.length);
-        setFleetArrivingCount(arriving.length);
-      }
     } catch {
       // Ignore background refresh errors
     }
   };
 
   useEffect(() => {
-    fetchCompanyConfig();
     fetchCounts();
     const interval = setInterval(fetchCounts, 15000);
     return () => clearInterval(interval);
@@ -103,9 +73,7 @@ export const StaffDashboard: React.FC = () => {
   }, [screen]);
 
   const hasWaybillJobs = outgoingCount > 0 || incomingInTransitCount > 0 || pendingPickupCount > 0;
-  const hasFleetJobs = fleetDepartingCount > 0 || fleetArrivingCount > 0;
-  const hasJobs = hasWaybillJobs || hasFleetJobs;
-  const totalTasksCount = outgoingCount + incomingInTransitCount + pendingPickupCount + fleetDepartingCount + fleetArrivingCount;
+  const totalTasksCount = outgoingCount + incomingInTransitCount + pendingPickupCount;
 
   const renderScreen = () => {
     if (!token) return null;
@@ -151,21 +119,10 @@ export const StaffDashboard: React.FC = () => {
             onBackToMenu={() => setScreen('menu')}
           />
         );
-      case 'depot_gate':
-        return (
-          <DepotGateControl
-            token={token}
-            originPark={originPark}
-            onBackToMenu={() => setScreen('menu')}
-          />
-        );
       case 'menu':
       default:
         return (
           <div className="max-w-5xl mx-auto space-y-8">
-            {/* Real-time Driver Interference Alert for Staff */}
-            {token && <FleetInterferenceAlertBanner token={token} userRole="staff" />}
-
             {/* Header info block */}
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
@@ -178,7 +135,7 @@ export const StaffDashboard: React.FC = () => {
                   </h2>
                   <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-0.5">
                     <MapPin className="w-3.5 h-3.5 text-[#F2A93B]" />
-                    <span>Your Assigned Motor Park / Depot: <strong>{originPark}</strong></span>
+                    <span>Your Assigned Motor Park: <strong>{originPark}</strong></span>
                   </div>
                 </div>
               </div>
@@ -195,7 +152,7 @@ export const StaffDashboard: React.FC = () => {
             </div>
 
             {/* Blinking Red Alert Panel if there is any pending job to do */}
-            {hasJobs && (
+            {hasWaybillJobs && (
               <div className="bg-rose-50/70 border-2 border-red-500 rounded-3xl p-5 md:p-6 shadow-md transition-all animate-pulse duration-1000" id="staff-pending-jobs-alert">
                 <div className="flex flex-col sm:flex-row sm:items-start gap-4">
                   <div className="w-11 h-11 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-lg animate-bounce">
@@ -209,7 +166,7 @@ export const StaffDashboard: React.FC = () => {
                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-600"></span>
                         </span>
                         <h3 className="text-sm font-black text-red-950 uppercase tracking-wide">
-                          ⚠️ ACTION REQUIRED: Pending Park & Gate Operations
+                          ⚠️ ACTION REQUIRED: Pending Park Operations
                         </h3>
                       </div>
                       <p className="text-xs text-rose-800 font-bold mt-1">
@@ -217,7 +174,7 @@ export const StaffDashboard: React.FC = () => {
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-3 pt-1">
                       {outgoingCount > 0 && (
                         <button
                           onClick={() => setScreen('outgoing')}
@@ -249,38 +206,6 @@ export const StaffDashboard: React.FC = () => {
                           </span>
                         </button>
                       )}
-
-                      {fleetDepartingCount > 0 && (
-                        <button
-                          onClick={() => setScreen('depot_gate')}
-                          className="bg-white hover:bg-amber-100/50 border border-amber-300 p-3.5 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between min-h-[90px] shadow-xs hover:border-amber-400 group"
-                        >
-                          <span className="text-[9px] font-black text-amber-700 uppercase tracking-widest block">Gate Outbound</span>
-                          <div className="flex items-baseline gap-1.5 mt-1">
-                            <span className="text-lg font-black text-amber-900">{fleetDepartingCount}</span>
-                            <span className="text-[11px] text-amber-900 font-bold">Ready to Leave</span>
-                          </div>
-                          <span className="text-[9px] font-extrabold text-amber-700 underline mt-1.5 inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            Mark Left Depot &rarr;
-                          </span>
-                        </button>
-                      )}
-
-                      {fleetArrivingCount > 0 && (
-                        <button
-                          onClick={() => setScreen('depot_gate')}
-                          className="bg-white hover:bg-emerald-100/50 border border-emerald-300 p-3.5 rounded-2xl text-left transition-all cursor-pointer flex flex-col justify-between min-h-[90px] shadow-xs hover:border-emerald-400 group"
-                        >
-                          <span className="text-[9px] font-black text-emerald-700 uppercase tracking-widest block">Gate Inbound</span>
-                          <div className="flex items-baseline gap-1.5 mt-1">
-                            <span className="text-lg font-black text-emerald-900">{fleetArrivingCount}</span>
-                            <span className="text-[11px] text-emerald-900 font-bold">Returning from Factory</span>
-                          </div>
-                          <span className="text-[9px] font-extrabold text-emerald-700 underline mt-1.5 inline-flex items-center gap-0.5 group-hover:translate-x-0.5 transition-transform">
-                            Confirm Gate Arrival &rarr;
-                          </span>
-                        </button>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -288,119 +213,84 @@ export const StaffDashboard: React.FC = () => {
             )}
 
             {/* Quick Action Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {/* Card: Depot Gate Control (Prominent for Fleet / Both) */}
-              {(serviceType === 'fleet' || serviceType === 'both') && (
-                <button
-                  id="staff-depot-gate-btn"
-                  onClick={() => setScreen('depot_gate')}
-                  className="bg-gradient-to-br from-[#0A1F44] to-[#13326b] text-white rounded-3xl p-6 hover:shadow-xl transition-all text-left space-y-4 group cursor-pointer shadow-md flex flex-col justify-between min-h-[190px] border border-blue-900"
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="w-10 h-10 bg-amber-400/20 rounded-2xl flex items-center justify-center border border-amber-400/30">
-                      <Building className="w-5 h-5 text-amber-400" />
-                    </div>
-                    {(fleetDepartingCount > 0 || fleetArrivingCount > 0) && (
-                      <span className="bg-amber-400 text-[#0A1F44] text-[9px] font-black px-2.5 py-1 rounded-full animate-bounce">
-                        {fleetDepartingCount + fleetArrivingCount} GATE TASKS
-                      </span>
-                    )}
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base flex items-center gap-1.5 text-white">
-                      Depot Gate Checkpoint
-                      <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
-                    </h3>
-                    <p className="text-xs text-slate-300 mt-1 font-medium leading-relaxed">
-                      Mark trucks as Left Depot for factory collection and confirm Arrived & Offloaded upon return.
-                    </p>
-                  </div>
-                </button>
-              )}
-
-              {/* Card 1: Create Waybill (if service supports package) */}
-              {(serviceType === 'package' || serviceType === 'both') && (
-                <button
-                  id="staff-create-waybill-btn"
-                  onClick={() => setScreen('create_waybill')}
-                  className="bg-[#0A1F44] text-white rounded-3xl p-6 hover:bg-blue-900 transition-all text-left space-y-4 group cursor-pointer shadow-md hover:shadow-lg flex flex-col justify-between min-h-[190px]"
-                >
-                  <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
-                    <FileText className="w-5 h-5 text-[#F2A93B]" />
-                  </div>
-                  <div>
-                    <h3 className="font-extrabold text-base flex items-center gap-1.5">
-                      Create New Waybill
-                      <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
-                    </h3>
-                    <p className="text-xs text-slate-300 mt-1 font-medium">
-                      Register sender, receiver, and load waybills onto an active loading list.
-                    </p>
-                  </div>
-                </button>
-              )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+              {/* Card 1: Create Waybill */}
+              <button
+                id="staff-create-waybill-btn"
+                onClick={() => setScreen('create_waybill')}
+                className="bg-[#0A1F44] text-white rounded-3xl p-6 hover:bg-blue-900 transition-all text-left space-y-4 group cursor-pointer shadow-md hover:shadow-lg flex flex-col justify-between min-h-[190px]"
+              >
+                <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
+                  <FileText className="w-5 h-5 text-[#F2A93B]" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base flex items-center gap-1.5">
+                    Create New Waybill
+                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                  </h3>
+                  <p className="text-xs text-slate-300 mt-1 font-medium">
+                    Register sender, receiver, and load waybills onto an active loading list.
+                  </p>
+                </div>
+              </button>
 
               {/* Card 2: Outgoing Buses */}
-              {(serviceType === 'package' || serviceType === 'both') && (
-                <button
-                  id="staff-outgoing-buses-tab"
-                  onClick={() => setScreen('outgoing')}
-                  className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[190px] ${
-                    outgoingCount > 0 ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-blue-700" />
-                    </div>
-                    {outgoingCount > 0 && (
-                      <span className="bg-red-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full animate-bounce">
-                        {outgoingCount} PENDING
-                      </span>
-                    )}
+              <button
+                id="staff-outgoing-buses-tab"
+                onClick={() => setScreen('outgoing')}
+                className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[190px] ${
+                  outgoingCount > 0 ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-blue-700" />
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
-                      Outgoing Vehicles
-                      <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1 font-medium">
-                      Manage active loading lists at this park and mark them as departed.
-                    </p>
-                  </div>
-                </button>
-              )}
+                  {outgoingCount > 0 && (
+                    <span className="bg-red-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full animate-bounce">
+                      {outgoingCount} PENDING
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
+                    Outgoing Vehicles
+                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Manage active loading lists at this park and mark them as departed.
+                  </p>
+                </div>
+              </button>
 
               {/* Card 3: Incoming Buses */}
-              {(serviceType === 'package' || serviceType === 'both') && (
-                <button
-                  id="staff-incoming-buses-tab"
-                  onClick={() => setScreen('incoming')}
-                  className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[190px] ${
-                    (incomingInTransitCount > 0 || pendingPickupCount > 0) ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
-                  }`}
-                >
-                  <div className="flex items-center justify-between w-full">
-                    <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
-                      <Truck className="w-5 h-5 text-emerald-600" />
-                    </div>
-                    {(incomingInTransitCount > 0 || pendingPickupCount > 0) && (
-                      <span className="bg-red-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full animate-bounce">
-                        {incomingInTransitCount + pendingPickupCount} PENDING
-                      </span>
-                    )}
+              <button
+                id="staff-incoming-buses-tab"
+                onClick={() => setScreen('incoming')}
+                className={`bg-white border rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[190px] ${
+                  (incomingInTransitCount > 0 || pendingPickupCount > 0) ? 'border-red-200 hover:border-red-300 bg-red-50/5' : 'border-slate-100'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-10 h-10 bg-blue-50 rounded-2xl flex items-center justify-center">
+                    <Truck className="w-5 h-5 text-emerald-600" />
                   </div>
-                  <div>
-                    <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
-                      Incoming Vehicles
-                      <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
-                    </h3>
-                    <p className="text-xs text-slate-500 mt-1 font-medium">
-                      Track inbound dispatches, mark arrivals, and manage customer collections.
-                    </p>
-                  </div>
-                </button>
-              )}
+                  {(incomingInTransitCount > 0 || pendingPickupCount > 0) && (
+                    <span className="bg-red-600 text-white text-[9px] font-black px-2.5 py-1 rounded-full animate-bounce">
+                      {incomingInTransitCount + pendingPickupCount} PENDING
+                    </span>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
+                    Incoming Vehicles
+                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">
+                    Track inbound dispatches, mark arrivals, and manage customer collections.
+                  </p>
+                </div>
+              </button>
 
               {/* Card 4: History & Receipts */}
               <button
@@ -445,7 +335,7 @@ export const StaffDashboard: React.FC = () => {
               </span>
               <span className="text-slate-300 font-normal text-sm ml-1 flex items-center gap-1.5">
                 Staff
-                {hasJobs && (
+                {hasWaybillJobs && (
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
@@ -456,7 +346,7 @@ export const StaffDashboard: React.FC = () => {
           </div>
           <div className="flex items-center gap-2 sm:gap-4">
             <LanguageSwitcher />
-            {hasJobs && (
+            {hasWaybillJobs && (
               <div className="hidden sm:flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse">
                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
                 <span>{totalTasksCount} Tasks Required</span>
@@ -494,7 +384,7 @@ export const StaffDashboard: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-[#0A1F44]">Staff Operating Manual</h3>
-                  <p className="text-xs text-slate-500">Step-by-step workflow guide for Waybills & Fleet</p>
+                  <p className="text-xs text-slate-500">Step-by-step workflow guide for Waybills</p>
                 </div>
               </div>
               <button
@@ -510,17 +400,6 @@ export const StaffDashboard: React.FC = () => {
               <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-[#0A1F44] text-sm flex items-center gap-2">
                   <span className="w-6 h-6 rounded-full bg-[#0A1F44] text-white flex items-center justify-center text-xs font-black">1</span>
-                  <span>Depot Fleet Gate Checkpoints 🚛</span>
-                </div>
-                <p className="leading-relaxed">
-                  When a truck is dispatched from your warehouse/depot to load at a factory, tap <strong>Depot Gate Checkpoint</strong> and click <strong>"Mark Left Depot"</strong>. When the truck returns loaded from the factory, click <strong>"Mark Arrived & Offloaded"</strong>.
-                </p>
-              </div>
-
-              {/* Step 2 */}
-              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-2">
-                <div className="font-extrabold text-amber-950 text-sm flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-amber-600 text-white flex items-center justify-center text-xs font-black">2</span>
                   <span>Create Waybill & Customer Checkout 💳</span>
                 </div>
                 <p className="leading-relaxed">
@@ -528,10 +407,10 @@ export const StaffDashboard: React.FC = () => {
                 </p>
               </div>
 
-              {/* Step 3 */}
+              {/* Step 2 */}
               <div className="bg-emerald-50/70 border border-emerald-200 rounded-2xl p-4 space-y-2">
                 <div className="font-extrabold text-emerald-950 text-sm flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">3</span>
+                  <span className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center text-xs font-black">2</span>
                   <span>Mark Vehicles Departed & Confirm Inbound Arrivals 🚀</span>
                 </div>
                 <p className="leading-relaxed">

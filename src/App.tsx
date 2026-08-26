@@ -15,8 +15,6 @@ import { StaffLogin } from './pages/StaffLogin';
 import { ManagerLogin } from './pages/ManagerLogin';
 import { CompanyLogin } from './pages/CompanyLogin';
 import { AdminLogin } from './pages/AdminLogin';
-import { DriverLogin } from './pages/DriverLogin';
-import { SupplierLogin } from './pages/SupplierLogin';
 import { ResetPassword } from './pages/ResetPassword';
 
 // Dashboards (Protected)
@@ -25,8 +23,6 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
 import { CompanyDashboard } from './pages/CompanyDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
-import { DriverDashboard } from './pages/DriverDashboard';
-import { SupplierDashboard } from './pages/SupplierDashboard';
 
 export default function App() {
   const [splashFinished, setSplashFinished] = useState(false);
@@ -49,8 +45,6 @@ export default function App() {
             <Route path="/login/manager" element={<ManagerLogin />} />
             <Route path="/login/company" element={<CompanyLogin />} />
             <Route path="/login/admin" element={<AdminLogin />} />
-            <Route path="/login/driver" element={<DriverLogin />} />
-            <Route path="/login/supplier" element={<SupplierLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes */}
@@ -91,22 +85,6 @@ export default function App() {
               element={
                 <ProtectedRoute allowedRole="admin">
                   <AdminDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/driver/dashboard"
-              element={
-                <ProtectedRoute allowedRole="driver">
-                  <DriverDashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/supplier/dashboard"
-              element={
-                <ProtectedRoute allowedRole="supplier_staff">
-                  <SupplierDashboard />
                 </ProtectedRoute>
               }
             />
