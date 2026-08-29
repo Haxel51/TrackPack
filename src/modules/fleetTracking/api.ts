@@ -201,4 +201,277 @@ export async function searchLocationGeocode(
   }
 }
 
+// 11. Get All Truck Profiles
+export async function getTruckProfiles(token: string): Promise<{ success: boolean; trucks: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trucks`, {
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, trucks: [], error: data.error || `HTTP ${res.status}: Failed to fetch trucks` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, trucks: [], error: err?.message || 'Network error fetching trucks' };
+  }
+}
+
+// 12. Create Truck Profile
+export async function createTruckProfile(
+  token: string,
+  payload: { plate_number: string; driver_name: string; driver_phone: string; payment_plan?: 'per_trip' | 'monthly' }
+): Promise<{ success: boolean; truck?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trucks`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to create truck profile` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error creating truck profile' };
+  }
+}
+
+// 13. Update Truck Profile
+export async function updateTruckProfile(
+  token: string,
+  truckId: string,
+  payload: { plate_number?: string; driver_name?: string; driver_phone?: string; payment_plan?: 'per_trip' | 'monthly' }
+): Promise<{ success: boolean; truck?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trucks/${truckId}`, {
+      method: 'PUT',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to update truck profile` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error updating truck profile' };
+  }
+}
+
+// 14. Change Truck Payment Plan
+export async function changeTruckPaymentPlan(
+  token: string,
+  truckId: string,
+  payment_plan: 'per_trip' | 'monthly'
+): Promise<{ success: boolean; truck?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trucks/${truckId}/payment-plan`, {
+      method: 'PATCH',
+      headers: getHeaders(token),
+      body: JSON.stringify({ payment_plan }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to change payment plan` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error changing payment plan' };
+  }
+}
+
+// 15. Delete Truck Profile
+export async function deleteTruckProfile(
+  token: string,
+  truckId: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trucks/${truckId}`, {
+      method: 'DELETE',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to delete truck profile` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error deleting truck profile' };
+  }
+}
+
+// 16. Get All Trips
+export async function getTrips(token: string): Promise<{ success: boolean; trips: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips`, {
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, trips: [], error: data.error || `HTTP ${res.status}: Failed to fetch trips` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, trips: [], error: err?.message || 'Network error fetching trips' };
+  }
+}
+
+// 17. Create Trip
+export async function createTrip(
+  token: string,
+  payload: { truck_id: string; supplier_id: string }
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to create trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error creating trip' };
+  }
+}
+
+// 18. Redirect Trip
+export async function redirectTrip(
+  token: string,
+  tripId: string,
+  payload: {
+    type: 'saved_customer' | 'manual';
+    customer_id?: string;
+    name: string;
+    address: string;
+    lat?: number | null;
+    lng?: number | null;
+    save_as_new_customer?: boolean;
+  }
+): Promise<{ success: boolean; trip?: any; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/redirect`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to redirect trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error redirecting trip' };
+  }
+}
+
+// 19. Get Saved Customer Destinations
+export async function getSavedCustomers(token: string): Promise<{ success: boolean; customers: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/customers`, {
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, customers: [], error: data.error || `HTTP ${res.status}: Failed to fetch saved customers` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, customers: [], error: err?.message || 'Network error fetching saved customers' };
+  }
+}
+
+// 20. Create Saved Customer Destination
+export async function createSavedCustomer(
+  token: string,
+  payload: { name: string; address_text: string; lat?: number | null; lng?: number | null }
+): Promise<{ success: boolean; customer?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/customers`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to create saved customer` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error creating saved customer' };
+  }
+}
+
+// 21. Manual Trip Status Update (Departed, Loaded, Completed, etc.)
+export async function updateTripStatus(
+  token: string,
+  tripId: string,
+  status: string,
+  note?: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/status`, {
+      method: 'PATCH',
+      headers: getHeaders(token),
+      body: JSON.stringify({ status, note }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to update trip status` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error updating trip status' };
+  }
+}
+
+// 22. Driver GPS Location Update (Triggers automatic state machine evaluation)
+export async function updateTripGpsLocation(
+  token: string,
+  tripId: string,
+  lat: number,
+  lng: number
+): Promise<{ success: boolean; trip?: any; status_changed?: boolean; new_status?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/gps`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ lat, lng }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to send GPS location update` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error updating GPS location' };
+  }
+}
+
+// 23. Acknowledge Stopped Alert / Warning
+export async function acknowledgeStoppedAlert(
+  token: string,
+  tripId: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/acknowledge-stopped`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to acknowledge stopped alert` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error acknowledging alert' };
+  }
+}
+
+
+
 

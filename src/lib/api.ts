@@ -37,6 +37,19 @@ export async function registerCustomer(phoneNumber: string, pin: string, confirm
   });
 }
 
+export async function registerFleetUser(phoneNumber: string, password: string, confirmPassword?: string, requestedRole?: string) {
+  return safeFetch(`${API_BASE}/auth/fleet/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      phone_number: phoneNumber,
+      password,
+      confirm_password: confirmPassword,
+      requested_role: requestedRole
+    }),
+  });
+}
+
 export async function requestCustomerPinReset(phoneNumber: string) {
   return safeFetch(`${API_BASE}/auth/customer/forgot-pin/request`, {
     method: 'POST',
@@ -302,33 +315,84 @@ export async function getStaffHistory(token: string) {
 }
 
 // Manager Portal & Management Endpoints
-export async function checkManagerPhone(phoneNumber: string) {
+export async function checkManagerPhone(phoneNumber: string, requestedRole?: string) {
   return safeFetch(`${API_BASE}/auth/manager/check-phone`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber })
+    body: JSON.stringify({ phone_number: phoneNumber, requested_role: requestedRole })
   });
 }
 
-export async function setManagerPin(phoneNumber: string, pin: string, confirmPin?: string) {
+export async function setManagerPin(phoneNumber: string, pin: string, confirmPin?: string, requestedRole?: string) {
   return safeFetch(`${API_BASE}/auth/manager/set-pin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin })
+    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin, requested_role: requestedRole })
   });
 }
 
-export async function loginManager(phoneNumber: string, pin: string) {
+export async function loginManager(phoneNumber: string, pin: string, requestedRole?: string) {
   return safeFetch(`${API_BASE}/auth/manager/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone_number: phoneNumber, pin })
+    body: JSON.stringify({ phone_number: phoneNumber, pin, requested_role: requestedRole })
   });
 }
 
 export async function getCompanyManagers(token: string) {
   return safeFetch(`${API_BASE}/company/managers`, {
     method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function getTeamMembers(token: string) {
+  return safeFetch(`${API_BASE}/company/team`, {
+    method: 'GET',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function createTeamMember(token: string, data: { name: string; phone: string; role: 'manager' | 'trip_monitor' | 'driver'; truck_id?: string; park_id?: string }) {
+  return safeFetch(`${API_BASE}/company/team`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function toggleTeamMemberActive(token: string, memberId: string) {
+  return safeFetch(`${API_BASE}/company/team/${memberId}/toggle-active`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function resetTeamMemberPin(token: string, memberId: string) {
+  return safeFetch(`${API_BASE}/company/team/${memberId}/reset-pin`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function deleteTeamMember(token: string, memberId: string) {
+  return safeFetch(`${API_BASE}/company/team/${memberId}`, {
+    method: 'DELETE',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`
@@ -472,6 +536,16 @@ export async function getAdminManagers(token: string) {
 export async function getParks(token: string) {
   if (!token) return { success: true, parks: [] };
   return safeFetch(`${API_BASE}/parks`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function getTrucks(token: string) {
+  if (!token) return { success: true, trucks: [] };
+  return safeFetch(`${API_BASE}/fleet-tracking/trucks`, {
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${token}`

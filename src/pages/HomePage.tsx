@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell } from 'lucide-react';
+import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell, Eye } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
@@ -299,12 +299,12 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Secondary Compact Operator Links (Staff & Transport Company) */}
-          <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-center gap-3 text-sm text-slate-700">
+          <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-center gap-2.5 text-sm text-slate-700">
             <span className="text-xs font-bold text-slate-600">{t('parkStaffOperators')}</span>
             
             <button
               onClick={() => navigate('/login/staff')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Staff Login"
             >
               <KeyRound className="w-4 h-4 text-slate-700" />
@@ -312,8 +312,8 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login/manager')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              onClick={() => navigate('/login/manager?role=manager')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Manager Login"
             >
               <ShieldCheck className="w-4 h-4 text-slate-700" />
@@ -321,8 +321,26 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
+              onClick={() => navigate('/login/manager?role=trip_monitor')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              aria-label="Trip Monitor Login"
+            >
+              <Eye className="w-4 h-4 text-slate-700" />
+              <span>{t('tripMonitorPortal')}</span>
+            </button>
+
+            <button
+              onClick={() => navigate('/login/manager?role=driver')}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              aria-label="Driver Login"
+            >
+              <Truck className="w-4 h-4 text-slate-700" />
+              <span>{t('driverPortal')}</span>
+            </button>
+
+            <button
               onClick={() => navigate('/login/company')}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Company Portal Login"
             >
               <Building2 className="w-4 h-4 text-slate-700" />

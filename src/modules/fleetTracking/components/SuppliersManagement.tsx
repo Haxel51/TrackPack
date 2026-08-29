@@ -7,6 +7,8 @@ import {
   confirmSupplierLocation,
   deleteSupplierLocation,
 } from '../api';
+import { useAuth } from '../../../context/AuthContext';
+import { getFleetRole, FleetPermissions } from '../utils/permissions';
 import { LocationConfirmModal } from './LocationConfirmModal';
 import {
   Building,
@@ -32,6 +34,12 @@ interface SuppliersManagementProps {
 }
 
 export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token, userName }) => {
+  const { user, role } = useAuth();
+  const fleetRole = getFleetRole(user, role);
+  const canCreateSupplier = FleetPermissions.canCreateSupplier(fleetRole);
+  const canEditSupplier = FleetPermissions.canEditSupplier(fleetRole);
+  const canDeleteSupplier = FleetPermissions.canDeleteSupplier(fleetRole);
+
   const [suppliers, setSuppliers] = useState<SupplierLocation[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [searchTerm, setSearchTerm] = useState<string>('');
@@ -211,13 +219,15 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             </button>
-            <button
-              onClick={handleOpenAddModal}
-              className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg"
-            >
-              <Plus className="w-4 h-4 text-[#F2A93B]" />
-              <span>Add Supplier Location</span>
-            </button>
+            {canCreateSupplier && (
+              <button
+                onClick={handleOpenAddModal}
+                className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg"
+              >
+                <Plus className="w-4 h-4 text-[#F2A93B]" />
+                <span>Add Supplier Location</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -371,20 +381,24 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                   {/* Action Buttons */}
                   <div className="flex items-center justify-between gap-2 border-t border-slate-100 pt-3">
                     <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => handleOpenEditModal(sup)}
-                        className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
-                        title="Edit Details"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setDeletingSupplier(sup)}
-                        className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
-                        title="Delete Supplier"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {canEditSupplier && (
+                        <button
+                          onClick={() => handleOpenEditModal(sup)}
+                          className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                          title="Edit Details"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {canDeleteSupplier && (
+                        <button
+                          onClick={() => setDeletingSupplier(sup)}
+                          className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
+                          title="Delete Supplier"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
 
                     <button

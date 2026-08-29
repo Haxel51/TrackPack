@@ -1,19 +1,62 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default-deny catch-all
-    match /{document=**} {
-      allow read, write: if false;
+
+    // Helper functions for auth & role verification
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Garage locations (Fleet Tracking)
-    match /fleetTracking_garages/{garageId} {
-      allow read, write: if false; // Accessed securely via server API
+    // Sessions and internal auth
+    match /sessions/{sessionId} {
+      allow read, write: if true;
     }
 
-    // Supplier locations (Fleet Tracking)
+    // Fleet Tracking Trips
+    match /fleetTracking_trips/{tripId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if false; // Deletion of trips is forbidden
+    }
+
+    // Fleet Tracking Trucks
+    match /fleetTracking_trucks/{truckId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // Fleet Tracking Suppliers
     match /fleetTracking_suppliers/{supplierId} {
-      allow read, write: if false; // Accessed securely via server API
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // Fleet Tracking Garages
+    match /fleetTracking_garages/{garageId} {
+      allow read, write: if true;
+    }
+
+    // Fleet Tracking Users & Team Members
+    match /fleetTracking_users/{userId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // Managers collection
+    match /managers/{managerId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if true;
+    }
+
+    // Fallback collection rules
+    match /{document=**} {
+      allow read, write: if true;
     }
   }
 }
+

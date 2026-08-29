@@ -1,21 +1,32 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { checkManagerPhone, setManagerPin, loginManager } from '../lib/api';
-import { Shield, Eye, EyeOff, ChevronLeft, Phone, UserCheck, Building2, MapPin, CheckCircle2, KeyRound } from 'lucide-react';
+import { checkManagerPhone, setManagerPin, loginManager, registerFleetUser } from '../lib/api';
+import { Shield, Eye, EyeOff, ChevronLeft, Phone, UserCheck, Building2, MapPin, CheckCircle2, KeyRound, Truck, UserPlus, Lock } from 'lucide-react';
 
 export const ManagerLogin: React.FC = () => {
   const { token, role, login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const roleParam = searchParams.get('role') || searchParams.get('type') || '';
+
+  // Mode: 'signin' | 'register'
+  const [mode, setMode] = useState<'signin' | 'register'>('signin');
 
   const [phoneNumber, setPhoneNumber] = useState('');
   const [pin, setPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
   const [showPin, setShowPin] = useState(false);
-  
-  // Step: 'phone' (Stage 1 - check phone) | 'pin' (Stage 2 - enter/set PIN) | 'forgot_pin' (Assisted Reset)
+
+  // Registration state (Part 1 requirement)
+  const [regPhone, setRegPhone] = useState('');
+  const [regPassword, setRegPassword] = useState('');
+  const [regConfirmPassword, setRegConfirmPassword] = useState('');
+  const [regSuccessMsg, setRegSuccessMsg] = useState<string | null>(null);
+
+  // Step for sign in: 'phone' | 'pin' | 'forgot_pin'
   const [step, setStep] = useState<'phone' | 'pin' | 'forgot_pin'>('phone');
-  
+
   // Manager Verification Data from Backend
   const [managerInfo, setManagerInfo] = useState<{
     registered: boolean;
@@ -23,20 +34,79 @@ export const ManagerLogin: React.FC = () => {
     manager_name: string;
     company_name: string;
     park_location: string;
+    role?: string;
+    manager_type?: string;
   } | null>(null);
 
   const [error, setError] = useState<string | null>(null);
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in as manager
+  // Redirect if already logged in as manager, trip monitor, or driver
   useEffect(() => {
-    if (token && role === 'manager') {
+    if (token && (role === 'manager' || role === 'trip_monitor' || role === 'driver')) {
       navigate('/manager/dashboard', { replace: true });
     }
   }, [token, role, navigate]);
 
-  // Stage 1: Verify Phone Number against Transport Company Manager Records
+  const portalTitle = roleParam === 'driver' 
+    ? 'Driver Portal' 
+    : roleParam === 'trip_monitor' 
+      ? 'Trip Monitor Portal' 
+      : 'Manager & Operational Staff Portal';
+
+  const detectedRole = roleParam || managerInfo?.role || (managerInfo?.manager_type === 'Driver' ? 'driver' : managerInfo?.manager_type === 'Trip Monitor' ? 'trip_monitor' : 'manager');
+  const isDriver = detectedRole === 'driver';
+  const isTripMonitor = detectedRole === 'trip_monitor';
+
+  // Registration Submit (Part 1 Requirement)
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setRegSuccessMsg(null);
+
+    const cleanPhone = regPhone.trim();
+    const cleanPass = regPassword.trim();
+    const cleanConfirm = regConfirmPassword.trim();
+
+    if (!cleanPhone) {
+      setError('Please enter your 11-digit phone number.');
+      return;
+    }
+    if (!/^\d{11}$/.test(cleanPhone)) {
+      setError('Phone number must be a valid 11-digit number (e.g. 08012345678).');
+      return;
+    }
+    if (!cleanPass || cleanPass.length < 8) {
+      setError('Password must be at least 8 characters long.');
+      return;
+    }
+    if (cleanPass !== cleanConfirm) {
+      setError('Passwords do not match. Please re-enter your password.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await registerFleetUser(cleanPhone, cleanPass, cleanConfirm, roleParam);
+      if (res.success && res.token) {
+        setRegSuccessMsg(res.message || `Welcome! Your account has been created successfully.`);
+        const userRole = res.role || res.user?.role || roleParam || 'manager';
+        setTimeout(() => {
+          login(res.token, res.user, userRole);
+          navigate('/manager/dashboard', { replace: true });
+        }, 1200);
+      } else {
+        setError(res.error || 'This number is not registered. Please contact your manager to get registered first.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create account. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Stage 1: Verify Phone Number against Transport Company Records
   const handleCheckPhone = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError(null);
@@ -54,18 +124,20 @@ export const ManagerLogin: React.FC = () => {
 
     setLoading(true);
     try {
-      const res = await checkManagerPhone(cleanPhone);
+      const res = await checkManagerPhone(cleanPhone, roleParam);
       if (res.success && res.registered) {
         setManagerInfo({
           registered: true,
           has_pin: res.has_pin,
           manager_name: res.manager_name,
           company_name: res.company_name,
-          park_location: res.park_location
+          park_location: res.park_location,
+          role: res.role,
+          manager_type: res.manager_type
         });
         setStep('pin');
       } else {
-        setError(res.error || 'Phone number is not assigned to any transport company as a Manager.');
+        setError(res.error || 'Phone number is not registered to any transport company team.');
       }
     } catch (err) {
       setError('Unable to verify phone number. Please check your internet connection.');
@@ -97,8 +169,10 @@ export const ManagerLogin: React.FC = () => {
     setLoading(true);
 
     try {
+      const targetRole = roleParam || managerInfo?.role;
+
       if (managerInfo && !managerInfo.has_pin) {
-        // First Time or Reset PIN: Manager creates their own PIN
+        // First Time or Reset PIN: User creates their own PIN
         if (!cleanConfirm) {
           setError('Please confirm your 6-digit PIN.');
           setLoading(false);
@@ -111,18 +185,20 @@ export const ManagerLogin: React.FC = () => {
           return;
         }
 
-        const res = await setManagerPin(cleanPhone, cleanPin, cleanConfirm);
+        const res = await setManagerPin(cleanPhone, cleanPin, cleanConfirm, targetRole);
         if (res.success && res.token) {
-          login(res.token, res.user, 'manager');
+          const userRole = res.role || res.user?.role || targetRole || 'manager';
+          login(res.token, res.user, userRole);
           navigate('/manager/dashboard', { replace: true });
         } else {
           setError(res.error || 'Failed to set PIN. Please try again.');
         }
       } else {
         // Standard Sign In with created PIN
-        const res = await loginManager(cleanPhone, cleanPin);
+        const res = await loginManager(cleanPhone, cleanPin, targetRole);
         if (res.success && res.token) {
-          login(res.token, res.user, 'manager');
+          const userRole = res.role || res.user?.role || targetRole || 'manager';
+          login(res.token, res.user, userRole);
           navigate('/manager/dashboard', { replace: true });
         } else {
           setError(res.error || 'Invalid PIN. Please check and try again.');
@@ -155,24 +231,187 @@ export const ManagerLogin: React.FC = () => {
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
           <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
-            <UserCheck className="text-[#F2A93B] w-7 h-7" />
+            {roleParam === 'driver' ? (
+              <Truck className="text-[#F2A93B] w-7 h-7" />
+            ) : roleParam === 'trip_monitor' ? (
+              <Eye className="text-[#F2A93B] w-7 h-7" />
+            ) : (
+              <UserCheck className="text-[#F2A93B] w-7 h-7" />
+            )}
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">
-            {step === 'forgot_pin' ? 'Reset Forgotten Password' : 'Manager Portal'}
+            {step === 'forgot_pin' ? 'Reset Forgotten Password' : portalTitle}
           </h1>
           <p className="text-sm text-slate-500 max-w-xs">
-            {step === 'forgot_pin'
-              ? 'Recover access to your account by verifying your registered manager phone number.'
-              : step === 'phone' 
-                ? 'Enter your phone number to match your transport company manager profile.' 
-                : managerInfo?.has_pin 
-                  ? 'Enter your 6-digit PIN to access your manager dashboard.'
-                  : 'Set up your secret 6-digit PIN for first-time access.'}
+            {mode === 'register'
+              ? 'New user? Enter your registered phone number to create your account password.'
+              : step === 'forgot_pin'
+                ? 'Recover access to your account by verifying your registered phone number.'
+                : step === 'phone' 
+                  ? roleParam === 'driver' 
+                    ? 'Enter your phone number to sign in to your Driver Portal.'
+                    : roleParam === 'trip_monitor'
+                      ? 'Enter your phone number to sign in to your Trip Monitor Portal.'
+                      : 'Enter your phone number to match your registered transport company profile.' 
+                  : managerInfo?.has_pin 
+                    ? 'Enter your 6-digit PIN to access your portal dashboard.'
+                    : 'Set up your secret 6-digit PIN for first-time access.'}
           </p>
         </div>
 
+        {/* Mode Selector Tabs: Sign In vs Create Account */}
+        {step !== 'forgot_pin' && (
+          <div className="grid grid-cols-2 bg-slate-100 p-1 rounded-2xl text-xs font-bold">
+            <button
+              type="button"
+              onClick={() => {
+                setMode('signin');
+                setStep('phone');
+                setManagerInfo(null);
+                setError(null);
+                setRegSuccessMsg(null);
+              }}
+              className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+                mode === 'signin' ? 'bg-white text-[#0A1F44] shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode('register');
+                setStep('phone');
+                setManagerInfo(null);
+                setError(null);
+                setRegSuccessMsg(null);
+              }}
+              className={`py-2.5 rounded-xl transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                mode === 'register' ? 'bg-[#0A1F44] text-white shadow-sm' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Create Account</span>
+            </button>
+          </div>
+        )}
+
+        {/* MODE: REGISTER (Create Account Flow - Part 1) */}
+        {mode === 'register' && step !== 'forgot_pin' && (
+          <form onSubmit={handleRegisterSubmit} className="space-y-4">
+            <div className="space-y-1.5">
+              <label htmlFor="reg-phone" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                Phone Number (11 digits)
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                  <Phone className="w-4 h-4" />
+                </span>
+                <input
+                  id="reg-phone"
+                  type="tel"
+                  placeholder="08012345678"
+                  value={regPhone}
+                  onChange={(e) => setRegPhone(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-4 text-sm font-semibold text-[#0A1F44] placeholder-slate-400 outline-none transition-all disabled:opacity-50"
+                  autoFocus
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="reg-password" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                Password (min. 8 characters)
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  id="reg-password"
+                  type={showPin ? 'text' : 'password'}
+                  placeholder="At least 8 characters"
+                  value={regPassword}
+                  onChange={(e) => setRegPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-sm font-semibold text-[#0A1F44] placeholder-slate-400 outline-none transition-all disabled:opacity-50"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPin(!showPin)}
+                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-[#0A1F44] cursor-pointer"
+                >
+                  {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label htmlFor="reg-confirm-password" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
+                  <Lock className="w-4 h-4" />
+                </span>
+                <input
+                  id="reg-confirm-password"
+                  type={showPin ? 'text' : 'password'}
+                  placeholder="Re-enter password"
+                  value={regConfirmPassword}
+                  onChange={(e) => setRegConfirmPassword(e.target.value)}
+                  disabled={loading}
+                  className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-3.5 pl-12 pr-12 text-sm font-semibold text-[#0A1F44] placeholder-slate-400 outline-none transition-all disabled:opacity-50"
+                />
+              </div>
+            </div>
+
+            {error && (
+              <div className="p-3 bg-red-50 border border-red-200 rounded-2xl text-xs font-semibold text-red-600 text-center space-y-1">
+                <p>{error}</p>
+              </div>
+            )}
+
+            {regSuccessMsg && (
+              <div className="p-3.5 bg-emerald-50 border border-emerald-200 rounded-2xl text-xs font-bold text-emerald-700 text-center flex items-center justify-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+                <span>{regSuccessMsg}</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-[#0A1F44] hover:bg-[#07152e] text-white font-bold py-4 rounded-2xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                'Create Account'
+              )}
+            </button>
+
+            <div className="text-center pt-1 text-xs text-slate-500">
+              Already created your account?{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('signin');
+                  setStep('phone');
+                  setManagerInfo(null);
+                  setError(null);
+                }}
+                className="text-[#0A1F44] font-bold hover:underline cursor-pointer border-0 bg-transparent"
+              >
+                Sign In
+              </button>
+            </div>
+          </form>
+        )}
+
         {/* STAGE 1: Check Phone Number */}
-        {step === 'phone' && (
+        {mode === 'signin' && step === 'phone' && (
           <form onSubmit={handleCheckPhone} className="space-y-5">
             <div className="space-y-1.5">
               <label htmlFor="manager-phone" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
@@ -230,13 +469,19 @@ export const ManagerLogin: React.FC = () => {
         )}
 
         {/* STAGE 2: Manager Verified -> Enter PIN or Create PIN */}
-        {step === 'pin' && managerInfo && (
+        {mode === 'signin' && step === 'pin' && managerInfo && (
           <form onSubmit={handlePinSubmit} className="space-y-5">
             {/* Verified Manager Badge */}
             <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2 relative">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-600 text-xs font-extrabold uppercase tracking-wider">
-                  <CheckCircle2 className="w-4 h-4" /> Company Manager Verified
+                  <CheckCircle2 className="w-4 h-4" /> {
+                    managerInfo.role === 'driver' || managerInfo.manager_type === 'Driver' 
+                      ? 'Driver Account Verified' 
+                      : managerInfo.role === 'trip_monitor' || managerInfo.manager_type === 'Trip Monitor' 
+                        ? 'Trip Monitor Account Verified' 
+                        : 'Company Manager Verified'
+                  }
                 </div>
                 <button
                   type="button"
@@ -269,7 +514,13 @@ export const ManagerLogin: React.FC = () => {
                   <p className="font-extrabold flex items-center gap-1.5 text-amber-900">
                     <KeyRound className="w-4 h-4 text-amber-600" /> First Time Setup: Create Your PIN
                   </p>
-                  <p>Create a secret 6-digit PIN to secure your manager account for future sign-ins.</p>
+                  <p>
+                    {isDriver 
+                      ? 'Create a secret 6-digit PIN to secure your driver account for future sign-ins.' 
+                      : isTripMonitor 
+                        ? 'Create a secret 6-digit PIN to secure your trip monitor account for future sign-ins.' 
+                        : 'Create a secret 6-digit PIN to secure your manager account for future sign-ins.'}
+                  </p>
                 </div>
 
                 {/* PIN Input */}
@@ -389,6 +640,10 @@ export const ManagerLogin: React.FC = () => {
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : !managerInfo.has_pin ? (
                 'Save PIN & Sign In'
+              ) : isDriver ? (
+                'Sign In as Driver'
+              ) : isTripMonitor ? (
+                'Sign In as Trip Monitor'
               ) : (
                 'Sign In as Manager'
               )}
@@ -449,7 +704,13 @@ export const ManagerLogin: React.FC = () => {
         )}
 
         <div className="text-center pt-2 text-xs text-slate-400">
-          <p>Managers create and secure their own private 6-digit PIN upon sign in.</p>
+          <p>
+            {isDriver 
+              ? 'Drivers secure their account with a private 6-digit PIN upon sign in.' 
+              : isTripMonitor 
+                ? 'Trip Monitors secure their account with a private 6-digit PIN upon sign in.' 
+                : 'Managers create and secure their own private 6-digit PIN upon sign in.'}
+          </p>
         </div>
       </div>
     </div>

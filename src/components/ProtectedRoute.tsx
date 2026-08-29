@@ -20,7 +20,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
   }
 
   // Redirect to homepage if not authenticated or role mismatch
-  if (!token || role !== allowedRole) {
+  const isAuthorized = 
+    role === allowedRole || 
+    (allowedRole === 'manager' && (role === 'trip_monitor' || role === 'driver'));
+
+  if (!token || !isAuthorized) {
     return <Navigate to="/" replace />;
   }
 

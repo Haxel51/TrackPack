@@ -32,6 +32,70 @@
         "created_at": { "type": "string" }
       },
       "required": ["name", "address_text", "location_confirmed", "company_id"]
+    },
+    "FleetTruck": {
+      "title": "FleetTruck",
+      "description": "Truck profile with driver details and payment plan settings",
+      "type": "object",
+      "properties": {
+        "plate_number": { "type": "string" },
+        "driver_name": { "type": "string" },
+        "driver_phone": { "type": "string" },
+        "payment_plan": { "type": "string", "enum": ["per_trip", "monthly"] },
+        "subscription_active_until": { "type": "string" },
+        "created_at": { "type": "string" },
+        "created_by": { "type": "string" },
+        "company_id": { "type": "string" }
+      },
+      "required": ["plate_number", "driver_name", "driver_phone", "payment_plan", "company_id"]
+    },
+    "FleetTrip": {
+      "title": "FleetTrip",
+      "description": "Fleet tracking haulage trip record",
+      "type": "object",
+      "properties": {
+        "truck_id": { "type": "string" },
+        "plate_number": { "type": "string" },
+        "driver_name": { "type": "string" },
+        "driver_phone": { "type": "string" },
+        "primary_destination_type": { "type": "string" },
+        "primary_destination_id": { "type": "string" },
+        "primary_destination_name": { "type": "string" },
+        "primary_destination_lat": { "type": "number" },
+        "primary_destination_lng": { "type": "number" },
+        "redirect_destination": { "type": ["object", "null"] },
+        "payment_plan": { "type": "string" },
+        "payment_status": { "type": "string" },
+        "payment_amount": { "type": "number" },
+        "trip_status": { "type": "string" },
+        "status_history": { "type": "array" },
+        "last_known_lat": { "type": ["number", "null"] },
+        "last_known_lng": { "type": ["number", "null"] },
+        "last_movement_at": { "type": ["string", "null"] },
+        "stopped_warning_sent": { "type": "boolean" },
+        "stopped_alert_sent": { "type": "boolean" },
+        "created_by": { "type": "string" },
+        "created_at": { "type": "string" },
+        "garage_lat": { "type": "number" },
+        "garage_lng": { "type": "number" },
+        "company_id": { "type": "string" }
+      },
+      "required": ["truck_id", "plate_number", "primary_destination_id", "payment_plan", "company_id"]
+    },
+    "FleetCustomer": {
+      "title": "FleetCustomer",
+      "description": "Saved customer redirect destination locations",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address_text": { "type": "string" },
+        "lat": { "type": ["number", "null"] },
+        "lng": { "type": ["number", "null"] },
+        "created_at": { "type": "string" },
+        "created_by": { "type": "string" },
+        "company_id": { "type": "string" }
+      },
+      "required": ["name", "address_text", "company_id"]
     }
   },
   "firestore": {
@@ -42,6 +106,18 @@
     "/fleetTracking_suppliers/{supplierId}": {
       "schema": { "$ref": "#/entities/FleetSupplier" },
       "description": "Registered destination and supplier locations"
+    },
+    "/fleetTracking_trucks/{truckId}": {
+      "schema": { "$ref": "#/entities/FleetTruck" },
+      "description": "Truck profiles with payment plans"
+    },
+    "/fleetTracking_trips/{tripId}": {
+      "schema": { "$ref": "#/entities/FleetTrip" },
+      "description": "Fleet trip dispatches and redirect destinations"
+    },
+    "/fleetTracking_customers/{customerId}": {
+      "schema": { "$ref": "#/entities/FleetCustomer" },
+      "description": "Saved customer redirect destinations"
     }
   }
 }

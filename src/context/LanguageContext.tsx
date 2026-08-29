@@ -28,6 +28,8 @@ export const translations: Record<Language, Record<string, string>> = {
     customerPortal: 'Customer Portal (Senders & Receivers)',
     staffPortal: 'Park Staff Login',
     managerPortal: 'Manager Login',
+    tripMonitorPortal: 'Trip Monitor Login',
+    driverPortal: 'Driver Login',
     companyPortal: 'Company Portal',
     adminPortal: 'Admin Portal',
     helpContact: 'Need Help? Contact Support',

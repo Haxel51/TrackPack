@@ -8,9 +8,7 @@ import {
   Loader2,
   Crosshair,
   Building2,
-  RotateCw,
   Navigation,
-  Factory,
 } from 'lucide-react';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { getGoogleMapsConfig, searchLocationGeocode } from '../api';
@@ -36,23 +34,6 @@ interface SuggestionItem {
   rawSuggestion?: any;
 }
 
-// Generate prominent marker pin SVG: Blue for Garage, Green for Supplier
-function getColoredMarkerSvg(isSupplier: boolean): string {
-  // GARAGE: Royal Blue (#2563EB) fill, Dark Blue stroke (#1E3A8A), Inner Dot (#1D4ED8)
-  // SUPPLIER: Emerald Green (#16A34A) fill, Dark Green stroke (#14532D), Inner Dot (#15803D)
-  const pinFill = isSupplier ? '%2316A34A' : '%232563EB';
-  const strokeColor = isSupplier ? '%2314532D' : '%231E3A8A';
-  const innerDotColor = isSupplier ? '%2315803D' : '%231D4ED8';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="48" height="60" viewBox="0 0 48 60" fill="none">
-    <path d="M24 2C13.507 2 5 10.507 5 21C5 35.8 24 57 24 57S43 35.8 43 21C43 10.507 34.493 2 24 2Z" fill="${pinFill}" stroke="${strokeColor}" stroke-width="2.5"/>
-    <circle cx="24" cy="20" r="8.5" fill="white"/>
-    <circle cx="24" cy="20" r="4.5" fill="${innerDotColor}"/>
-  </svg>`;
-
-  return `data:image/svg+xml;charset=UTF-8,${svg}`;
-}
-
 export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   isOpen,
   onClose,
@@ -75,7 +56,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
 
   const [apiKey, setApiKey] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
-  const [mapError, setMapError] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
 
   const [selectedCoords, setSelectedCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -86,12 +66,16 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
+  // Friendly non-technical search status states
+  const [searchNotFound, setSearchNotFound] = useState<boolean>(false);
+  const [closestMatchNotice, setClosestMatchNotice] = useState<string | null>(null);
+
   const isSupplier =
     locationType === 'supplier' ||
     (title && title.toLowerCase().includes('supplier')) ||
     (locationName && locationName.toLowerCase().includes('supplier'));
 
-  // Sync selected coordinates and clear previous errors
+  // Sync selected coordinates and clear previous notices/errors
   const updateSelectedCoords = useCallback((lat: number, lng: number) => {
     setSelectedCoords({ lat, lng });
     setSaveError(null);
@@ -121,7 +105,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
 
       const contentHtml = `
         <div style="font-family: system-ui, -apple-system, sans-serif; padding: 4px; max-width: 250px;">
-          <div style="display: inline-flex; items-center; gap: 4px; font-weight: 800; font-size: 10px; text-transform: uppercase; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeBorder}; padding: 3px 8px; border-radius: 9999px; margin-bottom: 6px;">
+          <div style="display: inline-flex; align-items: center; gap: 4px; font-weight: 800; font-size: 10px; text-transform: uppercase; color: ${badgeColor}; background: ${badgeBg}; border: 1px solid ${badgeBorder}; padding: 3px 8px; border-radius: 9999px; margin-bottom: 6px;">
             <span>${badgeText}</span>
           </div>
           <div style="font-weight: 800; font-size: 13px; color: #0f172a; margin-bottom: 4px; line-height: 1.3;">
@@ -144,14 +128,10 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     [isSupplier, locationName]
   );
 
-  // Update or create Google Maps Marker using guaranteed-visible vector circle symbol & explicit map reference
+  // Update or create Google Maps Marker using guaranteed-visible vector circle symbol
   const setGooglePinLocation = useCallback(
     (lat: number, lng: number, map: google.maps.Map, searchedPlaceName?: string) => {
       updateSelectedCoords(lat, lng);
-
-      // Call setCenter and setZoom(17) BEFORE placing the marker
-      map.setCenter({ lat, lng });
-      map.setZoom(17);
 
       const markerColor = isSupplier ? '#00C853' : '#2962FF';
       const symbolIcon: google.maps.Symbol = {
@@ -167,12 +147,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         googleMarkerRef.current.setPosition({ lat, lng });
         googleMarkerRef.current.setIcon(symbolIcon);
         googleMarkerRef.current.setMap(map);
-        googleMarkerRef.current.setAnimation(null);
-        setTimeout(() => {
-          if (googleMarkerRef.current) {
-            googleMarkerRef.current.setAnimation(window.google?.maps?.Animation?.DROP ?? null);
-          }
-        }, 50);
       } else {
         const marker = new window.google.maps.Marker({
           position: { lat, lng },
@@ -188,6 +162,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
             const newLat = e.latLng.lat();
             const newLng = e.latLng.lng();
             updateSelectedCoords(newLat, newLng);
+            setSearchNotFound(false);
+            setClosestMatchNotice(null);
             updateInfoWindow(newLat, newLng, map, marker, undefined, true);
           }
         });
@@ -208,7 +184,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     if (!mapContainerRef.current) return;
 
     setIsInitializing(true);
-    setMapError(null);
 
     const hasInitialCoords =
       initialLat !== undefined &&
@@ -234,9 +209,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       }
 
       if (!activeKey) {
-        throw new Error(
-          'Google Maps API Key not found. Please ensure GOOGLE_MAPS_API_KEY is configured.'
-        );
+        setIsInitializing(false);
+        return;
       }
 
       // 2. Load Google Maps SDK
@@ -245,7 +219,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       if (!mapContainerRef.current) return;
       mapContainerRef.current.innerHTML = '';
 
-      // 3. Mount Google Map instance configured for full-screen mobile UX
+      // 3. Mount Google Map instance
       const map = new googleMaps.Map(mapContainerRef.current, {
         center: { lat: startLat, lng: startLng },
         zoom: startZoom,
@@ -310,7 +284,12 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       // Tap / click anywhere on Google Map to place pin
       map.addListener('click', (e: google.maps.MapMouseEvent) => {
         if (e.latLng) {
-          setGooglePinLocation(e.latLng.lat(), e.latLng.lng(), map, true);
+          const newLat = e.latLng.lat();
+          const newLng = e.latLng.lng();
+          setSearchNotFound(false);
+          setClosestMatchNotice(null);
+          setSaveError(null);
+          setGooglePinLocation(newLat, newLng, map);
         }
       });
 
@@ -320,11 +299,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         executePlacesSearch(query, true);
       }
     } catch (err: any) {
-      console.error('Google Maps initialization failed:', err);
-      setMapError(
-        err?.message ||
-          'Failed to load Google Maps JavaScript API. Please check your internet connection or Google Maps API key.'
-      );
+      console.warn('Google Maps initialization notice:', err);
     } finally {
       setIsInitializing(false);
     }
@@ -338,7 +313,9 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       autocompleteServiceRef.current = null;
       geocoderRef.current = null;
       setIsInitializing(false);
-      setMapError(null);
+      setSearchNotFound(false);
+      setClosestMatchNotice(null);
+      setSaveError(null);
       return;
     }
 
@@ -346,6 +323,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     setSearchQuery(initialQuery);
     setSuggestions([]);
     setIsDropdownOpen(false);
+    setSearchNotFound(false);
+    setClosestMatchNotice(null);
 
     // Initialize Google Map
     const timer = setTimeout(() => {
@@ -355,13 +334,15 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     return () => clearTimeout(timer);
   }, [isOpen, locationName, addressText, initGoogleMap]);
 
-  // Google Places Autocomplete Search Handler
+  // Google Places & Geocoding Search Handler with resilient fallback & partial matching
   const executePlacesSearch = async (query: string, autoSelectFirst = false) => {
     if (!query.trim()) return;
 
     setIsSearching(true);
-    setMapError(null);
+    setSearchNotFound(false);
+    setClosestMatchNotice(null);
 
+    // 1. Try Google Places Autocomplete first
     let autocompleteService = autocompleteServiceRef.current;
     if (!autocompleteService && (window.google?.maps?.places?.AutocompleteService as any)) {
       try {
@@ -372,7 +353,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       }
     }
 
-    // Strictly use Google Places Autocomplete
     if (autocompleteService) {
       try {
         const predictions = await new Promise<google.maps.places.AutocompletePrediction[] | null>(
@@ -415,14 +395,104 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       }
     }
 
-    setMapError("We couldn't find the exact location of this place. Please tap the correct spot on the map manually.");
+    // 2. If autocomplete has no predictions, try Geocoder for closest/partial match
+    let geocoderInstance = geocoderRef.current;
+    if (!geocoderInstance && (window.google?.maps?.Geocoder as any)) {
+      try {
+        geocoderInstance = new window.google.maps.Geocoder();
+        geocoderRef.current = geocoderInstance;
+      } catch (e) {
+        console.warn('Could not instantiate Geocoder:', e);
+      }
+    }
+
+    if (geocoderInstance) {
+      try {
+        const geocodeResults = await new Promise<google.maps.GeocoderResult[] | null>((resolve) => {
+          geocoderInstance!.geocode({ address: query.trim() }, (results, status) => {
+            if (status === 'OK' && results && results.length > 0) {
+              resolve(results);
+            } else {
+              resolve(null);
+            }
+          });
+        });
+
+        if (geocodeResults && geocodeResults.length > 0) {
+          const best = geocodeResults[0];
+          const loc = best.geometry.location;
+          const lat = typeof loc.lat === 'function' ? loc.lat() : (loc.lat as unknown as number);
+          const lng = typeof loc.lng === 'function' ? loc.lng() : (loc.lng as unknown as number);
+          const formattedAddress = best.formatted_address || query;
+
+          setIsDropdownOpen(false);
+          setSearchNotFound(false);
+
+          if (googleMapRef.current) {
+            const map = googleMapRef.current;
+            if (best.geometry.viewport) {
+              map.fitBounds(best.geometry.viewport);
+            } else {
+              map.setCenter({ lat, lng });
+              map.setZoom(17);
+            }
+            setGooglePinLocation(lat, lng, map, formattedAddress);
+          } else {
+            updateSelectedCoords(lat, lng);
+          }
+
+          // Let them know this is the closest match found so they can adjust if needed
+          setClosestMatchNotice(
+            "Showing the closest match found for this place. If this isn't exact, tap or drag the pin on the map to set your exact spot."
+          );
+          setIsSearching(false);
+          return;
+        }
+      } catch (e) {
+        console.warn('Geocoding notice:', e);
+      }
+    }
+
+    // 3. Fallback: Server-side geocoding
+    try {
+      const serverRes = await searchLocationGeocode(query.trim());
+      if (serverRes.success && serverRes.results && serverRes.results.length > 0) {
+        const first = serverRes.results[0];
+        setIsDropdownOpen(false);
+        setSearchNotFound(false);
+
+        if (googleMapRef.current) {
+          const map = googleMapRef.current;
+          map.setCenter({ lat: first.lat, lng: first.lng });
+          map.setZoom(17);
+          setGooglePinLocation(first.lat, first.lng, map, first.name);
+        } else {
+          updateSelectedCoords(first.lat, first.lng);
+        }
+
+        setClosestMatchNotice(
+          "Showing the closest match found for this place. If this isn't exact, tap or drag the pin on the map to set your exact spot."
+        );
+        setIsSearching(false);
+        return;
+      }
+    } catch (e) {
+      console.warn('Server geocode notice:', e);
+    }
+
+    // 4. If no results at all: show friendly message directly below the search box
+    // The map stays completely visible and interactive
     setIsDropdownOpen(false);
+    setClosestMatchNotice(null);
+    setSearchNotFound(true);
     setIsSearching(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
+    setSearchNotFound(false);
+    setClosestMatchNotice(null);
 
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -440,7 +510,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   };
 
   const handleSelectSuggestion = async (item: SuggestionItem) => {
-    // Ensure we have a valid PlacesService instance
     let placesService = placesServiceRef.current;
     if (!placesService && googleMapRef.current && (window.google?.maps?.places?.PlacesService as any)) {
       try {
@@ -452,8 +521,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     }
 
     if (!item.id || !placesService) {
-      setMapError("We couldn't find the exact location of this place. Please tap the correct spot on the map manually.");
       setIsDropdownOpen(false);
+      setSearchNotFound(true);
       return;
     }
 
@@ -466,57 +535,45 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         (place, status) => {
           const OK_STATUS = window.google?.maps?.places?.PlacesServiceStatus?.OK || 'OK';
           if (status === OK_STATUS && place && place.geometry && place.geometry.location) {
-            // Use ONLY place.geometry.location for the marker position
             const location = place.geometry.location;
             const lat = typeof location.lat === 'function' ? location.lat() : (location.lat as unknown as number);
             const lng = typeof location.lng === 'function' ? location.lng() : (location.lng as unknown as number);
             const nameText = place.name || place.formatted_address || item.mainText;
 
-            console.log('Selected place:', nameText, 'lat:', lat, 'lng:', lng);
-
             setSearchQuery(place.formatted_address || nameText);
             setIsDropdownOpen(false);
-            setMapError(null);
+            setSearchNotFound(false);
+            setClosestMatchNotice(null);
 
             updateSelectedCoords(lat, lng);
 
             if (googleMapRef.current) {
               const map = googleMapRef.current;
-
-              // If Google Maps has a viewport for the place, use fitBounds; otherwise setCenter and setZoom(18)
               if (place.geometry.viewport) {
                 map.fitBounds(place.geometry.viewport);
               } else {
                 map.setCenter(location);
                 map.setZoom(18);
               }
-
-              // Place the marker exactly at place.geometry.location
               setGooglePinLocation(lat, lng, map, nameText);
             }
           } else {
-            console.warn('PlacesService getDetails returned status:', status, place);
-            setMapError("We couldn't find the exact location of this place. Please tap the correct spot on the map manually.");
             setIsDropdownOpen(false);
+            setSearchNotFound(true);
           }
         }
       );
     } catch (err) {
       console.warn('Error fetching Google Place details:', err);
-      setMapError("We couldn't find the exact location of this place. Please tap the correct spot on the map manually.");
       setIsDropdownOpen(false);
+      setSearchNotFound(true);
     }
   };
 
-  const applyCoordinatesByQuery = async (_text: string) => {
-    setMapError("We couldn't find the exact location of this place. Please tap the correct spot on the map manually.");
-    setIsDropdownOpen(false);
-    return;
-  };
-
-
   const applyCoordinatesToMap = (lat: number, lng: number, searchedName?: string) => {
     updateSelectedCoords(lat, lng);
+    setSearchNotFound(false);
+    setClosestMatchNotice(null);
 
     if (googleMapRef.current) {
       googleMapRef.current.setCenter({ lat, lng });
@@ -539,7 +596,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   // Device Geolocation centering
   const handleUseCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setMapError('Geolocation is not supported by your browser.');
       return;
     }
 
@@ -549,7 +605,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         applyCoordinatesToMap(latitude, longitude);
       },
       (err) => {
-        setMapError(`Location access denied or unavailable: ${err.message}`);
+        console.warn('Device location notice:', err);
       },
       { enableHighAccuracy: true, timeout: 10000 }
     );
@@ -558,7 +614,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   // Confirm Location & Save
   const handleConfirmLocation = async () => {
     if (!selectedCoords) {
-      setSaveError('Please place or adjust the pin on Google Map before confirming.');
+      setSaveError('Please place or adjust the pin on the map before confirming.');
       return;
     }
 
@@ -569,7 +625,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       await onConfirm(selectedCoords.lat, selectedCoords.lng);
       onClose();
     } catch (err: any) {
-      setSaveError(err?.message || 'Failed to save confirmed location. Please try again.');
+      setSaveError(err?.message || 'Unable to save this location. Please try again.');
     } finally {
       setIsSaving(false);
     }
@@ -582,12 +638,12 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       id="location-confirm-modal-overlay"
       className="fixed inset-0 z-50 w-full h-[100dvh] bg-slate-950 flex flex-col overflow-hidden animate-fadeIn select-none"
     >
-      {/* 1. Full-Screen Edge-to-Edge Google Map Surface */}
+      {/* 1. Full-Screen Edge-to-Edge Google Map Surface - Always visible and interactive */}
       <div id="google-maps-full-surface" className="absolute inset-0 w-full h-full bg-slate-100 z-0">
         <div ref={mapContainerRef} className="w-full h-full" />
       </div>
 
-      {/* 2. Floating Top Header & Search Box (Google Maps App Style) */}
+      {/* 2. Floating Top Header & Search Box */}
       <div className="absolute top-2 sm:top-4 inset-x-2 sm:inset-x-4 z-30 max-w-2xl mx-auto flex flex-col gap-2 pointer-events-none">
         {/* Main Floating Search & Navigation Bar */}
         <div className="pointer-events-auto bg-white/95 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-xl border border-slate-200/80 p-1.5 sm:p-2 flex items-center gap-2 transition-all">
@@ -620,6 +676,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
                     setSearchQuery('');
                     setSuggestions([]);
                     setIsDropdownOpen(false);
+                    setSearchNotFound(false);
+                    setClosestMatchNotice(null);
                   }}
                   className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1 rounded-full cursor-pointer"
                 >
@@ -642,6 +700,56 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
             </button>
           </form>
         </div>
+
+        {/* 1. Friendly "No Results" Message directly below search box */}
+        {searchNotFound && (
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-amber-200/90 rounded-2xl p-3 shadow-xl flex items-start gap-2.5 text-xs text-slate-700 animate-fadeIn">
+            <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5 text-amber-700 font-bold">
+              📍
+            </div>
+            <div className="flex-1 leading-relaxed">
+              <p className="font-bold text-slate-900">
+                We couldn't find that place. Try adding more details, like the city name (e.g. 'BUA Factory, Port Harcourt')
+              </p>
+              <p className="text-[11px] text-slate-500 mt-1 font-medium">
+                You can also tap directly anywhere on the map to place your pin.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSearchNotFound(false)}
+              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              aria-label="Dismiss notice"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* 2. Closest / Partial Match Informational Notice */}
+        {closestMatchNotice && (
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-blue-200/90 rounded-2xl p-3 shadow-xl flex items-start gap-2.5 text-xs text-slate-700 animate-fadeIn">
+            <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center shrink-0 mt-0.5 text-[#0A1F44] font-bold">
+              📍
+            </div>
+            <div className="flex-1 leading-relaxed">
+              <p className="font-bold text-slate-900">
+                Showing the closest match found for this place.
+              </p>
+              <p className="text-[11px] text-slate-600 mt-0.5 font-medium">
+                If this isn't exact, tap or drag the pin on the map to set your exact spot.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => setClosestMatchNotice(null)}
+              className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+              aria-label="Dismiss notice"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* Floating Context Pills */}
         <div className="pointer-events-auto flex items-center justify-between gap-2 px-1">
@@ -687,7 +795,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         <button
           type="button"
           onClick={handleUseCurrentLocation}
-          title="Center Google Map on my device location"
+          title="Center on device location"
           className="pointer-events-auto w-12 h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-slate-200 hover:bg-white text-slate-700 hover:text-[#0A1F44] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         >
           <Navigation className="w-5 h-5 text-[#F2A93B]" />
@@ -772,39 +880,14 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         </div>
       </div>
 
-      {/* 5. Loading State Overlay */}
-      {isInitializing && !mapError && (
-        <div className="absolute inset-0 z-40 bg-slate-900/60 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center gap-3">
-          <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-3 max-w-xs border border-slate-100">
+      {/* 5. Subtle Loading State Overlay */}
+      {isInitializing && (
+        <div className="absolute inset-0 z-40 bg-slate-900/40 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center gap-3 pointer-events-none">
+          <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-3 max-w-xs border border-slate-100 pointer-events-auto">
             <Loader2 className="w-10 h-10 animate-spin text-[#F2A93B]" />
             <div className="space-y-1">
-              <span className="text-sm font-black text-[#0A1F44] block">Loading Google Maps</span>
-              <span className="text-xs text-slate-500">Preparing high-precision map view...</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* 6. Error Overlay */}
-      {mapError && (
-        <div className="absolute inset-0 z-40 bg-slate-950/70 backdrop-blur-xs p-4 flex items-center justify-center animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-rose-100 flex flex-col items-center text-center gap-4">
-            <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <AlertCircle className="w-7 h-7" />
-            </div>
-            <div className="space-y-1.5">
-              <h4 className="text-sm font-black text-rose-900">Google Maps Notice</h4>
-              <p className="text-xs text-slate-600 leading-relaxed">{mapError}</p>
-            </div>
-            <div className="flex flex-wrap gap-2 w-full pt-1">
-              <button
-                type="button"
-                onClick={initGoogleMap}
-                className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-              >
-                <RotateCw className="w-4 h-4" />
-                <span>Retry Map</span>
-              </button>
+              <span className="text-sm font-black text-[#0A1F44] block">Loading Map View</span>
+              <span className="text-xs text-slate-500">Preparing location interface...</span>
             </div>
           </div>
         </div>
@@ -812,4 +895,5 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     </div>
   );
 };
+
 

@@ -29,3 +29,109 @@ export interface ConfirmLocationPayload {
   lng: number;
   confirmed_by?: string;
 }
+
+export interface TruckProfile {
+  id: string;
+  company_id: string;
+  plate_number: string;
+  driver_name: string;
+  driver_phone: string;
+  payment_plan: 'per_trip' | 'monthly';
+  subscription_active_until: string | null;
+  created_at: string;
+  created_by: string;
+  updated_at?: string;
+}
+
+export interface CreateTruckPayload {
+  plate_number: string;
+  driver_name: string;
+  driver_phone: string;
+  payment_plan?: 'per_trip' | 'monthly';
+}
+
+export interface TripRedirectDestination {
+  type: 'saved_customer' | 'manual';
+  name: string;
+  address: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+export interface TripStatusHistoryEntry {
+  status: string;
+  triggered_by: string;
+  triggered_at: string;
+  note?: string;
+}
+
+export interface TripRecord {
+  id: string;
+  company_id: string;
+  truck_id: string;
+  plate_number: string;
+  driver_name: string;
+  driver_phone: string;
+  primary_destination_type: 'supplier';
+  primary_destination_id: string;
+  primary_destination_name: string;
+  primary_destination_lat: number | null;
+  primary_destination_lng: number | null;
+  redirect_destination: TripRedirectDestination | null;
+  payment_plan: 'per_trip' | 'monthly';
+  payment_status: 'pending' | 'confirmed';
+  payment_amount: number;
+  trip_status:
+    | 'created'
+    | 'payment_confirmed'
+    | 'departed'
+    | 'in_progress'
+    | 'arrived_at_supplier'
+    | 'loaded'
+    | 'stopped_warning'
+    | 'stopped_alert'
+    | 'stopped'
+    | 'arrived_at_destination'
+    | 'returning'
+    | 'completed'
+    | 'cancelled'
+    | string;
+  status_history?: TripStatusHistoryEntry[];
+  last_known_lat?: number | null;
+  last_known_lng?: number | null;
+  last_movement_at?: string | null;
+  stopped_warning_sent?: boolean;
+  stopped_alert_sent?: boolean;
+  stopped_acknowledged?: boolean;
+  created_by: string;
+  created_at: string;
+  garage_lat: number | null;
+  garage_lng: number | null;
+}
+
+export interface SavedCustomer {
+  id: string;
+  company_id: string;
+  name: string;
+  address_text: string;
+  lat: number | null;
+  lng: number | null;
+  created_at: string;
+  created_by: string;
+}
+
+export interface CreateTripPayload {
+  truck_id: string;
+  supplier_id: string;
+}
+
+export interface RedirectTripPayload {
+  type: 'saved_customer' | 'manual';
+  customer_id?: string;
+  name: string;
+  address: string;
+  lat?: number | null;
+  lng?: number | null;
+  save_as_new_customer?: boolean;
+}
+

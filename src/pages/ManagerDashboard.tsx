@@ -15,9 +15,10 @@ import {
 import {
   Building2, MapPin, Users, Package, DollarSign, Plus, RefreshCw, Key,
   CheckCircle, XCircle, LogOut, Search, Filter, ShieldCheck, UserCheck, AlertCircle, Eye, Trash2, Power,
-  ChevronRight, ArrowRight, Navigation
+  ChevronRight, ArrowRight, Navigation, ArrowRightLeft
 } from 'lucide-react';
-import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocationsView';
+import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
+import { DriverScreen } from './DriverScreen';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -31,7 +32,7 @@ export const ManagerDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills' | 'fleet_locations'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills'>('overview');
 
   // Search & Filter for waybills
   const [searchTerm, setSearchTerm] = useState('');
@@ -254,16 +255,33 @@ export const ManagerDashboard: React.FC = () => {
     return matchesSearch && matchesStatus;
   });
 
-  // Navigation Tabs
+  // Navigation Tabs (Waybill Module Only)
   const navTabs = [
     { id: 'overview' as const, label: t('overview') || 'Overview', icon: Building2 },
     { id: 'staff' as const, label: `${t('staffMembers') || 'Staff'} (${staffList.length})`, icon: Users },
     { id: 'waybills' as const, label: `${t('waybillHistory') || 'Waybills'} (${waybills.length})`, icon: Package },
-    { id: 'fleet_locations' as const, label: 'Fleet Locations 📍', icon: Navigation },
   ];
 
+  const isDriver = user?.role === 'driver' || user?.manager_type === 'Driver';
+  const isTripMonitor = user?.role === 'trip_monitor' || user?.manager_type === 'Trip Monitor';
+  const isFleetManager =
+    user?.is_fleet_only ||
+    user?.service_mode === 'fleet' ||
+    user?.service_type === 'fleet' ||
+    user?.service_mode === 'haulage' ||
+    user?.service_type === 'haulage' ||
+    user?.manager_type === 'Fleet Manager';
+
+  if (isDriver) {
+    return <DriverScreen />;
+  }
+
+  if (isTripMonitor || isFleetManager) {
+    return <FleetDashboard showSwitchModule={false} />;
+  }
+
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-slate-800 pb-12 w-full overflow-x-hidden">
+    <div className="min-h-screen bg-[#FAFAFA] text-slate-800 pb-12 w-full overflow-x-hidden font-sans">
       {/* Header */}
       <header className="bg-[#0A1F44] text-white sticky top-0 z-30 shadow-md w-full">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-3 sm:py-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 sm:gap-4">
@@ -275,7 +293,7 @@ export const ManagerDashboard: React.FC = () => {
                   {user?.company_name || overview?.company_name || 'Transport Company'}
                 </h1>
                 <span className="bg-indigo-500/30 text-indigo-200 border border-indigo-400/30 text-[10px] sm:text-xs font-bold px-2 py-0.5 rounded-full uppercase whitespace-nowrap">
-                  📦 Waybill Manager
+                  📦 Waybill Module
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-300 flex items-center gap-1.5 mt-0.5 truncate">
@@ -715,13 +733,6 @@ export const ManagerDashboard: React.FC = () => {
                     </table>
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* TAB: FLEET LOCATIONS */}
-            {activeTab === 'fleet_locations' && (
-              <div className="space-y-6">
-                <FleetLocationsView token={token || ''} userName={user?.name || 'Manager'} />
               </div>
             )}
           </>

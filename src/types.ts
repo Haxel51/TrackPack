@@ -1,6 +1,7 @@
 export interface User {
   id?: string;
   phone_number?: string;
+  phone?: string;
   email?: string;
   name?: string;
   company_name?: string;
@@ -10,6 +11,7 @@ export interface User {
   service_mode?: string;
   service_type?: string;
   manager_type?: string;
+  role?: 'customer' | 'company' | 'staff' | 'manager' | 'admin' | 'trip_monitor' | 'driver';
   approved?: boolean;
   active?: boolean;
   has_completed_onboarding?: boolean;
@@ -25,6 +27,7 @@ export interface Manager {
   service_mode?: string;
   service_type?: string;
   manager_type?: string;
+  role?: 'manager' | 'trip_monitor' | 'driver';
   active: boolean;
   created_at: string;
 }
@@ -32,7 +35,7 @@ export interface Manager {
 export interface AuthState {
   token: string | null;
   user: User | null;
-  role: 'customer' | 'company' | 'staff' | 'manager' | 'admin' | null;
+  role: 'customer' | 'company' | 'staff' | 'manager' | 'admin' | 'trip_monitor' | 'driver' | null;
 }
 
 export interface Bus {

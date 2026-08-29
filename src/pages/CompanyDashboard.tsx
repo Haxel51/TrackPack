@@ -30,11 +30,15 @@ import {
   UserCheck,
   Trash2,
   Activity,
-  KeyRound
+  KeyRound,
+  ArrowRightLeft
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { resetCompanyManagerPin } from '../lib/api';
 import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocationsView';
+import { ModuleSelectionScreen } from '../components/ModuleSelectionScreen';
+import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
+import { getSavedModulePreference, saveModulePreference, clearModulePreference, ModuleType } from '../lib/userPreferences';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -44,13 +48,58 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 export const CompanyDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'fleet_locations' | 'earnings'>('overview');
+
+  // Module Selection state (Fleet vs Waybill)
+  const [selectedModule, setSelectedModule] = useState<ModuleType | null>(null);
+  const [moduleLoading, setModuleLoading] = useState<boolean>(true);
+
+  useEffect(() => {
+    const loadModulePref = async () => {
+      const userId = user?.id || user?.owner_phone || user?.company_name;
+      let pref: ModuleType | null = null;
+      if (userId) {
+        pref = await getSavedModulePreference(userId, token);
+      }
+
+      // If no explicit preference saved, auto-detect from company profile & service mode
+      if (!pref && user) {
+        const mode = String(user.service_mode || user.service_type || '').toLowerCase();
+
+        if (user.is_fleet_only || mode === 'haulage' || mode === 'fleet') {
+          pref = 'fleet';
+        } else if (user.is_waybill_only || mode === 'parcel' || mode === 'bus' || mode === 'waybill' || mode === 'package') {
+          pref = 'waybill';
+        }
+      }
+
+      setSelectedModule(pref);
+      setModuleLoading(false);
+    };
+    loadModulePref();
+  }, [user, token]);
+
+  const handleSelectModule = async (mod: ModuleType) => {
+    const userId = user?.id || user?.owner_phone || user?.company_name;
+    if (userId) {
+      await saveModulePreference(userId, mod, token);
+    }
+    setSelectedModule(mod);
+  };
+
+  const handleSwitchModule = async () => {
+    const userId = user?.id || user?.owner_phone || user?.company_name;
+    if (userId) {
+      await clearModulePreference(userId, token);
+    }
+    setSelectedModule(null);
+  };
+
+  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings'>('overview');
 
   const navTabs = [
     { id: 'overview', label: t('overview'), icon: TrendingUp },
     { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
     { id: 'shipments', label: t('waybillHistory'), icon: Package },
-    { id: 'fleet_locations', label: 'Fleet Locations 📍', icon: MapPin },
     { id: 'earnings', label: t('analytics'), icon: DollarSign }
   ];
 
@@ -935,8 +984,33 @@ export const CompanyDashboard: React.FC = () => {
     }
   };
 
+  if (moduleLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 text-white font-sans">
+        <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+        <p className="text-sm font-bold text-slate-400">Loading workspace configuration...</p>
+      </div>
+    );
+  }
+
+  if (!selectedModule) {
+    return (
+      <ModuleSelectionScreen
+        userName={user?.name}
+        companyName={user?.company_name}
+        userRole="Company HQ"
+        onSelectModule={handleSelectModule}
+        onLogout={logout}
+      />
+    );
+  }
+
+  if (selectedModule === 'fleet') {
+    return <FleetDashboard onSwitchModule={handleSwitchModule} />;
+  }
+
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800 font-sans">
       
       {/* HEADER NAVBAR (Scrolls up naturally, Navy Blue) */}
       <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-3 sm:py-4 shadow-md sticky top-0 z-30 w-full">
@@ -953,13 +1027,21 @@ export const CompanyDashboard: React.FC = () => {
                 </span>
                 <div className="inline-flex items-center gap-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/80 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold shrink-0">
                   <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
-                  <span className="text-blue-300">📦 Waybills</span>
+                  <span className="text-blue-300">📦 Waybill Module</span>
                 </div>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            <button
+              onClick={handleSwitchModule}
+              className="flex items-center gap-1.5 sm:gap-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
+              id="header-switch-module-btn"
+            >
+              <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
+              <span>Switch Module</span>
+            </button>
             <LanguageSwitcher />
             <button
               onClick={logout}
