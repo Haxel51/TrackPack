@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { TripRecord, SavedCustomer } from '../types';
-import { getSavedCustomers, redirectTrip, searchLocationGeocode, getGoogleMapsConfig } from '../api';
+import { getSavedCustomers, redirectTrip, searchLocationGeocode } from '../api';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
+import mapsConfig from '../../../config/maps.config';
 import {
   X,
   Navigation,
@@ -107,9 +108,7 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
     if (!mapContainerRef.current) return;
 
     try {
-      const configRes = await getGoogleMapsConfig();
-      const apiKey = configRes.apiKey || '';
-      await loadGoogleMaps(apiKey);
+      await loadGoogleMaps(mapsConfig.apiKey);
 
       // Re-verify that mapContainerRef is still mounted after async operations
       if (!mapContainerRef.current) return;

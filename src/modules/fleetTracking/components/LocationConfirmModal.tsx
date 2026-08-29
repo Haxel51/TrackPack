@@ -11,7 +11,8 @@ import {
   Navigation,
 } from 'lucide-react';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
-import { getGoogleMapsConfig, searchLocationGeocode } from '../api';
+import { searchLocationGeocode } from '../api';
+import mapsConfig from '../../../config/maps.config';
 
 interface LocationConfirmModalProps {
   isOpen: boolean;
@@ -54,7 +55,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   const geocoderRef = useRef<google.maps.Geocoder | null>(null);
   const debounceTimerRef = useRef<any>(null);
 
-  const [apiKey, setApiKey] = useState<string>('');
   const [isInitializing, setIsInitializing] = useState<boolean>(true);
   const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -66,7 +66,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Friendly non-technical search status states
+  // Friendly search status states
   const [searchNotFound, setSearchNotFound] = useState<boolean>(false);
   const [closestMatchNotice, setClosestMatchNotice] = useState<string | null>(null);
 
@@ -128,7 +128,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     [isSupplier, locationName]
   );
 
-  // Update or create Google Maps Marker using guaranteed-visible vector circle symbol
+  // Update or create Google Maps Marker using vector circle symbol
   const setGooglePinLocation = useCallback(
     (lat: number, lng: number, map: google.maps.Map, searchedPlaceName?: string) => {
       updateSelectedCoords(lat, lng);
@@ -198,28 +198,13 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     const startZoom = hasInitialCoords ? 17 : 14;
 
     try {
-      // 1. Fetch API key from backend if not already stored
-      let activeKey = apiKey;
-      if (!activeKey) {
-        const config = await getGoogleMapsConfig();
-        if (config.success && config.apiKey) {
-          activeKey = config.apiKey.trim();
-          setApiKey(activeKey);
-        }
-      }
-
-      if (!activeKey) {
-        setIsInitializing(false);
-        return;
-      }
-
-      // 2. Load Google Maps SDK
-      const googleMaps = await loadGoogleMaps(activeKey);
+      // Load Google Maps SDK
+      const googleMaps = await loadGoogleMaps(mapsConfig.apiKey);
 
       if (!mapContainerRef.current) return;
       mapContainerRef.current.innerHTML = '';
 
-      // 3. Mount Google Map instance
+      // Mount Google Map instance
       const map = new googleMaps.Map(mapContainerRef.current, {
         center: { lat: startLat, lng: startLng },
         zoom: startZoom,
@@ -299,11 +284,12 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         executePlacesSearch(query, true);
       }
     } catch (err: any) {
-      console.warn('Google Maps initialization notice:', err);
+      console.warn('Google Maps initialization error:', err);
+      setSaveError('Failed to load Google Maps. Please check your internet connection.');
     } finally {
       setIsInitializing(false);
     }
-  }, [apiKey, initialLat, initialLng, locationName, addressText, setGooglePinLocation]);
+  }, [initialLat, initialLng, locationName, addressText, setGooglePinLocation]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -334,7 +320,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     return () => clearTimeout(timer);
   }, [isOpen, locationName, addressText, initGoogleMap]);
 
-  // Google Places & Geocoding Search Handler with resilient fallback & partial matching
+  // Google Places & Geocoding Search Handler with fallback & partial matching
   const executePlacesSearch = async (query: string, autoSelectFirst = false) => {
     if (!query.trim()) return;
 
@@ -441,7 +427,6 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
             updateSelectedCoords(lat, lng);
           }
 
-          // Let them know this is the closest match found so they can adjust if needed
           setClosestMatchNotice(
             "Showing the closest match found for this place. If this isn't exact, tap or drag the pin on the map to set your exact spot."
           );
@@ -480,8 +465,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       console.warn('Server geocode notice:', e);
     }
 
-    // 4. If no results at all: show friendly message directly below the search box
-    // The map stays completely visible and interactive
+    // 4. If no results: show friendly message
     setIsDropdownOpen(false);
     setClosestMatchNotice(null);
     setSearchNotFound(true);
@@ -895,5 +879,3 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
     </div>
   );
 };
-
-

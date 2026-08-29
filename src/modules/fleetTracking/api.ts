@@ -180,12 +180,33 @@ export async function deleteSupplierLocation(
 }
 
 // 9. Fetch Google Maps API Configuration
-export async function getGoogleMapsConfig(): Promise<{ success: boolean; apiKey: string }> {
+export async function getGoogleMapsConfig(): Promise<{ success: boolean; apiKey: string; source?: string }> {
   try {
     const res = await fetch(`${API_BASE}/google-maps-config`);
     return await res.json();
   } catch (err: any) {
     return { success: false, apiKey: '' };
+  }
+}
+
+// 9b. Save Google Maps API Configuration
+export async function saveGoogleMapsConfig(
+  token: string,
+  apiKey: string
+): Promise<{ success: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/google-maps-config`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ apiKey }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to save Google Maps key` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error saving Google Maps key' };
   }
 }
 

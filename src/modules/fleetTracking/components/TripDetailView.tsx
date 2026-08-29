@@ -5,12 +5,12 @@ import { TripRecord, TripStatusHistoryEntry } from '../types';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
 import { getFleetRole, FleetPermissions } from '../utils/permissions';
 import {
-  getGoogleMapsConfig,
   getGarageLocation,
   updateTripStatus,
   acknowledgeStoppedAlert,
 } from '../api';
 import { RedirectTripModal } from './RedirectTripModal';
+import mapsConfig from '../../../config/maps.config';
 import {
   ArrowLeft,
   Phone,
@@ -24,10 +24,8 @@ import {
   Radio,
   ChevronUp,
   ChevronDown,
-  CheckCircle2,
   Clock,
   History,
-  ShieldAlert,
   Play,
   PackageCheck,
   Flag,
@@ -83,16 +81,16 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   // Collapsible panel state — false by default so map takes up >90% of screen
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
-  // Map refs
+  // Map DOM Container
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+
+  // Google Maps Refs
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const googleMapsRef = useRef<any>(null);
   const garageMarkerRef = useRef<google.maps.Marker | null>(null);
   const destMarkerRef = useRef<google.maps.Marker | null>(null);
   const redirectMarkerRef = useRef<google.maps.Marker | null>(null);
   const truckMarkerRef = useRef<google.maps.Marker | null>(null);
-  const directionsServiceRef = useRef<any>(null);
-  const directionsRendererRef = useRef<any>(null);
   const routePolylineRef = useRef<google.maps.Polyline | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
 
@@ -102,7 +100,6 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const canRedirect = FleetPermissions.canRedirect(fleetRole);
   const canMarkLoaded = FleetPermissions.canMarkLoaded(fleetRole);
   const isManagerOrCEO = fleetRole === 'manager' || fleetRole === 'ceo';
-  const isTripMonitor = fleetRole === 'trip_monitor';
   const isCompletedOrCancelled = trip.trip_status === 'completed' || trip.trip_status === 'cancelled';
 
   // 1. Determine Active Destination
@@ -198,7 +195,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           }
 
           if (parsedLat !== null && parsedLng !== null) {
-            setTruckLocation({ lat: parsedLat, lng: parsedLng });
+            const newLoc = { lat: parsedLat, lng: parsedLng };
+            setTruckLocation(newLoc);
             setIsAwaitingLocation(false);
           } else {
             setIsAwaitingLocation(true);
@@ -216,32 +214,29 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   // Helper to calculate and render real-world road directions
   const calculateAndDisplayRoute = useCallback(
     (originLat: number, originLng: number, destLat: number, destLng: number) => {
-      if (!googleMapsRef.current || !googleMapRef.current) return;
-      const googleMaps = googleMapsRef.current;
-      const map = googleMapRef.current;
-
-      if (!routePolylineRef.current) {
-        routePolylineRef.current = new googleMaps.Polyline({
-          map,
-          strokeColor: '#1A73E8',
-          strokeWeight: 6,
-          strokeOpacity: 0.9,
-        });
-      } else {
-        routePolylineRef.current.setMap(map);
-      }
-
       fetch(
         `/api/fleet-tracking/route/osrm?origin_lat=${originLat}&origin_lng=${originLng}&dest_lat=${destLat}&dest_lng=${destLng}`
       )
         .then((res) => (res.ok ? res.json() : null))
         .then((data) => {
           if (data?.success && Array.isArray(data.coordinates) && data.coordinates.length > 0) {
-            const roadPath = data.coordinates.map((pt: [number, number]) => ({
-              lat: pt[1],
-              lng: pt[0],
-            }));
-            if (roadPath.length > 0 && routePolylineRef.current) {
+            if (googleMapsRef.current && googleMapRef.current) {
+              const googleMaps = googleMapsRef.current;
+              const map = googleMapRef.current;
+              if (!routePolylineRef.current) {
+                routePolylineRef.current = new googleMaps.Polyline({
+                  map,
+                  strokeColor: '#1A73E8',
+                  strokeWeight: 6,
+                  strokeOpacity: 0.9,
+                });
+              } else {
+                routePolylineRef.current.setMap(map);
+              }
+              const roadPath = data.coordinates.map((pt: [number, number]) => ({
+                lat: pt[1],
+                lng: pt[0],
+              }));
               routePolylineRef.current.setPath(roadPath);
             }
           }
@@ -253,15 +248,16 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     []
   );
 
-  // 4. Initialize Google Map
+  // ----------------------------------------------------
+  // 4. MAIN GOOGLE MAP INITIALIZER
+  // ----------------------------------------------------
   const initMap = useCallback(async () => {
     try {
       setIsLoadingMap(true);
       setMapError(null);
 
-      const configRes = await getGoogleMapsConfig();
-      const apiKey = configRes.apiKey || '';
-      const googleMaps = await loadGoogleMaps(apiKey);
+      // Load Google Maps SDK with the bundled key
+      const googleMaps = await loadGoogleMaps(mapsConfig.apiKey);
       googleMapsRef.current = googleMaps;
 
       if (!mapContainerRef.current) return;
@@ -357,7 +353,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       });
       garageMarkerRef.current = gMarker;
 
-      // 🟢 Pin 2: Original Supplier Destination (faded with opacity 0.4 when redirected)
+      // 🟢 Pin 2: Original Supplier Destination
       const dMarker = new googleMaps.Marker({
         position: primaryPos,
         map,
@@ -367,7 +363,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       });
       destMarkerRef.current = dMarker;
 
-      // 🔴 Pin 2b: Active Redirect Customer Destination Pin (Red Shop Icon Pin)
+      // 🔴 Pin 2b: Active Redirect Customer Destination Pin
       if (hasRedirect && trip.redirect_destination) {
         const redirectLat = trip.redirect_destination.lat || 6.5244;
         const redirectLng = trip.redirect_destination.lng || 3.3792;
@@ -443,7 +439,6 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       }
       if (isValidCoord(initialTruckPos)) rawPins.push(initialTruckPos);
 
-      // Filter out dummy Lagos default (6.5244, 3.3792) if active pins exist far away in another region
       const nonDefaultPins = rawPins.filter(
         (p) => getDistanceInKm(p.lat, p.lng, 6.5244, 3.3792) > 50
       );
@@ -452,38 +447,37 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         activePins = rawPins.filter((p) => !(Math.abs(p.lat - 6.5244) < 0.01 && Math.abs(p.lng - 3.3792) < 0.01));
       }
 
-      // AFTER the map has fully loaded ('idle' listener), call fitBounds and remove minZoom restriction
       googleMaps.event.addListenerOnce(map, 'idle', () => {
         if (activePins.length > 1) {
           const bounds = new googleMaps.LatLngBounds();
           activePins.forEach((p) => bounds.extend(p));
           map.fitBounds(bounds, { top: 80, bottom: 80, left: 80, right: 80 } as any);
         }
-        // Remove minZoom restriction after initial load so user can zoom freely in both directions
         map.setOptions({ minZoom: null });
       });
+
       setIsLoadingMap(false);
     } catch (err: any) {
-      console.error('Error initializing trip detail map:', err);
-      setMapError(err?.message || 'Failed to load Google Map');
+      console.error('Google Map initialization error:', err);
+      setMapError(err?.message || 'Failed to initialize Google Maps');
       setIsLoadingMap(false);
     }
-  }, [calculateAndDisplayRoute, garageCoords, getActiveDestination, trip.plate_number, truckLocation]);
+  }, [calculateAndDisplayRoute, garageCoords, getActiveDestination, trip.plate_number, trip.primary_destination_lat, trip.primary_destination_lng, trip.primary_destination_name, trip.redirect_destination, truckLocation]);
 
   useEffect(() => {
     let timer = setTimeout(() => {
       initMap();
     }, 150);
     return () => clearTimeout(timer);
-  }, [garageCoords.lat, garageCoords.lng]);
+  }, [garageCoords.lat, garageCoords.lng, initMap]);
 
   // Update Truck Pin smoothly and recalculate directions route in real time as truck moves
   useEffect(() => {
-    if (googleMapRef.current && truckMarkerRef.current) {
-      const activePos = truckLocation || garageCoords;
-      truckMarkerRef.current.setPosition(activePos);
+    const activePos = truckLocation || garageCoords;
+    const dest = getActiveDestination();
 
-      const dest = getActiveDestination();
+    if (googleMapRef.current && truckMarkerRef.current) {
+      truckMarkerRef.current.setPosition(activePos);
       if (
         activePos &&
         typeof activePos.lat === 'number' &&
@@ -496,76 +490,6 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       }
     }
   }, [truckLocation, garageCoords, getActiveDestination, calculateAndDisplayRoute]);
-
-  // Dynamically update redirect marker and original supplier marker opacity when trip redirect destination changes
-  useEffect(() => {
-    if (googleMapRef.current && googleMapsRef.current) {
-      const googleMaps = googleMapsRef.current;
-      const map = googleMapRef.current;
-      const hasRedirect = !!trip.redirect_destination;
-
-      if (destMarkerRef.current) {
-        destMarkerRef.current.setOpacity(hasRedirect ? 0.4 : 1.0);
-      }
-
-      if (hasRedirect && trip.redirect_destination) {
-        const redirectLat = trip.redirect_destination.lat || 6.5244;
-        const redirectLng = trip.redirect_destination.lng || 3.3792;
-        const redirectCustomerName = trip.redirect_destination.name;
-
-        if (!redirectMarkerRef.current) {
-          const redirectPinIcon = {
-            url:
-              'data:image/svg+xml;charset=UTF-8,' +
-              encodeURIComponent(`
-              <svg xmlns="http://www.w3.org/2000/svg" width="44" height="52" viewBox="0 0 44 52">
-                <path d="M22 0C9.8 0 0 9.8 0 22C0 38.5 22 52 22 52C22 52 44 38.5 44 22C44 9.8 34.2 0 22 0Z" fill="#E65100" stroke="#FFFFFF" stroke-width="2.5"/>
-                <circle cx="22" cy="20" r="13" fill="#993300"/>
-                <path d="M13 13.5H31L32 16.5H12L13 13.5Z" fill="#FFFFFF"/>
-                <path d="M12 16.5H32V18.5H12V16.5Z" fill="#FF9800"/>
-                <path d="M13 18.5H31V27H13V18.5Z" fill="#FFFFFF"/>
-                <rect x="16" y="21.5" width="4.5" height="5.5" fill="#E65100"/>
-                <rect x="23.5" y="21.5" width="4.5" height="3.5" fill="#E65100"/>
-              </svg>
-            `),
-            scaledSize: new googleMaps.Size(44, 52),
-            anchor: new googleMaps.Point(22, 52),
-          };
-
-          const rMarker = new googleMaps.Marker({
-            position: { lat: redirectLat, lng: redirectLng },
-            map,
-            icon: redirectPinIcon,
-            title: redirectCustomerName,
-            zIndex: 3,
-          });
-
-          rMarker.addListener('click', () => {
-            if (!infoWindowRef.current) {
-              infoWindowRef.current = new googleMaps.InfoWindow();
-            }
-            infoWindowRef.current.setContent(
-              `<div style="font-family: sans-serif; padding: 6px 10px; font-weight: bold; color: #0f172a; font-size: 13px;">
-                <span style="color: #E65100;">↪️ Redirected to:</span> ${redirectCustomerName}
-               </div>`
-            );
-            infoWindowRef.current.open(map, rMarker);
-          });
-
-          redirectMarkerRef.current = rMarker;
-        } else {
-          redirectMarkerRef.current.setMap(map);
-          redirectMarkerRef.current.setPosition({ lat: redirectLat, lng: redirectLng });
-          redirectMarkerRef.current.setTitle(redirectCustomerName);
-        }
-      } else {
-        if (redirectMarkerRef.current) {
-          redirectMarkerRef.current.setMap(null);
-          redirectMarkerRef.current = null;
-        }
-      }
-    }
-  }, [trip.redirect_destination]);
 
   // Stage 5 Action Handlers
   const handleManualStatusChange = async (newStatus: string, note?: string) => {
@@ -588,7 +512,6 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const handleAcknowledgeAlert = async () => {
     try {
       setIsSubmittingStatus(true);
-      // Immediately set local acknowledged state for fast UI feedback
       setTrip((prev) => ({
         ...prev,
         stopped_acknowledged: true,
@@ -628,7 +551,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   };
 
   // Status Badge Logic
-  const getStatusBadge = (status: string, hasRedirect: boolean) => {
+  const getStatusBadge = (status: string, _hasRedirect: boolean) => {
     const s = (status || 'created').toLowerCase();
     switch (s) {
       case 'completed':
@@ -662,10 +585,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const statusBadge = getStatusBadge(trip.trip_status, !!trip.redirect_destination);
   const statusHistory = trip.status_history || [];
 
+  // Recentering Handlers on Google Maps
   const handleRecenterTruck = useCallback(() => {
-    if (googleMapRef.current) {
-      const pos = truckLocation || garageCoords;
-      if (pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && (pos.lat !== 0 || pos.lng !== 0)) {
+    const pos = truckLocation || garageCoords;
+    if (pos && typeof pos.lat === 'number' && typeof pos.lng === 'number' && (pos.lat !== 0 || pos.lng !== 0)) {
+      if (googleMapRef.current) {
         googleMapRef.current.panTo(pos);
         googleMapRef.current.setZoom(16);
       }
@@ -673,9 +597,9 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   }, [truckLocation, garageCoords]);
 
   const handleRecenterDestination = useCallback(() => {
-    if (googleMapRef.current) {
-      const dest = getActiveDestination();
-      if (dest && typeof dest.lat === 'number' && typeof dest.lng === 'number' && (dest.lat !== 0 || dest.lng !== 0)) {
+    const dest = getActiveDestination();
+    if (dest && typeof dest.lat === 'number' && typeof dest.lng === 'number' && (dest.lat !== 0 || dest.lng !== 0)) {
+      if (googleMapRef.current) {
         googleMapRef.current.panTo({ lat: dest.lat, lng: dest.lng });
         googleMapRef.current.setZoom(16);
       }
@@ -683,9 +607,10 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   }, [getActiveDestination]);
 
   const handleFitFullRoute = useCallback(() => {
+    const dest = getActiveDestination();
+
     if (googleMapRef.current && window.google?.maps) {
       const bounds = new window.google.maps.LatLngBounds();
-      const dest = getActiveDestination();
       let count = 0;
       if (garageCoords && (garageCoords.lat !== 0 || garageCoords.lng !== 0)) {
         bounds.extend(garageCoords);
@@ -717,13 +642,13 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       
       {/* 1. FULL SCREEN GOOGLE MAP SURFACE */}
       <div className="absolute inset-0 w-full h-full bg-slate-900 z-0">
-        <div ref={mapContainerRef} className="w-full h-full" id="trip-detail-google-map" />
+        <div ref={mapContainerRef} className="w-full h-full" id="trip-detail-live-map" />
 
         {/* Map Loading Overlay */}
         {isLoadingMap && (
           <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 text-white">
             <Loader2 className="w-9 h-9 animate-spin text-amber-400" />
-            <p className="text-xs font-black tracking-wide">Loading GPS Route & Real-Time Tracking...</p>
+            <p className="text-xs font-black tracking-wide">Loading Google Maps Route & Live Tracking...</p>
           </div>
         )}
 
@@ -756,6 +681,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
         {/* Top Right Live GPS Status Pill */}
         <div className="pointer-events-auto flex items-center gap-2">
+          {/* Live GPS Ping Status */}
           <div className="flex items-center gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3.5 py-2 rounded-2xl text-[11px] font-bold text-slate-200 shadow-xl">
             <Radio className={`w-3.5 h-3.5 ${isAwaitingLocation ? 'text-amber-400 animate-pulse' : 'text-emerald-400 animate-ping'}`} />
             <span>{isAwaitingLocation ? 'Awaiting location...' : 'Live GPS Tracked'}</span>
@@ -763,7 +689,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         </div>
       </div>
 
-      {/* 2b. FLOATING LOCATION BADGE PILL (Matches Fleet Confirmation Map) */}
+      {/* 2b. FLOATING LOCATION BADGE PILL */}
       <div className="absolute top-16 sm:top-18 left-4 right-4 z-20 pointer-events-none flex items-center justify-start">
         <div className="pointer-events-auto bg-white/95 backdrop-blur-md text-slate-900 border border-slate-200/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2 max-w-[90vw] truncate">
           <MapPin className="w-4 h-4 text-[#F2A93B] shrink-0" />
@@ -898,49 +824,44 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                 type="button"
                 className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
               >
-                <span>{isExpanded ? 'Hide Details' : 'View Details'}</span>
-                {isExpanded ? (
-                  <ChevronDown className="w-4 h-4 text-amber-400" />
-                ) : (
-                  <ChevronUp className="w-4 h-4 text-amber-400 animate-bounce" />
-                )}
+                <span>{isExpanded ? 'Hide Info' : 'Details'}</span>
+                {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
               </button>
+
             </div>
           </div>
 
-          {/* STOPPED WARNING / ALERT BANNER */}
-          {isStoppedWarningOrAlert && isManagerOrCEO && (
-            <div className="bg-gradient-to-r from-rose-950/90 via-orange-950/80 to-slate-900 border-t border-b border-rose-500/40 p-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 animate-pulse">
-              <div className="flex items-center gap-3">
-                <ShieldAlert className="w-6 h-6 text-rose-400 shrink-0" />
+          {/* CRITICAL STOPPED ALERT NOTIFICATION BANNER */}
+          {isStoppedWarningOrAlert && (
+            <div className="p-3.5 bg-gradient-to-r from-rose-950/90 via-red-900/80 to-rose-950/90 border-t border-b border-rose-500/40 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5 text-rose-200 text-xs">
+                <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0 animate-bounce" />
                 <div>
-                  <h4 className="text-xs font-black text-rose-200 uppercase tracking-wide">
-                    {trip.stopped_alert_sent ? '🔴 Critical Alert: Truck Stopped for 1 Hour' : '⚠️ Warning: Truck Inactive 30+ Mins'}
-                  </h4>
-                  <p className="text-[11px] text-slate-300">
-                    Truck has been inactive. Tap below to acknowledge or contact driver directly.
-                  </p>
+                  <span className="font-black text-white">TRUCK STOPPED ALERT:</span> Truck has remained stationary during transit.
                 </div>
               </div>
               <button
                 type="button"
                 disabled={isSubmittingStatus}
                 onClick={handleAcknowledgeAlert}
-                className="bg-rose-600 hover:bg-rose-500 text-white px-4 py-2 rounded-xl text-xs font-black shrink-0 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-black px-4 py-2 rounded-xl shadow-lg transition-transform hover:scale-105 active:scale-95 cursor-pointer ml-auto"
+                id="acknowledge-stopped-alert-btn"
               >
                 Acknowledge Alert
               </button>
             </div>
           )}
 
-          {/* EXPANDED DETAILS CONTENT */}
+          {/* EXPANDABLE BODY SECTION */}
           {isExpanded && (
-            <div className="p-5 pt-3 border-t border-slate-800/80 space-y-5 animate-fadeIn max-h-[65vh] overflow-y-auto">
+            <div className="p-4 sm:p-6 border-t border-slate-800 space-y-5 max-h-[50vh] overflow-y-auto custom-scrollbar">
               
-              {/* Payment Info Row */}
-              <div className="flex items-center justify-between gap-3 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800">
-                <div className="flex items-center gap-2.5">
-                  <CreditCard className="w-4 h-4 text-amber-400" />
+              {/* Payment Info Card */}
+              <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                    <CreditCard className="w-4 h-4" />
+                  </div>
                   <div>
                     <div className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Payment Plan</div>
                     <div className="text-xs font-black text-white capitalize">{trip.payment_plan}</div>
@@ -1092,4 +1013,3 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     </div>
   );
 };
-

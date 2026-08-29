@@ -7844,19 +7844,81 @@ app.delete("/api/fleet-tracking/suppliers/:id", async (req, res) => {
 });
 
 // 9. GET /api/fleet-tracking/google-maps-config - Fetch Google Maps configuration & API Key
-app.get("/api/fleet-tracking/google-maps-config", (req, res) => {
-  const apiKey =
-    process.env.GOOGLE_MAPS_API_KEY ||
-    process.env.VITE_GOOGLE_MAPS_API_KEY ||
-    process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
-    "";
-  res.json({
-    success: true,
-    apiKey: apiKey.trim(),
-  });
+app.get("/api/fleet-tracking/google-maps-config", async (req, res) => {
+  try {
+    let apiKey =
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.VITE_GOOGLE_MAPS_API_KEY ||
+      process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
+      "";
+
+    let source = "env";
+
+    // If not found in process.env, check Firestore fleetTracking_settings
+    if (!apiKey.trim()) {
+      try {
+        const settingsSnap = await getDoc(doc(db, "fleetTracking_settings", "config"));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (data?.google_maps_api_key) {
+            apiKey = String(data.google_maps_api_key).trim();
+            source = "firestore";
+          }
+        }
+      } catch (fErr) {
+        console.warn("Could not read fleetTracking_settings from Firestore:", fErr);
+      }
+    }
+
+    if (!apiKey.trim()) {
+      apiKey = "AIzaSyCW5p_KbwvtRkZEh5Ylg0bYfPPDADMkFC8";
+      source = "config";
+    }
+
+    res.json({
+      success: true,
+      apiKey: apiKey.trim(),
+      source: apiKey.trim() ? source : "none",
+    });
+  } catch (err: any) {
+    res.json({ success: false, apiKey: "AIzaSyCW5p_KbwvtRkZEh5Ylg0bYfPPDADMkFC8", error: err?.message });
+  }
 });
 
-// 10. GET /api/fleet-tracking/geocode - Google Geocoding & Address Autocomplete Proxy
+// 9b. POST /api/fleet-tracking/google-maps-config - Update / Save Google Maps API Key persistently
+app.post("/api/fleet-tracking/google-maps-config", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized. Please log in." });
+    }
+
+    const { apiKey } = req.body;
+    const cleanKey = String(apiKey || "").trim();
+
+    const configRef = doc(db, "fleetTracking_settings", "config");
+    await setDoc(
+      configRef,
+      {
+        google_maps_api_key: cleanKey,
+        updated_at: new Date().toISOString(),
+        updated_by: authInfo.session?.userData?.name || authInfo.session?.userRole || "Admin",
+      },
+      { merge: true }
+    );
+
+    res.json({
+      success: true,
+      message: cleanKey ? "Google Maps API Key saved successfully." : "Google Maps API Key cleared.",
+      apiKey: cleanKey,
+    });
+  } catch (err: any) {
+    console.error("Error saving google-maps-config:", err);
+    res.status(500).json({ success: false, error: err?.message || "Failed to save Google Maps configuration." });
+  }
+});
+
+// 10. GET /api/fleet-tracking/geocode - Google Geocoding & Address Autocomplete Proxy with OpenStreetMap fallback
 app.get("/api/fleet-tracking/geocode", async (req, res) => {
   try {
     const query = String(req.query.query || "").trim();
@@ -7864,45 +7926,82 @@ app.get("/api/fleet-tracking/geocode", async (req, res) => {
       return res.status(400).json({ success: false, error: "Query parameter is required." });
     }
 
-    const apiKey =
+    let apiKey =
       process.env.GOOGLE_MAPS_API_KEY ||
       process.env.VITE_GOOGLE_MAPS_API_KEY ||
       process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
       "";
 
-    if (!apiKey) {
-      return res.status(500).json({
-        success: false,
-        error: "Google Maps API Key is not configured on the server.",
+    if (!apiKey.trim()) {
+      try {
+        const settingsSnap = await getDoc(doc(db, "fleetTracking_settings", "config"));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (data?.google_maps_api_key) {
+            apiKey = String(data.google_maps_api_key).trim();
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!apiKey.trim()) {
+      apiKey = "AIzaSyCW5p_KbwvtRkZEh5Ylg0bYfPPDADMkFC8";
+    }
+
+    // Method A: Try Google Geocoding API if key is available
+    if (apiKey) {
+      try {
+        const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey.trim()}`;
+        const gRes = await fetch(gUrl);
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          if (gData.status === "OK" && gData.results && gData.results.length > 0) {
+            const results = gData.results.map((r: any) => ({
+              id: r.place_id,
+              name: r.formatted_address,
+              lat: r.geometry.location.lat,
+              lng: r.geometry.location.lng,
+              source: "google",
+            }));
+            return res.json({ success: true, results });
+          }
+          if (gData.status === "ZERO_RESULTS") {
+            // Proceed to OpenStreetMap fallback before giving up
+          }
+        }
+      } catch (gErr) {
+        console.warn("Google Geocoding API notice, trying OpenStreetMap fallback:", gErr);
+      }
+    }
+
+    // Method B: OpenStreetMap Nominatim Geocoding Fallback
+    try {
+      const osmUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&addressdetails=1&limit=6`;
+      const osmRes = await fetch(osmUrl, {
+        headers: {
+          "User-Agent": "WaybillaFleetTracker/1.0 (support@waybilla.com.ng)",
+          "Accept-Language": "en",
+        },
       });
+
+      if (osmRes.ok) {
+        const osmData = await osmRes.json();
+        if (Array.isArray(osmData) && osmData.length > 0) {
+          const results = osmData.map((item: any) => ({
+            id: `osm-${item.place_id}`,
+            name: item.display_name,
+            lat: parseFloat(item.lat),
+            lng: parseFloat(item.lon),
+            source: "openstreetmap",
+          }));
+          return res.json({ success: true, results });
+        }
+      }
+    } catch (osmErr) {
+      console.warn("OpenStreetMap Nominatim search error:", osmErr);
     }
 
-    const gUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query)}&key=${apiKey.trim()}`;
-    const gRes = await fetch(gUrl);
-    if (!gRes.ok) {
-      return res.status(502).json({ success: false, error: `Google Maps Geocoding API returned status ${gRes.status}` });
-    }
-
-    const gData = await gRes.json();
-    if (gData.status === "OK" && gData.results && gData.results.length > 0) {
-      const results = gData.results.map((r: any) => ({
-        id: r.place_id,
-        name: r.formatted_address,
-        lat: r.geometry.location.lat,
-        lng: r.geometry.location.lng,
-        source: "google",
-      }));
-      return res.json({ success: true, results });
-    }
-
-    if (gData.status === "ZERO_RESULTS") {
-      return res.json({ success: true, results: [] });
-    }
-
-    return res.status(400).json({
-      success: false,
-      error: gData.error_message || `Google Geocoding status: ${gData.status}`,
-    });
+    return res.json({ success: true, results: [] });
   } catch (err: any) {
     console.error("Error in /api/fleet-tracking/geocode:", err);
     res.status(500).json({ success: false, error: err?.message || "Geocoding failed." });

@@ -1,14 +1,25 @@
 import { setOptions, importLibrary } from '@googlemaps/js-api-loader';
+import mapsConfig from '../../../config/maps.config';
 
 let configuredKey: string | null = null;
 let scriptLoadingPromise: Promise<typeof google.maps> | null = null;
 
+export function resetGoogleMapsLoader() {
+  configuredKey = null;
+  scriptLoadingPromise = null;
+  const script = document.getElementById('google-maps-js-sdk-direct');
+  if (script) {
+    script.remove();
+  }
+}
+
 /**
  * Robust loader for Google Maps JavaScript API.
- * Uses official Google Maps library loader with resilient direct script tag injection fallback.
+ * Uses official Google Maps library loader with direct script tag injection fallback.
+ * Uses bundled mapsConfig.apiKey by default if no key is provided.
  */
-export async function loadGoogleMaps(apiKey: string): Promise<typeof google.maps> {
-  const key = apiKey?.trim();
+export async function loadGoogleMaps(apiKey?: string): Promise<typeof google.maps> {
+  const key = (apiKey?.trim() || mapsConfig.apiKey?.trim() || '').trim();
   if (!key) {
     throw new Error('Google Maps API key is missing.');
   }
@@ -43,6 +54,8 @@ export async function loadGoogleMaps(apiKey: string): Promise<typeof google.maps
           setOptions({
             key: key,
             v: 'weekly',
+            region: mapsConfig.region || 'NG',
+            language: mapsConfig.language || 'en',
             solutionChannel: 'gmp_mcp_codeassist_v1_aistudio',
           });
         }
@@ -93,7 +106,8 @@ export async function loadGoogleMaps(apiKey: string): Promise<typeof google.maps
         script.type = 'text/javascript';
         script.async = true;
         script.defer = true;
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places,geometry&v=weekly&callback=${callbackName}`;
+        const libList = (mapsConfig.libraries || ['places', 'geometry']).join(',');
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=${libList}&region=${mapsConfig.region || 'NG'}&language=${mapsConfig.language || 'en'}&v=weekly&callback=${callbackName}`;
 
         script.onerror = () => {
           try {
@@ -116,4 +130,3 @@ export async function loadGoogleMaps(apiKey: string): Promise<typeof google.maps
 
   return scriptLoadingPromise;
 }
-
