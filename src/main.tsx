@@ -3,30 +3,15 @@ import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
 
-// Register Waybilla ServiceWorker (Production only, bypass in development/preview to prevent caching & fetch errors)
+// Register Firebase Messaging ServiceWorker for push notifications
 if ('serviceWorker' in navigator) {
-  const isPreview = window.location.hostname.includes('run.app') || 
-                    window.location.hostname.includes('localhost') || 
-                    window.location.hostname.includes('127.0.0.1');
-
-  if (isPreview) {
-    // Unregister any active service workers in preview to clear stale cache/interceptors
-    navigator.serviceWorker.getRegistrations().then((registrations) => {
-      for (const registration of registrations) {
-        registration.unregister().then((success) => {
-          if (success) console.log('Stale preview ServiceWorker unregistered successfully.');
-        });
-      }
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/firebase-messaging-sw.js').then((reg) => {
+      console.log('Firebase Messaging ServiceWorker registered:', reg.scope);
+    }).catch((err) => {
+      console.warn('Firebase Messaging ServiceWorker registration notice:', err);
     });
-  } else {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').then((reg) => {
-        console.log('Waybilla ServiceWorker registered: ', reg.scope);
-      }).catch((err) => {
-        console.log('Waybilla ServiceWorker registration failed: ', err);
-      });
-    });
-  }
+  });
 }
 
 const container = document.getElementById('root');

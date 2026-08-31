@@ -102,10 +102,10 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
     try {
       setIsDepartingLoading(true);
       const res = await updateTripStatus(
+        token,
         departingTrip.id,
         'departed',
-        'Truck departure confirmed by manager.',
-        token
+        'Truck departure confirmed by manager.'
       );
       if (res.success) {
         showSuccessNotice(`✅ Truck ${departingTrip.plate_number} departure confirmed! Status is now departed.`);

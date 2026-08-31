@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCompany, registerCompany, requestCompanyPasswordReset, resetCompanyPassword } from '../lib/api';
 import { Building2, Phone, Lock, Eye, EyeOff, ChevronLeft, MapPin, CheckCircle2, ArrowRight, KeyRound } from 'lucide-react';
+import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 
 export const CompanyLogin: React.FC = () => {
   const { token, role, login } = useAuth();
@@ -66,6 +67,7 @@ export const CompanyLogin: React.FC = () => {
       const res = await loginCompany(phone.trim(), password.trim());
       if (res.success) {
         login(res.token, res.user, 'company');
+        requestNotificationPermission(res.token, res.user?.id || res.user?.owner_phone);
         navigate('/company/dashboard', { replace: true });
       } else {
         setError(res.error || 'Invalid phone number or password.');

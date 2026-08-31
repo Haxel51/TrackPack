@@ -129,6 +129,9 @@ export interface TripRecord {
   created_at: string;
   garage_lat: number | null;
   garage_lng: number | null;
+  estimated_arrival_time?: string | null;
+  estimated_duration_text?: string | null;
+  remaining_distance_km?: number | null;
 }
 
 export interface SavedCustomer {

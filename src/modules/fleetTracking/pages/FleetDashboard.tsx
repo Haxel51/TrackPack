@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useLanguage } from '../../../context/LanguageContext';
 import { LanguageSwitcher } from '../../../components/LanguageSwitcher';
@@ -8,6 +8,8 @@ import { TrucksManagement } from '../components/TrucksManagement';
 import { TripsManagement } from '../components/TripsManagement';
 import { TeamManagement } from '../components/TeamManagement';
 import { PaymentHistoryView } from '../components/PaymentHistoryView';
+import { NotificationCenterModal, FleetNotification } from '../components/NotificationCenterModal';
+import { initializeFCM, requestNotificationPermission, isIframeContext } from '../fcm';
 import {
   MapPin,
   Truck,
@@ -22,7 +24,10 @@ import {
   UserCheck,
   ArrowRightLeft,
   Users,
-  CreditCard
+  CreditCard,
+  Bell,
+  BellOff,
+  X
 } from 'lucide-react';
 
 interface FleetDashboardProps {
@@ -43,6 +48,97 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments'>(
     isTripMonitor ? 'trips' : 'trucks'
   );
+
+  const [notifications, setNotifications] = useState<FleetNotification[]>([]);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [notifPermission, setNotifPermission] = useState<string>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'unsupported';
+  });
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [foregroundToast, setForegroundToast] = useState<{ title: string; body: string; data?: any } | null>(null);
+  const isInIframe = isIframeContext();
+
+  const isDriver = role === 'driver' || user?.role === 'driver' || user?.manager_type === 'Driver';
+  const isEligibleForPush = !isDriver && (isCEO || isManager || isTripMonitor || role === 'company' || role === 'manager' || role === 'trip_monitor');
+
+  const fetchNotifications = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await fetch('/api/fleet-tracking/notifications', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+      }
+    } catch (e) {
+      console.error('Error fetching fleet notifications:', e);
+    }
+  }, [token]);
+
+  const handleEnableNotifications = async () => {
+    const perm = await requestNotificationPermission(token || undefined, user?.id || user?.owner_phone);
+    if (perm !== 'unsupported' && perm !== 'iframe_blocked') {
+      setNotifPermission(perm);
+    }
+    if (perm === 'granted') {
+      fetchNotifications();
+    }
+  };
+
+  // Automatically request notification permissions on mount for CEO/Manager/Trip Monitor
+  useEffect(() => {
+    if (isEligibleForPush && notifPermission === 'default' && !isInIframe) {
+      handleEnableNotifications();
+    }
+  }, [isEligibleForPush, notifPermission, isInIframe]);
+
+  // Check URL parameters when app was opened from notification tap
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tripId = urlParams.get('tripId');
+    if (tripId) {
+      setActiveTab('trips');
+      const cleanUrl = window.location.pathname;
+      window.history.replaceState({}, '', cleanUrl);
+    }
+  }, []);
+
+  // Listen for foreground notifications
+  useEffect(() => {
+    const handleForegroundEvent = (e: any) => {
+      const detail = e.detail;
+      if (detail) {
+        setForegroundToast({
+          title: detail.title || 'Fleet Notification 🚚',
+          body: detail.body || '',
+          data: detail.data
+        });
+        fetchNotifications();
+      }
+    };
+
+    window.addEventListener('fleet_foreground_notification', handleForegroundEvent);
+    return () => {
+      window.removeEventListener('fleet_foreground_notification', handleForegroundEvent);
+    };
+  }, [fetchNotifications]);
+
+  useEffect(() => {
+    if (token) {
+      initializeFCM(token, user?.id || user?.owner_phone);
+      fetchNotifications();
+      const interval = setInterval(fetchNotifications, 15000);
+      return () => clearInterval(interval);
+    }
+  }, [token, fetchNotifications, user?.id, user?.owner_phone]);
+
+  const unreadCount = notifications.filter(n => !n.read).length;
 
   // Mock / Static data for Trips & Overview to give a rich, complete Fleet experience
   const [trips] = useState<any[]>([
@@ -121,6 +217,20 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             )}
 
             <LanguageSwitcher />
+
+            <button
+              onClick={() => setIsNotifOpen(true)}
+              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition-all cursor-pointer"
+              title="Fleet Notifications"
+              id="fleet-notification-bell-btn"
+            >
+              <Bell className="w-4 h-4 text-amber-400" />
+              {unreadCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-black text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-bounce shadow-md border border-slate-950">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
+            </button>
 
             <button
               onClick={logout}
@@ -224,6 +334,66 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         </div>
       </header>
 
+      {/* Notification Permission Request Banner */}
+      {isEligibleForPush && notifPermission !== 'granted' && (
+        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200 shadow-md">
+          <div className="flex items-center gap-2.5">
+            <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
+            <span className="font-semibold leading-relaxed">
+              {isInIframe 
+                ? '🔔 Browsers block notification prompts inside preview frames. Open in a new tab to enable real-time fleet push alerts.' 
+                : '🔔 Enable notifications to receive real-time fleet alerts on your phone.'}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            {isInIframe && (
+              <button
+                onClick={() => window.open(window.location.href, '_blank')}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5"
+                id="open-new-tab-for-notifications-btn"
+              >
+                <span>🚀 Open in New Tab</span>
+              </button>
+            )}
+            <button
+              onClick={handleEnableNotifications}
+              className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95"
+              id="enable-fleet-notifications-banner-btn"
+            >
+              Enable Notifications
+            </button>
+            {notifPermission === 'denied' && (
+              <button
+                onClick={() => setShowSettingsModal(true)}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer shrink-0"
+                id="open-settings-banner-btn"
+              >
+                Help
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Foreground Toast Notification Banner */}
+      {foregroundToast && (
+        <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-slate-950/95 border border-amber-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
+          <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl shrink-0 mt-0.5">
+            <Bell className="w-5 h-5 animate-pulse" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h4 className="font-bold text-xs text-amber-300">{foregroundToast.title}</h4>
+            <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">{foregroundToast.body}</p>
+          </div>
+          <button
+            onClick={() => setForegroundToast(null)}
+            className="text-slate-400 hover:text-white p-1 rounded-lg transition-all cursor-pointer shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Main Module Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
         
@@ -297,6 +467,61 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         )}
 
       </main>
+
+      <NotificationCenterModal
+        isOpen={isNotifOpen}
+        onClose={() => setIsNotifOpen(false)}
+        token={token}
+        notifications={notifications}
+        onRefresh={fetchNotifications}
+        onSelectTrip={() => {
+          setActiveTab('trips');
+        }}
+        onSelectTruck={() => {
+          setActiveTab('trucks');
+        }}
+      />
+
+      {/* Notification Settings Instruction Modal for Denied Permission */}
+      {showSettingsModal && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <BellOff className="w-5 h-5 text-amber-400" />
+                <h3 className="font-extrabold text-sm">How to Enable Fleet Alerts</h3>
+              </div>
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="text-slate-400 hover:text-white p-1 rounded-lg cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="text-xs text-slate-300 space-y-3 leading-relaxed">
+              <p>
+                Your browser or phone currently blocks notifications for this app. To receive real-time fleet trip & payment updates on your phone:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-slate-200 font-medium">
+                <li>Click the <strong>🔒 Lock icon</strong> or <strong>Site Settings icon</strong> next to the URL address bar.</li>
+                <li>Find <strong>Notifications</strong> in the permissions list.</li>
+                <li>Switch the setting to <strong>Allow</strong>.</li>
+                <li>Refresh the page and tap <strong>Enable Notifications</strong>.</li>
+              </ol>
+            </div>
+
+            <div className="pt-2 flex justify-end">
+              <button
+                onClick={() => setShowSettingsModal(false)}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md"
+              >
+                Understood / Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

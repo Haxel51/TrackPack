@@ -7,6 +7,8 @@ import { initializeFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, 
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
+import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
+import { getMessaging } from "firebase-admin/messaging";
 import { ICON_192_BASE64, ICON_512_BASE64, SCREENSHOT_DESKTOP_BASE64, SCREENSHOT_MOBILE_BASE64 } from "./src/assets/images/icons-base64";
 
 // Read Firebase config from local environment file
@@ -21,6 +23,156 @@ const firebaseApp = initializeApp(config);
 const db = initializeFirestore(firebaseApp, {
   experimentalAutoDetectLongPolling: true
 }, config.firestoreDatabaseId);
+
+// Initialize Firebase Admin SDK for FCM Push Notifications
+if (!getAdminApps().length) {
+  try {
+    if (config.projectId) {
+      initAdminApp({
+        projectId: config.projectId,
+      });
+    } else {
+      initAdminApp();
+    }
+  } catch (adminErr) {
+    console.warn("Notice: Firebase Admin SDK initialization:", adminErr);
+  }
+}
+
+// Reusable Cloud Function / Server helper for FCM push notifications & Firestore persistence
+async function sendFleetNotification(
+  companyId: string,
+  roles: string[],
+  title: string,
+  body: string,
+  data?: Record<string, string>
+) {
+  if (!companyId) return;
+
+  const now = new Date().toISOString();
+  const tripId = data?.tripId || data?.trip_id || null;
+  const truckId = data?.truckId || data?.truck_id || null;
+  const eventType = data?.eventType || "general";
+
+  let tokens: string[] = [];
+
+  // Normalize role matching strings
+  const lowerRoles = roles.map(r => r.toLowerCase().trim());
+
+  // Get FCM tokens for specified roles from fleetTracking_users
+  try {
+    const usersSnapshot = await getDocs(
+      query(
+        collection(db, "fleetTracking_users"),
+        where("companyId", "==", companyId),
+        where("is_active", "==", true)
+      )
+    );
+
+    const userTokens = usersSnapshot.docs
+      .map(docSnap => docSnap.data())
+      .filter(u => {
+        if (!roles || roles.length === 0) return true;
+        const userRole = (u.role || u.manager_type || "").toLowerCase().trim();
+        return lowerRoles.includes(userRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo");
+      })
+      .map(u => u.fcmToken)
+      .filter(Boolean);
+
+    tokens.push(...userTokens);
+  } catch (err) {
+    console.warn("Could not query fleetTracking_users for FCM tokens:", err);
+  }
+
+  // Get FCM tokens from managers collection as well
+  try {
+    const mgrSnapshot = await getDocs(
+      query(
+        collection(db, "managers"),
+        where("company_id", "==", companyId)
+      )
+    );
+
+    const mgrTokens = mgrSnapshot.docs
+      .map(docSnap => docSnap.data())
+      .filter(m => {
+        if (!roles || roles.length === 0) return true;
+        const mgrRole = (m.role || m.manager_type || "").toLowerCase().trim();
+        return lowerRoles.includes(mgrRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo");
+      })
+      .map(m => m.fcmToken)
+      .filter(Boolean);
+
+    tokens.push(...mgrTokens);
+  } catch (err) {
+    console.warn("Could not query managers for FCM tokens:", err);
+  }
+
+  // Filter & deduplicate tokens
+  tokens = Array.from(new Set(tokens.filter(Boolean)));
+
+  // Send multicast push if tokens exist
+  if (tokens.length > 0 && getAdminApps().length > 0) {
+    const message = {
+      tokens,
+      notification: { title, body },
+      data: data || {},
+      android: {
+        priority: "high" as const,
+        notification: {
+          channelId: "fleet_tracking",
+          priority: "high" as const,
+          defaultSound: true
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: "default",
+            badge: 1
+          }
+        }
+      }
+    };
+
+    try {
+      const response = await getMessaging().sendEachForMulticast(message as any);
+      console.log(`[FCM] Sent ${response.successCount} notifications, ${response.failureCount} failures`);
+    } catch (fcmErr) {
+      console.warn("[FCM] Error sending multicast notification:", fcmErr);
+    }
+  } else {
+    console.log("[FCM] No FCM tokens found for:", roles);
+  }
+
+  // Also save to notifications and fleetTracking_notifications collection
+  const notificationDoc = {
+    companyId,
+    company_id: companyId,
+    tripId,
+    truckId,
+    type: eventType,
+    title,
+    message: body,
+    body,
+    timestamp: now,
+    created_at: now,
+    read: false,
+    targetRoles: roles
+  };
+
+  try {
+    await addDoc(collection(db, "notifications"), notificationDoc);
+  } catch (e) {
+    console.error("Error writing to notifications collection:", e);
+  }
+
+  try {
+    await addDoc(collection(db, "fleetTracking_notifications"), notificationDoc);
+  } catch (e) {
+    // Ignore if collection not configured
+  }
+}
 
 const app = express();
 const PORT = 3000;
@@ -8259,7 +8411,7 @@ function getBackendFleetRole(session: any): 'ceo' | 'manager' | 'trip_monitor' |
   const role = String(session.userRole || session.userData?.role || '').toLowerCase().trim();
   const managerType = String(session.userData?.manager_type || '').toLowerCase().trim();
 
-  if (role === 'company' || role === 'admin' || managerType === 'ceo' || managerType === 'owner' || managerType === 'company') {
+  if (role === 'company' || role === 'admin' || role === 'owner' || managerType === 'ceo' || managerType === 'owner' || managerType === 'company') {
     return 'ceo';
   }
   if (role === 'driver' || managerType === 'driver') {
@@ -8268,7 +8420,10 @@ function getBackendFleetRole(session: any): 'ceo' | 'manager' | 'trip_monitor' |
   if (role === 'trip_monitor' || role === 'trip monitor' || managerType === 'trip monitor' || managerType === 'trip_monitor' || managerType === 'monitor') {
     return 'trip_monitor';
   }
-  if (role === 'manager' || managerType === 'manager') {
+  if (role === 'manager' || managerType === 'manager' || role === 'staff' || role === 'company_staff' || role === 'user' || role === 'customer') {
+    return 'manager';
+  }
+  if (session.companyId || session.userId || session.userRole) {
     return 'manager';
   }
   return 'unknown';
@@ -8783,6 +8938,14 @@ app.post("/api/fleet-tracking/trips", async (req, res) => {
 
     const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
 
+    await sendFleetNotification(
+      authInfo.companyId,
+      ['owner', 'manager'],
+      '✅ New Trip Created',
+      `Trip created for ${truckData.driver_name || 'Driver'} (${truckData.plate_number}) to ${supplierData?.name || newTrip.primary_destination_name || 'destination'}. Payment confirmed. Ready to depart.`,
+      { tripId: docRef.id, eventType: 'trip_created' }
+    );
+
     syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
 
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
@@ -8972,6 +9135,14 @@ app.post("/api/fleet-tracking/trips/:id/payment/verify", async (req, res) => {
 
     await updateDoc(tripRef, updateTripPayload);
 
+    await sendFleetNotification(
+      tripData.company_id,
+      ['owner', 'manager'],
+      '💳 Payment Confirmed',
+      `₦${amount.toLocaleString()} payment confirmed for ${tripData.plate_number}. Live tracking is now active.`,
+      { tripId, eventType: 'payment_confirmed' }
+    );
+
     if (plan === "monthly" && tripData.truck_id) {
       const truckRef = doc(db, "fleetTracking_trucks", tripData.truck_id);
       const tSnap = await getDoc(truckRef);
@@ -8994,6 +9165,14 @@ app.post("/api/fleet-tracking/trips/:id/payment/verify", async (req, res) => {
         subscription_history: newHist,
         updated_at: now
       });
+
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager'],
+        '✅ Subscription Renewed',
+        `Monthly tracking subscription for ${tripData.plate_number} (${tripData.driver_name || 'Driver'}) has been renewed. Active until ${new Date(newExpiryIso).toLocaleDateString()}.`,
+        { truckId: tripData.truck_id, eventType: 'subscription_renewed' }
+      );
     }
 
     const updatedSnap = await getDoc(tripRef);
@@ -9244,6 +9423,22 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
 
     const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
 
+    await sendFleetNotification(
+      authInfo.companyId,
+      ['owner', 'manager'],
+      '✅ New Trip Created',
+      `Trip created for ${truckData.driver_name || 'Driver'} (${truckData.plate_number}) to ${supplierData?.name || newTrip.primary_destination_name || 'destination'}. Payment confirmed. Ready to depart.`,
+      { tripId: docRef.id, eventType: 'trip_created' }
+    );
+
+    await sendFleetNotification(
+      authInfo.companyId,
+      ['owner', 'manager'],
+      '💳 Payment Confirmed',
+      `₦${paymentAmount.toLocaleString()} payment confirmed for ${truckData.plate_number}. Live tracking is now active.`,
+      { tripId: docRef.id, eventType: 'payment_confirmed' }
+    );
+
     if (plan === "monthly" && newExpiryIso) {
       const prevHist = Array.isArray(truckData.subscription_history) ? truckData.subscription_history : [];
       const newHist = [
@@ -9262,6 +9457,14 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
         subscription_history: newHist,
         updated_at: now
       });
+
+      await sendFleetNotification(
+        authInfo.companyId,
+        ['owner', 'manager'],
+        '✅ Subscription Renewed',
+        `Monthly tracking subscription for ${truckData.plate_number} (${truckData.driver_name || 'Driver'}) has been renewed. Active until ${new Date(newExpiryIso).toLocaleDateString()}.`,
+        { truckId: truck_id, eventType: 'subscription_renewed' }
+      );
     }
 
     syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
@@ -9373,6 +9576,15 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
     };
 
     const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
+
+    await sendFleetNotification(
+      authInfo.companyId,
+      ['owner', 'manager'],
+      '✅ New Trip Created',
+      `Trip created for ${truckData.driver_name || 'Driver'} (${truckData.plate_number}) to ${supplierData?.name || newTrip.primary_destination_name || 'destination'}. Payment confirmed. Ready to depart.`,
+      { tripId: docRef.id, eventType: 'trip_created' }
+    );
+
     syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
 
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
@@ -9491,16 +9703,78 @@ app.get("/api/fleet-tracking/notifications", async (req, res) => {
     if (!authInfo) {
       return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
-    const q = query(
+    const q1 = query(
       collection(db, "notifications"),
       where("company_id", "==", authInfo.companyId)
     );
-    const snap = await getDocs(q);
-    const notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    notifications.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    const snap1 = await getDocs(q1);
+
+    const q2 = query(
+      collection(db, "notifications"),
+      where("companyId", "==", authInfo.companyId)
+    );
+    const snap2 = await getDocs(q2);
+
+    const map = new Map<string, any>();
+    snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    snap2.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+
+    const notifications = Array.from(map.values());
+    notifications.sort((a: any, b: any) => new Date(b.created_at || b.timestamp || 0).getTime() - new Date(a.created_at || a.timestamp || 0).getTime());
     res.json({ success: true, notifications });
   } catch (err: any) {
     console.error("Error GET /api/fleet-tracking/notifications:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+app.patch("/api/fleet-tracking/notifications/:id/read", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+    const notifId = req.params.id;
+    try {
+      await updateDoc(doc(db, "notifications", notifId), { read: true });
+    } catch (e) {}
+    try {
+      await updateDoc(doc(db, "fleetTracking_notifications", notifId), { read: true });
+    } catch (e) {}
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+app.post("/api/fleet-tracking/notifications/read-all", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+    const q1 = query(
+      collection(db, "notifications"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap1 = await getDocs(q1);
+    for (const d of snap1.docs) {
+      if (!d.data().read) {
+        await updateDoc(doc(db, "notifications", d.id), { read: true });
+      }
+    }
+    const q2 = query(
+      collection(db, "notifications"),
+      where("companyId", "==", authInfo.companyId)
+    );
+    const snap2 = await getDocs(q2);
+    for (const d of snap2.docs) {
+      if (!d.data().read) {
+        await updateDoc(doc(db, "notifications", d.id), { read: true });
+      }
+    }
+    res.json({ success: true });
+  } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
@@ -9645,6 +9919,15 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
     };
 
     await updateDoc(tripRef, updatePayload);
+
+    await sendFleetNotification(
+      tripData.company_id,
+      ['owner', 'manager', 'trip_monitor'],
+      '↪️ Trip Redirected',
+      `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has been redirected to ${redirectObj.name}.`,
+      { tripId, eventType: 'redirected' }
+    );
+
     const updatedSnap = await getDoc(tripRef);
 
     res.json({
@@ -10002,6 +10285,41 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
     await updateDoc(tripRef, updatePayload);
     const updatedSnap = await getDoc(tripRef);
 
+    // Send Real Push & System Notifications based on Status Change
+    if (status === "departed") {
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '🚛 Truck Departed',
+        `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has left the garage heading to ${tripData.primary_destination_name || 'destination'}.`,
+        { tripId, eventType: 'departed' }
+      );
+    } else if (status === "arrived_at_supplier") {
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '📍 Arrived at Supplier',
+        `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has arrived at ${tripData.primary_destination_name || 'supplier'}. Awaiting loading confirmation.`,
+        { tripId, eventType: 'arrived_at_supplier' }
+      );
+    } else if (status === "loaded") {
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '📦 Truck Loaded',
+        `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has been loaded at ${tripData.primary_destination_name || 'supplier'} and is ready to depart to destination.`,
+        { tripId, eventType: 'loaded' }
+      );
+    } else if (status === "arrived_at_destination" || status === "arrived") {
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '🎯 Arrived at Destination',
+        `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has arrived at the final destination.`,
+        { tripId, eventType: 'arrived_at_destination' }
+      );
+    }
+
     // If completed and monthly subscription is expired, notify Manager/CEO
     if (status === "completed" && tripData.truck_id && tripData.payment_plan === "monthly") {
       const truckRef = doc(db, "fleetTracking_trucks", tripData.truck_id);
@@ -10057,6 +10375,27 @@ app.post("/api/fleet-tracking/trips/:id/gps", async (req, res) => {
     const { updatedTrip, statusChanged, newStatus, gpsRestored } = evaluateTripGpsState(tripData, lat, lng, triggerUser);
 
     await updateDoc(tripRef, updatedTrip);
+
+    // Dispatch Push Notifications on GPS Auto Geofence Status Changes
+    if (statusChanged) {
+      if (newStatus === "arrived_at_supplier") {
+        await sendFleetNotification(
+          tripData.company_id,
+          ['owner', 'manager', 'trip_monitor'],
+          '📍 Arrived at Supplier',
+          `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has arrived at ${tripData.primary_destination_name || 'supplier'}. Awaiting loading confirmation.`,
+          { tripId, eventType: 'arrived_at_supplier' }
+        );
+      } else if (newStatus === "arrived_at_destination") {
+        await sendFleetNotification(
+          tripData.company_id,
+          ['owner', 'manager', 'trip_monitor'],
+          '🎯 Arrived at Destination',
+          `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has arrived at the final destination.`,
+          { tripId, eventType: 'arrived_at_destination' }
+        );
+      }
+    }
 
     // If GPS was just restored, add notification for company
     if (gpsRestored) {
@@ -10421,7 +10760,7 @@ async function checkAllActiveTripsForStoppedWarnings() {
 
       // 1. Stopped Warning System (When not acknowledged)
       if (tripData.stopped_acknowledged !== true) {
-        // 90 Minutes or more: Automatically set to stopped
+        // 90 Minutes or more: Automatically set to stopped (FIX 3)
         if (diffMinutes >= 90 && status !== "stopped") {
           updates.trip_status = "stopped";
           updates.stopped_warning_sent = false;
@@ -10434,8 +10773,16 @@ async function checkAllActiveTripsForStoppedWarnings() {
           });
           updates.status_history = status_history;
           changed = true;
+
+          await sendFleetNotification(
+            tripData.company_id,
+            ['owner', 'manager', 'trip_monitor'],
+            '🔴 Truck Officially Stopped',
+            `${tripData.driver_name} (${tripData.plate_number}) has been marked as stopped after 90 minutes of no movement.`,
+            { tripId: d.id, eventType: 'stopped_90min' }
+          );
         }
-        // 60 Minutes or more: Send stopped_alert
+        // 60 Minutes or more: Send stopped_alert (FIX 2)
         else if (diffMinutes >= 60 && !tripData.stopped_alert_sent && status !== "stopped") {
           updates.stopped_alert_sent = true;
           status_history.unshift({
@@ -10446,8 +10793,16 @@ async function checkAllActiveTripsForStoppedWarnings() {
           });
           updates.status_history = status_history;
           changed = true;
+
+          await sendFleetNotification(
+            tripData.company_id,
+            ['owner', 'manager'],
+            '🔴 Truck Stopped Alert',
+            `${tripData.driver_name} (${tripData.plate_number}) has been stopped for 1 hour. Immediate attention may be required.`,
+            { tripId: d.id, eventType: 'stopped_60min' }
+          );
         }
-        // 30 Minutes or more: Send stopped_warning
+        // 30 Minutes or more: Send stopped_warning (FIX 1)
         else if (diffMinutes >= 30 && !tripData.stopped_warning_sent && !tripData.stopped_alert_sent && status !== "stopped") {
           updates.stopped_warning_sent = true;
           status_history.unshift({
@@ -10458,6 +10813,14 @@ async function checkAllActiveTripsForStoppedWarnings() {
           });
           updates.status_history = status_history;
           changed = true;
+
+          await sendFleetNotification(
+            tripData.company_id,
+            ['owner', 'manager'],
+            '⚠️ Truck Stopped Warning',
+            `${tripData.driver_name} (${tripData.plate_number}) has not moved for 30 minutes. Please check on the driver.`,
+            { tripId: d.id, eventType: 'stopped_30min' }
+          );
         }
       }
 
@@ -10570,6 +10933,10 @@ async function checkAllTruckSubscriptionsForExpiryReminders() {
           title = "CRITICAL: Subscription Expires TODAY 🔴";
           message = `🔴 CRITICAL: Truck ${truck.plate_number} (${truck.driver_name}) monthly subscription expires TODAY. Renew now or tracking will stop for new trips.`;
           notifType = "subscription_critical";
+        } else if (diffDays === 1) {
+          title = "🔴 CRITICAL: Subscription Expires Tomorrow";
+          message = `Truck ${truck.plate_number} (${truck.driver_name}) monthly tracking subscription expires TOMORROW. Renew now to avoid interruption. ₦3,500`;
+          notifType = "subscription_expiring_tomorrow";
         } else if (diffDays <= 2) {
           title = `URGENT: Subscription Expires in ${diffDays} Day(s) 🟠`;
           message = `🟠 URGENT: Truck ${truck.plate_number} (${truck.driver_name}) subscription expires in ${diffDays} day(s). Renew immediately to keep tracking active.`;
@@ -10580,16 +10947,19 @@ async function checkAllTruckSubscriptionsForExpiryReminders() {
           notifType = "subscription_warning";
         }
 
-        // Add to company notifications collection
-        await addDoc(collection(db, "notifications"), {
-          company_id: truck.company_id,
-          truck_id: d.id,
+        // Send FCM Push + Firestore Persistence
+        const targetRoles = (diffDays === 1 || diffDays === 0) ? ['owner', 'manager', 'trip_monitor'] : ['owner', 'manager'];
+        await sendFleetNotification(
+          truck.company_id || truck.companyId,
+          targetRoles,
           title,
           message,
-          days_remaining: diffDays,
-          type: notifType,
-          created_at: now.toISOString()
-        });
+          {
+            truckId: d.id,
+            eventType: notifType,
+            daysRemaining: String(diffDays)
+          }
+        );
 
         // Mark truck reminder sent
         await updateDoc(doc(db, "fleetTracking_trucks", d.id), {

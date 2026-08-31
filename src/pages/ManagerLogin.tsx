@@ -3,6 +3,7 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { checkManagerPhone, setManagerPin, loginManager, registerFleetUser } from '../lib/api';
 import { Shield, Eye, EyeOff, ChevronLeft, Phone, UserCheck, Building2, MapPin, CheckCircle2, KeyRound, Truck, UserPlus, Lock } from 'lucide-react';
+import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 
 export const ManagerLogin: React.FC = () => {
   const { token, role, login } = useAuth();
@@ -189,6 +190,9 @@ export const ManagerLogin: React.FC = () => {
         if (res.success && res.token) {
           const userRole = res.role || res.user?.role || targetRole || 'manager';
           login(res.token, res.user, userRole);
+          if (userRole !== 'driver') {
+            requestNotificationPermission(res.token, res.user?.id || res.user?.owner_phone);
+          }
           navigate('/manager/dashboard', { replace: true });
         } else {
           setError(res.error || 'Failed to set PIN. Please try again.');
@@ -199,6 +203,9 @@ export const ManagerLogin: React.FC = () => {
         if (res.success && res.token) {
           const userRole = res.role || res.user?.role || targetRole || 'manager';
           login(res.token, res.user, userRole);
+          if (userRole !== 'driver') {
+            requestNotificationPermission(res.token, res.user?.id || res.user?.owner_phone);
+          }
           navigate('/manager/dashboard', { replace: true });
         } else {
           setError(res.error || 'Invalid PIN. Please check and try again.');

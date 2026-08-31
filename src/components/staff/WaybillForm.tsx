@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
-import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check, User, Phone, Truck, X } from 'lucide-react';
+import { BusForm } from './BusForm';
 
 interface WaybillFormProps {
   token: string;
@@ -34,11 +35,36 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const [busId, setBusId] = useState(initialDraft?.busId || '');
   const [destinationPark, setDestinationPark] = useState(initialDraft?.destinationPark || '');
 
+  // Quick Pop-up Modal state for registering a new vehicle without losing draft
+  const [showRegisterBusModal, setShowRegisterBusModal] = useState(false);
+
   const [parks, setParks] = useState<{ id: string; park_name: string; park_location: string }[]>([]);
   const [availableBuses, setAvailableBuses] = useState<Bus[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleBusCreated = async (newBusId: string) => {
+    setShowRegisterBusModal(false);
+    try {
+      const busesRes = await getAvailableBuses(token);
+      if (busesRes.success && Array.isArray(busesRes.buses)) {
+        setAvailableBuses(busesRes.buses);
+        const createdBus = busesRes.buses.find((b: Bus) => b.id === newBusId);
+        if (createdBus) {
+          if (createdBus.destination_park) {
+            setDestinationPark(createdBus.destination_park);
+          }
+          setBusId(createdBus.id);
+        } else {
+          setBusId(newBusId);
+        }
+      }
+    } catch (e) {
+      console.error('Error refreshing buses after creation:', e);
+      setBusId(newBusId);
+    }
+  };
   
   // Success tracking state
   const [createdTrackingCode, setCreatedTrackingCode] = useState<string | null>(null);
@@ -725,8 +751,8 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               </label>
               <button
                 type="button"
-                onClick={onCreateNewBus}
-                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-xs cursor-pointer"
+                onClick={() => setShowRegisterBusModal(true)}
+                className="text-xs text-blue-700 hover:text-blue-900 font-extrabold flex items-center gap-1 transition-colors self-start sm:self-auto bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs cursor-pointer hover:bg-blue-50"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Register New Vehicle
@@ -734,25 +760,58 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </div>
             
             <p className="text-[11px] text-slate-600 mb-3 leading-relaxed">
-              Every waybill must be assigned to an active loading vehicle before taking customer payment. Select the vehicle/driver departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
+              Every waybill must be assigned to an active loading vehicle before taking customer payment. Select the driver/vehicle departing for <strong className="text-[#0A1F44] font-extrabold">{destinationPark || "the selected destination"}</strong>.
             </p>
 
             {availableBuses.filter(b => isSamePark(b.destination_park, destinationPark)).length > 0 ? (
-              <select
-                value={busId}
-                onChange={handleBusChange}
-                required
-                className="w-full bg-white border border-slate-300 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-slate-800"
-              >
-                <option value="" disabled>-- Select Active Vehicle / Driver --</option>
-                {availableBuses
-                  .filter(b => isSamePark(b.destination_park, destinationPark))
-                  .map((bus, index) => (
-                    <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
-                      Vehicle {bus.bus_number} &rarr; {bus.destination_park} (Driver: {bus.driver_name || 'N/A'})
-                    </option>
-                  ))}
-              </select>
+              <div className="space-y-3">
+                <select
+                  value={busId}
+                  onChange={handleBusChange}
+                  required
+                  className="w-full bg-white border border-slate-300 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-slate-800"
+                >
+                  <option value="" disabled>-- Select Driver / Active Vehicle --</option>
+                  {availableBuses
+                    .filter(b => isSamePark(b.destination_park, destinationPark))
+                    .map((bus, index) => {
+                      const driverLabel = bus.driver_name ? bus.driver_name : 'Driver Unassigned';
+                      return (
+                        <option key={`bus-opt-${bus.id || index}-${index}`} value={bus.id}>
+                          {driverLabel} — Vehicle {bus.bus_number} ({bus.destination_park})
+                        </option>
+                      );
+                    })}
+                </select>
+
+                {/* Selected Active Driver Badge */}
+                {(() => {
+                  const selectedBus = availableBuses.find(b => b.id === busId);
+                  if (!selectedBus) return null;
+                  return (
+                    <div className="bg-white border border-blue-200 rounded-xl p-3 flex flex-wrap items-center justify-between gap-3 shadow-2xs text-xs">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-[#0A1F44] font-bold shrink-0">
+                          <User className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-[#0A1F44] text-sm">
+                            {selectedBus.driver_name || 'Driver Unassigned'}
+                          </p>
+                          <p className="text-[11px] text-slate-500 font-medium">
+                            Vehicle Plate: <span className="font-bold text-slate-700">{selectedBus.bus_number}</span>
+                            {selectedBus.driver_phone ? ` • Tel: ${selectedBus.driver_phone}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                      <span className="bg-emerald-50 text-emerald-700 border border-emerald-200 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-md flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Loading for {selectedBus.destination_park}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
             ) : availableBuses.length > 0 ? (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 space-y-3">
                 <div>
@@ -761,7 +820,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                     No Active Vehicle Currently Loading for {destinationPark || 'Selected Destination'}
                   </p>
                   <p className="text-[11px] text-amber-700 leading-relaxed">
-                    You have active loading vehicles for other routes. Click below to select an active vehicle or register a new one:
+                    You have active loading vehicles for other routes. Select an active vehicle below or register a new one:
                   </p>
                 </div>
 
@@ -778,7 +837,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                         }}
                         className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
                       >
-                        ⚡ Select Vehicle {bus.bus_number} &rarr; {bus.destination_park}
+                        ⚡ Driver {bus.driver_name || 'Unassigned'} ({bus.bus_number} &rarr; {bus.destination_park})
                       </button>
                     ))}
                   </div>
@@ -786,7 +845,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
 
                 <button
                   type="button"
-                  onClick={onCreateNewBus}
+                  onClick={() => setShowRegisterBusModal(true)}
                   className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer mt-2"
                 >
                   <Plus className="w-4 h-4" />
@@ -804,7 +863,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 </p>
                 <button
                   type="button"
-                  onClick={onCreateNewBus}
+                  onClick={() => setShowRegisterBusModal(true)}
                   className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
                 >
                   <Plus className="w-4 h-4" />
@@ -946,6 +1005,30 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </button>
           </div>
         </form>
+      )}
+
+      {/* Pop-up Modal for Registering New Vehicle without losing Waybill form data */}
+      {showRegisterBusModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+          <div className="relative w-full max-w-xl my-8">
+            <div className="absolute top-4 right-4 z-10">
+              <button
+                type="button"
+                onClick={() => setShowRegisterBusModal(false)}
+                className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-full transition-colors cursor-pointer shadow-xs"
+                title="Close Modal"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <BusForm
+              token={token}
+              originPark={originPark}
+              onSuccess={handleBusCreated}
+              onCancel={() => setShowRegisterBusModal(false)}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

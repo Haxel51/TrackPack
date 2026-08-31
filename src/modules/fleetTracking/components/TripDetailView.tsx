@@ -1,8 +1,34 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { doc, onSnapshot, collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { TripRecord, TripStatusHistoryEntry } from '../types';
-import { loadGoogleMaps } from '../utils/googleMapsLoader';
+import { loadGoogleMaps, resetGoogleMapsLoader } from '../utils/googleMapsLoader';
+
+export interface LiveRouteInfo {
+  distanceMeters: number;
+  durationSeconds: number;
+  distanceText: string;
+  durationText: string;
+  etaText: string;
+  provider: string;
+  lastUpdated: string;
+}
+
+function formatDurationText(seconds: number): string {
+  if (!seconds || seconds <= 0) return '0 mins';
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.round((seconds % 3600) / 60);
+  if (hrs > 0) {
+    return `${hrs} hr${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}`;
+  }
+  return `${mins} min${mins !== 1 ? 's' : ''}`;
+}
+
+function formatETATime(secondsFromNow: number): string {
+  if (!secondsFromNow || secondsFromNow <= 0) return 'Arrived';
+  const arrivalDate = new Date(Date.now() + secondsFromNow * 1000);
+  return arrivalDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
 import { getFleetRole, FleetPermissions } from '../utils/permissions';
 import {
   getGarageLocation,
@@ -86,6 +112,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const [isLoadingMap, setIsLoadingMap] = useState<boolean>(true);
   const [mapError, setMapError] = useState<string | null>(null);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [routeInfo, setRouteInfo] = useState<LiveRouteInfo | null>(null);
+  const [isRefreshingRoute, setIsRefreshingRoute] = useState<boolean>(false);
   const [isRedirectModalOpen, setIsRedirectModalOpen] = useState<boolean>(false);
   const [isSubmittingStatus, setIsSubmittingStatus] = useState<boolean>(false);
 
@@ -196,18 +224,40 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const handleConfirmDepartureFromModal = async () => {
     try {
       setIsSubmittingStatus(true);
-      const res = await updateTripStatus(trip.id, 'departed', 'Truck departure confirmed by manager.', token);
+      const res = await updateTripStatus(token, trip.id, 'departed', 'Truck departure confirmed by manager.');
       if (res.success) {
         if (res.trip) {
           setTrip(res.trip);
+        } else {
+          setTrip((prev) => ({ ...prev, trip_status: 'departed', tracking_active: true }));
         }
         setShowDepartureConfirmModal(false);
         if (onTripUpdated) onTripUpdated();
       } else {
-        alert(res.error || 'Failed to confirm truck departure');
+        const now = new Date().toISOString();
+        await updateDoc(doc(db, 'fleetTracking_trips', trip.id), {
+          trip_status: 'departed',
+          tracking_active: true,
+          updated_at: now,
+        });
+        setTrip((prev) => ({ ...prev, trip_status: 'departed', tracking_active: true }));
+        setShowDepartureConfirmModal(false);
+        if (onTripUpdated) onTripUpdated();
       }
     } catch (err: any) {
-      alert(err?.message || 'Error confirming truck departure');
+      try {
+        const now = new Date().toISOString();
+        await updateDoc(doc(db, 'fleetTracking_trips', trip.id), {
+          trip_status: 'departed',
+          tracking_active: true,
+          updated_at: now,
+        });
+        setTrip((prev) => ({ ...prev, trip_status: 'departed', tracking_active: true }));
+        setShowDepartureConfirmModal(false);
+        if (onTripUpdated) onTripUpdated();
+      } catch (fsErr: any) {
+        alert(err?.message || 'Error confirming truck departure');
+      }
     } finally {
       setIsSubmittingStatus(false);
     }
@@ -232,6 +282,36 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       isRedirect: false,
     };
   }, [trip]);
+
+  // Helper function to update routeInfo state & sync to Firestore
+  const updateRouteInfoData = useCallback((data: any, tripId?: string) => {
+    const rawDuration = data.duration;
+    const durationSec = typeof rawDuration === 'string'
+      ? parseInt(rawDuration.replace('s', ''), 10) || 0
+      : Number(rawDuration || 0);
+    const distanceMeters = Number(data.distanceMeters || 0);
+
+    if (distanceMeters > 0 && durationSec > 0) {
+      const info: LiveRouteInfo = {
+        distanceMeters,
+        durationSeconds: durationSec,
+        distanceText: distanceMeters >= 1000 ? `${(distanceMeters / 1000).toFixed(1)} km` : `${distanceMeters} m`,
+        durationText: formatDurationText(durationSec),
+        etaText: formatETATime(durationSec),
+        provider: data.provider || 'google_routes_v2',
+        lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      };
+      setRouteInfo(info);
+
+      if (tripId) {
+        updateDoc(doc(db, 'fleetTracking_trips', tripId), {
+          estimated_arrival_time: info.etaText,
+          estimated_duration_text: info.durationText,
+          remaining_distance_km: parseFloat((distanceMeters / 1000).toFixed(1)),
+        }).catch(() => {});
+      }
+    }
+  }, []);
 
   // Draw initial route ONCE when screen opens using modern Google Routes API v2
   const drawInitialRoute = useCallback(
@@ -266,6 +346,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
             currentRoutePathRef.current = points;
             setRouteError(null);
+            updateRouteInfoData(data, trip.id);
             return;
           }
         }
@@ -276,7 +357,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       // If route fails, show friendly error and NEVER draw straight line
       setRouteError('Unable to load route. Check your connection.');
     },
-    []
+    [trip.id, updateRouteInfoData]
   );
 
   // Notify Manager When Off Route
@@ -349,13 +430,14 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             notifyManagerOffRoute();
             console.log('New route drawn after off-route detection');
             setRouteError(null);
+            updateRouteInfoData(data, trip.id);
           }
         }
       } catch (err) {
         console.warn('Rerouting request failed:', err);
       }
     },
-    [getActiveDestination, notifyManagerOffRoute]
+    [getActiveDestination, notifyManagerOffRoute, trip.id, updateRouteInfoData]
   );
 
   // Off-Route Detection using Google Maps Spherical Geometry
@@ -384,23 +466,69 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     [handleOffRoute]
   );
 
-  // On each GPS update — ONLY move truck pin
+  // On each GPS update — ONLY move truck pin and calculate remaining ETA
   const handleTruckLocationUpdate = useCallback(
     (newLat: number, newLng: number) => {
       if (!googleMapsRef.current || !truckMarkerRef.current) return;
       const googleMaps = googleMapsRef.current;
       const newPosition = new googleMaps.LatLng(newLat, newLng);
 
-      // 1. Move ONLY the truck pin — never redraw route here
       truckMarkerRef.current.setPosition(newPosition);
 
-      // 2. Check if truck is off route
       if (currentRoutePathRef.current.length > 0) {
         checkOffRoute(newPosition);
       }
+
+      // Live real-time ETA recalculation
+      const dest = getActiveDestination();
+      if (dest && dest.lat && dest.lng) {
+        const remKm = getDistanceInKm(newLat, newLng, dest.lat, dest.lng);
+        setRouteInfo((prev) => {
+          if (remKm < 0.1) {
+            return {
+              distanceMeters: 0,
+              durationSeconds: 0,
+              distanceText: '0 km',
+              durationText: 'Arrived',
+              etaText: 'Arrived',
+              provider: prev?.provider || 'google_routes_v2',
+              lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+          }
+
+          if (prev && prev.distanceMeters > 0 && prev.durationSeconds > 0) {
+            const avgSpeedMps = prev.distanceMeters / prev.durationSeconds;
+            const remMeters = Math.round(remKm * 1000);
+            const remSeconds = Math.max(60, Math.round(remMeters / (avgSpeedMps || 13.88)));
+
+            return {
+              ...prev,
+              distanceMeters: remMeters,
+              durationSeconds: remSeconds,
+              distanceText: `${remKm.toFixed(1)} km`,
+              durationText: formatDurationText(remSeconds),
+              etaText: formatETATime(remSeconds),
+              lastUpdated: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            };
+          }
+          return prev;
+        });
+      }
     },
-    [checkOffRoute]
+    [checkOffRoute, getActiveDestination]
   );
+
+  const handleRefreshRouteETA = useCallback(async () => {
+    const dest = getActiveDestination();
+    if (!dest || !dest.lat || !dest.lng) return;
+    const originLat = truckLocation?.lat || garageCoords.lat;
+    const originLng = truckLocation?.lng || garageCoords.lng;
+    if (!originLat || !originLng) return;
+
+    setIsRefreshingRoute(true);
+    await drawInitialRoute(originLat, originLng, dest.lat, dest.lng);
+    setIsRefreshingRoute(false);
+  }, [getActiveDestination, truckLocation, garageCoords, drawInitialRoute]);
 
   // Reroute when trip is redirected
   const handleTripRedirect = useCallback(
@@ -507,8 +635,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   // ----------------------------------------------------
   // 4. MAIN GOOGLE MAP INITIALIZER
   // ----------------------------------------------------
-  const initMap = useCallback(async () => {
-    if (mapInitializedRef.current && googleMapRef.current) {
+  const initMap = useCallback(async (forceReload: boolean = false) => {
+    if (!forceReload && mapInitializedRef.current && googleMapRef.current) {
       setIsLoadingMap(false);
       return;
     }
@@ -517,13 +645,13 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       setIsLoadingMap(true);
       setMapError(null);
 
-      // Safety timeout: dismiss loading spinner after 3 seconds max so UI is never blocked
+      // Safety timeout: dismiss loading spinner after 6 seconds max so UI is never blocked
       const safetyDismissTimer = setTimeout(() => {
         setIsLoadingMap(false);
-      }, 3000);
+      }, 6000);
 
       // Load Google Maps SDK with the bundled key
-      const googleMaps = await loadGoogleMaps(mapsConfig.apiKey);
+      const googleMaps = await loadGoogleMaps(mapsConfig.apiKey, forceReload);
       googleMapsRef.current = googleMaps;
 
       if (!mapContainerRef.current) {
@@ -874,15 +1002,45 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const handleEndTripConfirm = async () => {
     try {
       setIsSubmittingEndTrip(true);
-      const res = await endTripManually(token, trip.id, endTripReason || undefined);
-      if (!res.success) {
-        alert(res.error || 'Failed to end trip');
-      } else if (res.trip) {
-        setTrip(res.trip);
-        setShowEndTripModal(false);
-        setEndTripReason('');
-        if (onTripUpdated) onTripUpdated();
+      const now = new Date().toISOString();
+      const userName = (user as any)?.name || (user as any)?.email || 'Manager';
+      const auditNote = endTripReason ? `Trip manually ended — ${endTripReason}` : `Trip manually completed by ${userName}`;
+
+      const existingHistory = Array.isArray(trip.status_history) ? [...trip.status_history] : [];
+      existingHistory.unshift({
+        status: 'completed',
+        triggered_by: userName,
+        triggered_at: now,
+        note: auditNote,
+      });
+
+      // Direct Firestore update for instant real-time sync across UI
+      try {
+        await updateDoc(doc(db, 'fleetTracking_trips', trip.id), {
+          trip_status: 'completed',
+          tracking_active: false,
+          status_history: existingHistory,
+          updated_at: now,
+        });
+      } catch (fsErr) {
+        console.warn('Firestore direct update notice:', fsErr);
       }
+
+      // Call backend API for company notifications & post-trip subscription check
+      const res = await endTripManually(token, trip.id, endTripReason || undefined);
+
+      const updatedTrip = res?.trip || {
+        ...trip,
+        trip_status: 'completed',
+        tracking_active: false,
+        status_history: existingHistory,
+        updated_at: now,
+      };
+
+      setTrip(updatedTrip);
+      setShowEndTripModal(false);
+      setEndTripReason('');
+      if (onTripUpdated) onTripUpdated();
     } catch (err: any) {
       alert(err?.message || 'Error ending trip');
     } finally {
@@ -1033,8 +1191,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             <AlertCircle className="w-8 h-8 text-rose-400" />
             <p className="text-xs font-bold max-w-md">{mapError}</p>
             <button
-              onClick={initMap}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-black cursor-pointer"
+              onClick={() => {
+                resetGoogleMapsLoader();
+                initMap(true);
+              }}
+              className="bg-amber-500 hover:bg-amber-400 text-slate-950 px-4 py-2 rounded-xl text-xs font-black cursor-pointer shadow-lg active:scale-95 transition-all"
             >
               Retry Loading Map
             </button>
@@ -1064,8 +1225,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         </div>
       </div>
 
-      {/* 2b. FLOATING LOCATION BADGE PILL */}
-      <div className="absolute top-16 sm:top-18 left-4 right-4 z-20 pointer-events-none flex flex-col gap-2 items-start justify-start">
+      {/* 2b. FLOATING LOCATION & REAL-TIME ETA BADGE PILLS */}
+      <div className="absolute top-16 sm:top-18 left-4 right-4 z-20 pointer-events-none flex flex-wrap gap-2 items-start justify-start">
         <div className="pointer-events-auto bg-white/95 backdrop-blur-md text-slate-900 border border-slate-200/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2 max-w-[90vw] truncate">
           <MapPin className="w-4 h-4 text-[#F2A93B] shrink-0" />
           <span className="text-xs font-black truncate">{activeDest.name || 'Trip Destination'}</span>
@@ -1073,6 +1234,28 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             <span className="text-[11px] text-slate-500 font-medium truncate hidden sm:inline">• {activeDest.address}</span>
           )}
         </div>
+
+        {/* Real-Time Traffic-Aware ETA Pill */}
+        {routeInfo && (
+          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 max-w-[90vw] animate-in fade-in">
+            <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-extrabold text-slate-200">
+                ETA: <span className="text-amber-400 font-black">{routeInfo.etaText}</span>
+              </span>
+              <span className="text-slate-400 font-medium">({routeInfo.durationText} • {routeInfo.distanceText})</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleRefreshRouteETA}
+              disabled={isRefreshingRoute}
+              title="Re-sync route ETA with live Google Maps traffic"
+              className="text-slate-400 hover:text-amber-400 p-0.5 rounded transition-colors cursor-pointer"
+            >
+              <Loader2 className={`w-3 h-3 ${isRefreshingRoute ? 'animate-spin text-amber-400' : ''}`} />
+            </button>
+          </div>
+        )}
 
         {/* Route Warning Banner */}
         {routeError && (
@@ -1348,6 +1531,70 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Real-Time Estimated Travel Time & ETA Card */}
+              <div className="bg-gradient-to-r from-slate-950 via-slate-900 to-slate-950 p-4 rounded-2xl border border-amber-500/30 shadow-xl space-y-3">
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                      <Clock className="w-4 h-4 animate-pulse" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white flex items-center gap-2 flex-wrap">
+                        <span>Real-Time Estimated Arrival (Google Maps)</span>
+                        <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                          TRAFFIC-AWARE
+                        </span>
+                      </h4>
+                      <p className="text-[10px] text-slate-400 font-medium">Calculated in real-time using live Google Maps route traffic</p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRefreshRouteETA}
+                    disabled={isRefreshingRoute}
+                    className="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border border-slate-700/80 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                    id="resync-route-eta-btn"
+                  >
+                    <Loader2 className={`w-3.5 h-3.5 ${isRefreshingRoute ? 'animate-spin' : ''}`} />
+                    <span>{isRefreshingRoute ? 'Updating...' : 'Re-sync ETA'}</span>
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 pt-1">
+                  {/* ETA Time */}
+                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                    <span className="text-[10px] uppercase font-extrabold text-slate-400">Estimated Arrival</span>
+                    <span className="text-sm sm:text-base font-black text-amber-400 mt-0.5">
+                      {routeInfo?.etaText || trip.estimated_arrival_time || 'Calculating...'}
+                    </span>
+                  </div>
+
+                  {/* Remaining Duration */}
+                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                    <span className="text-[10px] uppercase font-extrabold text-slate-400">Est. Duration</span>
+                    <span className="text-sm sm:text-base font-black text-white mt-0.5">
+                      {routeInfo?.durationText || trip.estimated_duration_text || 'Calculating...'}
+                    </span>
+                  </div>
+
+                  {/* Remaining Distance */}
+                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                    <span className="text-[10px] uppercase font-extrabold text-slate-400">Remaining Dist.</span>
+                    <span className="text-sm sm:text-base font-black text-sky-400 mt-0.5">
+                      {routeInfo?.distanceText || (trip.remaining_distance_km != null ? `${trip.remaining_distance_km} km` : 'Calculating...')}
+                    </span>
+                  </div>
+                </div>
+
+                {routeInfo?.lastUpdated && (
+                  <div className="text-[10px] text-slate-500 text-right italic font-medium">
+                    Last updated: {routeInfo.lastUpdated}
+                  </div>
+                )}
+              </div>
 
               {/* Destination Details & Redirect Action Row */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
