@@ -9,6 +9,7 @@ import { TripsManagement } from '../components/TripsManagement';
 import { TeamManagement } from '../components/TeamManagement';
 import { PaymentHistoryView } from '../components/PaymentHistoryView';
 import { NotificationCenterModal, FleetNotification } from '../components/NotificationCenterModal';
+import { FleetNotificationPromptOverlay } from '../components/FleetNotificationPromptOverlay';
 import { initializeFCM, requestNotificationPermission, isIframeContext } from '../fcm';
 import {
   MapPin,
@@ -334,46 +335,8 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         </div>
       </header>
 
-      {/* Notification Permission Request Banner */}
-      {isEligibleForPush && notifPermission !== 'granted' && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200 shadow-md">
-          <div className="flex items-center gap-2.5">
-            <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
-            <span className="font-semibold leading-relaxed">
-              {isInIframe 
-                ? '🔔 Browsers block notification prompts inside preview frames. Open in a new tab to enable real-time fleet push alerts.' 
-                : '🔔 Enable notifications to receive real-time fleet alerts on your phone.'}
-            </span>
-          </div>
-          <div className="flex items-center gap-2 shrink-0">
-            {isInIframe && (
-              <button
-                onClick={() => window.open(window.location.href, '_blank')}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1.5"
-                id="open-new-tab-for-notifications-btn"
-              >
-                <span>🚀 Open in New Tab</span>
-              </button>
-            )}
-            <button
-              onClick={handleEnableNotifications}
-              className="bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/40 font-bold px-3.5 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95"
-              id="enable-fleet-notifications-banner-btn"
-            >
-              Enable Notifications
-            </button>
-            {notifPermission === 'denied' && (
-              <button
-                onClick={() => setShowSettingsModal(true)}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-medium px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer shrink-0"
-                id="open-settings-banner-btn"
-              >
-                Help
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+      {/* Notification Permission Request Flow (Overlay + Banner) */}
+      <FleetNotificationPromptOverlay />
 
       {/* Foreground Toast Notification Banner */}
       {foregroundToast && (

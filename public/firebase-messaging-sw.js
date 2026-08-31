@@ -23,18 +23,21 @@ if (messaging) {
   messaging.onBackgroundMessage((payload) => {
     console.log('[SW] Received background message:', payload);
     const { title, body } = payload.notification || {};
-    const notifTitle = title || 'Fleet Alert 🚚';
-    const notifBody = body || 'New real-time fleet update received';
+    const notifTitle = title || 'Waybilla & Fleet Alert 🚚📦';
+    const notifBody = body || 'New real-time update received.';
     
     const notificationOptions = {
       body: notifBody,
       icon: '/icon-192.png',
       badge: '/icon-192.png',
       data: payload.data || {},
+      vibrate: [200, 100, 200],
+      tag: 'waybilla-push-' + (payload.data?.tracking_code || payload.data?.tripId || Date.now()),
+      renotify: true,
       actions: [
         {
           action: 'view',
-          title: 'View Trip'
+          title: 'Open App'
         },
         {
           action: 'dismiss',
@@ -46,6 +49,32 @@ if (messaging) {
     self.registration.showNotification(notifTitle, notificationOptions);
   });
 }
+
+// Fallback listener for standard Web Push events
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+  try {
+    const payload = event.data.json();
+    console.log('[SW] Raw Push Event Received:', payload);
+    
+    const title = payload.notification?.title || payload.title || 'Waybilla Shipment Alert 📦';
+    const body = payload.notification?.body || payload.body || 'You have a new shipment notification.';
+    
+    const options = {
+      body: body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: payload.data || payload,
+      vibrate: [200, 100, 200],
+      tag: 'waybilla-raw-push-' + Date.now(),
+      renotify: true
+    };
+    
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (e) {
+    console.warn('[SW] Push payload parse error (non-JSON):', e);
+  }
+});
 
 // Handle notification tap / click in phone notification bar
 self.addEventListener('notificationclick', (event) => {

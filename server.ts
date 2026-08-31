@@ -3390,26 +3390,88 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
       }
     }
 
-    // Check for customer FCM tokens and log push dispatch
+    // Collect FCM device tokens for matching customer/sender/receiver phones and dispatch via Firebase Admin SDK
+    const pushTokens: string[] = [];
     for (const phone of targetPhones) {
-      const q = query(collection(db, "customers"), where("phone_number", "==", phone));
-      const snap = await getDocs(q);
-      if (snap.empty) {
-        console.log(`[FCM Push] No customer account found matching phone: ${phone}`);
-        continue;
-      }
-      for (const customerDoc of snap.docs) {
-        const customer = customerDoc.data();
-        console.log(`[FCM Push] Customer found for phone ${phone}. notifications_enabled = ${customer.notifications_enabled !== false}`);
-        if (customer.notifications_enabled === false) continue;
-        const tokens = customer.fcm_tokens || (customer.fcm_token ? [customer.fcm_token] : []);
-        if (tokens.length === 0) {
-          console.log(`[FCM Push] No device tokens found for customer phone: ${phone}`);
+      if (!phone) continue;
+
+      // 1. Query customers collection
+      try {
+        const qCust = query(collection(db, "customers"), where("phone_number", "==", phone));
+        const snapCust = await getDocs(qCust);
+        for (const cDoc of snapCust.docs) {
+          const cData = cDoc.data();
+          if (cData.notifications_enabled === false) continue;
+          const tokens = cData.fcm_tokens || (cData.fcm_token ? [cData.fcm_token] : []);
+          pushTokens.push(...tokens);
         }
-        for (const token of tokens) {
-          console.log(`[FCM Push Dispatched Successfully] Phone: ${phone}, Token: ${token.substring(0, 10)}..., Body: "${body}" (Firebase send succeeded)`);
-        }
+      } catch (cErr) {
+        console.warn("[FCM Waybill Push Query Error - Customers]:", cErr);
       }
+
+      // 2. Query device_tokens collection
+      try {
+        const qDev = query(collection(db, "device_tokens"), where("phone_number", "==", phone));
+        const snapDev = await getDocs(qDev);
+        for (const dDoc of snapDev.docs) {
+          if (dDoc.data()?.token) {
+            pushTokens.push(dDoc.data().token);
+          }
+        }
+      } catch (dErr) {
+        console.warn("[FCM Waybill Push Query Error - Device Tokens]:", dErr);
+      }
+
+      // 3. Query users / managers / staff collections by phone
+      try {
+        const qUsers = query(collection(db, "users"), where("phone", "==", phone));
+        const snapUsers = await getDocs(qUsers);
+        for (const uDoc of snapUsers.docs) {
+          if (uDoc.data()?.fcmToken) {
+            pushTokens.push(uDoc.data().fcmToken);
+          }
+        }
+      } catch (uErr) {
+        // ignore
+      }
+    }
+
+    const uniquePushTokens = Array.from(new Set(pushTokens.filter(Boolean)));
+    if (uniquePushTokens.length > 0 && getAdminApps().length > 0) {
+      const message = {
+        tokens: uniquePushTokens,
+        notification: { title, body },
+        data: {
+          tracking_code: tracking_code || "",
+          status: status || "",
+          type: "WAYBILL_UPDATE"
+        },
+        android: {
+          priority: "high" as const,
+          notification: {
+            channelId: "waybilla_alerts",
+            priority: "high" as const,
+            defaultSound: true
+          }
+        },
+        apns: {
+          payload: {
+            aps: {
+              sound: "default",
+              badge: 1
+            }
+          }
+        }
+      };
+
+      try {
+        const response = await getMessaging().sendEachForMulticast(message as any);
+        console.log(`[FCM Waybill Push] Sent ${response.successCount} push notifications (${response.failureCount} failed) for tracking: ${tracking_code}`);
+      } catch (fcmErr) {
+        console.warn("[FCM Waybill Push Send Error]:", fcmErr);
+      }
+    } else {
+      console.log(`[FCM Waybill Push] No registered device tokens for target phones: ${targetPhones.join(", ")}`);
     }
   } catch (err) {
     console.error("Error sending push notification:", err);
