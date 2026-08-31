@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { doc, onSnapshot } from 'firebase/firestore';
+import { doc, onSnapshot, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../../lib/firebase';
 import { TripRecord, TripStatusHistoryEntry } from '../types';
 import { loadGoogleMaps } from '../utils/googleMapsLoader';
@@ -8,8 +8,13 @@ import {
   getGarageLocation,
   updateTripStatus,
   acknowledgeStoppedAlert,
+  initializeTripPayment,
+  verifyTripPayment,
+  keepTripOpen,
+  endTripManually,
 } from '../api';
 import { RedirectTripModal } from './RedirectTripModal';
+import { ConfirmDepartureModal } from './ConfirmDepartureModal';
 import mapsConfig from '../../../config/maps.config';
 import {
   ArrowLeft,
@@ -31,7 +36,12 @@ import {
   Flag,
   AlertTriangle,
   Crosshair,
+  CheckCircle2,
 } from 'lucide-react';
+
+// Off-route detection constants
+const REROUTE_COOLDOWN = 30000; // 30 seconds between reroutes
+const OFF_ROUTE_THRESHOLD = 500; // 500 meters
 
 // Helper to calculate distance in km between two lat/lng coordinates
 function getDistanceInKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -75,6 +85,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
   const [isLoadingMap, setIsLoadingMap] = useState<boolean>(true);
   const [mapError, setMapError] = useState<string | null>(null);
+  const [routeError, setRouteError] = useState<string | null>(null);
   const [isRedirectModalOpen, setIsRedirectModalOpen] = useState<boolean>(false);
   const [isSubmittingStatus, setIsSubmittingStatus] = useState<boolean>(false);
 
@@ -83,16 +94,22 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
   // Map DOM Container
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapInitializedRef = useRef<boolean>(false);
 
   // Google Maps Refs
   const googleMapRef = useRef<google.maps.Map | null>(null);
   const googleMapsRef = useRef<any>(null);
+  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
   const garageMarkerRef = useRef<google.maps.Marker | null>(null);
   const destMarkerRef = useRef<google.maps.Marker | null>(null);
   const redirectMarkerRef = useRef<google.maps.Marker | null>(null);
   const truckMarkerRef = useRef<google.maps.Marker | null>(null);
-  const routePolylineRef = useRef<google.maps.Polyline | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+
+  // Route & Off-Route Detection Refs
+  const currentRoutePathRef = useRef<google.maps.LatLng[]>([]);
+  const lastRerouteTimeRef = useRef<number>(0);
+  const lastDestinationKeyRef = useRef<string>('');
 
   // User permissions
   const fleetRole = getFleetRole(user, role);
@@ -101,6 +118,100 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const canMarkLoaded = FleetPermissions.canMarkLoaded(fleetRole);
   const isManagerOrCEO = fleetRole === 'manager' || fleetRole === 'ceo';
   const isCompletedOrCancelled = trip.trip_status === 'completed' || trip.trip_status === 'cancelled';
+  const isPaymentConfirmed = trip.payment_status === 'confirmed' || trip.tracking_active === true;
+
+  const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
+  const [showDepartureConfirmModal, setShowDepartureConfirmModal] = useState<boolean>(false);
+  const [showEndTripModal, setShowEndTripModal] = useState<boolean>(false);
+  const [endTripReason, setEndTripReason] = useState<string>('');
+  const [isSubmittingEndTrip, setIsSubmittingEndTrip] = useState<boolean>(false);
+  const [isSubmittingKeepOpen, setIsSubmittingKeepOpen] = useState<boolean>(false);
+  const [paymentModalData, setPaymentModalData] = useState<{
+    reference: string;
+    checkout_url: string;
+    amount: number;
+    payment_plan: string;
+  } | null>(null);
+
+  const handleActivateTracking = async () => {
+    if (trip.payment_plan === 'monthly') {
+      const confirmMonthly = window.confirm(
+        `You are subscribing truck ${trip.plate_number} to the Monthly Unlimited Plan for ₦3,500. This covers all trips for this truck for 30 days. Proceed to Paystack?`
+      );
+      if (!confirmMonthly) return;
+    }
+
+    try {
+      setIsProcessingPayment(true);
+      const res = await initializeTripPayment(token, trip.id, trip.payment_plan || 'per_trip');
+      if (!res.success || !res.reference || !res.checkout_url) {
+        alert(res.error || 'Failed to initialize payment gateway.');
+        setIsProcessingPayment(false);
+        return;
+      }
+
+      setPaymentModalData({
+        reference: res.reference,
+        checkout_url: res.checkout_url,
+        amount: res.amount || (trip.payment_plan === 'monthly' ? 3500 : 1000),
+        payment_plan: res.payment_plan || trip.payment_plan || 'per_trip'
+      });
+
+      window.open(res.checkout_url, '_blank');
+    } catch (err: any) {
+      alert(err?.message || 'Error initiating payment');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleConfirmPaymentSuccess = async () => {
+    if (!paymentModalData) return;
+    try {
+      setIsProcessingPayment(true);
+      const res = await verifyTripPayment(token, trip.id, paymentModalData.reference, (paymentModalData.payment_plan as any) || 'per_trip');
+      if (!res.success) {
+        alert(res.error || 'Payment verification failed');
+      } else if (res.trip) {
+        setTrip(res.trip);
+        setPaymentModalData(null);
+        alert('Payment confirmed successfully! Live tracking is now active.');
+        if (onTripUpdated) onTripUpdated();
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error verifying payment');
+    } finally {
+      setIsProcessingPayment(false);
+    }
+  };
+
+  const handleDepartureClick = () => {
+    if (!isPaymentConfirmed) {
+      alert('Please activate live tracking and complete payment (₦1,000 per trip or ₦3,500 monthly) before confirming truck departure.');
+      return;
+    }
+    setShowDepartureConfirmModal(true);
+  };
+
+  const handleConfirmDepartureFromModal = async () => {
+    try {
+      setIsSubmittingStatus(true);
+      const res = await updateTripStatus(trip.id, 'departed', 'Truck departure confirmed by manager.', token);
+      if (res.success) {
+        if (res.trip) {
+          setTrip(res.trip);
+        }
+        setShowDepartureConfirmModal(false);
+        if (onTripUpdated) onTripUpdated();
+      } else {
+        alert(res.error || 'Failed to confirm truck departure');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error confirming truck departure');
+    } finally {
+      setIsSubmittingStatus(false);
+    }
+  };
 
   // 1. Determine Active Destination
   const getActiveDestination = useCallback(() => {
@@ -121,6 +232,183 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       isRedirect: false,
     };
   }, [trip]);
+
+  // Draw initial route ONCE when screen opens using modern Google Routes API v2
+  const drawInitialRoute = useCallback(
+    async (originLat: number, originLng: number, destLat: number, destLng: number) => {
+      if (!googleMapsRef.current || !googleMapRef.current) {
+        return;
+      }
+      const googleMaps = googleMapsRef.current;
+      const map = googleMapRef.current;
+
+      try {
+        const res = await fetch(
+          `/api/fleet-tracking/route?originLat=${originLat}&originLng=${originLng}&destLat=${destLat}&destLng=${destLng}`
+        );
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.success && Array.isArray(data.points) && data.points.length > 0) {
+            const points = data.points.map((p: { lat: number; lng: number }) => new googleMaps.LatLng(p.lat, p.lng));
+
+            if (routePolylineRef.current) {
+              routePolylineRef.current.setMap(null);
+            }
+
+            routePolylineRef.current = new googleMaps.Polyline({
+              path: points,
+              geodesic: true,
+              strokeColor: '#1A73E8',
+              strokeOpacity: 0.9,
+              strokeWeight: 6,
+              map: map,
+            });
+
+            currentRoutePathRef.current = points;
+            setRouteError(null);
+            return;
+          }
+        }
+      } catch (srvErr) {
+        console.warn('Route computation request error:', srvErr);
+      }
+
+      // If route fails, show friendly error and NEVER draw straight line
+      setRouteError('Unable to load route. Check your connection.');
+    },
+    []
+  );
+
+  // Notify Manager When Off Route
+  const notifyManagerOffRoute = useCallback(() => {
+    if (!trip.id) return;
+    const driverName = trip.driver_name || 'Driver';
+    const plateNumber = trip.plate_number || 'Truck';
+
+    // 1. Subcollection event
+    addDoc(collection(db, 'fleetTracking_trips', trip.id, 'events'), {
+      type: 'off_route',
+      timestamp: serverTimestamp(),
+      message: `⚠️ ${driverName} (${plateNumber}) has taken a different route than planned.`,
+    }).catch((err) => console.warn('Failed to write off_route trip event:', err));
+
+    // 2. Company notifications collection
+    if (trip.company_id) {
+      addDoc(collection(db, 'notifications'), {
+        company_id: trip.company_id,
+        trip_id: trip.id,
+        title: '⚠️ Route Change Alert',
+        message: `⚠️ Route Change: ${driverName} (${plateNumber}) has taken a different route. The map has been updated automatically.`,
+        detail: `${driverName} (${plateNumber}) deviated more than 500m from planned route.`,
+        created_at: new Date().toISOString(),
+        type: 'off_route',
+      }).catch(() => {});
+    }
+  }, [trip.company_id, trip.driver_name, trip.id, trip.plate_number]);
+
+  // Handle off-route — reroute with 30s cooldown
+  const handleOffRoute = useCallback(
+    async (truckPosition: google.maps.LatLng) => {
+      const now = Date.now();
+      if (now - lastRerouteTimeRef.current < REROUTE_COOLDOWN) {
+        return;
+      }
+      lastRerouteTimeRef.current = now;
+
+      console.log('Truck is off route — requesting new route');
+      const dest = getActiveDestination();
+      if (!dest || !googleMapsRef.current || !googleMapRef.current) {
+        return;
+      }
+      const googleMaps = googleMapsRef.current;
+      const map = googleMapRef.current;
+
+      try {
+        const res = await fetch(
+          `/api/fleet-tracking/route?originLat=${truckPosition.lat()}&originLng=${truckPosition.lng()}&destLat=${dest.lat}&destLng=${dest.lng}`
+        );
+        if (res.ok) {
+          const data = await res.json().catch(() => ({}));
+          if (data.success && Array.isArray(data.points) && data.points.length > 0) {
+            const points = data.points.map((p: { lat: number; lng: number }) => new googleMaps.LatLng(p.lat, p.lng));
+
+            if (routePolylineRef.current) {
+              routePolylineRef.current.setMap(null);
+            }
+
+            routePolylineRef.current = new googleMaps.Polyline({
+              path: points,
+              geodesic: true,
+              strokeColor: '#1A73E8',
+              strokeOpacity: 0.9,
+              strokeWeight: 6,
+              map: map,
+            });
+
+            currentRoutePathRef.current = points;
+            notifyManagerOffRoute();
+            console.log('New route drawn after off-route detection');
+            setRouteError(null);
+          }
+        }
+      } catch (err) {
+        console.warn('Rerouting request failed:', err);
+      }
+    },
+    [getActiveDestination, notifyManagerOffRoute]
+  );
+
+  // Off-Route Detection using Google Maps Spherical Geometry
+  const checkOffRoute = useCallback(
+    (truckPosition: google.maps.LatLng) => {
+      if (!googleMapsRef.current?.geometry?.spherical) {
+        return;
+      }
+      let minDistance = Infinity;
+      const path = currentRoutePathRef.current;
+      if (path.length === 0) return;
+
+      path.forEach((point) => {
+        const distance = googleMapsRef.current.geometry.spherical.computeDistanceBetween(truckPosition, point);
+        if (distance < minDistance) {
+          minDistance = distance;
+        }
+      });
+
+      console.log('Distance from route:', minDistance, 'meters');
+
+      if (minDistance > OFF_ROUTE_THRESHOLD) {
+        handleOffRoute(truckPosition);
+      }
+    },
+    [handleOffRoute]
+  );
+
+  // On each GPS update — ONLY move truck pin
+  const handleTruckLocationUpdate = useCallback(
+    (newLat: number, newLng: number) => {
+      if (!googleMapsRef.current || !truckMarkerRef.current) return;
+      const googleMaps = googleMapsRef.current;
+      const newPosition = new googleMaps.LatLng(newLat, newLng);
+
+      // 1. Move ONLY the truck pin — never redraw route here
+      truckMarkerRef.current.setPosition(newPosition);
+
+      // 2. Check if truck is off route
+      if (currentRoutePathRef.current.length > 0) {
+        checkOffRoute(newPosition);
+      }
+    },
+    [checkOffRoute]
+  );
+
+  // Reroute when trip is redirected
+  const handleTripRedirect = useCallback(
+    (truckLat: number, truckLng: number, newDestLat: number, newDestLng: number) => {
+      drawInitialRoute(truckLat, truckLng, newDestLat, newDestLng);
+    },
+    [drawInitialRoute]
+  );
 
   // 2. Fetch Garage Coordinates if missing
   useEffect(() => {
@@ -161,6 +449,10 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             payment_plan: data.payment_plan || trip.payment_plan,
             payment_status: data.payment_status || trip.payment_status,
             payment_amount: data.payment_amount ?? trip.payment_amount,
+            tracking_active: data.tracking_active ?? trip.tracking_active,
+            paid_by: data.paid_by || trip.paid_by,
+            payment_date: data.payment_date || trip.payment_date,
+            payment_reference: data.payment_reference || trip.payment_reference,
             trip_status: data.trip_status || trip.trip_status,
             status_history: data.status_history || trip.status_history || [],
             last_known_lat: data.last_known_lat ?? trip.last_known_lat,
@@ -177,7 +469,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
           setTrip(updatedRecord);
 
-          // Check live location
+          // Check live location & update marker position + off-route check
           let parsedLat: number | null = null;
           let parsedLng: number | null = null;
 
@@ -198,6 +490,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             const newLoc = { lat: parsedLat, lng: parsedLng };
             setTruckLocation(newLoc);
             setIsAwaitingLocation(false);
+            handleTruckLocationUpdate(parsedLat, parsedLng);
           } else {
             setIsAwaitingLocation(true);
           }
@@ -209,58 +502,35 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     );
 
     return () => unsubscribe();
-  }, [trip.id]);
-
-  // Helper to calculate and render real-world road directions
-  const calculateAndDisplayRoute = useCallback(
-    (originLat: number, originLng: number, destLat: number, destLng: number) => {
-      fetch(
-        `/api/fleet-tracking/route/osrm?origin_lat=${originLat}&origin_lng=${originLng}&dest_lat=${destLat}&dest_lng=${destLng}`
-      )
-        .then((res) => (res.ok ? res.json() : null))
-        .then((data) => {
-          if (data?.success && Array.isArray(data.coordinates) && data.coordinates.length > 0) {
-            if (googleMapsRef.current && googleMapRef.current) {
-              const googleMaps = googleMapsRef.current;
-              const map = googleMapRef.current;
-              if (!routePolylineRef.current) {
-                routePolylineRef.current = new googleMaps.Polyline({
-                  map,
-                  strokeColor: '#1A73E8',
-                  strokeWeight: 6,
-                  strokeOpacity: 0.9,
-                });
-              } else {
-                routePolylineRef.current.setMap(map);
-              }
-              const roadPath = data.coordinates.map((pt: [number, number]) => ({
-                lat: pt[1],
-                lng: pt[0],
-              }));
-              routePolylineRef.current.setPath(roadPath);
-            }
-          }
-        })
-        .catch((err) => {
-          console.warn('Road route rendering warning:', err);
-        });
-    },
-    []
-  );
+  }, [handleTruckLocationUpdate, trip.company_id, trip.created_at, trip.created_by, trip.driver_name, trip.driver_phone, trip.garage_lat, trip.garage_lng, trip.id, trip.last_known_lat, trip.last_known_lng, trip.last_movement_at, trip.paid_by, trip.payment_amount, trip.payment_date, trip.payment_plan, trip.payment_reference, trip.payment_status, trip.plate_number, trip.primary_destination_id, trip.primary_destination_lat, trip.primary_destination_lng, trip.primary_destination_name, trip.primary_destination_type, trip.redirect_destination, trip.status_history, trip.stopped_acknowledged, trip.stopped_alert_sent, trip.stopped_warning_sent, trip.tracking_active, trip.trip_status, trip.truck_id]);
 
   // ----------------------------------------------------
   // 4. MAIN GOOGLE MAP INITIALIZER
   // ----------------------------------------------------
   const initMap = useCallback(async () => {
+    if (mapInitializedRef.current && googleMapRef.current) {
+      setIsLoadingMap(false);
+      return;
+    }
+
     try {
       setIsLoadingMap(true);
       setMapError(null);
+
+      // Safety timeout: dismiss loading spinner after 3 seconds max so UI is never blocked
+      const safetyDismissTimer = setTimeout(() => {
+        setIsLoadingMap(false);
+      }, 3000);
 
       // Load Google Maps SDK with the bundled key
       const googleMaps = await loadGoogleMaps(mapsConfig.apiKey);
       googleMapsRef.current = googleMaps;
 
-      if (!mapContainerRef.current) return;
+      if (!mapContainerRef.current) {
+        setIsLoadingMap(false);
+        clearTimeout(safetyDismissTimer);
+        return;
+      }
       mapContainerRef.current.innerHTML = '';
 
       const dest = getActiveDestination();
@@ -289,6 +559,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       });
 
       googleMapRef.current = map;
+      mapInitializedRef.current = true;
       infoWindowRef.current = new googleMaps.InfoWindow();
 
       const garagePinIcon = {
@@ -323,18 +594,17 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         url:
           'data:image/svg+xml;charset=UTF-8,' +
           encodeURIComponent(`
-          <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
-            <circle cx="24" cy="24" r="22" fill="#F59E0B" stroke="#FFFFFF" stroke-width="3"/>
-            <g fill="#0F172A">
-              <path d="M12 17H25V26H12V17Z"/>
-              <path d="M26 20H32L35 23V26H26V20Z"/>
-              <circle cx="16" cy="27" r="3" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
-              <circle cx="29" cy="27" r="3" fill="#FFFFFF" stroke="#0F172A" stroke-width="2"/>
-            </g>
+          <svg xmlns="http://www.w3.org/2000/svg" width="52" height="60" viewBox="0 0 52 60">
+            <path d="M26 0C11.6 0 0 11.6 0 26C0 41 26 60 26 60C26 60 52 41 52 26C52 11.6 40.4 0 26 0Z" fill="#F59E0B" stroke="#FFFFFF" stroke-width="3"/>
+            <circle cx="26" cy="24" r="17" fill="#0F172A"/>
+            <path d="M18 19H30V29H18V19Z" fill="#F59E0B"/>
+            <path d="M30 22H34L37 25V29H30V22Z" fill="#F59E0B"/>
+            <circle cx="21" cy="30" r="3" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5"/>
+            <circle cx="33" cy="30" r="3" fill="#FFFFFF" stroke="#0F172A" stroke-width="1.5"/>
           </svg>
         `),
-        scaledSize: new googleMaps.Size(48, 48),
-        anchor: new googleMaps.Point(24, 24),
+        scaledSize: new googleMaps.Size(52, 60),
+        anchor: new googleMaps.Point(26, 60),
       };
 
       const primaryPos = {
@@ -350,7 +620,24 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         map,
         title: 'Garage Base',
         icon: garagePinIcon,
+        zIndex: 2,
       });
+
+      const garageInfoWindow = new googleMaps.InfoWindow({
+        content: `
+          <div style="padding: 8px; font-family: sans-serif;">
+            <strong style="color: #1e40af; font-size: 14px;">🏭 Garage</strong>
+            <p style="margin: 4px 0; color: #666; font-size: 12px;">
+              Starting point
+            </p>
+          </div>
+        `,
+      });
+
+      gMarker.addListener('click', () => {
+        garageInfoWindow.open(map, gMarker);
+      });
+
       garageMarkerRef.current = gMarker;
 
       // 🟢 Pin 2: Original Supplier Destination
@@ -361,6 +648,22 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         icon: destPinIcon,
         opacity: hasRedirect ? 0.4 : 1.0,
       });
+
+      const destInfoWindow = new googleMaps.InfoWindow({
+        content: `
+          <div style="padding: 8px; font-family: sans-serif;">
+            <strong style="color: #0f172a; font-size: 14px;">${primaryName}</strong>
+            <p style="margin: 4px 0; color: #666; font-size: 12px;">
+              ${hasRedirect ? '↪️ Redirected Destination' : '📦 Supplier Destination'}
+            </p>
+          </div>
+        `,
+      });
+
+      dMarker.addListener('click', () => {
+        destInfoWindow.open(map, dMarker);
+      });
+
       destMarkerRef.current = dMarker;
 
       // 🔴 Pin 2b: Active Redirect Customer Destination Pin
@@ -395,16 +698,19 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           zIndex: 3,
         });
 
+        const redirectInfoWindow = new googleMaps.InfoWindow({
+          content: `
+            <div style="padding: 8px; font-family: sans-serif;">
+              <strong style="color: #c2410c; font-size: 14px;">↪️ ${redirectCustomerName}</strong>
+              <p style="margin: 4px 0; color: #666; font-size: 12px;">
+                Redirected Destination
+              </p>
+            </div>
+          `,
+        });
+
         rMarker.addListener('click', () => {
-          if (!infoWindowRef.current) {
-            infoWindowRef.current = new googleMaps.InfoWindow();
-          }
-          infoWindowRef.current.setContent(
-            `<div style="font-family: sans-serif; padding: 6px 10px; font-weight: bold; color: #0f172a; font-size: 13px;">
-              <span style="color: #E65100;">↪️ Redirected to:</span> ${redirectCustomerName}
-             </div>`
-          );
-          infoWindowRef.current.open(map, rMarker);
+          redirectInfoWindow.open(map, rMarker);
         });
 
         redirectMarkerRef.current = rMarker;
@@ -419,14 +725,39 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         title: `Truck: ${trip.plate_number}`,
         icon: truckPinIcon,
       });
+
+      const truckDriverName = trip.driver_name || 'Assigned Driver';
+      const truckPlate = trip.plate_number || 'Truck';
+      const truckPhone = trip.driver_phone || 'No phone provided';
+
+      const truckInfoWindow = new googleMaps.InfoWindow({
+        content: `
+          <div style="padding: 8px; font-family: sans-serif;">
+            <strong style="color: #0f172a; font-size: 14px;">🚛 ${truckPlate}</strong>
+            <p style="margin: 4px 0; font-size: 12px; color: #334155;">
+              Driver: ${truckDriverName}
+            </p>
+            <p style="margin: 4px 0; color: #666; font-size: 12px;">
+              ${truckPhone}
+            </p>
+          </div>
+        `,
+      });
+
+      tMarker.addListener('click', () => {
+        truckInfoWindow.open(map, tMarker);
+      });
+
       truckMarkerRef.current = tMarker;
 
+      // Draw Initial Route ONCE when screen opens
       const originPos = isValidCoord(truckLocation) ? truckLocation! : garageCoords;
       if (isValidCoord(originPos) && dest && isValidCoord({ lat: dest.lat, lng: dest.lng })) {
-        calculateAndDisplayRoute(originPos.lat, originPos.lng, dest.lat, dest.lng);
+        drawInitialRoute(originPos.lat, originPos.lng, dest.lat, dest.lng);
+        lastDestinationKeyRef.current = `${dest.lat}_${dest.lng}_${dest.isRedirect}`;
       }
 
-      // Active pins calculation
+      // Active pins calculation for initial view bounds
       const rawPins: Array<{ lat: number; lng: number }> = [];
       if (isValidCoord(garageCoords)) rawPins.push(garageCoords);
       if (isValidCoord(primaryPos)) rawPins.push(primaryPos);
@@ -454,42 +785,50 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           map.fitBounds(bounds, { top: 80, bottom: 80, left: 80, right: 80 } as any);
         }
         map.setOptions({ minZoom: null });
+        clearTimeout(safetyDismissTimer);
+        setIsLoadingMap(false);
       });
 
+      clearTimeout(safetyDismissTimer);
       setIsLoadingMap(false);
     } catch (err: any) {
       console.error('Google Map initialization error:', err);
       setMapError(err?.message || 'Failed to initialize Google Maps');
       setIsLoadingMap(false);
     }
-  }, [calculateAndDisplayRoute, garageCoords, getActiveDestination, trip.plate_number, trip.primary_destination_lat, trip.primary_destination_lng, trip.primary_destination_name, trip.redirect_destination, truckLocation]);
+  }, [drawInitialRoute, garageCoords, getActiveDestination, trip.driver_name, trip.driver_phone, trip.plate_number, trip.primary_destination_lat, trip.primary_destination_lng, trip.primary_destination_name, trip.redirect_destination, truckLocation]);
 
   useEffect(() => {
     let timer = setTimeout(() => {
       initMap();
-    }, 150);
+    }, 100);
     return () => clearTimeout(timer);
-  }, [garageCoords.lat, garageCoords.lng, initMap]);
+  }, [initMap]);
 
-  // Update Truck Pin smoothly and recalculate directions route in real time as truck moves
+  // Clean up polyline on unmount
   useEffect(() => {
-    const activePos = truckLocation || garageCoords;
-    const dest = getActiveDestination();
+    return () => {
+      if (routePolylineRef.current) {
+        routePolylineRef.current.setMap(null);
+      }
+    };
+  }, []);
 
-    if (googleMapRef.current && truckMarkerRef.current) {
-      truckMarkerRef.current.setPosition(activePos);
-      if (
-        activePos &&
-        typeof activePos.lat === 'number' &&
-        typeof activePos.lng === 'number' &&
-        dest &&
-        typeof dest.lat === 'number' &&
-        typeof dest.lng === 'number'
-      ) {
-        calculateAndDisplayRoute(activePos.lat, activePos.lng, dest.lat, dest.lng);
+  // STEP 7 — Reroute when trip is redirected to new destination
+  useEffect(() => {
+    if (!googleMapRef.current || !googleMapsRef.current) return;
+    const dest = getActiveDestination();
+    const destKey = `${dest.lat}_${dest.lng}_${dest.isRedirect}`;
+
+    if (lastDestinationKeyRef.current && lastDestinationKeyRef.current !== destKey) {
+      console.log('Destination changed or redirected — redrawing route to new destination');
+      const originPos = truckLocation || garageCoords;
+      if (originPos && typeof originPos.lat === 'number' && typeof originPos.lng === 'number') {
+        handleTripRedirect(originPos.lat, originPos.lng, dest.lat, dest.lng);
       }
     }
-  }, [truckLocation, garageCoords, getActiveDestination, calculateAndDisplayRoute]);
+    lastDestinationKeyRef.current = destKey;
+  }, [trip.redirect_destination, trip.primary_destination_lat, trip.primary_destination_lng, getActiveDestination, truckLocation, garageCoords, handleTripRedirect]);
 
   // Stage 5 Action Handlers
   const handleManualStatusChange = async (newStatus: string, note?: string) => {
@@ -529,6 +868,42 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       alert(err?.message || 'Error acknowledging alert');
     } finally {
       setIsSubmittingStatus(false);
+    }
+  };
+
+  const handleEndTripConfirm = async () => {
+    try {
+      setIsSubmittingEndTrip(true);
+      const res = await endTripManually(token, trip.id, endTripReason || undefined);
+      if (!res.success) {
+        alert(res.error || 'Failed to end trip');
+      } else if (res.trip) {
+        setTrip(res.trip);
+        setShowEndTripModal(false);
+        setEndTripReason('');
+        if (onTripUpdated) onTripUpdated();
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error ending trip');
+    } finally {
+      setIsSubmittingEndTrip(false);
+    }
+  };
+
+  const handleKeepTripOpen = async () => {
+    try {
+      setIsSubmittingKeepOpen(true);
+      const res = await keepTripOpen(token, trip.id);
+      if (!res.success) {
+        alert(res.error || 'Failed to keep trip open');
+      } else if (res.trip) {
+        setTrip(res.trip);
+        if (onTripUpdated) onTripUpdated();
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error dismissing alert');
+    } finally {
+      setIsSubmittingKeepOpen(false);
     }
   };
 
@@ -690,7 +1065,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       </div>
 
       {/* 2b. FLOATING LOCATION BADGE PILL */}
-      <div className="absolute top-16 sm:top-18 left-4 right-4 z-20 pointer-events-none flex items-center justify-start">
+      <div className="absolute top-16 sm:top-18 left-4 right-4 z-20 pointer-events-none flex flex-col gap-2 items-start justify-start">
         <div className="pointer-events-auto bg-white/95 backdrop-blur-md text-slate-900 border border-slate-200/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2 max-w-[90vw] truncate">
           <MapPin className="w-4 h-4 text-[#F2A93B] shrink-0" />
           <span className="text-xs font-black truncate">{activeDest.name || 'Trip Destination'}</span>
@@ -698,6 +1073,14 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             <span className="text-[11px] text-slate-500 font-medium truncate hidden sm:inline">• {activeDest.address}</span>
           )}
         </div>
+
+        {/* Route Warning Banner */}
+        {routeError && (
+          <div className="pointer-events-auto bg-amber-500/95 text-slate-950 px-3.5 py-1.5 rounded-xl shadow-lg flex items-center gap-2 text-xs font-bold border border-amber-400 backdrop-blur-md">
+            <AlertCircle className="w-4 h-4 shrink-0 text-slate-950" />
+            <span>{routeError}</span>
+          </div>
+        )}
       </div>
 
       {/* 2c. FLOATING QUICK ACTION CONTROLS (Right-Hand Side GPS & Recentering) */}
@@ -779,13 +1162,18 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   disabled={isSubmittingStatus}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleManualStatusChange('departed', 'Truck departure confirmed by manager.');
+                    handleDepartureClick();
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                  className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer transition-all hover:scale-105 active:scale-95 ${
+                    !isPaymentConfirmed
+                      ? 'bg-amber-600/90 text-white border border-amber-400'
+                      : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                  }`}
                   id="confirm-departure-btn"
+                  title={!isPaymentConfirmed ? 'Payment required before departure' : 'Has the truck departed? Confirm departure.'}
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>Yes, Truck Has Left</span>
+                  <span>{!isPaymentConfirmed ? '⚠️ Pay to Depart' : 'Has the truck departed? 🚛'}</span>
                 </button>
               )}
 
@@ -805,15 +1193,17 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                 </button>
               )}
 
-              {(trip.trip_status === 'arrived_at_destination' || trip.trip_status === 'returning') && isManagerOrCEO && (
+              {/* Manual End Trip Button for Manager/CEO on any active trip */}
+              {!isCompletedOrCancelled && isManagerOrCEO && (
                 <button
                   type="button"
-                  disabled={isSubmittingStatus}
+                  disabled={isSubmittingStatus || isSubmittingEndTrip}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleManualStatusChange('completed', 'Trip completed by manager.');
+                    setShowEndTripModal(true);
                   }}
-                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                  className="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                  id="manual-end-trip-btn"
                 >
                   <Flag className="w-3.5 h-3.5" />
                   <span>End Trip</span>
@@ -830,6 +1220,50 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
             </div>
           </div>
+
+          {/* GPS LOSS ALERT BANNERS */}
+          {!isCompletedOrCancelled && trip.gps_signal_status === 'lost_60min' && !trip.gps_loss_dismissed && (
+            <div className="p-3.5 bg-gradient-to-r from-red-950/95 via-rose-900/90 to-red-950/95 border-t border-b border-rose-500/50 flex items-center justify-between flex-wrap gap-3 animate-pulse">
+              <div className="flex items-center gap-2.5 text-rose-200 text-xs">
+                <AlertTriangle className="w-5 h-5 text-rose-400 shrink-0" />
+                <div>
+                  <span className="font-black text-white">🔴 GPS SIGNAL LOST &gt; 1 HOUR:</span> Truck has not sent GPS updates for over 60 minutes.
+                </div>
+              </div>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  type="button"
+                  disabled={isSubmittingKeepOpen}
+                  onClick={handleKeepTripOpen}
+                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-600 cursor-pointer"
+                  id="keep-trip-open-btn"
+                >
+                  Keep Trip Open
+                </button>
+                {isManagerOrCEO && (
+                  <button
+                    type="button"
+                    onClick={() => setShowEndTripModal(true)}
+                    className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-black px-3 py-1.5 rounded-xl shadow-lg cursor-pointer"
+                    id="gps-lost-end-trip-btn"
+                  >
+                    End Trip Now
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!isCompletedOrCancelled && trip.gps_signal_status === 'lost_30min' && !trip.gps_loss_dismissed && (
+            <div className="p-3 bg-gradient-to-r from-amber-950/90 via-yellow-900/80 to-amber-950/90 border-t border-b border-amber-500/40 flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-2.5 text-amber-200 text-xs">
+                <AlertCircle className="w-5 h-5 text-amber-400 shrink-0" />
+                <div>
+                  <span className="font-black text-white">⚠️ GPS SIGNAL LOST:</span> Location has not updated for 30 minutes. Please contact driver.
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* CRITICAL STOPPED ALERT NOTIFICATION BANNER */}
           {isStoppedWarningOrAlert && (
@@ -856,24 +1290,64 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           {isExpanded && (
             <div className="p-4 sm:p-6 border-t border-slate-800 space-y-5 max-h-[50vh] overflow-y-auto custom-scrollbar">
               
-              {/* Payment Info Card */}
-              <div className="bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                    <CreditCard className="w-4 h-4" />
+              {/* Payment Info Card & Activation */}
+              {!isPaymentConfirmed ? (
+                <div className="bg-slate-950/90 p-4 rounded-2xl border border-amber-500/40 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                        <CreditCard className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <div className="text-[10px] uppercase font-extrabold text-amber-400 tracking-wider">Live Tracking Payment Pending</div>
+                        <div className="text-xs font-black text-white capitalize">
+                          {trip.payment_plan === 'monthly' ? 'Monthly Plan (₦3,500 / month)' : 'Per Trip Plan (₦1,000 / trip)'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                      PENDING 🔴
+                    </span>
                   </div>
-                  <div>
-                    <div className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Payment Plan</div>
-                    <div className="text-xs font-black text-white capitalize">{trip.payment_plan}</div>
+
+                  <p className="text-xs text-slate-300">
+                    {isManagerOrCEO
+                      ? 'Live tracking and truck departure confirmation require active payment confirmation via Paystack.'
+                      : 'Live tracking is awaiting Manager or CEO payment activation.'}
+                  </p>
+
+                  {isManagerOrCEO && (
+                    <button
+                      type="button"
+                      disabled={isProcessingPayment}
+                      onClick={handleActivateTracking}
+                      className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer transition-transform hover:scale-[1.01]"
+                      id="activate-tracking-btn-detail"
+                    >
+                      {isProcessingPayment ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4 stroke-[2.5]" />}
+                      <span>Activate Live Tracking Now (₦{trip.payment_amount.toLocaleString()})</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="bg-slate-950/90 p-4 rounded-2xl border border-emerald-500/30 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+                      <CheckCircle2 className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-extrabold text-emerald-400 tracking-wider">Live Tracking & Payment Active 🟢</div>
+                      <div className="text-xs font-black text-white capitalize">
+                        {trip.payment_plan === 'monthly' ? 'Monthly Unlimited Plan' : 'Per Trip Plan'} (₦{trip.payment_amount.toLocaleString()})
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-right text-[11px] text-slate-300">
+                    <div>Paid by: <strong className="text-white">{trip.paid_by || 'Manager'}</strong></div>
+                    {trip.payment_date && <div className="text-[10px] text-slate-400">{formatIsoTimestamp(trip.payment_date)}</div>}
                   </div>
                 </div>
-                <div className="text-right">
-                  <div className="text-[10px] uppercase font-extrabold text-slate-400 tracking-wider">Status</div>
-                  <div className={`text-xs font-black ${trip.payment_status === 'confirmed' ? 'text-emerald-400' : 'text-amber-400'}`}>
-                    {trip.payment_status.toUpperCase()} (₦{trip.payment_amount.toLocaleString()})
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Destination Details & Redirect Action Row */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -1009,6 +1483,108 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           if (onTripUpdated) onTripUpdated();
         }}
       />
+
+      {/* Paystack Payment Checkout & Verification Modal */}
+      {paymentModalData && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full text-center space-y-4 shadow-2xl animate-fadeIn">
+            <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
+              <CreditCard className="w-6 h-6" />
+            </div>
+            <h3 className="text-base font-black text-white">Complete Paystack Payment</h3>
+            <p className="text-xs text-slate-300">
+              Pay <strong>₦{paymentModalData.amount.toLocaleString()}</strong> ({paymentModalData.payment_plan === 'monthly' ? 'Monthly Unlimited Plan' : 'Per Trip Plan'}) to activate live GPS tracking for truck <strong>{trip.plate_number}</strong>.
+            </p>
+            <div className="space-y-2 pt-2">
+              <a
+                href={paymentModalData.checkout_url}
+                target="_blank"
+                rel="noreferrer"
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg transition-transform hover:scale-105"
+              >
+                <span>Open Paystack Checkout Portal ↗</span>
+              </a>
+              <button
+                type="button"
+                disabled={isProcessingPayment}
+                onClick={handleConfirmPaymentSuccess}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg cursor-pointer"
+              >
+                {isProcessingPayment && <Loader2 className="w-4 h-4 animate-spin" />}
+                <span>Confirm Paystack Payment Success</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentModalData(null)}
+                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs cursor-pointer"
+              >
+                Cancel / Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Departure Dialog Modal */}
+      <ConfirmDepartureModal
+        isOpen={showDepartureConfirmModal}
+        onClose={() => setShowDepartureConfirmModal(false)}
+        trip={trip}
+        isLoading={isSubmittingStatus}
+        onConfirmDeparture={handleConfirmDepartureFromModal}
+      />
+
+      {/* Manual End Trip Modal */}
+      {showEndTripModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-fadeIn text-left">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                <Flag className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Manually End Trip</h3>
+                <p className="text-xs text-slate-400">Truck: {trip.plate_number} • Driver: {trip.driver_name}</p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-slate-300">Reason for ending trip (Optional)</label>
+              <input
+                type="text"
+                value={endTripReason}
+                onChange={(e) => setEndTripReason(e.target.value)}
+                placeholder="e.g. Driver confirmed delivery offline"
+                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500"
+              />
+            </div>
+
+            <p className="text-[11px] text-slate-400 leading-relaxed">
+              Ending this trip will mark it as Completed and stop active tracking immediately. This will be recorded permanently in the audit log.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowEndTripModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingEndTrip}
+                onClick={handleEndTripConfirm}
+                className="px-5 py-2 bg-rose-600 hover:bg-rose-500 text-white text-xs font-black rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer"
+                id="confirm-manual-end-trip-btn"
+              >
+                {isSubmittingEndTrip && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                <span>Confirm End Trip</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

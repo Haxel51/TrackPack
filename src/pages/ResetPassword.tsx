@@ -61,7 +61,7 @@ export const ResetPassword: React.FC = () => {
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(data.error || 'Invalid phone number or verification code.');
@@ -135,7 +135,7 @@ export const ResetPassword: React.FC = () => {
         })
       });
 
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(data.error || 'Failed to update credentials. Code may have expired.');

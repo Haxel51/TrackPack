@@ -156,7 +156,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           }
         });
         if (response.ok) {
-          const data = await response.json();
+          const data = await response.json().catch(() => ({}));
           if (data.success && data.payment && data.payment.status === "success") {
             setActivePayment(prev => prev ? {
               ...prev,
@@ -347,9 +347,9 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           'Authorization': `Bearer ${token}`
         }
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
-        if (data.payment.status === "success") {
+        if (data.payment?.status === "success") {
           setActivePayment(prev => prev ? {
             ...prev,
             success: true,
@@ -384,7 +384,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           "Authorization": `Bearer ${token}`
         }
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success && data.payment) {
         setActivePayment({
           paymentId: data.payment.id,
@@ -421,7 +421,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           "Authorization": `Bearer ${token}`
         }
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
         setActivePayment(prev => prev ? {
           ...prev,

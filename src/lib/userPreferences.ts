@@ -37,7 +37,7 @@ export async function getSavedModulePreference(userId: string, token?: string | 
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
-        const data = await res.json();
+        const data = await res.json().catch(() => ({}));
         if (data.lastUsedModule) {
           localStorage.setItem(`user_module_pref_${userId}`, data.lastUsedModule);
           return data.lastUsedModule as ModuleType;

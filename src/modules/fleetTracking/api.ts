@@ -183,7 +183,8 @@ export async function deleteSupplierLocation(
 export async function getGoogleMapsConfig(): Promise<{ success: boolean; apiKey: string; source?: string }> {
   try {
     const res = await fetch(`${API_BASE}/google-maps-config`);
-    return await res.json();
+    const data = await res.json().catch(() => ({ success: false, apiKey: '' }));
+    return data || { success: false, apiKey: '' };
   } catch (err: any) {
     return { success: false, apiKey: '' };
   }
@@ -216,7 +217,8 @@ export async function searchLocationGeocode(
 ): Promise<{ success: boolean; results?: Array<{ id: string; name: string; lat: number; lng: number }> }> {
   try {
     const res = await fetch(`${API_BASE}/geocode?query=${encodeURIComponent(query)}`);
-    return await res.json();
+    const data = await res.json().catch(() => ({ success: false, results: [] }));
+    return data || { success: false, results: [] };
   } catch (err: any) {
     return { success: false, results: [] };
   }
@@ -473,6 +475,14 @@ export async function updateTripGpsLocation(
   }
 }
 
+export async function updateTripGps(
+  token: string,
+  tripId: string,
+  payload: { lat: number; lng: number }
+): Promise<{ success: boolean; trip?: any; status_changed?: boolean; new_status?: string; error?: string }> {
+  return updateTripGpsLocation(token, tripId, payload.lat, payload.lng);
+}
+
 // 23. Acknowledge Stopped Alert / Warning
 export async function acknowledgeStoppedAlert(
   token: string,
@@ -492,6 +502,220 @@ export async function acknowledgeStoppedAlert(
     return { success: false, error: err?.message || 'Network error acknowledging alert' };
   }
 }
+
+// 24. Initialize Trip Payment
+export async function initializeTripPayment(
+  token: string,
+  tripId: string,
+  payment_type: 'per_trip' | 'monthly'
+): Promise<{ success: boolean; reference?: string; checkout_url?: string; amount?: number; payment_plan?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/payment/initialize`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ payment_type }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to initialize payment` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error initializing payment' };
+  }
+}
+
+// 25. Verify Trip Payment
+export async function verifyTripPayment(
+  token: string,
+  tripId: string,
+  reference: string,
+  payment_type: 'per_trip' | 'monthly'
+): Promise<{ success: boolean; trip?: any; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/payment/verify`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ reference, payment_type }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to verify payment` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error verifying payment' };
+  }
+}
+
+// 26. Initialize Trip Creation Payment
+export async function initializeTripCreationPayment(
+  token: string,
+  truck_id: string,
+  supplier_id: string,
+  payment_type: 'per_trip' | 'monthly'
+): Promise<{ success: boolean; requires_payment?: boolean; reference?: string; checkout_url?: string; amount?: number; payment_plan?: string; message?: string; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/initialize-payment`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ truck_id, supplier_id, payment_type }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to initialize trip payment` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error initializing trip payment' };
+  }
+}
+
+// 27. Verify Payment and Create Trip
+export async function verifyTripPaymentAndCreate(
+  token: string,
+  truck_id: string,
+  supplier_id: string,
+  payment_type: 'per_trip' | 'monthly',
+  reference: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/verify-and-create`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ truck_id, supplier_id, payment_type, reference }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to verify payment and create trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error verifying payment' };
+  }
+}
+
+// 28. Create Trip Directly (Monthly Active)
+export async function createTripDirectly(
+  token: string,
+  truck_id: string,
+  supplier_id: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/create-direct`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ truck_id, supplier_id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to create trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error creating trip' };
+  }
+}
+
+// 29. Get Payment History
+export async function getPaymentHistory(
+  token: string
+): Promise<{ success: boolean; payments?: any[]; total_collected?: number; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/payments/history`, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to fetch payment history` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error fetching payment history' };
+  }
+}
+
+// 30. Get Driver Active Trip (for Driver GPS Background Tracking)
+export async function getDriverActiveTrip(
+  token: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/driver-active-trip`, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to fetch active trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error fetching active trip' };
+  }
+}
+
+// 31. Keep Trip Open (Dismiss 60min GPS Loss Alert)
+export async function keepTripOpen(
+  token: string,
+  tripId: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/keep-open`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to dismiss alert` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error dismissing alert' };
+  }
+}
+
+// 32. End Trip Manually (Manager / CEO)
+export async function endTripManually(
+  token: string,
+  tripId: string,
+  reason?: string
+): Promise<{ success: boolean; trip?: any; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/trips/${tripId}/end-manually`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ reason }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to end trip` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error ending trip' };
+  }
+}
+
+// 33. Get Subscription Alerts & Reminders
+export async function getSubscriptionAlerts(
+  token: string
+): Promise<{ success: boolean; alerts?: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/subscription-alerts`, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to fetch subscription alerts` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error fetching alerts' };
+  }
+}
+
 
 
 

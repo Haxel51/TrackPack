@@ -7,7 +7,7 @@ async function safeFetch(url: string, options?: RequestInit) {
     const res = await fetch(url, options);
     const contentType = res.headers.get("content-type");
     if (contentType && contentType.includes("application/json")) {
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok && data.success === undefined) {
         return { success: false, error: data.error || `Server error (${res.status})` };
       }

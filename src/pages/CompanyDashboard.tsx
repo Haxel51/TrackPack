@@ -387,8 +387,8 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (!response.ok) throw new Error('Failed to load overview data');
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Failed to load overview data');
       setOverviewState({
         loading: false,
         error: false,
@@ -410,8 +410,8 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${activeToken}`
         }
       });
-      if (!response.ok) throw new Error('Failed to load parks and staff');
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Failed to load parks and staff');
       setParksState({
         loading: false,
         error: false,
@@ -440,8 +440,8 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (!response.ok) throw new Error('Failed to load shipments');
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Failed to load shipments');
       setShipmentsState({
         loading: false,
         error: false,
@@ -464,16 +464,16 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`
         }
       });
-      if (!response.ok) throw new Error('Failed to load earnings');
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || 'Failed to load earnings');
       setEarningsState({
         loading: false,
         error: false,
         subaccount: data.bank_setup,
         stats: {
-          earnings_week: data.stats.earnings_week,
-          earnings_month: data.stats.earnings_month,
-          earnings_all_time: data.stats.earnings_all_time
+          earnings_week: data.stats?.earnings_week || 0,
+          earnings_month: data.stats?.earnings_month || 0,
+          earnings_all_time: data.stats?.earnings_all_time || 0
         },
         history: data.history || []
       });
@@ -499,7 +499,7 @@ export const CompanyDashboard: React.FC = () => {
         }
       });
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         setBanksList(data.banks || []);
         if (data.banks && data.banks.length > 0) {
           setSelectedBankCode(data.banks[0].code);
@@ -531,7 +531,7 @@ export const CompanyDashboard: React.FC = () => {
           bank_code: selectedBankCode
         })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
         setResolvedAccountName(data.account_name);
       } else {
@@ -568,7 +568,7 @@ export const CompanyDashboard: React.FC = () => {
           account_name: resolvedAccountName
         })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data.success) {
         setSuccessSetupMessage('Your subaccount has been configured successfully. All settlements will be automatically routed here.');
         fetchEarningsData();
@@ -628,7 +628,7 @@ export const CompanyDashboard: React.FC = () => {
           park_location: locationVal
         })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create park');
       }
@@ -673,7 +673,7 @@ export const CompanyDashboard: React.FC = () => {
           park_id: newStaffModal.parkId
         })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.error || 'Failed to add staff member');
       }
@@ -681,7 +681,7 @@ export const CompanyDashboard: React.FC = () => {
       // Store in success state for ONE-TIME clear-text PIN screen
       setPinSuccessState({
         open: true,
-        name: data.staff.name,
+        name: data.staff?.name || newStaffModal.name,
         pin: data.pin
       });
 
@@ -716,7 +716,7 @@ export const CompanyDashboard: React.FC = () => {
       if (response.ok) {
         fetchParksAndStaff();
       } else {
-        const err = await response.json();
+        const err = await response.json().catch(() => ({}));
         alert(err.error || 'Failed to toggle staff active status');
       }
     } catch (err) {
@@ -739,7 +739,7 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${activeToken}`
         }
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (response.ok) {
         setResetPinConfirmModal({
           open: false,
@@ -799,14 +799,14 @@ export const CompanyDashboard: React.FC = () => {
           phone: newManagerModal.phone.trim()
         })
       });
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create manager');
       }
 
       setManagerPinSuccessState({
         open: true,
-        name: data.manager.name,
+        name: data.manager?.name || newManagerModal.name,
         pin: data.pin
       });
 
@@ -898,7 +898,7 @@ export const CompanyDashboard: React.FC = () => {
             setSelectedManagerProfile(prev => prev ? { ...prev, active: !currentActive } : null);
           }
         } else {
-          const err = await response.json();
+          const err = await response.json().catch(() => ({}));
           throw new Error(err.error || 'Failed to toggle manager active status');
         }
       },
@@ -919,7 +919,7 @@ export const CompanyDashboard: React.FC = () => {
             'Authorization': `Bearer ${activeToken}`
           }
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (response.ok) {
           fetchParksAndStaff();
           if (selectedManagerProfile && selectedManagerProfile.id === managerId) {
@@ -946,7 +946,7 @@ export const CompanyDashboard: React.FC = () => {
             'Authorization': `Bearer ${activeToken}`
           }
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         if (response.ok) {
           fetchParksAndStaff();
         } else {
@@ -968,7 +968,7 @@ export const CompanyDashboard: React.FC = () => {
     try {
       const response = await fetch(`/api/track/${encodeURIComponent(waybill.tracking_code)}`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         setDetailModal(prev => ({
           ...prev,
           route: data.route,
@@ -2099,8 +2099,9 @@ export const CompanyDashboard: React.FC = () => {
       </div>
 
       {/* FOOTER */}
-      <footer className="py-6 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
-        &copy; {new Date().getFullYear()} Waybilla Partner Portal. All rights reserved.
+      <footer className="py-6 text-center text-xs text-slate-500 border-t border-slate-100 bg-white space-y-1">
+        <div>Waybilla is a product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span></div>
+        <div className="text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
       </footer>
 
       {/* --- POPUPS & MODALS --- */}

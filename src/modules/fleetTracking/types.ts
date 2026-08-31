@@ -38,6 +38,15 @@ export interface TruckProfile {
   driver_phone: string;
   payment_plan: 'per_trip' | 'monthly';
   subscription_active_until: string | null;
+  subscription_history?: Array<{
+    action: string;
+    renewed_by: string;
+    renewed_at: string;
+    valid_until: string;
+    note?: string;
+  }>;
+  last_reminder_key?: string;
+  last_reminder_sent_at?: string;
   created_at: string;
   created_by: string;
   updated_at?: string;
@@ -81,6 +90,10 @@ export interface TripRecord {
   payment_plan: 'per_trip' | 'monthly';
   payment_status: 'pending' | 'confirmed';
   payment_amount: number;
+  payment_reference?: string | null;
+  payment_date?: string | null;
+  paid_by?: string | null;
+  tracking_active?: boolean;
   trip_status:
     | 'created'
     | 'payment_confirmed'
@@ -103,6 +116,15 @@ export interface TripRecord {
   stopped_warning_sent?: boolean;
   stopped_alert_sent?: boolean;
   stopped_acknowledged?: boolean;
+  gps_signal_status?: 'normal' | 'weak' | 'lost_30min' | 'lost_60min';
+  gps_lost_30min_sent?: boolean;
+  gps_lost_60min_sent?: boolean;
+  gps_loss_dismissed?: boolean;
+  location_history?: Array<{
+    lat: number;
+    lng: number;
+    timestamp: string;
+  }>;
   created_by: string;
   created_at: string;
   garage_lat: number | null;

@@ -71,7 +71,7 @@ export const HomePage: React.FC = () => {
     setTrackAlert(null);
     try {
       const response = await fetch(`/api/track/${encodeURIComponent(cleanCode)}`);
-      const data = await response.json();
+      const data = await response.json().catch(() => ({}));
       if (!response.ok) {
         setTrackAlert(data.error || "Waybill tracking code not found. Please double check the code written on your waybill receipt.");
       } else {
@@ -442,9 +442,14 @@ export const HomePage: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-slate-200 bg-white py-6 px-6">
         <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <p className="text-xs font-semibold text-slate-500">
-            &copy; {new Date().getFullYear()} {t('copyrightText')}
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-semibold text-slate-500">
+              &copy; {new Date().getFullYear()} {t('copyrightText')}
+            </p>
+            <p className="text-[11px] font-medium text-slate-600">
+              Waybilla is a product of <span className="text-slate-900 font-bold">Haxel Tech-Solutions</span>
+            </p>
+          </div>
 
           <div className="flex items-center gap-6">
             <button

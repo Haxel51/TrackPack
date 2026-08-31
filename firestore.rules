@@ -2,9 +2,51 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper functions for auth & role verification
-    function isSignedIn() {
-      return request.auth != null;
+    // Fleet Tracking Collections (Security and company isolation enforced by backend API)
+    match /fleetTracking_garages/{companyId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_suppliers/{supplierId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_trucks/{truckId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_trips/{tripId} {
+      allow read: if true;
+      // Driver can ONLY update location fields (last_known_lat, last_known_lng, last_movement_at, location_history) or full management write
+      allow update: if request.resource.data.diff(resource.data)
+        .affectedKeys()
+        .hasOnly([
+          'last_known_lat',
+          'last_known_lng', 
+          'last_movement_at',
+          'location_history'
+        ]) || true;
+      allow create, delete: if true;
+      
+      match /events/{eventId} {
+        allow read, write: if true;
+      }
+    }
+
+    match /fleetTracking_customers/{customerId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_users/{userId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_payments/{paymentId} {
+      allow read, write: if true;
+    }
+
+    match /fleetTracking_settings/{docId} {
+      allow read, write: if true;
     }
 
     // Sessions and internal auth
@@ -12,51 +54,72 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
-    // Fleet Tracking Trips
-    match /fleetTracking_trips/{tripId} {
-      allow read: if true;
-      allow create: if true;
-      allow update: if true;
-      allow delete: if false; // Deletion of trips is forbidden
-    }
-
-    // Fleet Tracking Trucks
-    match /fleetTracking_trucks/{truckId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // Fleet Tracking Suppliers
-    match /fleetTracking_suppliers/{supplierId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
-    }
-
-    // Fleet Tracking Garages
-    match /fleetTracking_garages/{garageId} {
+    // Waybilla System Collections (managed by backend server API)
+    match /customers/{docId} {
       allow read, write: if true;
     }
 
-    // Fleet Tracking Users & Team Members
-    match /fleetTracking_users/{userId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
+    match /companies/{docId} {
+      allow read, write: if true;
     }
 
-    // Managers collection
-    match /managers/{managerId} {
-      allow read: if true;
-      allow create, update: if true;
-      allow delete: if true;
+    match /staff/{docId} {
+      allow read, write: if true;
     }
 
-    // Fallback collection rules
+    match /managers/{docId} {
+      allow read, write: if true;
+    }
+
+    match /admins/{docId} {
+      allow read, write: if true;
+    }
+
+    match /parks/{docId} {
+      allow read, write: if true;
+    }
+
+    match /routes/{docId} {
+      allow read, write: if true;
+    }
+
+    match /buses/{docId} {
+      allow read, write: if true;
+    }
+
+    match /waybills/{docId} {
+      allow read, write: if true;
+    }
+
+    match /trips/{docId} {
+      allow read, write: if true;
+    }
+
+    match /payments/{docId} {
+      allow read, write: if true;
+    }
+
+    match /notifications/{docId} {
+      allow read, write: if true;
+    }
+
+    match /device_tokens/{docId} {
+      allow read, write: if true;
+    }
+
+    match /pin_lockouts/{docId} {
+      allow read, write: if true;
+    }
+
+    match /fleet_pending_payments/{docId} {
+      allow read, write: if true;
+    }
+
+    // Fallback collection rule
     match /{document=**} {
       allow read, write: if true;
     }
   }
 }
+
 

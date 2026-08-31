@@ -7,16 +7,14 @@ let scriptLoadingPromise: Promise<typeof google.maps> | null = null;
 export function resetGoogleMapsLoader() {
   configuredKey = null;
   scriptLoadingPromise = null;
-  const script = document.getElementById('google-maps-js-sdk-direct');
-  if (script) {
-    script.remove();
-  }
+  const scripts = document.querySelectorAll('script[src*="maps.googleapis.com"]');
+  scripts.forEach((s) => s.remove());
 }
 
 /**
  * Robust loader for Google Maps JavaScript API.
- * Uses official Google Maps library loader with direct script tag injection fallback.
- * Uses bundled mapsConfig.apiKey by default if no key is provided.
+ * Handles existing script tags, prevents duplicate callback collisions,
+ * and includes fallback timeout resolution so the UI never hangs forever.
  */
 export async function loadGoogleMaps(apiKey?: string): Promise<typeof google.maps> {
   const key = (apiKey?.trim() || mapsConfig.apiKey?.trim() || '').trim();
@@ -28,16 +26,8 @@ export async function loadGoogleMaps(apiKey?: string): Promise<typeof google.map
     throw new Error('Window is not defined in current environment.');
   }
 
-  // 1. If already loaded, ensure all necessary libraries are imported
+  // 1. If already loaded and Map constructor is ready, return immediately
   if (window.google?.maps?.Map) {
-    if (window.google.maps.importLibrary) {
-      await Promise.allSettled([
-        window.google.maps.importLibrary('places'),
-        window.google.maps.importLibrary('geocoding'),
-        window.google.maps.importLibrary('geometry'),
-        window.google.maps.importLibrary('marker'),
-      ]);
-    }
     return window.google.maps;
   }
 
@@ -45,88 +35,108 @@ export async function loadGoogleMaps(apiKey?: string): Promise<typeof google.map
     return scriptLoadingPromise;
   }
 
-  scriptLoadingPromise = (async () => {
-    try {
-      // Try Method A: @googlemaps/js-api-loader dynamic import
-      try {
-        if (configuredKey !== key) {
-          configuredKey = key;
-          setOptions({
-            key: key,
-            v: 'weekly',
-            region: mapsConfig.region || 'NG',
-            language: mapsConfig.language || 'en',
-            solutionChannel: 'gmp_mcp_codeassist_v1_aistudio',
-          });
-        }
+  scriptLoadingPromise = new Promise<typeof google.maps>(async (resolve, reject) => {
+    let resolved = false;
 
-        await Promise.all([
-          importLibrary('maps'),
-          importLibrary('places'),
-          importLibrary('geocoding'),
-          importLibrary('geometry'),
-        ]);
-
-        if (window.google?.maps?.Map) {
-          return window.google.maps;
-        }
-      } catch (e) {
-        console.warn('Google Maps js-api-loader dynamic import notice, testing direct script bootstrap:', e);
+    // Safety timeout: check if window.google.maps becomes ready via polling
+    const pollInterval = setInterval(() => {
+      if (window.google?.maps?.Map) {
+        resolved = true;
+        clearInterval(pollInterval);
+        clearTimeout(timeoutId);
+        resolve(window.google.maps);
       }
+    }, 150);
 
-      // Try Method B: Direct script loader with callback
-      return await new Promise<typeof google.maps>((resolve, reject) => {
-        const scriptId = 'google-maps-js-sdk-direct';
-        const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
-        if (existing) {
-          existing.remove();
+    const timeoutId = setTimeout(() => {
+      clearInterval(pollInterval);
+      if (window.google?.maps?.Map) {
+        resolved = true;
+        resolve(window.google.maps);
+      } else if (!resolved) {
+        scriptLoadingPromise = null;
+        reject(new Error('Google Maps loading timed out. Please check your network connection.'));
+      }
+    }, 10000);
+
+    try {
+      // If script is already attached on page, just wait for polling
+      const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+      if (!existingScript) {
+        try {
+          if (configuredKey !== key) {
+            configuredKey = key;
+            setOptions({
+              key: key,
+              v: 'weekly',
+              region: mapsConfig.region || 'NG',
+              language: mapsConfig.language || 'en',
+              solutionChannel: 'gmp_mcp_codeassist_v1_aistudio',
+            });
+          }
+
+          // Import standard valid library modules
+          await Promise.allSettled([
+            importLibrary('maps'),
+            importLibrary('places'),
+            importLibrary('geometry'),
+            importLibrary('marker'),
+          ]);
+
+          if (window.google?.maps?.Map) {
+            resolved = true;
+            clearInterval(pollInterval);
+            clearTimeout(timeoutId);
+            resolve(window.google.maps);
+            return;
+          }
+        } catch (loaderErr) {
+          console.warn('Google Maps js-api-loader notice, using script injection:', loaderErr);
         }
 
-        const callbackName = `__gmaps_init_${Date.now()}`;
-        (window as any)[callbackName] = async () => {
-          try {
-            delete (window as any)[callbackName];
-          } catch (_) {}
-          if (window.google?.maps?.Map) {
-            if (window.google.maps.importLibrary) {
-              await Promise.allSettled([
-                window.google.maps.importLibrary('places'),
-                window.google.maps.importLibrary('geocoding'),
-                window.google.maps.importLibrary('geometry'),
-              ]);
+        // Direct script fallback
+        if (!window.google?.maps?.Map && !document.querySelector('script[src*="maps.googleapis.com"]')) {
+          const callbackName = `__gmaps_cb_${Date.now()}`;
+          (window as any)[callbackName] = () => {
+            try {
+              delete (window as any)[callbackName];
+            } catch (_) {}
+            if (window.google?.maps?.Map) {
+              resolved = true;
+              clearInterval(pollInterval);
+              clearTimeout(timeoutId);
+              resolve(window.google.maps);
             }
-            resolve(window.google.maps);
-          } else {
-            reject(new Error('Google Maps loaded but google.maps.Map is missing.'));
-          }
-        };
+          };
 
-        const script = document.createElement('script');
-        script.id = scriptId;
-        script.type = 'text/javascript';
-        script.async = true;
-        script.defer = true;
-        const libList = (mapsConfig.libraries || ['places', 'geometry']).join(',');
-        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=${libList}&region=${mapsConfig.region || 'NG'}&language=${mapsConfig.language || 'en'}&v=weekly&callback=${callbackName}`;
+          const script = document.createElement('script');
+          script.id = 'google-maps-direct-script';
+          script.type = 'text/javascript';
+          script.async = true;
+          script.defer = true;
+          const libList = (mapsConfig.libraries || ['places', 'geometry']).join(',');
+          script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=${libList}&region=${mapsConfig.region || 'NG'}&language=${mapsConfig.language || 'en'}&v=weekly&callback=${callbackName}`;
 
-        script.onerror = () => {
-          try {
-            delete (window as any)[callbackName];
-          } catch (_) {}
-          reject(
-            new Error(
-              'Failed to load Google Maps JavaScript API script. Please check your internet connection and API key restrictions.'
-            )
-          );
-        };
+          script.onerror = () => {
+            try {
+              delete (window as any)[callbackName];
+            } catch (_) {}
+            scriptLoadingPromise = null;
+            clearInterval(pollInterval);
+            clearTimeout(timeoutId);
+            reject(new Error('Failed to load Google Maps script.'));
+          };
 
-        document.head.appendChild(script);
-      });
-    } catch (error) {
+          document.head.appendChild(script);
+        }
+      }
+    } catch (err) {
       scriptLoadingPromise = null;
-      throw error;
+      clearInterval(pollInterval);
+      clearTimeout(timeoutId);
+      reject(err);
     }
-  })();
+  });
 
   return scriptLoadingPromise;
 }

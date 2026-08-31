@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { DriverScreen } from './DriverScreen';
+import { initializeFCM } from '../modules/fleetTracking/fcm';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -132,6 +133,10 @@ export const ManagerDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (activeToken) {
+      initializeFCM(activeToken);
+    }
   }, [token]);
 
   const handleRefresh = () => {

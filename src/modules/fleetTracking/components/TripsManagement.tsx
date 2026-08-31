@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { TripRecord } from '../types';
-import { getTrips } from '../api';
+import { getTrips, updateTripStatus, getSubscriptionAlerts } from '../api';
 import { getFleetRole, FleetPermissions } from '../utils/permissions';
 import { CreateTripModal } from './CreateTripModal';
 import { RedirectTripModal } from './RedirectTripModal';
+import { ConfirmDepartureModal } from './ConfirmDepartureModal';
 import { TripDetailView } from './TripDetailView';
 import {
   Navigation,
@@ -24,6 +25,7 @@ import {
   ArrowRight,
   Filter,
   Eye,
+  Play,
 } from 'lucide-react';
 
 interface TripsManagementProps {
@@ -38,6 +40,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
   user,
 }) => {
   const [trips, setTrips] = useState<TripRecord[]>([]);
+  const [subscriptionAlerts, setSubscriptionAlerts] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -49,14 +52,30 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
   const [selectedTrip, setSelectedTrip] = useState<TripRecord | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState<boolean>(false);
   const [redirectingTrip, setRedirectingTrip] = useState<TripRecord | null>(null);
+  const [departingTrip, setDepartingTrip] = useState<TripRecord | null>(null);
+  const [isDepartingLoading, setIsDepartingLoading] = useState<boolean>(false);
 
   // Determine user permissions
   const fleetRole = getFleetRole(user, role);
   const canCreateTrip = FleetPermissions.canCreateTrip(fleetRole);
+  const canConfirmDeparture = fleetRole === 'ceo' || fleetRole === 'manager';
 
   useEffect(() => {
     loadTrips();
+    loadSubscriptionAlerts();
   }, [token]);
+
+  const loadSubscriptionAlerts = async () => {
+    if (!token) return;
+    try {
+      const res = await getSubscriptionAlerts(token);
+      if (res.success && Array.isArray(res.alerts)) {
+        setSubscriptionAlerts(res.alerts);
+      }
+    } catch {
+      // ignore
+    }
+  };
 
   const loadTrips = async () => {
     setIsLoading(true);
@@ -76,6 +95,30 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
     setTimeout(() => {
       setSuccessMessage(null);
     }, 5000);
+  };
+
+  const handleConfirmDeparture = async () => {
+    if (!departingTrip) return;
+    try {
+      setIsDepartingLoading(true);
+      const res = await updateTripStatus(
+        departingTrip.id,
+        'departed',
+        'Truck departure confirmed by manager.',
+        token
+      );
+      if (res.success) {
+        showSuccessNotice(`✅ Truck ${departingTrip.plate_number} departure confirmed! Status is now departed.`);
+        setDepartingTrip(null);
+        await loadTrips();
+      } else {
+        alert(res.error || 'Failed to confirm truck departure');
+      }
+    } catch (err: any) {
+      alert(err?.message || 'Error confirming departure');
+    } finally {
+      setIsDepartingLoading(false);
+    }
   };
 
   // Filtered trips
@@ -154,6 +197,37 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           </button>
         )}
       </div>
+
+      {/* Subscription Expiry Reminder Banners (for Manager / CEO) */}
+      {subscriptionAlerts.length > 0 && (
+        <div className="space-y-2">
+          {subscriptionAlerts.map((alert, idx) => (
+            <div
+              key={idx}
+              className={`p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
+                alert.tier === 'critical' || alert.tier === 'urgent'
+                  ? 'bg-rose-950/80 border-rose-500/50 text-rose-200 animate-pulse'
+                  : 'bg-amber-950/80 border-amber-500/50 text-amber-200'
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className={`w-5 h-5 shrink-0 ${alert.tier === 'critical' || alert.tier === 'urgent' ? 'text-rose-400' : 'text-amber-400'}`} />
+                <div>
+                  <div className="font-extrabold text-white text-xs">{alert.title}</div>
+                  <div className="text-[11px] opacity-90">{alert.message}</div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubscriptionAlerts((prev) => prev.filter((_, i) => i !== idx))}
+                className="text-xs font-bold text-slate-400 hover:text-white px-2 py-1 rounded cursor-pointer shrink-0"
+              >
+                Dismiss
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Success Banner */}
       {successMessage && (
@@ -336,27 +410,46 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                 </div>
 
                 {/* Card Footer Info & Actions */}
-                <div className="flex items-center justify-between pt-2 text-[11px] border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-slate-800/80">
                   <div className="text-slate-400 font-medium flex items-center gap-1.5">
                     <Eye className="w-3.5 h-3.5 text-amber-400" />
                     <span className="text-amber-400 font-bold group-hover:underline">Tap to view map & live tracking</span>
                   </div>
 
-                  {/* Redirect Button */}
-                  {!isCompletedOrCancelled && (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setRedirectingTrip(trip);
-                      }}
-                      className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
-                      id={`redirect-trip-btn-${trip.id}`}
-                    >
-                      <Navigation className="w-3.5 h-3.5 text-purple-400" />
-                      <span>{hasRedirect ? 'Update Redirect 🔀' : 'Redirect Trip 🔀'}</span>
-                    </button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {/* Departure Button on Trip Card (for Manager/CEO) */}
+                    {(trip.trip_status === 'created' || trip.trip_status === 'payment_confirmed') && canConfirmDeparture && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setDepartingTrip(trip);
+                        }}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/30 px-3 py-1.5 rounded-xl font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-950/40 hover:scale-105 active:scale-95"
+                        id={`departure-btn-card-${trip.id}`}
+                        title="Has the truck departed? Click to confirm departure."
+                      >
+                        <Play className="w-3 h-3 fill-current" />
+                        <span>Has the truck departed? 🚛</span>
+                      </button>
+                    )}
+
+                    {/* Redirect Button */}
+                    {!isCompletedOrCancelled && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setRedirectingTrip(trip);
+                        }}
+                        className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                        id={`redirect-trip-btn-${trip.id}`}
+                      >
+                        <Navigation className="w-3.5 h-3.5 text-purple-400" />
+                        <span>{hasRedirect ? 'Update Redirect 🔀' : 'Redirect Trip 🔀'}</span>
+                      </button>
+                    )}
+                  </div>
                 </div>
 
               </div>
@@ -370,9 +463,13 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         token={token}
-        onTripCreated={() => {
-          showSuccessNotice('New haulage trip created successfully!');
+        onTripCreated={(newTrip) => {
+          setIsCreateModalOpen(false);
           loadTrips();
+          if (newTrip) {
+            setSelectedTrip(newTrip);
+          }
+          showSuccessNotice('✅ Trip created successfully! Live tracking is now active.');
         }}
       />
 
@@ -386,6 +483,15 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           showSuccessNotice(msg || 'Trip redirected successfully!');
           loadTrips();
         }}
+      />
+
+      {/* Modal 3: Confirm Departure Dialog */}
+      <ConfirmDepartureModal
+        isOpen={!!departingTrip}
+        onClose={() => setDepartingTrip(null)}
+        trip={departingTrip}
+        isLoading={isDepartingLoading}
+        onConfirmDeparture={handleConfirmDeparture}
       />
 
     </div>

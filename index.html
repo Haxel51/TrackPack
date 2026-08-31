@@ -93,49 +93,86 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Waybilla Nigeria" />
     
-    <!-- Google Translate Auto-Translation Integration -->
     <style>
-      /* Hide default Google Translate banner and widget top bars for clean UI */
-      .goog-te-banner-frame.skiptranslate,
+      /* Completely suppress Google Translate visual top banner and UI overlays */
       .goog-te-banner-frame,
+      .goog-te-banner-frame.skiptranslate,
+      iframe.goog-te-banner-frame,
+      iframe[class*="goog-te-banner"],
+      iframe[id^=":"]:not(#root iframe),
+      div[id^=":"][class*="skiptranslate"],
+      .VIpgJd-ZVi9od-ORHb-OEVmbf,
+      .VIpgJd-ZVi9od-aZ2wEe-wOHMyf,
+      .VIpgJd-ZVi9od-aZ2wEe-wOHMyf-ti6hGc,
+      .VIpgJd-ZVi9od-xl07Ob-OEVmbf,
+      .VIpgJd-yAWNEb-L7lbkb,
       #goog-gt-tt,
-      .goog-te-balloon-frame {
-        display: none !important;
-      }
-      body {
-        top: 0px !important;
-      }
+      #goog-gt-vt,
+      .goog-te-balloon-frame,
       .goog-tooltip,
-      .goog-tooltip:hover {
+      .goog-tooltip:hover,
+      .goog-te-spinner-pos {
         display: none !important;
-        box-shadow: none !important;
+        visibility: hidden !important;
+        height: 0px !important;
+        max-height: 0px !important;
+        width: 0px !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        position: absolute !important;
+        top: -9999px !important;
+        left: -9999px !important;
+        z-index: -99999 !important;
       }
+      
+      html, body {
+        top: 0px !important;
+        position: static !important;
+        margin-top: 0px !important;
+        padding-top: 0px !important;
+      }
+
+      #google_translate_element {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+      }
+      
       .goog-text-highlight {
         background-color: transparent !important;
         box-shadow: none !important;
       }
-      #google_translate_element {
-        display: none !important;
-      }
+
       /* Prevent translation on non-translatable codes like WB-890123 */
-      .notranslate {
-        translate: no;
+      .notranslate,
+      [translate="no"] {
+        translate: no !important;
+        -webkit-translate: no !important;
       }
     </style>
     <script type="text/javascript">
-      function googleTranslateElementInit() {
-        if (window.google && window.google.translate) {
-          new window.google.translate.TranslateElement({
-            pageLanguage: 'en',
-            autoDisplay: false
-          }, 'google_translate_element');
-        }
-      }
+      // Clean up any stale Google Translate cookies that caused corrupted Cyrillic/Abkhaz text
+      (function() {
+        try {
+          var cookies = document.cookie.split(';');
+          var hostname = window.location.hostname;
+          for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            if (cookie.indexOf('googtrans') === 0 || cookie.indexOf('goog') === 0) {
+              var name = cookie.split('=')[0];
+              document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+              document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=' + hostname + ';';
+              document.cookie = name + '=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.' + hostname + ';';
+            }
+          }
+        } catch (e) {}
+      })();
     </script>
-    <script type="text/javascript" src="//translate.google.com/translate_a/element.js?cb=googleTranslateElementInit" async></script>
   </head>
   <body class="bg-[#0A1F44] text-slate-900 m-0 font-sans antialiased">
-    <div id="google_translate_element"></div>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

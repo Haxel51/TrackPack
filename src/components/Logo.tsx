@@ -44,7 +44,10 @@ export const Logo: React.FC<LogoProps> = ({
         />
       </div>
       {showText && (
-        <span className={`font-black tracking-tight ${textSizeMap[size]} ${textColor}`}>
+        <span
+          className={`font-black tracking-tight notranslate ${textSizeMap[size]} ${textColor}`}
+          translate="no"
+        >
           Waybilla<span className="text-[#F2A93B]">.</span>
         </span>
       )}

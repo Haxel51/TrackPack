@@ -200,7 +200,7 @@ export const CustomerDashboard: React.FC = () => {
     try {
       const response = await fetch(`/api/track/${encodeURIComponent(waybill.tracking_code)}`);
       if (response.ok) {
-        const data = await response.json();
+        const data = await response.json().catch(() => ({}));
         setSelectedRoute(data.route);
         setSelectedDriver(data.driver);
       }
@@ -256,14 +256,14 @@ export const CustomerDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-between">
       {/* Navbar */}
-      <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-3 sm:py-4 shadow-md sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Logo size="sm" showText={false} />
-            <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
-              <span>Waybilla</span>
-              <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
-                <svg className="w-5 h-3.5" viewBox="0 0 3 2">
+            <div className="flex items-center gap-1.5 sm:gap-2 font-extrabold text-base sm:text-lg tracking-wider min-w-0">
+              <span className="truncate">Waybilla</span>
+              <span className="hidden xs:inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20 shrink-0" title="Nigeria">
+                <svg className="w-4 sm:w-5 h-3 sm:h-3.5" viewBox="0 0 3 2">
                   <rect width="1" height="2" x="0" fill="#008751" />
                   <rect width="1" height="2" x="1" fill="#FFFFFF" />
                   <rect width="1" height="2" x="2" fill="#008751" />
@@ -271,14 +271,14 @@ export const CustomerDashboard: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <LanguageSwitcher />
             <button
               onClick={logout}
-              className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 bg-red-600 hover:bg-red-700 text-white font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-colors cursor-pointer shrink-0"
             >
-              <LogOut className="w-4 h-4" />
-              {t('signOut')}
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">{t('signOut')}</span>
             </button>
           </div>
         </div>
@@ -558,8 +558,9 @@ export const CustomerDashboard: React.FC = () => {
       )}
 
       {/* Footer */}
-      <footer className="py-6 text-center text-xs text-slate-400 bg-white border-t border-slate-100 mt-12">
-        &copy; {new Date().getFullYear()} Waybilla. All rights reserved.
+      <footer className="py-6 text-center text-xs text-slate-500 bg-white border-t border-slate-100 mt-12 space-y-1">
+        <div>Waybilla is a product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span></div>
+        <div className="text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
       </footer>
     </div>
   );

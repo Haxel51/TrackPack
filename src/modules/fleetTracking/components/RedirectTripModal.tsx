@@ -270,14 +270,19 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
         setError('Customer address is required.');
         return;
       }
+      if (!selectedCoords) {
+        setError('Please pin the exact location on the map for good tracking before confirming redirect.');
+        setShowMap(true);
+        return;
+      }
 
       setIsSubmitting(true);
       const res = await redirectTrip(token, trip.id, {
         type: 'manual',
         name: newCustomerName.trim(),
         address: newCustomerAddress.trim(),
-        lat: selectedCoords?.lat || null,
-        lng: selectedCoords?.lng || null,
+        lat: selectedCoords.lat,
+        lng: selectedCoords.lng,
         save_as_new_customer: saveAsNewCustomer,
       });
 

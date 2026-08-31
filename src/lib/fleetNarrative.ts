@@ -37,7 +37,7 @@ export interface FleetTripNarrativeInput {
   arrived_offloaded_at?: string | null;
   waybill_number?: string | null;
   expected_duration_minutes?: number | null;
-  route_osrm?: {
+  route_directions?: {
     leg1_minutes?: number;
     leg2_minutes?: number;
     distance_km?: number;
@@ -85,7 +85,7 @@ export function getFleetTripNarrative(trip: FleetTripNarrativeInput): FleetNarra
   const depotName = trip.depot_name?.trim() || trip.supplier_name?.trim() || 'Supplier Depot';
   const destinationName = trip.supplier_name?.trim() || 'Destination Location';
 
-  const defaultDurationMins = trip.expected_duration_minutes || trip.route_osrm?.total_minutes || 180;
+  const defaultDurationMins = trip.expected_duration_minutes || trip.route_directions?.total_minutes || 180;
 
   const leftGarageRaw = trip.departed_at || trip.left_warehouse_at || trip.created_at;
   const leftGarageFormatted = formatTripTime(leftGarageRaw);
@@ -97,7 +97,7 @@ export function getFleetTripNarrative(trip: FleetTripNarrativeInput): FleetNarra
   let expectedEtaFormatted = 'N/A';
   if (trip.loaded_departed_at) {
     const loadedMs = new Date(trip.loaded_departed_at).getTime();
-    const leg2Mins = trip.route_osrm?.leg2_minutes || 90;
+    const leg2Mins = trip.route_directions?.leg2_minutes || 90;
     if (!isNaN(loadedMs)) {
       expectedEtaFormatted = formatTripTime(new Date(loadedMs + leg2Mins * 60 * 1000));
     }

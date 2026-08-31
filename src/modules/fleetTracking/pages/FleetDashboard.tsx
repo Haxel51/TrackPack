@@ -7,6 +7,7 @@ import { FleetLocationsView } from './FleetLocationsView';
 import { TrucksManagement } from '../components/TrucksManagement';
 import { TripsManagement } from '../components/TripsManagement';
 import { TeamManagement } from '../components/TeamManagement';
+import { PaymentHistoryView } from '../components/PaymentHistoryView';
 import {
   MapPin,
   Truck,
@@ -20,7 +21,8 @@ import {
   Clock,
   UserCheck,
   ArrowRightLeft,
-  Users
+  Users,
+  CreditCard
 } from 'lucide-react';
 
 interface FleetDashboardProps {
@@ -38,7 +40,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
   const canSwitchModule = Boolean(onSwitchModule && showSwitchModule && !isManager && !isTripMonitor && role === 'company');
 
-  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview'>(
+  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments'>(
     isTripMonitor ? 'trips' : 'trucks'
   );
 
@@ -81,7 +83,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <Logo className="h-8 w-auto text-white" />
               <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5">
                 <Truck className="w-3 h-3" />
-                Fleet Tracking Module
+                {t('fleetModuleBadge')}
               </span>
             </div>
 
@@ -94,7 +96,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
                   id="mobile-switch-module-btn-fleet"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5" />
-                  <span>Switch Module</span>
+                  <span>{t('switchModule')}</span>
                 </button>
               </div>
             )}
@@ -112,7 +114,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
                   id="desktop-switch-module-btn-fleet"
                 >
                   <ArrowRightLeft className="w-4 h-4 text-amber-400" />
-                  <span>Switch Module</span>
+                  <span>{t('switchModule')}</span>
                 </button>
                 <div className="h-6 w-[1px] bg-slate-800 hidden md:block" />
               </>
@@ -126,7 +128,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               id="fleet-logout-btn"
             >
               <LogOut className="w-3.5 h-3.5" />
-              <span>Sign Out</span>
+              <span>{t('signOut')}</span>
             </button>
           </div>
 
@@ -145,7 +147,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               id="fleet-tab-trucks"
             >
               <Truck className={`w-4 h-4 ${activeTab === 'trucks' ? 'text-amber-400' : 'text-slate-500'}`} />
-              <span>Truck Profiles & Payment Plans 🚚</span>
+              <span>{t('fleetTrucksTab')}</span>
             </button>
           )}
 
@@ -160,7 +162,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               id="fleet-tab-locations"
             >
               <MapPin className={`w-4 h-4 ${activeTab === 'locations' ? 'text-amber-400' : 'text-slate-500'}`} />
-              <span>Fleet Locations & Pin Confirmation 📍</span>
+              <span>{t('fleetLocationsTab')}</span>
             </button>
           )}
 
@@ -174,7 +176,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             id="fleet-tab-trips"
           >
             <Navigation className={`w-4 h-4 ${activeTab === 'trips' ? 'text-amber-400' : 'text-slate-500'}`} />
-            <span>Truck Trips & Dispatches 🚛</span>
+            <span>{t('fleetTripsTab')}</span>
           </button>
 
           {!isTripMonitor && (
@@ -188,7 +190,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               id="fleet-tab-team"
             >
               <Users className={`w-4 h-4 ${activeTab === 'team' ? 'text-amber-400' : 'text-slate-500'}`} />
-              <span>Team Management 👥</span>
+              <span>{t('fleetTeamTab')}</span>
             </button>
           )}
 
@@ -202,8 +204,23 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             id="fleet-tab-overview"
           >
             <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-amber-400' : 'text-slate-500'}`} />
-            <span>Fleet Overview 📊</span>
+            <span>{t('fleetOverviewTab')}</span>
           </button>
+
+          {isCEO && (
+            <button
+              onClick={() => setActiveTab('payments')}
+              className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
+                activeTab === 'payments'
+                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border-transparent'
+              }`}
+              id="fleet-tab-payments"
+            >
+              <CreditCard className={`w-4 h-4 ${activeTab === 'payments' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span>{t('fleetPaymentTab')}</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -228,6 +245,11 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         {/* TAB 4: TEAM MANAGEMENT */}
         {activeTab === 'team' && !isTripMonitor && (
           <TeamManagement token={token || ''} role={role} user={user} />
+        )}
+
+        {/* TAB 5: PAYMENT HISTORY */}
+        {activeTab === 'payments' && (
+          <PaymentHistoryView token={token || ''} isCEO={isCEO} />
         )}
 
         {/* TAB 3: FLEET OVERVIEW */}

@@ -134,6 +134,14 @@ export const translations: Record<Language, Record<string, string>> = {
     activeBusesCount: 'Active Loading Buses',
     details: 'Details',
     shareWhatsApp: 'Share via WhatsApp',
+    fleetModuleBadge: 'Fleet Tracking Module',
+    fleetTrucksTab: 'Truck Profiles & Payment Plans 🚚',
+    fleetLocationsTab: 'Fleet Locations & Pin Confirmation 📍',
+    fleetTripsTab: 'Truck Trips & Dispatches 🚛',
+    fleetTeamTab: 'Team Management 👥',
+    fleetOverviewTab: 'Fleet Overview 📊',
+    fleetPaymentTab: 'Payment History 💳',
+    switchModule: 'Switch Module',
   },
   pcm: {
     howItWorks: 'How E Dey Work?',
@@ -248,6 +256,14 @@ export const translations: Record<Language, Record<string, string>> = {
     activeBusesCount: 'Motors Wey Dey Load',
     details: 'Details',
     shareWhatsApp: 'Share for WhatsApp',
+    fleetModuleBadge: 'Fleet Tracking Module',
+    fleetTrucksTab: 'Truck Profiles & Payment Plans 🚚',
+    fleetLocationsTab: 'Fleet Locations & Pin Confirmation 📍',
+    fleetTripsTab: 'Truck Trips & Dispatches 🚛',
+    fleetTeamTab: 'Team Management 👥',
+    fleetOverviewTab: 'Fleet Overview 📊',
+    fleetPaymentTab: 'Payment History 💳',
+    switchModule: 'Switch Module',
   },
   ig: {
     howItWorks: 'Kedu Ka Ọ Dị Aṅaa?',
@@ -362,6 +378,14 @@ export const translations: Record<Language, Record<string, string>> = {
     activeBusesCount: 'Ụgbọ Ala Na-eloadu',
     details: 'Nchịkọta',
     shareWhatsApp: 'Ziga na WhatsApp',
+    fleetModuleBadge: 'Modulu Nsuso Gwongwo',
+    fleetTrucksTab: 'Profaịlụ Gwongwo & Atụmatụ Ịkwụ Ụgwọ 🚚',
+    fleetLocationsTab: 'Ebe Ụgbọ Ala & Nkwenye Pin 📍',
+    fleetTripsTab: 'Njem Gwongwo & Mbupu 🚛',
+    fleetTeamTab: 'Nlekọta Ndị Otu 👥',
+    fleetOverviewTab: 'Nchịkọta Ụgbọ Ala 📊',
+    fleetPaymentTab: 'Akụkọ Ịkwụ Ụgwọ 💳',
+    switchModule: 'Gbanwee Modulu',
   },
   ha: {
     howItWorks: 'Yaya Yake Aiki?',
@@ -476,6 +500,14 @@ export const translations: Record<Language, Record<string, string>> = {
     activeBusesCount: 'Motoci Masu Ɗaukar Kaya',
     details: 'Cikakken Bayani',
     shareWhatsApp: 'Aika ta WhatsApp',
+    fleetModuleBadge: 'Sashen Bibiyar Motoci',
+    fleetTrucksTab: 'Bayanin Manyan Motoci & Tsarin Biya 🚚',
+    fleetLocationsTab: 'Wuraren Motoci & Tabbatar da Fil 📍',
+    fleetTripsTab: 'Tafiyar Motoci & Aika 🚛',
+    fleetTeamTab: 'Gudanar da Tawaga 👥',
+    fleetOverviewTab: 'Bayanin Motoci Gabaɗaya 📊',
+    fleetPaymentTab: 'Tarihin Biya 💳',
+    switchModule: 'Sauya Sashe',
   },
   yo: {
     howItWorks: 'Báwo Ni Ó Ṣe Ń Ṣiṣẹ́?',
@@ -590,6 +622,14 @@ export const translations: Record<Language, Record<string, string>> = {
     activeBusesCount: 'Àwọn Ọkọ̀ Tí Ń Gbé Ẹrù',
     details: 'Ìsọfúnni Kikun',
     shareWhatsApp: 'Aika lori WhatsApp',
+    fleetModuleBadge: 'Module Titele Ọkọ',
+    fleetTrucksTab: 'Awọn Profaili Ọkọ & Eto Isanwo 🚚',
+    fleetLocationsTab: 'Awọn Ibi Ọkọ & Ijẹrisi Pin 📍',
+    fleetTripsTab: 'Irin-ajo Ọkọ & Fifiranṣẹ 🚛',
+    fleetTeamTab: 'Iṣakoso Ẹgbẹ 👥',
+    fleetOverviewTab: 'Akopọ Ọkọ 📊',
+    fleetPaymentTab: 'Itan Isanwo 💳',
+    switchModule: 'Yipada Module',
   },
 };
 
@@ -602,43 +642,40 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
+// Wipe any stale Google Translate cookies to ensure no weird Cyrillic or Abkhaz characters appear
+const clearGoogleTranslateCookies = () => {
+  try {
+    const hostname = window.location.hostname;
+    const cookies = document.cookie.split(';');
+    for (let i = 0; i < cookies.length; i++) {
+      const cookie = cookies[i].trim();
+      if (cookie.startsWith('googtrans') || cookie.startsWith('goog')) {
+        const name = cookie.split('=')[0];
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${hostname};`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${hostname};`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+};
+
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [language, setLanguageState] = useState<Language>(() => {
+    clearGoogleTranslateCookies();
     const saved = localStorage.getItem('waybilla_lang');
     return (saved as Language) || 'en';
   });
 
   useEffect(() => {
-    if (language && language !== 'en') {
-      try {
-        const domain = window.location.hostname;
-        document.cookie = `googtrans=/en/${language}; path=/; domain=${domain}`;
-        document.cookie = `googtrans=/en/${language}; path=/`;
-      } catch (e) {
-        console.log('Language cookie restore:', e);
-      }
-    }
+    clearGoogleTranslateCookies();
   }, [language]);
 
   const setLanguage = (lang: Language) => {
+    clearGoogleTranslateCookies();
     setLanguageState(lang);
     localStorage.setItem('waybilla_lang', lang);
-
-    // Synchronize 100% auto-translation across the DOM
-    try {
-      const gtCombo = document.querySelector('.goog-te-combo') as HTMLSelectElement | null;
-      if (gtCombo) {
-        gtCombo.value = lang === 'pcm' ? 'pcm' : lang;
-        gtCombo.dispatchEvent(new Event('change'));
-      }
-      // Set google translate cookie for persistent 100% full-page translation
-      const domain = window.location.hostname;
-      const targetLang = lang === 'en' ? 'en' : lang;
-      document.cookie = `googtrans=/en/${targetLang}; path=/; domain=${domain}`;
-      document.cookie = `googtrans=/en/${targetLang}; path=/`;
-    } catch (e) {
-      console.log('Language sync initialized:', e);
-    }
   };
 
   const currentLanguage = LANGUAGES.find((l) => l.code === language) || LANGUAGES[0];

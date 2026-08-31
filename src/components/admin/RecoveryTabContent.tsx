@@ -51,7 +51,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
           'Authorization': `Bearer ${token}`
         }
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       
       if (!res.ok) {
         setError(data.error || 'Account not found.');
@@ -89,7 +89,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
           id: selectedAccount.id
         })
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         setError(data.error || 'Failed to generate reset code.');

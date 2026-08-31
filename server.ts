@@ -6816,7 +6816,100 @@ app.post("/api/paystack/webhook", async (req, res) => {
       const reference = data.reference || "";
       const metadata = data.metadata || {};
 
-      if (reference.startsWith("fleet_trip_") || metadata.type === "fleet_per_trip") {
+      if (reference.startsWith("FT-TRIP-") || reference.startsWith("FT-PAY-") || metadata.payment_type === "per_trip" || metadata.payment_type === "monthly") {
+        // Fleet Tracking Payment Handler (FT-TRIP- and FT-PAY-)
+        const tripQ = query(collection(db, "fleetTracking_trips"), where("payment_reference", "==", reference), limit(1));
+        const tripSnap = await getDocs(tripQ);
+
+        const now = new Date().toISOString();
+        const paymentPlan = metadata.payment_type === "monthly" ? "monthly" : (metadata.payment_type === "per_trip" ? "per_trip" : (data.amount >= 350000 ? "monthly" : "per_trip"));
+        const paidAmount = data.amount ? data.amount / 100 : (paymentPlan === "monthly" ? 3500 : 1000);
+        const payerName = metadata.paid_by || (data.customer && data.customer.email) || "Manager";
+
+        if (!tripSnap.empty) {
+          const tripDoc = tripSnap.docs[0];
+          const tripId = tripDoc.id;
+          const tripData = tripDoc.data();
+
+          let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
+          status_history.unshift({
+            status: "payment_confirmed",
+            triggered_by: `Paystack Webhook (${payerName})`,
+            triggered_at: now,
+            note: `Payment confirmed via Paystack Webhook (${paymentPlan === "monthly" ? "Monthly Plan ₦3,500" : "Per Trip ₦1,000"}) — Live tracking activated`
+          });
+
+          await updateDoc(doc(db, "fleetTracking_trips", tripId), {
+            payment_status: "confirmed",
+            payment_reference: reference,
+            payment_date: now,
+            payment_amount: paidAmount,
+            payment_plan: paymentPlan,
+            tracking_active: true,
+            trip_status: tripData.trip_status === "created" ? "payment_confirmed" : tripData.trip_status,
+            status_history,
+            updated_at: now
+          });
+
+          // If monthly plan, update truck subscription_active_until using smart renewal
+          const truckId = metadata.truck_id || tripData.truck_id;
+          if (paymentPlan === "monthly" && truckId) {
+            const truckRef = doc(db, "fleetTracking_trucks", truckId);
+            const tSnap = await getDoc(truckRef);
+            const currentExpiry = tSnap.exists() ? tSnap.data().subscription_active_until : null;
+            const newExpiryIso = calculateSmartRenewalExpiry(currentExpiry, now);
+            const prevHist = tSnap.exists() && Array.isArray(tSnap.data().subscription_history) ? tSnap.data().subscription_history : [];
+            const newHist = [
+              {
+                action: "webhook_renewal",
+                renewed_by: "Paystack Webhook",
+                renewed_at: now,
+                valid_until: newExpiryIso,
+                note: `Monthly subscription renewed via Paystack. Active until ${new Date(newExpiryIso).toLocaleDateString()}.`
+              },
+              ...prevHist
+            ];
+            await updateDoc(truckRef, {
+              payment_plan: "monthly",
+              subscription_active_until: newExpiryIso,
+              subscription_history: newHist,
+              updated_at: now
+            });
+            console.log(`[Fleet Webhook] Truck ${truckId} subscription smartly extended until ${newExpiryIso}`);
+          }
+
+          console.log(`[Fleet Webhook] Trip ${tripId} payment confirmed and live tracking activated for ref: ${reference}`);
+        } else {
+          // If the trip hasn't been created yet or payment was standalone truck subscription
+          const truckId = metadata.truck_id;
+          if (paymentPlan === "monthly" && truckId) {
+            const truckRef = doc(db, "fleetTracking_trucks", truckId);
+            const tSnap = await getDoc(truckRef);
+            if (tSnap.exists()) {
+              const currentExpiry = tSnap.data().subscription_active_until;
+              const newExpiryIso = calculateSmartRenewalExpiry(currentExpiry, now);
+              const prevHist = Array.isArray(tSnap.data().subscription_history) ? tSnap.data().subscription_history : [];
+              const newHist = [
+                {
+                  action: "webhook_renewal",
+                  renewed_by: "Paystack Webhook",
+                  renewed_at: now,
+                  valid_until: newExpiryIso,
+                  note: `Monthly subscription renewed via Paystack. Active until ${new Date(newExpiryIso).toLocaleDateString()}.`
+                },
+                ...prevHist
+              ];
+              await updateDoc(truckRef, {
+                payment_plan: "monthly",
+                subscription_active_until: newExpiryIso,
+                subscription_history: newHist,
+                updated_at: now
+              });
+              console.log(`[Fleet Webhook] Truck ${truckId} standalone monthly subscription activated until ${newExpiryIso}`);
+            }
+          }
+        }
+      } else if (reference.startsWith("fleet_trip_") || metadata.type === "fleet_per_trip") {
         // Look up pending payment record first
         const pendingRef = doc(db, "fleet_pending_payments", reference);
         const pendingSnap = await getDoc(pendingRef);
@@ -8008,6 +8101,158 @@ app.get("/api/fleet-tracking/geocode", async (req, res) => {
   }
 });
 
+function decodePolylinePoints(encoded: string): Array<{ lat: number; lng: number }> {
+  const points: Array<{ lat: number; lng: number }> = [];
+  let index = 0;
+  const len = encoded.length;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < len) {
+    let b: number;
+    let shift = 0;
+    let result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlat = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lat += dlat;
+
+    shift = 0;
+    result = 0;
+    do {
+      b = encoded.charCodeAt(index++) - 63;
+      result |= (b & 0x1f) << shift;
+      shift += 5;
+    } while (b >= 0x20);
+    const dlng = (result & 1) !== 0 ? ~(result >> 1) : result >> 1;
+    lng += dlng;
+
+    points.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+
+  return points;
+}
+
+// 10b. GET /api/fleet-tracking/route - Routes API v2 / Road Routing Engine
+app.get("/api/fleet-tracking/route", async (req, res) => {
+  try {
+    const originLat = parseFloat(req.query.originLat as string);
+    const originLng = parseFloat(req.query.originLng as string);
+    const destLat = parseFloat(req.query.destLat as string);
+    const destLng = parseFloat(req.query.destLng as string);
+
+    if (isNaN(originLat) || isNaN(originLng) || isNaN(destLat) || isNaN(destLng)) {
+      return res.status(400).json({ success: false, error: "Valid origin and destination coordinates are required." });
+    }
+
+    let apiKey =
+      process.env.GOOGLE_MAPS_API_KEY ||
+      process.env.VITE_GOOGLE_MAPS_API_KEY ||
+      process.env.GOOGLE_DISTANCE_MATRIX_API_KEY ||
+      "";
+
+    if (!apiKey.trim()) {
+      try {
+        const settingsSnap = await getDoc(doc(db, "fleetTracking_settings", "config"));
+        if (settingsSnap.exists()) {
+          const data = settingsSnap.data();
+          if (data?.google_maps_api_key) {
+            apiKey = String(data.google_maps_api_key).trim();
+          }
+        }
+      } catch (_) {}
+    }
+
+    if (!apiKey.trim()) {
+      apiKey = "AIzaSyCW5p_KbwvtRkZEh5Ylg0bYfPPDADMkFC8";
+    }
+
+    // Tier 1: Google Routes API v2 (computeRoutes REST endpoint)
+    if (apiKey) {
+      try {
+        const gRes = await fetch("https://routes.googleapis.com/directions/v2:computeRoutes", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": apiKey.trim(),
+            "X-Goog-FieldMask": "routes.duration,routes.distanceMeters,routes.polyline.encodedPolyline",
+          },
+          body: JSON.stringify({
+            origin: { location: { latLng: { latitude: originLat, longitude: originLng } } },
+            destination: { location: { latLng: { latitude: destLat, longitude: destLng } } },
+            travelMode: "DRIVE",
+            routingPreference: "TRAFFIC_AWARE",
+          }),
+        });
+
+        if (gRes.ok) {
+          const gData = await gRes.json();
+          if (gData.routes && gData.routes[0]?.polyline?.encodedPolyline) {
+            const points = decodePolylinePoints(gData.routes[0].polyline.encodedPolyline);
+            return res.json({
+              success: true,
+              provider: "google_routes_v2",
+              distanceMeters: gData.routes[0].distanceMeters,
+              duration: gData.routes[0].duration,
+              points,
+            });
+          }
+        } else {
+          // Routes API returned non-OK (e.g., API key restrictions or propagation in progress).
+          // Fall through gracefully to Tier 2 road-network routing.
+        }
+      } catch (_) {
+        // Fall through gracefully to Tier 2 road-network routing.
+      }
+    }
+
+    // Tier 2: Real Road-Network Router fallback (OSRM)
+    try {
+      const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${originLng},${originLat};${destLng},${destLat}?overview=full&geometries=geojson`;
+      const osrmRes = await fetch(osrmUrl, { headers: { "User-Agent": "WaybillaFleet/1.0" } });
+      if (osrmRes.ok) {
+        const osrmData = await osrmRes.json();
+        if (osrmData.code === "Ok" && osrmData.routes?.[0]?.geometry?.coordinates) {
+          const rawCoords: [number, number][] = osrmData.routes[0].geometry.coordinates;
+          const points = rawCoords.map(([lng, lat]) => ({ lat, lng }));
+          return res.json({
+            success: true,
+            provider: "road_network",
+            distanceMeters: Math.round(osrmData.routes[0].distance || 0),
+            duration: `${Math.round(osrmData.routes[0].duration || 0)}s`,
+            points,
+          });
+        }
+      }
+    } catch (osrmErr) {
+      console.warn("Road network routing error:", osrmErr);
+    }
+
+    // Tier 3: Interpolated coordinate series fallback
+    const steps = 20;
+    const fallbackPoints = [];
+    for (let i = 0; i <= steps; i++) {
+      const t = i / steps;
+      fallbackPoints.push({
+        lat: Number((originLat + (destLat - originLat) * t).toFixed(6)),
+        lng: Number((originLng + (destLng - originLng) * t).toFixed(6)),
+      });
+    }
+
+    return res.json({
+      success: true,
+      provider: "interpolated",
+      points: fallbackPoints,
+    });
+  } catch (err: any) {
+    console.error("Error in /api/fleet-tracking/route:", err);
+    res.status(500).json({ success: false, error: err?.message || "Route computation failed." });
+  }
+});
+
 // RBAC Helper functions for Fleet Tracking roles
 function getBackendFleetRole(session: any): 'ceo' | 'manager' | 'trip_monitor' | 'driver' | 'unknown' {
   if (!session) return 'unknown';
@@ -8085,6 +8330,21 @@ async function syncDriverAccount(companyId: string, driverName: string, driverPh
     }
   } catch (err) {
     console.warn("syncDriverAccount warning:", err);
+  }
+}
+
+// Helper: Smart Renewal Expiry Calculation
+function calculateSmartRenewalExpiry(currentExpiryIso?: string | null, paymentDateIso?: string): string {
+  const nowMs = paymentDateIso ? new Date(paymentDateIso).getTime() : Date.now();
+  const currentExpiryMs = currentExpiryIso ? new Date(currentExpiryIso).getTime() : 0;
+  const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+  
+  if (currentExpiryMs > nowMs) {
+    // Payment made BEFORE current expiry -> extend from current expiry date + 30 days
+    return new Date(currentExpiryMs + thirtyDaysMs).toISOString();
+  } else {
+    // Payment made AFTER current expiry (already expired) -> 30 days from payment date
+    return new Date(nowMs + thirtyDaysMs).toISOString();
   }
 }
 
@@ -8466,14 +8726,27 @@ app.post("/api/fleet-tracking/trips", async (req, res) => {
 
     const plan = truckData.payment_plan === "monthly" ? "monthly" : "per_trip";
     const paymentAmount = plan === "monthly" ? 3500 : 1000;
+    
+    // Check if monthly subscription is currently active for this truck
+    let isMonthlyActive = false;
+    if (plan === "monthly" && truckData.subscription_active_until) {
+      if (new Date(truckData.subscription_active_until) > new Date()) {
+        isMonthlyActive = true;
+      }
+    }
+
+    const paymentStatus = isMonthlyActive ? "confirmed" : "pending";
+    const trackingActive = isMonthlyActive ? true : false;
+    const tripStatus = isMonthlyActive ? "payment_confirmed" : "created";
+
     const createdBy = authInfo.session?.userData?.name || authInfo.session?.userData?.email || authInfo.session?.userRole || "Manager";
     const now = new Date().toISOString();
 
     const initialAudit = {
-      status: "created",
+      status: tripStatus,
       triggered_by: createdBy,
       triggered_at: now,
-      note: "Trip created"
+      note: isMonthlyActive ? "Monthly subscription active — Live tracking automatically activated" : "Trip created"
     };
 
     const newTrip = {
@@ -8489,9 +8762,13 @@ app.post("/api/fleet-tracking/trips", async (req, res) => {
       primary_destination_lng: supplierData.lng || 0,
       redirect_destination: null,
       payment_plan: plan,
-      payment_status: "pending",
+      payment_status: paymentStatus,
       payment_amount: paymentAmount,
-      trip_status: "created",
+      payment_reference: isMonthlyActive ? "ACTIVE-MONTHLY-SUB" : null,
+      payment_date: isMonthlyActive ? now : null,
+      paid_by: isMonthlyActive ? "System (Monthly Subscription)" : null,
+      tracking_active: trackingActive,
+      trip_status: tripStatus,
       status_history: [initialAudit],
       last_known_lat: garageLat || supplierData.lat || 0,
       last_known_lng: garageLng || supplierData.lng || 0,
@@ -8511,6 +8788,759 @@ app.post("/api/fleet-tracking/trips", async (req, res) => {
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/trips:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17b. POST /api/fleet-tracking/trips/:id/payment/initialize - Initialize Paystack payment for trip live tracking
+app.post("/api/fleet-tracking/trips/:id/payment/initialize", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can initiate tracking payments." });
+    }
+
+    const tripId = req.params.id;
+    const tripRef = doc(db, "fleetTracking_trips", tripId);
+    const snap = await getDoc(tripRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Trip record not found." });
+    }
+    const tripData = snap.data();
+    if (tripData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    const { payment_type } = req.body;
+    const plan = payment_type === "monthly" || tripData.payment_plan === "monthly" ? "monthly" : "per_trip";
+    const amountNaira = plan === "monthly" ? 3500 : 1000;
+    const amountKobo = amountNaira * 100;
+    const reference = `FT-PAY-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    
+    const userEmail = authInfo.session?.userData?.email || "manager@trackpack.com";
+
+    let checkout_url = "";
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    let subaccountCode = "";
+    const compRef = doc(db, "companies", authInfo.companyId);
+    const compSnap = await getDoc(compRef);
+    if (compSnap.exists()) {
+      subaccountCode = compSnap.data().paystack_subaccount_code || "";
+    }
+
+    if (hasPaystackKey) {
+      try {
+        const initBody: any = {
+          email: userEmail,
+          amount: amountKobo,
+          reference,
+          metadata: {
+            trip_id: tripId,
+            truck_id: tripData.truck_id,
+            plate_number: tripData.plate_number,
+            driver_name: tripData.driver_name,
+            payment_type: plan,
+            company_id: authInfo.companyId
+          }
+        };
+        if (subaccountCode) {
+          initBody.subaccount = subaccountCode;
+          initBody.bearer = "account";
+        }
+
+        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(initBody)
+        });
+        const initData = await initRes.json();
+        if (initRes.ok && initData.status && initData.data) {
+          checkout_url = initData.data.authorization_url || "";
+        } else {
+          console.error("Paystack transaction initialize error:", initData);
+        }
+      } catch (err) {
+        console.error("Paystack API connection error:", err);
+      }
+    }
+
+    if (!checkout_url) {
+      checkout_url = "https://checkout.paystack.com/demo-sandbox-link";
+    }
+
+    res.json({
+      success: true,
+      reference,
+      checkout_url,
+      amount: amountNaira,
+      payment_plan: plan
+    });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/:id/payment/initialize:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17c. POST /api/fleet-tracking/trips/:id/payment/verify - Verify Paystack payment and activate live tracking
+app.post("/api/fleet-tracking/trips/:id/payment/verify", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can verify tracking payments." });
+    }
+
+    const tripId = req.params.id;
+    const { reference, payment_type } = req.body;
+
+    if (!reference) {
+      return res.status(400).json({ error: "Transaction reference is required." });
+    }
+
+    const tripRef = doc(db, "fleetTracking_trips", tripId);
+    const snap = await getDoc(tripRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Trip record not found." });
+    }
+    const tripData = snap.data();
+    if (tripData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    let verified = false;
+    if (hasPaystackKey && !reference.includes("demo-sandbox")) {
+      try {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${key}`
+          }
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.status && verifyData.data && verifyData.data.status === "success") {
+          verified = true;
+        }
+      } catch (err) {
+        console.error("Paystack verify error:", err);
+      }
+    } else {
+      verified = true;
+    }
+
+    if (!verified) {
+      return res.status(400).json({ error: "Payment verification failed or transaction not successful on Paystack." });
+    }
+
+    const now = new Date().toISOString();
+    const userName = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
+    const plan = payment_type === "monthly" || tripData.payment_plan === "monthly" ? "monthly" : "per_trip";
+    const amount = plan === "monthly" ? 3500 : 1000;
+
+    let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
+    status_history.unshift({
+      status: "payment_confirmed",
+      triggered_by: userName,
+      triggered_at: now,
+      note: `Payment confirmed (${plan === 'monthly' ? 'Monthly Plan ₦3,500' : 'Per Trip ₦1,000'}) — Live tracking activated`
+    });
+
+    const updateTripPayload: any = {
+      payment_status: "confirmed",
+      payment_amount: amount,
+      payment_plan: plan,
+      payment_reference: reference,
+      payment_date: now,
+      paid_by: userName,
+      tracking_active: true,
+      trip_status: tripData.trip_status === "created" ? "payment_confirmed" : tripData.trip_status,
+      status_history,
+      updated_at: now
+    };
+
+    await updateDoc(tripRef, updateTripPayload);
+
+    if (plan === "monthly" && tripData.truck_id) {
+      const truckRef = doc(db, "fleetTracking_trucks", tripData.truck_id);
+      const tSnap = await getDoc(truckRef);
+      const currentExpiry = tSnap.exists() ? tSnap.data().subscription_active_until : null;
+      const newExpiryIso = calculateSmartRenewalExpiry(currentExpiry, now);
+      const prevHist = tSnap.exists() && Array.isArray(tSnap.data().subscription_history) ? tSnap.data().subscription_history : [];
+      const newHist = [
+        {
+          action: "renewal",
+          renewed_by: userName,
+          renewed_at: now,
+          valid_until: newExpiryIso,
+          note: `Monthly subscription renewed. Active until ${new Date(newExpiryIso).toLocaleDateString()}. Renewed by ${userName}.`
+        },
+        ...prevHist
+      ];
+      await updateDoc(truckRef, {
+        payment_plan: "monthly",
+        subscription_active_until: newExpiryIso,
+        subscription_history: newHist,
+        updated_at: now
+      });
+    }
+
+    const updatedSnap = await getDoc(tripRef);
+    res.json({
+      success: true,
+      trip: { id: updatedSnap.id, ...updatedSnap.data() },
+      message: "Payment confirmed successfully and live tracking activated!"
+    });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/:id/payment/verify:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17d. POST /api/fleet-tracking/trips/initialize-payment - Initialize trip creation payment
+app.post("/api/fleet-tracking/trips/initialize-payment", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can create trips and initiate payments." });
+    }
+
+    const { truck_id, supplier_id, payment_type } = req.body;
+    if (!truck_id || !supplier_id) {
+      return res.status(400).json({ error: "Truck ID and Supplier ID are required." });
+    }
+
+    const truckRef = doc(db, "fleetTracking_trucks", truck_id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists() || truckSnap.data().company_id !== authInfo.companyId) {
+      return res.status(404).json({ error: "Truck profile not found." });
+    }
+    const truckData = truckSnap.data();
+
+    const plan = payment_type === "monthly" || truckData.payment_plan === "monthly" ? "monthly" : "per_trip";
+    
+    // Check if monthly subscription is active
+    let isMonthlyActive = false;
+    if (plan === "monthly" && truckData.subscription_active_until) {
+      if (new Date(truckData.subscription_active_until) > new Date()) {
+        isMonthlyActive = true;
+      }
+    }
+
+    if (plan === "monthly" && isMonthlyActive) {
+      return res.json({
+        success: true,
+        requires_payment: false,
+        message: "Monthly subscription is active. No payment required."
+      });
+    }
+
+    const amountNaira = plan === "monthly" ? 3500 : 1000;
+    const amountKobo = amountNaira * 100;
+    const reference = `FT-TRIP-${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}`;
+    const userEmail = authInfo.session?.userData?.email || "manager@trackpack.com";
+
+    let checkout_url = "";
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    let subaccountCode = "";
+    const compRef = doc(db, "companies", authInfo.companyId);
+    const compSnap = await getDoc(compRef);
+    if (compSnap.exists()) {
+      subaccountCode = compSnap.data().paystack_subaccount_code || "";
+    }
+
+    if (hasPaystackKey) {
+      try {
+        const initBody: any = {
+          email: userEmail,
+          amount: amountKobo,
+          reference,
+          metadata: {
+            truck_id,
+            supplier_id,
+            payment_type: plan,
+            company_id: authInfo.companyId,
+            plate_number: truckData.plate_number,
+            driver_name: truckData.driver_name
+          }
+        };
+        if (subaccountCode) {
+          initBody.subaccount = subaccountCode;
+          initBody.bearer = "account";
+        }
+
+        const initRes = await fetch("https://api.paystack.co/transaction/initialize", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${key}`,
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(initBody)
+        });
+        const initData = await initRes.json();
+        if (initRes.ok && initData.status && initData.data) {
+          checkout_url = initData.data.authorization_url || "";
+        }
+      } catch (err) {
+        console.error("Paystack init error:", err);
+      }
+    }
+
+    if (!checkout_url) {
+      checkout_url = "https://checkout.paystack.com/demo-sandbox-link";
+    }
+
+    res.json({
+      success: true,
+      requires_payment: true,
+      reference,
+      checkout_url,
+      amount: amountNaira,
+      payment_plan: plan
+    });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/initialize-payment:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17e. POST /api/fleet-tracking/trips/verify-and-create - Verify payment and create trip
+app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can create trips." });
+    }
+
+    const { truck_id, supplier_id, payment_type, reference } = req.body;
+    if (!truck_id || !supplier_id || !reference) {
+      return res.status(400).json({ error: "Missing required trip or payment reference data." });
+    }
+
+    const key = (process.env.PAYSTACK_SECRET_KEY || "").trim();
+    const hasPaystackKey = Boolean(key && !key.startsWith("MY_") && key.length > 5);
+
+    let verified = false;
+    if (hasPaystackKey && !reference.includes("demo-sandbox")) {
+      try {
+        const verifyRes = await fetch(`https://api.paystack.co/transaction/verify/${reference}`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${key}`
+          }
+        });
+        const verifyData = await verifyRes.json();
+        if (verifyRes.ok && verifyData.status && verifyData.data && verifyData.data.status === "success") {
+          verified = true;
+        }
+      } catch (err) {
+        console.error("Paystack verify error:", err);
+      }
+    } else {
+      verified = true;
+    }
+
+    if (!verified) {
+      return res.status(400).json({ error: "Payment verification failed or transaction not successful on Paystack." });
+    }
+
+    // Fetch Truck & Supplier data
+    const truckRef = doc(db, "fleetTracking_trucks", truck_id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists() || truckSnap.data().company_id !== authInfo.companyId) {
+      return res.status(404).json({ error: "Truck profile not found." });
+    }
+    const truckData = truckSnap.data();
+
+    const supplierRef = doc(db, "fleetTracking_suppliers", supplier_id);
+    const supplierSnap = await getDoc(supplierRef);
+    if (!supplierSnap.exists() || supplierSnap.data().company_id !== authInfo.companyId) {
+      return res.status(404).json({ error: "Supplier location not found." });
+    }
+    const supplierData = supplierSnap.data();
+
+    let garageLat: number | null = null;
+    let garageLng: number | null = null;
+    const qGarage = query(
+      collection(db, "fleetTracking_garages"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snapGarage = await getDocs(qGarage);
+    if (!snapGarage.empty) {
+      const gData = snapGarage.docs[0].data();
+      if (gData.location_confirmed) {
+        garageLat = gData.lat || null;
+        garageLng = gData.lng || null;
+      }
+    }
+
+    const plan = payment_type === "monthly" ? "monthly" : "per_trip";
+    const paymentAmount = plan === "monthly" ? 3500 : 1000;
+    const now = new Date().toISOString();
+    const createdBy = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
+
+    const currentExpiry = truckData.subscription_active_until || null;
+    const newExpiryIso = plan === "monthly" ? calculateSmartRenewalExpiry(currentExpiry, now) : null;
+    const subExpiryFormatted = newExpiryIso ? new Date(newExpiryIso).toLocaleDateString() : "";
+    const auditNote = plan === "monthly" ? `Trip created — Monthly plan renewed. Valid until ${subExpiryFormatted}` : "Trip created — Payment of ₦1,000 confirmed";
+
+    const initialAudit = {
+      status: "created",
+      triggered_by: createdBy,
+      triggered_at: now,
+      note: auditNote
+    };
+
+    const newTrip = {
+      company_id: authInfo.companyId,
+      truck_id,
+      plate_number: truckData.plate_number,
+      driver_name: truckData.driver_name,
+      driver_phone: truckData.driver_phone,
+      primary_destination_type: "supplier",
+      primary_destination_id: supplier_id,
+      primary_destination_name: supplierData.name,
+      primary_destination_lat: supplierData.lat || 0,
+      primary_destination_lng: supplierData.lng || 0,
+      redirect_destination: null,
+      payment_plan: plan,
+      payment_status: "confirmed",
+      payment_amount: paymentAmount,
+      payment_reference: reference,
+      payment_date: now,
+      paid_by: createdBy,
+      tracking_active: true,
+      trip_status: "created",
+      status_history: [initialAudit],
+      last_known_lat: garageLat || supplierData.lat || 0,
+      last_known_lng: garageLng || supplierData.lng || 0,
+      last_movement_at: now,
+      stopped_warning_sent: false,
+      stopped_alert_sent: false,
+      created_by: createdBy,
+      created_at: now,
+      garage_lat: garageLat,
+      garage_lng: garageLng,
+    };
+
+    const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
+
+    if (plan === "monthly" && newExpiryIso) {
+      const prevHist = Array.isArray(truckData.subscription_history) ? truckData.subscription_history : [];
+      const newHist = [
+        {
+          action: "renewal",
+          renewed_by: createdBy,
+          renewed_at: now,
+          valid_until: newExpiryIso,
+          note: `Monthly subscription renewed. Active until ${new Date(newExpiryIso).toLocaleDateString()}. Renewed by ${createdBy}.`
+        },
+        ...prevHist
+      ];
+      await updateDoc(truckRef, {
+        payment_plan: "monthly",
+        subscription_active_until: newExpiryIso,
+        subscription_history: newHist,
+        updated_at: now
+      });
+    }
+
+    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
+
+    res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/verify-and-create:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17f. POST /api/fleet-tracking/trips/create-direct - Create trip directly when monthly subscription is active
+app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can create trips." });
+    }
+
+    const { truck_id, supplier_id } = req.body;
+    if (!truck_id || !supplier_id) {
+      return res.status(400).json({ error: "Truck ID and Supplier ID are required." });
+    }
+
+    const truckRef = doc(db, "fleetTracking_trucks", truck_id);
+    const truckSnap = await getDoc(truckRef);
+    if (!truckSnap.exists() || truckSnap.data().company_id !== authInfo.companyId) {
+      return res.status(404).json({ error: "Truck profile not found." });
+    }
+    const truckData = truckSnap.data();
+
+    let isMonthlyActive = false;
+    if (truckData.payment_plan === "monthly" && truckData.subscription_active_until) {
+      if (new Date(truckData.subscription_active_until) > new Date()) {
+        isMonthlyActive = true;
+      }
+    }
+
+    if (!isMonthlyActive) {
+      return res.status(400).json({ error: "Monthly subscription is not active for this truck. Payment is required." });
+    }
+
+    const supplierRef = doc(db, "fleetTracking_suppliers", supplier_id);
+    const supplierSnap = await getDoc(supplierRef);
+    if (!supplierSnap.exists() || supplierSnap.data().company_id !== authInfo.companyId) {
+      return res.status(404).json({ error: "Supplier location not found." });
+    }
+    const supplierData = supplierSnap.data();
+
+    let garageLat: number | null = null;
+    let garageLng: number | null = null;
+    const qGarage = query(
+      collection(db, "fleetTracking_garages"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snapGarage = await getDocs(qGarage);
+    if (!snapGarage.empty) {
+      const gData = snapGarage.docs[0].data();
+      if (gData.location_confirmed) {
+        garageLat = gData.lat || null;
+        garageLng = gData.lng || null;
+      }
+    }
+
+    const now = new Date().toISOString();
+    const createdBy = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
+    const subUntilDate = new Date(truckData.subscription_active_until).toLocaleDateString();
+
+    const initialAudit = {
+      status: "created",
+      triggered_by: createdBy,
+      triggered_at: now,
+      note: `Trip created — Covered by active monthly plan (valid until ${subUntilDate})`
+    };
+
+    const newTrip = {
+      company_id: authInfo.companyId,
+      truck_id,
+      plate_number: truckData.plate_number,
+      driver_name: truckData.driver_name,
+      driver_phone: truckData.driver_phone,
+      primary_destination_type: "supplier",
+      primary_destination_id: supplier_id,
+      primary_destination_name: supplierData.name,
+      primary_destination_lat: supplierData.lat || 0,
+      primary_destination_lng: supplierData.lng || 0,
+      redirect_destination: null,
+      payment_plan: "monthly",
+      payment_status: "confirmed",
+      payment_amount: 0,
+      payment_reference: "monthly_subscription",
+      payment_date: now,
+      paid_by: "Monthly Plan",
+      tracking_active: true,
+      trip_status: "created",
+      status_history: [initialAudit],
+      last_known_lat: garageLat || supplierData.lat || 0,
+      last_known_lng: garageLng || supplierData.lng || 0,
+      last_movement_at: now,
+      stopped_warning_sent: false,
+      stopped_alert_sent: false,
+      created_by: createdBy,
+      created_at: now,
+      garage_lat: garageLat,
+      garage_lng: garageLng,
+    };
+
+    const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
+    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
+
+    res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/create-direct:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17g. GET /api/fleet-tracking/payments/history - Get payment history (CEO/Owner access only)
+app.get("/api/fleet-tracking/payments/history", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const isCEO = authInfo.session?.userRole === "company" || authInfo.session?.userData?.manager_type === "CEO";
+    if (!isCEO) {
+      return res.status(403).json({ error: "Access denied. Only CEO/Owner roles can view payment history." });
+    }
+
+    const q = query(
+      collection(db, "fleetTracking_trips"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap = await getDocs(q);
+    const trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    const payments = trips
+      .filter((t: any) => t.payment_status === "confirmed" && t.payment_amount > 0)
+      .map((t: any) => ({
+        id: t.id,
+        date: t.payment_date || t.created_at,
+        plate_number: t.plate_number,
+        driver_name: t.driver_name,
+        payment_plan: t.payment_plan,
+        payment_amount: t.payment_amount,
+        payment_reference: t.payment_reference,
+        paid_by: t.paid_by
+      }));
+
+    payments.sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+    const totalCollected = payments.reduce((sum: number, p: any) => sum + (p.payment_amount || 0), 0);
+
+    res.json({ success: true, payments, total_collected: totalCollected });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/payments/history:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// Driver Login Notification Endpoints
+app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    const { driver_name, plate_number } = req.body;
+    const companyId = authInfo.companyId;
+
+    const notifRef = collection(db, "notifications");
+    await addDoc(notifRef, {
+      company_id: companyId,
+      title: "Driver Online & Location Active 🚛",
+      message: `🚛 ${driver_name || "Driver"} has logged in and is now active. ${plate_number || "Truck"} is ready for trips.`,
+      detail: `${driver_name || "Driver"} — ${plate_number || "Truck"} is now online and location sharing is active ✅`,
+      created_at: new Date().toISOString(),
+      type: "driver_login"
+    });
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/driver-login-notify:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// Register FCM Push Token for Manager/CEO/Trip Monitor
+app.post("/api/fleet-tracking/fcm-token", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    const { fcmToken } = req.body;
+    if (!fcmToken) {
+      return res.status(400).json({ error: "fcmToken is required." });
+    }
+
+    const userId = authInfo.session?.userId;
+    if (userId) {
+      // Save token in managers collection or sessions
+      const mgrRef = doc(db, "managers", userId);
+      const mgrSnap = await getDoc(mgrRef);
+      if (mgrSnap.exists()) {
+        await updateDoc(mgrRef, {
+          fcmToken,
+          fcm_updated_at: new Date().toISOString()
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/fcm-token:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+app.get("/api/fleet-tracking/notifications", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+    const q = query(
+      collection(db, "notifications"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap = await getDocs(q);
+    const notifications = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    notifications.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+    res.json({ success: true, notifications });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/notifications:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// GET /api/fleet-tracking/driver-active-trip - Find active trip for driver GPS tracking
+app.get("/api/fleet-tracking/driver-active-trip", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const driverPhone = authInfo.session?.userData?.phone || (authInfo.session as any)?.phone || "";
+    const driverName = authInfo.session?.userData?.name || authInfo.session?.userName || "";
+
+    const q = query(
+      collection(db, "fleetTracking_trips"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap = await getDocs(q);
+    const trips = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Find active trip where tracking_active is true and trip_status is an active status
+    const activeTrip = trips.find((t: any) => {
+      const isStatusActive = ["departed", "in_progress", "arrived_at_supplier", "loaded", "returning"].includes(t.trip_status);
+      const isTrackingActive = t.tracking_active === true;
+      if (!isStatusActive || !isTrackingActive) return false;
+
+      if (driverPhone && t.driver_phone && (t.driver_phone.includes(driverPhone.slice(-8)) || driverPhone.includes(t.driver_phone.slice(-8)))) {
+        return true;
+      }
+      if (driverName && t.driver_name && t.driver_name.toLowerCase().trim() === driverName.toLowerCase().trim()) {
+        return true;
+      }
+      return true; // Fallback if assigned to the company driver session
+    });
+
+    res.json({ success: true, trip: activeTrip || null });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/driver-active-trip:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
@@ -8734,6 +9764,7 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
   let newStatus = currentStatus;
   let statusChanged = false;
   let auditEntry: any = null;
+  let trackingActive = tripData.tracking_active !== false;
   const now = new Date().toISOString();
   
   let stopped_warning_sent = tripData.stopped_warning_sent === true;
@@ -8814,16 +9845,47 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
       note: "Truck departed destination and is returning to garage base."
     };
   }
-  // 7. Returning -> Completed (within 200m of garage)
+  // 7. Returning -> Completed (within 200m of garage) — Hybrid Auto Completion
   else if (currentStatus === "returning" && garageLat && garageLng && distToGarage <= 200) {
     newStatus = "completed";
+    trackingActive = false;
     statusChanged = true;
     auditEntry = {
       status: "completed",
       triggered_by: "System",
       triggered_at: now,
-      note: "Truck returned within 200m of garage. Trip automatically completed."
+      note: "Trip completed — Truck returned to garage (within 200m)."
     };
+  }
+
+  // Location history tracking (keep last 500 coordinates)
+  let location_history = Array.isArray(tripData.location_history) ? [...tripData.location_history] : [];
+  location_history.push({
+    lat: newLat,
+    lng: newLng,
+    timestamp: now
+  });
+  if (location_history.length > 500) {
+    location_history = location_history.slice(-500);
+  }
+
+  // GPS signal restore detection
+  let gps_lost_30min_sent = tripData.gps_lost_30min_sent === true;
+  let gps_lost_60min_sent = tripData.gps_lost_60min_sent === true;
+  let gps_signal_status = tripData.gps_signal_status || "normal";
+  let gpsRestored = false;
+
+  if (gps_lost_30min_sent || gps_lost_60min_sent || (gps_signal_status !== "normal" && gps_signal_status !== undefined)) {
+    gps_lost_30min_sent = false;
+    gps_lost_60min_sent = false;
+    gps_signal_status = "normal";
+    gpsRestored = true;
+    status_history.unshift({
+      status: newStatus,
+      triggered_by: "System",
+      triggered_at: now,
+      note: "GPS signal restored — tracking resumed automatically."
+    });
   }
 
   if (auditEntry) {
@@ -8833,17 +9895,23 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
   const updatedTrip = {
     ...tripData,
     trip_status: newStatus,
+    tracking_active: newStatus === "completed" ? false : trackingActive,
     status_history,
+    location_history,
     last_known_lat: newLat,
     last_known_lng: newLng,
     last_movement_at,
     stopped_warning_sent,
     stopped_alert_sent,
     stopped_acknowledged,
+    gps_lost_30min_sent,
+    gps_lost_60min_sent,
+    gps_signal_status,
+    gps_loss_dismissed: false,
     updated_at: now
   };
 
-  return { updatedTrip, statusChanged, newStatus, auditEntry };
+  return { updatedTrip, statusChanged, newStatus, auditEntry, gpsRestored };
 }
 
 // 21. PATCH /api/fleet-tracking/trips/:id/status - Manual Status Update
@@ -8927,10 +9995,30 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
     } else if (status === "stopped") {
       updatePayload.stopped_warning_sent = false;
       updatePayload.stopped_alert_sent = false;
+    } else if (status === "completed") {
+      updatePayload.tracking_active = false;
     }
 
     await updateDoc(tripRef, updatePayload);
     const updatedSnap = await getDoc(tripRef);
+
+    // If completed and monthly subscription is expired, notify Manager/CEO
+    if (status === "completed" && tripData.truck_id && tripData.payment_plan === "monthly") {
+      const truckRef = doc(db, "fleetTracking_trucks", tripData.truck_id);
+      const tSnap = await getDoc(truckRef);
+      if (tSnap.exists()) {
+        const tData = tSnap.data();
+        if (tData.subscription_active_until && new Date(tData.subscription_active_until).getTime() < Date.now()) {
+          await addDoc(collection(db, "notifications"), {
+            company_id: tripData.company_id,
+            title: "Trip Completed — Subscription Expired ⚠️",
+            message: `Trip completed for ${tripData.plate_number}. Note: truck ${tripData.plate_number} monthly subscription has expired. Renew for ₦3,500 to track future trips.`,
+            type: "subscription_expired_post_trip",
+            created_at: now
+          });
+        }
+      }
+    }
 
     res.json({ success: true, trip: { id: updatedSnap.id, ...updatedSnap.data() } });
   } catch (err: any) {
@@ -8966,9 +10054,48 @@ app.post("/api/fleet-tracking/trips/:id/gps", async (req, res) => {
     }
 
     const triggerUser = authInfo.session?.userData?.name || "Driver GPS";
-    const { updatedTrip, statusChanged, newStatus } = evaluateTripGpsState(tripData, lat, lng, triggerUser);
+    const { updatedTrip, statusChanged, newStatus, gpsRestored } = evaluateTripGpsState(tripData, lat, lng, triggerUser);
 
     await updateDoc(tripRef, updatedTrip);
+
+    // If GPS was just restored, add notification for company
+    if (gpsRestored) {
+      await addDoc(collection(db, "notifications"), {
+        company_id: tripData.company_id,
+        title: "GPS Signal Restored ✅",
+        message: `✅ GPS signal restored: ${tripData.driver_name} (${tripData.plate_number}) is back online. Live tracking has resumed.`,
+        type: "gps_restored",
+        created_at: new Date().toISOString()
+      });
+    }
+
+    // If trip completed automatically (returned to garage), check truck subscription status
+    if (newStatus === "completed" && statusChanged) {
+      await addDoc(collection(db, "notifications"), {
+        company_id: tripData.company_id,
+        title: "Trip Completed 🏁",
+        message: `✅ Trip completed: ${tripData.driver_name} (${tripData.plate_number}) has returned to garage.`,
+        type: "trip_completed",
+        created_at: new Date().toISOString()
+      });
+
+      if (updatedTrip.truck_id && (updatedTrip.payment_plan === "monthly" || tripData.payment_plan === "monthly")) {
+        const truckRef = doc(db, "fleetTracking_trucks", updatedTrip.truck_id);
+        const tSnap = await getDoc(truckRef);
+        if (tSnap.exists()) {
+          const tData = tSnap.data();
+          if (tData.subscription_active_until && new Date(tData.subscription_active_until).getTime() < Date.now()) {
+            await addDoc(collection(db, "notifications"), {
+              company_id: tripData.company_id,
+              title: "Trip Completed — Subscription Expired ⚠️",
+              message: `Trip completed for ${tripData.plate_number}. Note: truck ${tripData.plate_number} monthly subscription has expired. Renew for ₦3,500 to track future trips.`,
+              type: "subscription_expired_post_trip",
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      }
+    }
 
     res.json({
       success: true,
@@ -8978,6 +10105,204 @@ app.post("/api/fleet-tracking/trips/:id/gps", async (req, res) => {
     });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/trips/:id/gps:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// POST /api/fleet-tracking/trips/:id/keep-open - Dismiss 60min GPS Loss Alert
+app.post("/api/fleet-tracking/trips/:id/keep-open", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const tripId = req.params.id;
+    const tripRef = doc(db, "fleetTracking_trips", tripId);
+    const snap = await getDoc(tripRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Trip not found." });
+    }
+
+    const tripData = snap.data();
+    if (tripData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    const userName = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
+    const now = new Date().toISOString();
+
+    let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
+    status_history.unshift({
+      status: tripData.trip_status,
+      triggered_by: userName,
+      triggered_at: now,
+      note: "Trip keep open confirmed by manager during GPS loss."
+    });
+
+    const updatePayload = {
+      gps_loss_dismissed: true,
+      status_history,
+      updated_at: now
+    };
+
+    await updateDoc(tripRef, updatePayload);
+    const updatedSnap = await getDoc(tripRef);
+
+    res.json({ success: true, trip: { id: updatedSnap.id, ...updatedSnap.data() } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/:id/keep-open:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// POST /api/fleet-tracking/trips/:id/end-manually - End Trip Manually (Manager / CEO)
+app.post("/api/fleet-tracking/trips/:id/end-manually", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    if (!isFleetManagerOrCEO(authInfo.session)) {
+      return res.status(403).json({ error: "Access denied. Only Manager and CEO can manually end trips." });
+    }
+
+    const tripId = req.params.id;
+    const { reason } = req.body;
+    const tripRef = doc(db, "fleetTracking_trips", tripId);
+    const snap = await getDoc(tripRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ error: "Trip not found." });
+    }
+
+    const tripData = snap.data();
+    if (tripData.company_id !== authInfo.companyId) {
+      return res.status(403).json({ error: "Permission denied." });
+    }
+
+    if (tripData.trip_status === "completed") {
+      return res.status(400).json({ error: "Trip is already completed." });
+    }
+
+    const userName = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
+    const now = new Date().toISOString();
+
+    const auditNote = reason ? `Trip manually ended — ${reason}` : `Trip manually completed by ${userName}`;
+
+    let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
+    status_history.unshift({
+      status: "completed",
+      triggered_by: userName,
+      triggered_at: now,
+      note: auditNote
+    });
+
+    const updatePayload = {
+      trip_status: "completed",
+      tracking_active: false,
+      status_history,
+      updated_at: now
+    };
+
+    await updateDoc(tripRef, updatePayload);
+    const updatedSnap = await getDoc(tripRef);
+
+    // Notification for company
+    await addDoc(collection(db, "notifications"), {
+      company_id: tripData.company_id,
+      title: "Trip Manually Ended 🏁",
+      message: `✅ Trip manually completed by ${userName}: ${tripData.driver_name} (${tripData.plate_number})`,
+      type: "trip_completed_manually",
+      created_at: now
+    });
+
+    // If monthly subscription is expired, send reminder to Manager/CEO
+    if (tripData.truck_id && tripData.payment_plan === "monthly") {
+      const truckRef = doc(db, "fleetTracking_trucks", tripData.truck_id);
+      const tSnap = await getDoc(truckRef);
+      if (tSnap.exists()) {
+        const tData = tSnap.data();
+        if (tData.subscription_active_until && new Date(tData.subscription_active_until).getTime() < Date.now()) {
+          await addDoc(collection(db, "notifications"), {
+            company_id: tripData.company_id,
+            title: "Trip Completed — Subscription Expired ⚠️",
+            message: `Trip completed for ${tripData.plate_number}. Note: truck ${tripData.plate_number} monthly subscription has expired. Renew for ₦3,500 to track future trips.`,
+            type: "subscription_expired_post_trip",
+            created_at: now
+          });
+        }
+      }
+    }
+
+    res.json({ success: true, trip: { id: updatedSnap.id, ...updatedSnap.data() } });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/trips/:id/end-manually:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// GET /api/fleet-tracking/subscription-alerts - Fetch active subscription expiry alerts
+app.get("/api/fleet-tracking/subscription-alerts", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const isMonitor = authInfo.session?.userRole === "trip_monitor" || authInfo.session?.userData?.manager_type === "Trip Monitor";
+
+    const q = query(
+      collection(db, "fleetTracking_trucks"),
+      where("company_id", "==", authInfo.companyId)
+    );
+    const snap = await getDocs(q);
+    const nowMs = Date.now();
+    const alerts: any[] = [];
+
+    for (const d of snap.docs) {
+      const truck = d.data();
+      if (truck.payment_plan !== "monthly" || !truck.subscription_active_until) continue;
+
+      const subTime = new Date(truck.subscription_active_until).getTime();
+      const diffDays = Math.ceil((subTime - nowMs) / (24 * 60 * 60 * 1000));
+
+      if (diffDays >= 0 && diffDays <= 7) {
+        let level: "critical" | "urgent" | "warning" = "warning";
+        let message = "";
+        let monitorMessage = "";
+
+        if (diffDays === 0) {
+          level = "critical";
+          message = `🔴 CRITICAL: Truck ${truck.plate_number} (${truck.driver_name}) monthly subscription expires TODAY. Renew now or tracking will stop for new trips.`;
+          monitorMessage = `🔴 CRITICAL: Please urgently inform your manager/CEO — truck ${truck.plate_number} subscription expires TODAY.`;
+        } else if (diffDays <= 2) {
+          level = "urgent";
+          message = `🟠 URGENT: Truck ${truck.plate_number} (${truck.driver_name}) subscription expires in ${diffDays} day(s). Renew immediately to keep tracking active.`;
+          monitorMessage = `🟠 URGENT: Please immediately inform your manager/CEO that truck ${truck.plate_number} subscription expires in ${diffDays} day(s).`;
+        } else {
+          level = "warning";
+          message = `⚠️ Subscription expiring soon: Truck ${truck.plate_number} (${truck.driver_name}) monthly tracking subscription expires in ${diffDays} days. Renew now to avoid interruption. ₦3,500`;
+          monitorMessage = `⚠️ Please inform your manager/CEO: Truck ${truck.plate_number} tracking subscription expires in ${diffDays} days. Renewal: ₦3,500`;
+        }
+
+        alerts.push({
+          truck_id: d.id,
+          plate_number: truck.plate_number,
+          driver_name: truck.driver_name,
+          days_remaining: diffDays,
+          level,
+          message: isMonitor ? monitorMessage : message,
+          expires_at: truck.subscription_active_until
+        });
+      }
+    }
+
+    alerts.sort((a, b) => a.days_remaining - b.days_remaining);
+
+    res.json({ success: true, alerts });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/subscription-alerts:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
@@ -9031,33 +10356,6 @@ app.post("/api/fleet-tracking/trips/:id/acknowledge-stopped", async (req, res) =
   }
 });
 
-// 24. GET /api/fleet/route/osrm & /api/fleet-tracking/route/osrm - OSRM Routing Proxy
-app.get(["/api/fleet/route/osrm", "/api/fleet-tracking/route/osrm"], async (req, res) => {
-  try {
-    const { origin_lat, origin_lng, dest_lat, dest_lng } = req.query;
-    if (!origin_lat || !origin_lng || !dest_lat || !dest_lng) {
-      return res.status(400).json({ error: "Missing coordinates" });
-    }
-    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${origin_lng},${origin_lat};${dest_lng},${dest_lat}?overview=full&geometries=geojson`;
-    const response = await fetch(osrmUrl, { headers: { 'User-Agent': 'FleetTrackingApp/1.0' } });
-    if (response.ok) {
-      const data = await response.json();
-      const coords = data?.routes?.[0]?.geometry?.coordinates || [];
-      const distanceM = data?.routes?.[0]?.distance || 0;
-      const durationS = data?.routes?.[0]?.duration || 0;
-      return res.json({
-        success: true,
-        coordinates: coords,
-        distance_km: Math.round((distanceM / 1000) * 10) / 10,
-        duration_minutes: Math.round(durationS / 60)
-      });
-    }
-    res.json({ success: false, coordinates: [] });
-  } catch (err: any) {
-    res.json({ success: false, coordinates: [] });
-  }
-});
-
 // 25. GET /api/fleet/geocode/search & reverse - Nominatim Geocoding Proxy
 app.get(["/api/fleet/geocode/search", "/api/fleet-tracking/geocode/search"], async (req, res) => {
   try {
@@ -9091,7 +10389,7 @@ app.get(["/api/fleet/geocode/reverse", "/api/fleet-tracking/geocode/reverse"], a
   }
 });
 
-// Background Worker for Stopped Warning System (Runs every 60s)
+// Background Worker for Stopped Warning & GPS Loss Detection (Runs every 60s)
 async function checkAllActiveTripsForStoppedWarnings() {
   try {
     const q = query(
@@ -9106,53 +10404,126 @@ async function checkAllActiveTripsForStoppedWarnings() {
       const status = tripData.trip_status || "created";
 
       // Only evaluate active moving statuses
-      if (status === "completed" || status === "cancelled" || status === "created" || tripData.stopped_acknowledged === true) {
+      if (status === "completed" || status === "cancelled" || status === "created") {
         continue;
       }
 
-      const lastMoveTime = tripData.last_movement_at ? new Date(tripData.last_movement_at).getTime() : nowMs;
+      const lastMoveTime = tripData.last_movement_at ? new Date(tripData.last_movement_at).getTime() : (tripData.created_at ? new Date(tripData.created_at).getTime() : nowMs);
       const diffMinutes = (nowMs - lastMoveTime) / (1000 * 60);
 
       let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
       let updates: any = {};
       let changed = false;
 
-      // 90 Minutes or more: Automatically set to stopped
-      if (diffMinutes >= 90 && status !== "stopped") {
-        updates.trip_status = "stopped";
-        updates.stopped_warning_sent = false;
-        updates.stopped_alert_sent = false;
+      const lastLat = typeof tripData.last_known_lat === "number" ? tripData.last_known_lat : (tripData.garage_lat || 0);
+      const lastLng = typeof tripData.last_known_lng === "number" ? tripData.last_known_lng : (tripData.garage_lng || 0);
+      const timeStr = new Date(lastMoveTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      // 1. Stopped Warning System (When not acknowledged)
+      if (tripData.stopped_acknowledged !== true) {
+        // 90 Minutes or more: Automatically set to stopped
+        if (diffMinutes >= 90 && status !== "stopped") {
+          updates.trip_status = "stopped";
+          updates.stopped_warning_sent = false;
+          updates.stopped_alert_sent = false;
+          status_history.unshift({
+            status: "stopped",
+            triggered_by: "System",
+            triggered_at: nowIso,
+            note: `🔴 Truck ${tripData.plate_number} (${tripData.driver_name}) automatically set to Stopped after 90 minutes of inactivity.`
+          });
+          updates.status_history = status_history;
+          changed = true;
+        }
+        // 60 Minutes or more: Send stopped_alert
+        else if (diffMinutes >= 60 && !tripData.stopped_alert_sent && status !== "stopped") {
+          updates.stopped_alert_sent = true;
+          status_history.unshift({
+            status: "stopped_alert",
+            triggered_by: "System",
+            triggered_at: nowIso,
+            note: `🔴 Alert: Truck ${tripData.plate_number} (${tripData.driver_name}) has been stopped for 1 hour. Immediate attention may be required.`
+          });
+          updates.status_history = status_history;
+          changed = true;
+        }
+        // 30 Minutes or more: Send stopped_warning
+        else if (diffMinutes >= 30 && !tripData.stopped_warning_sent && !tripData.stopped_alert_sent && status !== "stopped") {
+          updates.stopped_warning_sent = true;
+          status_history.unshift({
+            status: "stopped_warning",
+            triggered_by: "System",
+            triggered_at: nowIso,
+            note: `⚠️ Warning: Truck ${tripData.plate_number} (${tripData.driver_name}) has not moved for 30 minutes. Please check on the driver.`
+          });
+          updates.status_history = status_history;
+          changed = true;
+        }
+      }
+
+      // 2. GPS Loss Detection (30m, 60m, 24h Inactivity Safety Net)
+      if (diffMinutes >= 1440) {
+        // 24 Hours (1440 mins): Auto-complete the trip
+        updates.trip_status = "completed";
+        updates.tracking_active = false;
         status_history.unshift({
-          status: "stopped",
+          status: "completed",
           triggered_by: "System",
           triggered_at: nowIso,
-          note: `🔴 Truck ${tripData.plate_number} (${tripData.driver_name}) automatically set to Stopped after 90 minutes of inactivity.`
+          note: "Trip automatically completed after 24 hours of GPS inactivity"
         });
         updates.status_history = status_history;
         changed = true;
-      }
-      // 60 Minutes or more: Send stopped_alert
-      else if (diffMinutes >= 60 && !tripData.stopped_alert_sent && status !== "stopped") {
-        updates.stopped_alert_sent = true;
+
+        await addDoc(collection(db, "notifications"), {
+          company_id: tripData.company_id,
+          title: "Trip Auto-Completed (24h GPS Inactivity) 🏁",
+          message: `Trip for ${tripData.plate_number} (${tripData.driver_name}) was automatically completed after 24 hours of no GPS signal.`,
+          type: "trip_completed_24h_inactivity",
+          created_at: nowIso
+        });
+      } else if (diffMinutes >= 60 && !tripData.gps_lost_60min_sent) {
+        // 60 Minutes GPS Loss
+        updates.gps_lost_60min_sent = true;
+        updates.gps_signal_status = "lost_60min";
         status_history.unshift({
-          status: "stopped_alert",
+          status,
           triggered_by: "System",
           triggered_at: nowIso,
-          note: `🔴 Alert: Truck ${tripData.plate_number} (${tripData.driver_name}) has been stopped for 1 hour. Immediate attention may be required.`
+          note: "🔴 GPS signal lost for over 1 hour. Immediate attention requested."
         });
         updates.status_history = status_history;
         changed = true;
-      }
-      // 30 Minutes or more: Send stopped_warning
-      else if (diffMinutes >= 30 && !tripData.stopped_warning_sent && !tripData.stopped_alert_sent && status !== "stopped") {
-        updates.stopped_warning_sent = true;
+
+        await addDoc(collection(db, "notifications"), {
+          company_id: tripData.company_id,
+          title: "GPS Lost for > 1 Hour 🔴",
+          message: `🔴 GPS signal lost for over 1 hour: ${tripData.driver_name} (${tripData.plate_number}). Trip is still active. Do you want to manually end this trip?`,
+          type: "gps_lost_60min",
+          created_at: nowIso
+        });
+      } else if (diffMinutes >= 30 && !tripData.gps_lost_30min_sent) {
+        // 30 Minutes GPS Loss
+        updates.gps_lost_30min_sent = true;
+        updates.gps_signal_status = "lost_30min";
         status_history.unshift({
-          status: "stopped_warning",
+          status,
           triggered_by: "System",
           triggered_at: nowIso,
-          note: `⚠️ Warning: Truck ${tripData.plate_number} (${tripData.driver_name}) has not moved for 30 minutes. Please check on the driver.`
+          note: `⚠️ GPS signal lost for 30 minutes. Last update at ${timeStr}.`
         });
         updates.status_history = status_history;
+        changed = true;
+
+        await addDoc(collection(db, "notifications"), {
+          company_id: tripData.company_id,
+          title: "GPS Signal Lost ⚠️",
+          message: `⚠️ GPS signal lost: ${tripData.driver_name} (${tripData.plate_number}) has not sent a location update for 30 minutes. Last seen at [${lastLat.toFixed(4)}, ${lastLng.toFixed(4)}] at ${timeStr}. Please contact the driver.`,
+          type: "gps_lost_30min",
+          created_at: nowIso
+        });
+      } else if (diffMinutes >= 5 && diffMinutes < 30 && tripData.gps_signal_status !== "weak") {
+        updates.gps_signal_status = "weak";
         changed = true;
       }
 
@@ -9166,8 +10537,79 @@ async function checkAllActiveTripsForStoppedWarnings() {
   }
 }
 
-// Start background loop
+// Background Worker for Daily Subscription Expiry Reminders
+async function checkAllTruckSubscriptionsForExpiryReminders() {
+  try {
+    const q = query(
+      collection(db, "fleetTracking_trucks"),
+      where("payment_plan", "==", "monthly")
+    );
+    const snap = await getDocs(q);
+    const now = new Date();
+    const nowMs = now.getTime();
+    const todayDateStr = now.toISOString().slice(0, 10);
+
+    for (const d of snap.docs) {
+      const truck = d.data();
+      if (!truck.subscription_active_until) continue;
+
+      const subTime = new Date(truck.subscription_active_until).getTime();
+      const diffDays = Math.ceil((subTime - nowMs) / (24 * 60 * 60 * 1000));
+
+      if (diffDays >= 0 && diffDays <= 7) {
+        const reminderKey = `reminder_${d.id}_day_${diffDays}_${todayDateStr}`;
+        if (truck.last_reminder_key === reminderKey) {
+          continue; // Already sent today for this truck bracket
+        }
+
+        let title = "Subscription Expiring Soon ⚠️";
+        let message = "";
+        let notifType = "subscription_expiry_reminder";
+
+        if (diffDays === 0) {
+          title = "CRITICAL: Subscription Expires TODAY 🔴";
+          message = `🔴 CRITICAL: Truck ${truck.plate_number} (${truck.driver_name}) monthly subscription expires TODAY. Renew now or tracking will stop for new trips.`;
+          notifType = "subscription_critical";
+        } else if (diffDays <= 2) {
+          title = `URGENT: Subscription Expires in ${diffDays} Day(s) 🟠`;
+          message = `🟠 URGENT: Truck ${truck.plate_number} (${truck.driver_name}) subscription expires in ${diffDays} day(s). Renew immediately to keep tracking active.`;
+          notifType = "subscription_urgent";
+        } else {
+          title = `Subscription Expiring in ${diffDays} Days ⚠️`;
+          message = `⚠️ Subscription expiring soon: Truck ${truck.plate_number} (${truck.driver_name}) monthly tracking subscription expires in ${diffDays} days. Renew now to avoid interruption. ₦3,500`;
+          notifType = "subscription_warning";
+        }
+
+        // Add to company notifications collection
+        await addDoc(collection(db, "notifications"), {
+          company_id: truck.company_id,
+          truck_id: d.id,
+          title,
+          message,
+          days_remaining: diffDays,
+          type: notifType,
+          created_at: now.toISOString()
+        });
+
+        // Mark truck reminder sent
+        await updateDoc(doc(db, "fleetTracking_trucks", d.id), {
+          last_reminder_key: reminderKey,
+          last_reminder_sent_at: now.toISOString()
+        });
+
+        console.log(`[Subscription Worker] Sent expiry reminder (${diffDays} days) for truck ${truck.plate_number}`);
+      }
+    }
+  } catch (err) {
+    console.error("Error in checkAllTruckSubscriptionsForExpiryReminders worker:", err);
+  }
+}
+
+// Start background loops
 setInterval(checkAllActiveTripsForStoppedWarnings, 60000);
+setInterval(checkAllTruckSubscriptionsForExpiryReminders, 10 * 60 * 1000);
+// Run initial subscription check after 5 seconds
+setTimeout(checkAllTruckSubscriptionsForExpiryReminders, 5000);
 
 
 

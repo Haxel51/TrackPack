@@ -320,21 +320,22 @@ export const StaffDashboard: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-between">
       {/* Navbar */}
-      <header className="bg-[#0A1F44] text-white px-6 py-4 shadow-md">
-        <div className="max-w-5xl mx-auto flex justify-between items-center">
-          <div className="flex items-center gap-3">
+      <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-3 sm:py-4 shadow-md sticky top-0 z-40">
+        <div className="max-w-5xl mx-auto flex justify-between items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Logo size="sm" showText={false} />
-            <div className="flex items-center gap-2 font-extrabold text-lg tracking-wider">
-              <span>Waybilla</span>
-              <span className="inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20" title="Nigeria">
-                <svg className="w-5 h-3.5" viewBox="0 0 3 2">
+            <div className="flex items-center gap-1.5 sm:gap-2 font-extrabold text-base sm:text-lg tracking-wider min-w-0">
+              <span className="truncate">Waybilla</span>
+              <span className="hidden xs:inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20 shrink-0" title="Nigeria">
+                <svg className="w-4 sm:w-5 h-3 sm:h-3.5" viewBox="0 0 3 2">
                   <rect width="1" height="2" x="0" fill="#008751" />
                   <rect width="1" height="2" x="1" fill="#FFFFFF" />
                   <rect width="1" height="2" x="2" fill="#008751" />
                 </svg>
               </span>
-              <span className="text-slate-300 font-normal text-sm ml-1 flex items-center gap-1.5">
-                Staff
+              <span className="text-slate-300 font-normal text-xs sm:text-sm ml-0.5 sm:ml-1 flex items-center gap-1.5 shrink-0">
+                <span className="hidden sm:inline">Staff</span>
+                <span className="sm:hidden">Stf</span>
                 {hasWaybillJobs && (
                   <span className="relative flex h-2 w-2">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
@@ -344,20 +345,20 @@ export const StaffDashboard: React.FC = () => {
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2 sm:gap-4">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <LanguageSwitcher />
             {hasWaybillJobs && (
-              <div className="hidden sm:flex items-center gap-2 bg-red-500/15 border border-red-500/30 text-red-400 px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse">
+              <div className="hidden md:flex items-center gap-1.5 bg-red-500/15 border border-red-500/30 text-red-400 px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider animate-pulse">
                 <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
-                <span>{totalTasksCount} Tasks Required</span>
+                <span>{totalTasksCount} Tasks</span>
               </div>
             )}
             <button
               onClick={logout}
-              className="flex items-center gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-colors cursor-pointer shrink-0"
             >
-              <LogOut className="w-4 h-4" />
-              {t('signOut')}
+              <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+              <span className="hidden xs:inline sm:inline">{t('signOut')}</span>
             </button>
           </div>
         </div>
@@ -369,8 +370,9 @@ export const StaffDashboard: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-100 bg-white">
-        &copy; {new Date().getFullYear()} Waybilla Operations Hub. All rights reserved.
+      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 bg-white space-y-0.5">
+        <div>Waybilla is a product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span></div>
+        <div className="text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
       </footer>
 
       {/* Staff Operations Guide Modal */}

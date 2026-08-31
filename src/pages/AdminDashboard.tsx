@@ -49,8 +49,8 @@ export const AdminDashboard: React.FC = () => {
     setManagersError(false);
     try {
       const res = await fetchWithTimeout('/api/admin/managers');
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setManagers(data.managers || []);
       } else {
         setManagersError(true);
@@ -130,8 +130,8 @@ export const AdminDashboard: React.FC = () => {
     setOverviewError(false);
     try {
       const res = await fetchWithTimeout('/api/admin/overview');
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setOverviewData(data);
       } else {
         setOverviewError(true);
@@ -161,8 +161,8 @@ export const AdminDashboard: React.FC = () => {
     setCompaniesError(false);
     try {
       const res = await fetchWithTimeout('/api/admin/companies');
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setCompanies(data.companies || []);
       } else {
         setCompaniesError(true);
@@ -239,8 +239,8 @@ export const AdminDashboard: React.FC = () => {
     setErrorCompanyDetails(null);
     try {
       const res = await fetchWithTimeout(`/api/admin/companies/${id}/details`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setSelectedCompanyDetails(data);
       } else {
         setErrorCompanyDetails('Could not load profile. Tap to retry.');
@@ -293,8 +293,8 @@ export const AdminDashboard: React.FC = () => {
       });
 
       const res = await fetchWithTimeout(`/api/admin/shipments?${queryParams}`);
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setShipments(data.waybills || []);
         setShipmentsPage(data.page || 1);
         setShipmentsPages(data.pages || 1);
@@ -355,8 +355,8 @@ export const AdminDashboard: React.FC = () => {
     setRevenueError(false);
     try {
       const res = await fetchWithTimeout('/api/admin/revenue');
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setRevenueData(data);
       } else {
         setRevenueError(true);
@@ -386,8 +386,8 @@ export const AdminDashboard: React.FC = () => {
     setDisputesError(false);
     try {
       const res = await fetchWithTimeout('/api/admin/disputes');
+      const data = await res.json().catch(() => ({}));
       if (res.ok) {
-        const data = await res.json();
         setDisputes(data.disputes || []);
       } else {
         setDisputesError(true);
@@ -1792,8 +1792,9 @@ export const AdminDashboard: React.FC = () => {
       )}
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-400 border-t border-slate-100 mt-6" id="admin-footer">
-        &copy; {new Date().getFullYear()} Waybilla Systems Panel. All rights reserved.
+      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 mt-6 space-y-0.5" id="admin-footer">
+        <div>Waybilla is a product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span></div>
+        <div className="text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
       </footer>
     </div>
   );
