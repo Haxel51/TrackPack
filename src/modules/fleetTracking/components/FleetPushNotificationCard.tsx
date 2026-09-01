@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { initializeFCM, saveFcmTokenToFirestore } from '../fcm';
+import { triggerOSNotification } from '../../../utils/notifications';
 import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 
 export const FleetPushNotificationCard: React.FC = () => {
@@ -32,6 +33,13 @@ export const FleetPushNotificationCard: React.FC = () => {
           if (fcmTok) {
             await saveFcmTokenToFirestore(userId, fcmTok, userPhone);
           }
+
+          // Trigger immediate test notification into phone notification bar like Waybill does
+          await triggerOSNotification('Fleet Tracking Alerts Active 🚛', {
+            body: 'You will now receive real-time alerts about your trucks and drivers.',
+            tag: 'fleet-welcome'
+          });
+
           setToastMessage('✅ Push notifications enabled! Real-time fleet alerts are now active.');
           setTimeout(() => setToastMessage(null), 5000);
         }

@@ -1,6 +1,7 @@
 import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messaging';
 import { app, db } from '../../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { triggerOSNotification } from '../../utils/notifications';
 
 export async function markNotificationPromptShown(userId: string): Promise<void> {
   if (!userId) return;
@@ -190,10 +191,17 @@ export async function initializeFCM(token?: string, currentUserId?: string): Pro
     if (messaging) {
       onMessage(messaging, (payload) => {
         console.log('[FCM] Foreground message received:', payload);
+        const title = payload.notification?.title || 'Fleet Alert 🚛';
+        const body = payload.notification?.body || '';
+        triggerOSNotification(title, {
+          body,
+          data: payload.data || {}
+        });
+
         const event = new CustomEvent('fleet_foreground_notification', {
           detail: {
-            title: payload.notification?.title || 'Fleet Alert 🚚',
-            body: payload.notification?.body || '',
+            title,
+            body,
             data: payload.data || {}
           }
         });
