@@ -110,11 +110,11 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex justify-end animate-in fade-in">
-      <div className="w-full max-w-md bg-slate-900 border-l border-slate-800 text-slate-100 h-full flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-xs flex justify-end animate-in fade-in">
+      <div className="w-full max-w-md bg-[#0b1329] border-l border-blue-950/60 text-slate-100 h-full flex flex-col shadow-2xl">
         
         {/* Header */}
-        <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+        <div className="p-4 bg-[#070b19] border-b border-blue-950/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
               <Bell className="w-4 h-4" />
@@ -144,7 +144,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-2 p-3 bg-slate-950/50 border-b border-slate-800/80 text-xs font-extrabold">
+        <div className="flex items-center gap-2 p-3 bg-[#070b19]/50 border-b border-blue-950/60/80 text-xs font-extrabold">
           <button
             onClick={() => setFilter('all')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
@@ -186,12 +186,12 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   onClick={() => handleNotificationClick(notif)}
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
                     notif.read
-                      ? 'bg-slate-900/60 border-slate-800/80 hover:border-slate-700 text-slate-300'
+                      ? 'bg-[#0b1329]/60 border-blue-950/60/80 hover:border-blue-900/65 text-slate-300'
                       : 'bg-slate-800/80 border-amber-500/40 hover:border-amber-500 text-slate-100 shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-slate-950 border border-slate-800 shrink-0 mt-0.5">
+                    <div className="p-2 rounded-xl bg-[#070b19] border border-blue-950/60 shrink-0 mt-0.5">
                       {getNotifIcon(notif.type)}
                     </div>
                     
@@ -227,7 +227,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-slate-950 border-t border-slate-800 text-center">
+        <div className="p-3 bg-[#070b19] border-t border-blue-950/60 text-center">
           <p className="text-[11px] text-slate-500">
             Automated alerts dispatched via FCM & In-App Fleet Dispatcher
           </p>

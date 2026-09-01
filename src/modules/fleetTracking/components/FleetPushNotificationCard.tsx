@@ -68,7 +68,7 @@ export const FleetPushNotificationCard: React.FC = () => {
       
       {/* Toast Banner */}
       {toastMessage && (
-        <div className="mb-4 bg-slate-950 border border-emerald-500/60 text-emerald-300 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-lg">
+        <div className="mb-4 bg-[#070b19] border border-emerald-500/60 text-emerald-300 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-lg">
           <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
           <span>{toastMessage}</span>
         </div>
@@ -125,7 +125,7 @@ export const FleetPushNotificationCard: React.FC = () => {
           ) : (
             <button
               onClick={handleDisableNotifications}
-              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 border border-blue-900/65 font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-2 shrink-0"
               id="disable-fleet-push-card-btn"
             >
               <span>Turn Off</span>

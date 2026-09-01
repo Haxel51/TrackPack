@@ -174,7 +174,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
     <div className="space-y-6">
       
       {/* Top Banner & Control Bar */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">🚛</span>
@@ -246,7 +246,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
       )}
 
       {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0b1329]/60 p-4 border border-blue-950/60 rounded-2xl">
         <div className="relative w-full sm:w-80">
           <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
           <input
@@ -254,7 +254,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plate number, driver, destination..."
-            className="w-full bg-slate-950 border border-slate-800 focus:border-amber-500 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+            className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
             id="trips-search-input"
           />
         </div>
@@ -273,7 +273,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
                 statusFilter === f.id
                   ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                  : 'text-slate-400 hover:text-white bg-slate-950/60 border border-transparent'
+                  : 'text-slate-400 hover:text-white bg-[#070b19]/60 border border-transparent'
               }`}
             >
               {f.label}
@@ -300,7 +300,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           </button>
         </div>
       ) : filteredTrips.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center space-y-3">
+        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center space-y-3">
           <Navigation className="w-10 h-10 text-slate-600 mx-auto" />
           <h3 className="text-base font-extrabold text-white">No Trips Found</h3>
           <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -329,12 +329,12 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               <div
                 key={trip.id}
                 onClick={() => setSelectedTrip(trip)}
-                className="bg-slate-900 border border-slate-800 hover:border-amber-500/50 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all cursor-pointer group"
+                className="bg-[#0b1329] border border-blue-950/60 hover:border-amber-500/50 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all cursor-pointer group"
                 id={`trip-card-${trip.id}`}
               >
                 
                 {/* Card Top Header */}
-                <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-800">
+                <div className="flex items-start justify-between gap-3 pb-3 border-b border-blue-950/60">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black shrink-0 group-hover:bg-amber-500/20 group-hover:scale-105 transition-all">
                       <Truck className="w-5 h-5" />
@@ -372,7 +372,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                 </div>
 
                 {/* Destinations Section */}
-                <div className="space-y-2.5 bg-slate-950/60 p-3.5 rounded-2xl border border-slate-800/80">
+                <div className="space-y-2.5 bg-[#070b19]/60 p-3.5 rounded-2xl border border-blue-950/60/80">
                   
                   {/* Primary Supplier */}
                   <div className="flex items-start gap-2.5 text-xs">
@@ -387,7 +387,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
 
                   {/* Redirect Destination if present */}
                   {hasRedirect && trip.redirect_destination && (
-                    <div className="pt-2 border-t border-slate-800/80 flex items-start gap-2.5 text-xs">
+                    <div className="pt-2 border-t border-blue-950/60/80 flex items-start gap-2.5 text-xs">
                       <Navigation className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
@@ -410,7 +410,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                 </div>
 
                 {/* Card Footer Info & Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-slate-800/80">
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-blue-950/60/80">
                   <div className="text-slate-400 font-medium flex items-center gap-1.5">
                     <Eye className="w-3.5 h-3.5 text-amber-400" />
                     <span className="text-amber-400 font-bold group-hover:underline">Tap to view map & live tracking</span>

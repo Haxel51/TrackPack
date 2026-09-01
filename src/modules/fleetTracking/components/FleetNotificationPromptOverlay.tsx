@@ -175,8 +175,8 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
 
       {/* FULL SCREEN OVERLAY / MODAL (FIRST LOGIN ONLY) */}
       {showOverlay && (
-        <div className="fixed inset-0 z-[9999] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-8 text-center text-white space-y-6 shadow-2xl relative">
+        <div className="fixed inset-0 z-[9999] bg-[#070b19]/90 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in select-none">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-sm w-full p-8 text-center text-white space-y-6 shadow-2xl relative">
             {/* Bell Icon Header */}
             <div className="w-20 h-20 bg-emerald-500/10 border border-emerald-500/20 rounded-full flex items-center justify-center mx-auto shadow-inner text-emerald-400">
               <Bell className="w-10 h-10 animate-bounce" />

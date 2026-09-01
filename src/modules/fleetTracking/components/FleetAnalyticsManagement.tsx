@@ -103,7 +103,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
 
   if (!hasAccess) {
     return (
-      <div className="p-12 text-center bg-slate-900 border border-slate-800 rounded-3xl space-y-4 my-8">
+      <div className="p-12 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-4 my-8">
         <ShieldAlert className="w-12 h-12 text-amber-400 mx-auto" />
         <h3 className="text-lg font-black text-white">Access Restricted</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -463,7 +463,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-slate-800 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+      <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-slate-950 border border-blue-950/60 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
             <BarChart3 className="w-7 h-7" />
@@ -481,7 +481,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           <select
             value={dateRangePreset}
             onChange={(e) => setDateRangePreset(e.target.value)}
-            className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none focus:border-amber-500"
+            className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none focus:border-amber-500"
           >
             <option value="today">Today</option>
             <option value="this_week">This Week</option>
@@ -499,14 +499,14 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                 type="date"
                 value={customStartDate}
                 onChange={(e) => setCustomStartDate(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2"
+                className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs rounded-xl px-3 py-2"
               />
               <span className="text-slate-500 text-xs">to</span>
               <input
                 type="date"
                 value={customEndDate}
                 onChange={(e) => setCustomEndDate(e.target.value)}
-                className="bg-slate-950 border border-slate-800 text-slate-200 text-xs rounded-xl px-3 py-2"
+                className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs rounded-xl px-3 py-2"
               />
             </div>
           )}
@@ -514,11 +514,11 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
       </div>
 
       {/* Sub-Tabs Navigation */}
-      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none border-b border-slate-800 pb-2">
+      <div className="flex items-center gap-2 overflow-x-auto scrollbar-none border-b border-blue-950/60 pb-2">
         <button
           onClick={() => setActiveSubTab('overview')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+            activeSubTab === 'overview' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -528,7 +528,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
         <button
           onClick={() => setActiveSubTab('trips')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'trips' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+            activeSubTab === 'trips' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
           }`}
         >
           <Navigation className="w-4 h-4" />
@@ -539,7 +539,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           <button
             onClick={() => setActiveSubTab('revenue')}
             className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-              activeSubTab === 'revenue' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+              activeSubTab === 'revenue' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
             }`}
           >
             <DollarSign className="w-4 h-4" />
@@ -550,7 +550,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
         <button
           onClick={() => setActiveSubTab('drivers')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'drivers' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+            activeSubTab === 'drivers' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -560,7 +560,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
         <button
           onClick={() => setActiveSubTab('trucks')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'trucks' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+            activeSubTab === 'trucks' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
           }`}
         >
           <Truck className="w-4 h-4" />
@@ -570,7 +570,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
         <button
           onClick={() => setActiveSubTab('activity')}
           className={`px-4 py-2.5 rounded-2xl text-xs font-black transition-all flex items-center gap-2 shrink-0 ${
-            activeSubTab === 'activity' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-slate-900 text-slate-300 hover:bg-slate-800 border border-slate-800'
+            activeSubTab === 'activity' ? 'bg-amber-500 text-slate-950 shadow-lg' : 'bg-[#0b1329] text-slate-300 hover:bg-slate-800 border border-blue-950/60'
           }`}
         >
           <Activity className="w-4 h-4" />
@@ -579,7 +579,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
       </div>
 
       {isLoading ? (
-        <div className="py-24 text-center bg-slate-900 border border-slate-800 rounded-3xl space-y-3">
+        <div className="py-24 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-3">
           <div className="w-8 h-8 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
           <p className="text-xs font-bold text-slate-400">Loading analytics insights...</p>
         </div>
@@ -599,22 +599,22 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <span>Trip Statistics</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Total Trips</span>
                     <div className="text-2xl font-black text-white mt-1">{stats.totalTrips}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">All-time haulage dispatches</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-emerald-400 font-bold uppercase">Active Trips</span>
                     <div className="text-2xl font-black text-emerald-300 mt-1">{stats.activeTrips}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Currently on transit</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-blue-400 font-bold uppercase">Completed Trips</span>
                     <div className="text-2xl font-black text-blue-300 mt-1">{stats.completedTrips}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Successfully delivered</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-rose-400 font-bold uppercase">Cancelled / Stopped</span>
                     <div className="text-2xl font-black text-rose-300 mt-1">{stats.cancelledTrips}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Requires attention</span>
@@ -630,19 +630,19 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     <span>Financial Statistics</span>
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                    <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                       <span className="text-xs text-slate-400 font-bold uppercase">Total Revenue Collected</span>
                       <div className="text-2xl font-black text-emerald-400 mt-1">₦{stats.totalRevenue.toLocaleString()}</div>
                       <span className="text-[10px] text-slate-500 mt-1 block">Paystack verified payments</span>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                    <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                       <span className="text-xs text-slate-400 font-bold uppercase">Revenue This Month</span>
                       <div className="text-2xl font-black text-white mt-1">
                         ₦{payments.filter(p => new Date(p.created_at || Date.now()).getMonth() === new Date().getMonth()).reduce((a, b) => a + (Number(b.amount) || 0), 0).toLocaleString()}
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">Current calendar month</span>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                    <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                       <span className="text-xs text-slate-400 font-bold uppercase">Revenue This Week</span>
                       <div className="text-2xl font-black text-white mt-1">
                         ₦{payments.filter(p => {
@@ -653,7 +653,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                       </div>
                       <span className="text-[10px] text-slate-500 mt-1 block">Last 7 days</span>
                     </div>
-                    <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                    <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                       <span className="text-xs text-slate-400 font-bold uppercase">Avg Revenue Per Trip</span>
                       <div className="text-2xl font-black text-white mt-1">₦{Math.round(stats.avgRevenuePerTrip).toLocaleString()}</div>
                       <span className="text-[10px] text-slate-500 mt-1 block">Per completed delivery</span>
@@ -669,22 +669,22 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <span>Fleet Statistics</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Total Trucks</span>
                     <div className="text-2xl font-black text-white mt-1">{stats.totalTrucks}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Registered haulage trucks</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-amber-400 font-bold uppercase">Active Trucks</span>
                     <div className="text-2xl font-black text-amber-300 mt-1">{stats.activeTrucks}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Currently on active trip</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Monthly Plan Trucks</span>
                     <div className="text-2xl font-black text-white mt-1">{stats.monthlyPlanTrucks}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Unlimited subscription</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Per Trip Trucks</span>
                     <div className="text-2xl font-black text-white mt-1">{stats.perTripTrucks}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Pay-per-dispatch</span>
@@ -699,22 +699,22 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <span>Driver Statistics</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Total Drivers</span>
                     <div className="text-2xl font-black text-white mt-1">{stats.totalDrivers}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Registered drivers</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-emerald-400 font-bold uppercase">Active Drivers</span>
                     <div className="text-2xl font-black text-emerald-300 mt-1">{stats.activeDrivers}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">On active trip now</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-blue-400 font-bold uppercase">Drivers Online</span>
                     <div className="text-2xl font-black text-blue-300 mt-1">{stats.onlineDrivers}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">App installed & active</span>
                   </div>
-                  <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl shadow-sm">
+                  <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl shadow-sm">
                     <span className="text-xs text-slate-400 font-bold uppercase">Drivers Offline</span>
                     <div className="text-2xl font-black text-slate-300 mt-1">{stats.offlineDrivers}</div>
                     <span className="text-[10px] text-slate-500 mt-1 block">Not logged in</span>
@@ -728,7 +728,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           {activeSubTab === 'trips' && (
             <div className="space-y-6 animate-fadeIn">
               {/* Filter Toolbar */}
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div className="relative w-full md:w-80">
                   <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" />
                   <input
@@ -736,7 +736,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     placeholder="Search plate number or driver..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-800 text-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs font-medium outline-none focus:border-amber-500"
+                    className="w-full bg-[#070b19] border border-blue-950/60 text-slate-200 pl-10 pr-4 py-2.5 rounded-xl text-xs font-medium outline-none focus:border-amber-500"
                   />
                 </div>
 
@@ -744,7 +744,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <select
                     value={selectedTruckFilter}
                     onChange={(e) => setSelectedTruckFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
+                    className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
                   >
                     <option value="all">All Trucks</option>
                     {trucks.map(tr => (
@@ -755,7 +755,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <select
                     value={selectedStatusFilter}
                     onChange={(e) => setSelectedStatusFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
+                    className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
                   >
                     <option value="all">All Statuses</option>
                     <option value="active">Active</option>
@@ -767,7 +767,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <select
                     value={selectedPaymentFilter}
                     onChange={(e) => setSelectedPaymentFilter(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
+                    className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-3 py-2.5 outline-none"
                   >
                     <option value="all">All Payment Plans</option>
                     <option value="per_trip">Per Trip</option>
@@ -776,7 +776,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
 
                   <button
                     onClick={() => handleExport('trips')}
-                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer transition-all"
+                    className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-blue-900/65 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer transition-all"
                   >
                     <Download className="w-4 h-4" />
                     <span>Export CSV</span>
@@ -785,11 +785,11 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               </div>
 
               {/* Trips Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+              <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950/80 text-[11px] font-black uppercase text-slate-400 border-b border-slate-800 tracking-wider">
+                      <tr className="bg-[#070b19]/80 text-[11px] font-black uppercase text-slate-400 border-b border-blue-950/60 tracking-wider">
                         <th className="p-4">Trip ID / Date</th>
                         <th className="p-4">Truck & Driver</th>
                         <th className="p-4">Origin & Destination</th>
@@ -847,7 +847,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                 </div>
 
                 {filteredTrips.length > tripDisplayLimit && (
-                  <div className="p-4 bg-slate-950/60 border-t border-slate-800 text-center">
+                  <div className="p-4 bg-[#070b19]/60 border-t border-blue-950/60 text-center">
                     <button
                       onClick={() => setTripDisplayLimit(prev => prev + 20)}
                       className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-6 py-2.5 rounded-xl text-xs cursor-pointer transition-all"
@@ -865,25 +865,25 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
             <div className="space-y-8 animate-fadeIn">
               {/* Summary Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl">
+                <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl">
                   <span className="text-xs text-slate-400 font-bold uppercase">Total Revenue All Time</span>
                   <div className="text-2xl font-black text-emerald-400 mt-1">₦{stats.totalRevenue.toLocaleString()}</div>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl">
+                <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl">
                   <span className="text-xs text-slate-400 font-bold uppercase">Per Trip Payments</span>
                   <div className="text-2xl font-black text-white mt-1">
                     ₦{payments.filter(p => p.payment_type !== 'monthly').reduce((a, b) => a + (Number(b.amount) || 0), 0).toLocaleString()}
                   </div>
                   <span className="text-[10px] text-slate-500 mt-1 block">{payments.filter(p => p.payment_type !== 'monthly').length} dispatches</span>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl">
+                <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl">
                   <span className="text-xs text-slate-400 font-bold uppercase">Monthly Subscriptions</span>
                   <div className="text-2xl font-black text-white mt-1">
                     ₦{payments.filter(p => p.payment_type === 'monthly').reduce((a, b) => a + (Number(b.amount) || 0), 0).toLocaleString()}
                   </div>
                   <span className="text-[10px] text-slate-500 mt-1 block">{payments.filter(p => p.payment_type === 'monthly').length} subscriptions</span>
                 </div>
-                <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl">
+                <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl">
                   <span className="text-xs text-slate-400 font-bold uppercase">Average Monthly Revenue</span>
                   <div className="text-2xl font-black text-white mt-1">
                     ₦{Math.round(stats.totalRevenue / 12).toLocaleString()}
@@ -892,7 +892,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               </div>
 
               {/* Monthly Revenue Chart */}
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl space-y-4">
+              <div className="bg-[#0b1329] border border-blue-950/60 p-6 rounded-3xl space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black text-white flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -926,12 +926,12 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               </div>
 
               {/* Payment History Table */}
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-                <div className="p-5 border-b border-slate-800 font-black text-sm text-white">Payment Transactions Ledger</div>
+              <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl overflow-hidden shadow-xl">
+                <div className="p-5 border-b border-blue-950/60 font-black text-sm text-white">Payment Transactions Ledger</div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950/80 text-[11px] font-black uppercase text-slate-400 border-b border-slate-800">
+                      <tr className="bg-[#070b19]/80 text-[11px] font-black uppercase text-slate-400 border-b border-blue-950/60">
                         <th className="p-4">Date & Time</th>
                         <th className="p-4">Truck & Driver</th>
                         <th className="p-4">Payment Type</th>
@@ -964,7 +964,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           {/* ================= SECTION 4: DRIVER PERFORMANCE ================= */}
           {activeSubTab === 'drivers' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl flex items-center justify-between gap-4 flex-wrap">
+              <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <Users className="w-5 h-5 text-amber-400" />
                   <h3 className="text-sm font-black text-white">Driver Performance Rankings</h3>
@@ -974,7 +974,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <select
                     value={driverSortBy}
                     onChange={(e: any) => setDriverSortBy(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none"
+                    className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none"
                   >
                     <option value="trips">Sort by: Most Trips</option>
                     <option value="performance">Sort by: Best Performance</option>
@@ -992,11 +992,11 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                 </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+              <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950/80 text-[11px] font-black uppercase text-slate-400 border-b border-slate-800">
+                      <tr className="bg-[#070b19]/80 text-[11px] font-black uppercase text-slate-400 border-b border-blue-950/60">
                         <th className="p-4">Driver Name</th>
                         <th className="p-4">Truck Assigned</th>
                         <th className="p-4 text-center">Completed Trips</th>
@@ -1034,7 +1034,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           {/* ================= SECTION 5: TRUCK UTILIZATION ================= */}
           {activeSubTab === 'trucks' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-3xl flex items-center justify-between gap-4 flex-wrap">
+              <div className="bg-[#0b1329] border border-blue-950/60 p-5 rounded-3xl flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <Truck className="w-5 h-5 text-amber-400" />
                   <h3 className="text-sm font-black text-white">Truck Utilization & Haulage Metrics</h3>
@@ -1044,7 +1044,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <select
                     value={truckSortBy}
                     onChange={(e: any) => setTruckSortBy(e.target.value)}
-                    className="bg-slate-950 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none"
+                    className="bg-[#070b19] border border-blue-950/60 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none"
                   >
                     <option value="active">Sort by: Most Active</option>
                     <option value="revenue">Sort by: Most Revenue</option>
@@ -1062,11 +1062,11 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                 </div>
               </div>
 
-              <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
+              <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl overflow-hidden shadow-xl">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="bg-slate-950/80 text-[11px] font-black uppercase text-slate-400 border-b border-slate-800">
+                      <tr className="bg-[#070b19]/80 text-[11px] font-black uppercase text-slate-400 border-b border-blue-950/60">
                         <th className="p-4">Truck Plate</th>
                         <th className="p-4">Driver</th>
                         <th className="p-4">Payment Plan</th>
@@ -1104,7 +1104,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           {/* ================= SECTION 6: REAL-TIME ACTIVITY LOG ================= */}
           {activeSubTab === 'activity' && (
             <div className="space-y-6 animate-fadeIn">
-              <div className="bg-slate-900 border border-slate-800 p-6 rounded-3xl space-y-4">
+              <div className="bg-[#0b1329] border border-blue-950/60 p-6 rounded-3xl space-y-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Activity className="w-5 h-5 text-emerald-400 animate-pulse" />
@@ -1123,9 +1123,9 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     <div className="py-12 text-center text-slate-500 text-xs">No activity recorded yet today.</div>
                   ) : (
                     activityLog.map(act => (
-                      <div key={act.id} className="bg-slate-950 border border-slate-800/80 p-4 rounded-2xl flex items-center justify-between gap-4">
+                      <div key={act.id} className="bg-[#070b19] border border-blue-950/60/80 p-4 rounded-2xl flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-amber-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-[#0b1329] border border-blue-950/60 flex items-center justify-center text-amber-400 shrink-0">
                             <Navigation className="w-4 h-4" />
                           </div>
                           <span className="text-xs text-slate-200 font-medium">{act.message}</span>

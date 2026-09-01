@@ -24,14 +24,14 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
+      className="fixed inset-0 z-50 bg-[#070b19]/85 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn"
       id="confirm-departure-modal-overlay"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp"
+        className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 animate-scaleUp"
         id="confirm-departure-dialog"
       >
         {/* Header Icon & Title */}
@@ -50,9 +50,9 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
         </div>
 
         {/* Trip Details Card */}
-        <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800/80 space-y-3">
+        <div className="bg-[#070b19]/80 p-4 rounded-2xl border border-blue-950/60/80 space-y-3">
           {/* Plate Number & Driver */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-2.5">
+          <div className="flex items-center justify-between border-b border-blue-950/60 pb-2.5">
             <div>
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
                 Truck Plate Number
@@ -108,7 +108,7 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
             type="button"
             disabled={isLoading}
             onClick={onClose}
-            className="w-full sm:w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-slate-700 transition-colors cursor-pointer"
+            className="w-full sm:w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-blue-900/65 transition-colors cursor-pointer"
             id="departure-not-yet-btn"
           >
             <XCircle className="w-4 h-4 text-slate-400" />

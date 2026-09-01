@@ -170,10 +170,10 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   ]);
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans">
+    <div className="min-h-screen bg-[#0b1329] text-slate-100 flex flex-col font-sans">
       
       {/* Top Navigation Header */}
-      <header className="bg-slate-950 border-b border-slate-800 sticky top-0 z-40 shadow-xl">
+      <header className="bg-[#070b19] border-b border-blue-950/60 sticky top-0 z-40 shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row items-center justify-between gap-4">
           
           {/* Logo & Brand */}
@@ -223,7 +223,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
             <button
               onClick={() => setIsNotifOpen(true)}
-              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-white transition-all cursor-pointer"
+              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-blue-900/65/80 text-slate-300 hover:text-white transition-all cursor-pointer"
               title="Fleet Notifications"
               id="fleet-notification-bell-btn"
             >
@@ -248,12 +248,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         </div>
 
         {/* Tab Sub-Navigation */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex border-t border-slate-800/80 gap-2 pt-2 overflow-x-auto scrollbar-none pb-1">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex border-t border-blue-950/60/80 gap-2 pt-2 overflow-x-auto scrollbar-none pb-1">
           <button
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
               activeTab === 'overview'
-                ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
             id="fleet-tab-overview"
@@ -267,7 +267,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('trucks')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'trucks'
-                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-trucks"
@@ -282,7 +282,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('locations')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'locations'
-                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-locations"
@@ -296,7 +296,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             onClick={() => setActiveTab('trips')}
             className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
               activeTab === 'trips'
-                ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
             id="fleet-tab-trips"
@@ -310,7 +310,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('team')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'team'
-                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-team"
@@ -325,7 +325,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('payments')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'payments'
-                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-payments"
@@ -340,7 +340,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('analytics')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'analytics'
-                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-analytics"
@@ -357,7 +357,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
       {/* Foreground Toast Notification Banner */}
       {foregroundToast && (
-        <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-slate-950/95 border border-amber-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
+        <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-[#070b19]/95 border border-amber-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
           <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl shrink-0 mt-0.5">
             <Bell className="w-5 h-5 animate-pulse" />
           </div>
@@ -413,7 +413,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             <FleetPushNotificationCard />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-2">
+              <div className="bg-[#070b19] border border-blue-950/60 rounded-2xl p-6 space-y-2">
                 <div className="flex items-center justify-between text-slate-400 text-xs font-extrabold uppercase tracking-wider">
                   <span>Garage Origin Status</span>
                   <MapPin className="w-4 h-4 text-blue-400" />
@@ -422,7 +422,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
                 <p className="text-xs text-emerald-400 font-semibold">📍 Geofence Pin Confirmed (Blue Pin)</p>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-2">
+              <div className="bg-[#070b19] border border-blue-950/60 rounded-2xl p-6 space-y-2">
                 <div className="flex items-center justify-between text-slate-400 text-xs font-extrabold uppercase tracking-wider">
                   <span>Supplier Destinations</span>
                   <Building className="w-4 h-4 text-emerald-400" />
@@ -431,7 +431,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
                 <p className="text-xs text-emerald-400 font-semibold">📍 Geofence Pins Confirmed (Green Pin)</p>
               </div>
 
-              <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-2">
+              <div className="bg-[#070b19] border border-blue-950/60 rounded-2xl p-6 space-y-2">
                 <div className="flex items-center justify-between text-slate-400 text-xs font-extrabold uppercase tracking-wider">
                   <span>Active Drivers & Trucks</span>
                   <UserCheck className="w-4 h-4 text-amber-400" />
@@ -441,7 +441,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               </div>
             </div>
 
-            <div className="bg-slate-950 border border-slate-800 rounded-3xl p-8 space-y-4 text-center">
+            <div className="bg-[#070b19] border border-blue-950/60 rounded-3xl p-8 space-y-4 text-center">
               <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto text-amber-400">
                 <ShieldCheck className="w-6 h-6" />
               </div>
@@ -471,9 +471,9 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
       {/* Notification Settings Instruction Modal for Denied Permission */}
       {showSettingsModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
-            <div className="flex justify-between items-center pb-2 border-b border-slate-800">
+        <div className="fixed inset-0 bg-[#070b19]/80 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
+            <div className="flex justify-between items-center pb-2 border-b border-blue-950/60">
               <div className="flex items-center gap-2">
                 <BellOff className="w-5 h-5 text-amber-400" />
                 <h3 className="font-extrabold text-sm">How to Enable Fleet Alerts</h3>
@@ -490,7 +490,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <p>
                 Your browser or phone currently blocks notifications for this app. To receive real-time fleet trip & payment updates on your phone:
               </p>
-              <ol className="list-decimal list-inside space-y-2 bg-slate-950 p-4 rounded-2xl border border-slate-800 text-slate-200 font-medium">
+              <ol className="list-decimal list-inside space-y-2 bg-[#070b19] p-4 rounded-2xl border border-blue-950/60 text-slate-200 font-medium">
                 <li>Click the <strong>🔒 Lock icon</strong> or <strong>Site Settings icon</strong> next to the URL address bar.</li>
                 <li>Find <strong>Notifications</strong> in the permissions list.</li>
                 <li>Switch the setting to <strong>Allow</strong>.</li>

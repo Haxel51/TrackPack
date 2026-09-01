@@ -620,7 +620,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
   return (
     <div
       id="location-confirm-modal-overlay"
-      className="fixed inset-0 z-50 w-full h-[100dvh] bg-slate-950 flex flex-col overflow-hidden animate-fadeIn select-none"
+      className="fixed inset-0 z-50 w-full h-[100dvh] bg-[#070b19] flex flex-col overflow-hidden animate-fadeIn select-none"
     >
       {/* 1. Full-Screen Edge-to-Edge Google Map Surface - Always visible and interactive */}
       <div id="google-maps-full-surface" className="absolute inset-0 w-full h-full bg-slate-100 z-0">
@@ -738,7 +738,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         {/* Floating Context Pills */}
         <div className="pointer-events-auto flex items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-1.5 max-w-[95%] min-w-0">
-            <div className="bg-slate-900/85 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-2 shadow-lg truncate">
+            <div className="bg-[#0b1329]/85 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-2 shadow-lg truncate">
               <MapPin className="w-3.5 h-3.5 text-[#F2A93B] shrink-0" />
               <span className="truncate">{locationName || title}</span>
             </div>
@@ -866,7 +866,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
 
       {/* 5. Subtle Loading State Overlay */}
       {isInitializing && (
-        <div className="absolute inset-0 z-40 bg-slate-900/40 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center gap-3 pointer-events-none">
+        <div className="absolute inset-0 z-40 bg-[#0b1329]/40 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center gap-3 pointer-events-none">
           <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-3 max-w-xs border border-slate-100 pointer-events-auto">
             <Loader2 className="w-10 h-10 animate-spin text-[#F2A93B]" />
             <div className="space-y-1">

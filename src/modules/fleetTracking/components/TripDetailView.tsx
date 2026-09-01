@@ -1171,15 +1171,15 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       trip.trip_status === 'stopped_alert');
 
   return (
-    <div className="fixed inset-0 z-50 w-full h-[100dvh] bg-slate-950 flex flex-col overflow-hidden animate-fadeIn select-none">
+    <div className="fixed inset-0 z-50 w-full h-[100dvh] bg-[#070b19] flex flex-col overflow-hidden animate-fadeIn select-none">
       
       {/* 1. FULL SCREEN GOOGLE MAP SURFACE */}
-      <div className="absolute inset-0 w-full h-full bg-slate-900 z-0">
+      <div className="absolute inset-0 w-full h-full bg-[#0b1329] z-0">
         <div ref={mapContainerRef} className="w-full h-full" id="trip-detail-live-map" />
 
         {/* Map Loading Overlay */}
         {isLoadingMap && (
-          <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 text-white">
+          <div className="absolute inset-0 bg-[#070b19]/80 backdrop-blur-sm flex flex-col items-center justify-center gap-3 z-10 text-white">
             <Loader2 className="w-9 h-9 animate-spin text-amber-400" />
             <p className="text-xs font-black tracking-wide">Loading Google Maps Route & Live Tracking...</p>
           </div>
@@ -1187,7 +1187,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
         {/* Map Error Overlay */}
         {mapError && (
-          <div className="absolute inset-0 bg-slate-950/90 flex flex-col items-center justify-center p-6 text-center text-rose-300 gap-3 z-10">
+          <div className="absolute inset-0 bg-[#070b19]/90 flex flex-col items-center justify-center p-6 text-center text-rose-300 gap-3 z-10">
             <AlertCircle className="w-8 h-8 text-rose-400" />
             <p className="text-xs font-bold max-w-md">{mapError}</p>
             <button
@@ -1208,7 +1208,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="pointer-events-auto bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md text-white border border-slate-700/80 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 font-black text-xs transition-all cursor-pointer hover:scale-105 active:scale-95"
+          className="pointer-events-auto bg-[#0b1329]/90 hover:bg-slate-800 backdrop-blur-md text-white border border-blue-900/65/80 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 font-black text-xs transition-all cursor-pointer hover:scale-105 active:scale-95"
           id="trip-detail-back-btn"
         >
           <ArrowLeft className="w-4 h-4 text-amber-400 stroke-[3]" />
@@ -1218,7 +1218,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         {/* Top Right Live GPS Status Pill */}
         <div className="pointer-events-auto flex items-center gap-2">
           {/* Live GPS Ping Status */}
-          <div className="flex items-center gap-2 bg-slate-900/90 backdrop-blur-md border border-slate-700/80 px-3.5 py-2 rounded-2xl text-[11px] font-bold text-slate-200 shadow-xl">
+          <div className="flex items-center gap-2 bg-[#0b1329]/90 backdrop-blur-md border border-blue-900/65/80 px-3.5 py-2 rounded-2xl text-[11px] font-bold text-slate-200 shadow-xl">
             <Radio className={`w-3.5 h-3.5 ${isAwaitingLocation ? 'text-amber-400 animate-pulse' : 'text-emerald-400 animate-ping'}`} />
             <span>{isAwaitingLocation ? 'Awaiting location...' : 'Live GPS Tracked'}</span>
           </div>
@@ -1237,7 +1237,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
         {/* Real-Time Traffic-Aware ETA Pill */}
         {routeInfo && (
-          <div className="pointer-events-auto bg-slate-900/95 backdrop-blur-md text-white border border-slate-700/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 max-w-[90vw] animate-in fade-in">
+          <div className="pointer-events-auto bg-[#0b1329]/95 backdrop-blur-md text-white border border-blue-900/65/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 max-w-[90vw] animate-in fade-in">
             <Clock className="w-4 h-4 text-amber-400 shrink-0 animate-pulse" />
             <div className="flex items-center gap-2 text-xs">
               <span className="font-extrabold text-slate-200">
@@ -1298,7 +1298,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
       {/* 3. TRIP DETAILS PANEL (Collapsible Bottom Sheet) */}
       <div className="absolute bottom-4 left-4 right-4 md:left-6 md:right-6 max-w-4xl mx-auto z-20">
-        <div className="bg-slate-900/95 backdrop-blur-xl border border-slate-800 rounded-3xl shadow-2xl transition-all duration-300 overflow-hidden">
+        <div className="bg-[#0b1329]/95 backdrop-blur-xl border border-blue-950/60 rounded-3xl shadow-2xl transition-all duration-300 overflow-hidden">
           
           {/* COLLAPSED BAR HEADER */}
           <div
@@ -1395,7 +1395,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
               <button
                 type="button"
-                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-slate-700 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
+                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-blue-900/65 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
               >
                 <span>{isExpanded ? 'Hide Info' : 'Details'}</span>
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -1471,11 +1471,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
           {/* EXPANDABLE BODY SECTION */}
           {isExpanded && (
-            <div className="p-4 sm:p-6 border-t border-slate-800 space-y-5 max-h-[50vh] overflow-y-auto custom-scrollbar">
+            <div className="p-4 sm:p-6 border-t border-blue-950/60 space-y-5 max-h-[50vh] overflow-y-auto custom-scrollbar">
               
               {/* Payment Info Card & Activation */}
               {!isPaymentConfirmed ? (
-                <div className="bg-slate-950/90 p-4 rounded-2xl border border-amber-500/40 space-y-3">
+                <div className="bg-[#070b19]/90 p-4 rounded-2xl border border-amber-500/40 space-y-3">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
@@ -1513,7 +1513,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   )}
                 </div>
               ) : (
-                <div className="bg-slate-950/90 p-4 rounded-2xl border border-emerald-500/30 flex items-center justify-between">
+                <div className="bg-[#070b19]/90 p-4 rounded-2xl border border-emerald-500/30 flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
                       <CheckCircle2 className="w-5 h-5" />
@@ -1555,7 +1555,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                     type="button"
                     onClick={handleRefreshRouteETA}
                     disabled={isRefreshingRoute}
-                    className="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border border-slate-700/80 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                    className="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border border-blue-900/65/80 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
                     id="resync-route-eta-btn"
                   >
                     <Loader2 className={`w-3.5 h-3.5 ${isRefreshingRoute ? 'animate-spin' : ''}`} />
@@ -1565,7 +1565,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
                 <div className="grid grid-cols-3 gap-2 pt-1">
                   {/* ETA Time */}
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                  <div className="bg-[#0b1329]/90 p-3 rounded-xl border border-blue-950/60 flex flex-col items-center text-center">
                     <span className="text-[10px] uppercase font-extrabold text-slate-400">Estimated Arrival</span>
                     <span className="text-sm sm:text-base font-black text-amber-400 mt-0.5">
                       {routeInfo?.etaText || trip.estimated_arrival_time || 'Calculating...'}
@@ -1573,7 +1573,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   </div>
 
                   {/* Remaining Duration */}
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                  <div className="bg-[#0b1329]/90 p-3 rounded-xl border border-blue-950/60 flex flex-col items-center text-center">
                     <span className="text-[10px] uppercase font-extrabold text-slate-400">Est. Duration</span>
                     <span className="text-sm sm:text-base font-black text-white mt-0.5">
                       {routeInfo?.durationText || trip.estimated_duration_text || 'Calculating...'}
@@ -1581,7 +1581,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   </div>
 
                   {/* Remaining Distance */}
-                  <div className="bg-slate-900/90 p-3 rounded-xl border border-slate-800 flex flex-col items-center text-center">
+                  <div className="bg-[#0b1329]/90 p-3 rounded-xl border border-blue-950/60 flex flex-col items-center text-center">
                     <span className="text-[10px] uppercase font-extrabold text-slate-400">Remaining Dist.</span>
                     <span className="text-sm sm:text-base font-black text-sky-400 mt-0.5">
                       {routeInfo?.distanceText || (trip.remaining_distance_km != null ? `${trip.remaining_distance_km} km` : 'Calculating...')}
@@ -1600,7 +1600,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 
                 {/* Active Destination Display */}
-                <div className="flex items-start gap-3 bg-slate-950/80 p-3.5 rounded-2xl border border-slate-800 flex-1">
+                <div className="flex items-start gap-3 bg-[#070b19]/80 p-3.5 rounded-2xl border border-blue-950/60 flex-1">
                   {activeDest.isRedirect ? (
                     <Navigation className="w-5 h-5 text-orange-400 shrink-0 mt-0.5" />
                   ) : (
@@ -1646,7 +1646,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                       }}
                       className={`w-full md:w-auto px-5 py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg ${
                         isCompletedOrCancelled
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-slate-700/50 opacity-60'
+                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-blue-900/65/50 opacity-60'
                           : 'bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/40 shadow-purple-950/40 cursor-pointer hover:scale-105 active:scale-95'
                       }`}
                       id="trip-detail-redirect-btn"
@@ -1660,8 +1660,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
               </div>
 
               {/* AUDIT LOG TIMELINE */}
-              <div className="bg-slate-950/80 p-4 rounded-2xl border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-800/80">
+              <div className="bg-[#070b19]/80 p-4 rounded-2xl border border-blue-950/60 space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-blue-950/60/80">
                   <div className="flex items-center gap-2 text-white font-black text-xs uppercase tracking-wider">
                     <History className="w-4 h-4 text-amber-400" />
                     <span>Audit Log & Status History</span>
@@ -1683,7 +1683,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                         <div key={idx} className="flex items-start gap-3 relative text-xs">
                           {/* Timeline dot */}
                           <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mt-1 shadow-sm shadow-amber-400/50" />
-                          <div className="flex-1 bg-slate-900/90 p-3 rounded-xl border border-slate-800/80">
+                          <div className="flex-1 bg-[#0b1329]/90 p-3 rounded-xl border border-blue-950/60/80">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${itemBadge.bg}`}>
                                 {itemBadge.label}
@@ -1694,7 +1694,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                               </div>
                             </div>
 
-                            <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-slate-800/50 text-[11px]">
+                            <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-blue-950/60/50 text-[11px]">
                               <span className="text-slate-300 font-medium">
                                 Triggered by: <strong className="text-white">{item.triggered_by}</strong>
                               </span>
@@ -1733,8 +1733,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
       {/* Paystack Payment Checkout & Verification Modal */}
       {paymentModalData && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full text-center space-y-4 shadow-2xl animate-fadeIn">
+        <div className="fixed inset-0 z-50 bg-[#070b19]/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 max-w-md w-full text-center space-y-4 shadow-2xl animate-fadeIn">
             <div className="w-12 h-12 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
               <CreditCard className="w-6 h-6" />
             </div>
@@ -1783,8 +1783,8 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
       {/* Manual End Trip Modal */}
       {showEndTripModal && (
-        <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-fadeIn text-left">
+        <div className="fixed inset-0 z-50 bg-[#070b19]/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl animate-fadeIn text-left">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400">
                 <Flag className="w-5 h-5" />
@@ -1802,7 +1802,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                 value={endTripReason}
                 onChange={(e) => setEndTripReason(e.target.value)}
                 placeholder="e.g. Driver confirmed delivery offline"
-                className="w-full bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500"
+                className="w-full bg-[#070b19] border border-blue-950/60 rounded-xl px-3 py-2.5 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-rose-500"
               />
             </div>
 

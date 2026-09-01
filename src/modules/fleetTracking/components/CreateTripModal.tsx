@@ -227,12 +227,12 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
     <>
       <div
         id="create-trip-modal-overlay"
-        className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn overflow-y-auto"
+        className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn overflow-y-auto"
       >
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col my-8">
+        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col my-8">
           
           {/* Header */}
-          <div className="bg-slate-950 px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+          <div className="bg-[#070b19] px-6 py-5 border-b border-blue-950/60 flex items-center justify-between">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                 <Navigation className="w-5 h-5" />
@@ -253,7 +253,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           </div>
 
           {/* Stepper Wizard Bar */}
-          <div className="bg-slate-950/60 px-6 py-3 border-b border-slate-800/80 flex items-center justify-between gap-2">
+          <div className="bg-[#070b19]/60 px-6 py-3 border-b border-blue-950/60/80 flex items-center justify-between gap-2">
             
             <div className={`flex items-center gap-2 text-xs font-extrabold ${
               step === 1 ? 'text-amber-400' : step > 1 ? 'text-emerald-400' : 'text-slate-500'
@@ -322,7 +322,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                     </div>
 
                     {trucks.length === 0 ? (
-                      <div className="p-8 text-center bg-slate-950/60 border border-amber-500/30 rounded-2xl space-y-3">
+                      <div className="p-8 text-center bg-[#070b19]/60 border border-amber-500/30 rounded-2xl space-y-3">
                         <ShieldAlert className="w-8 h-8 text-amber-400 mx-auto" />
                         <p className="text-sm font-bold text-amber-300">No registered trucks found</p>
                         <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -345,7 +345,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                                 isSelected
                                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
-                                  : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                                  : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                               }`}
                               id={`select-truck-card-${truck.id}`}
                             >
@@ -363,14 +363,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                                 </div>
 
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                  isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-slate-700'
+                                  isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-blue-900/65'
                                 }`}>
                                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
                                 </div>
                               </div>
 
                               {/* Payment Plan Badge requirement */}
-                              <div className="pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+                              <div className="pt-2 border-t border-blue-950/60/80 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="text-slate-400 flex items-center gap-1">
                                     <Phone className="w-3 h-3 text-slate-500" />
@@ -416,7 +416,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                     </div>
 
                     {confirmedSuppliers.length === 0 ? (
-                      <div className="p-8 text-center bg-slate-950/60 border border-amber-500/30 rounded-2xl space-y-3">
+                      <div className="p-8 text-center bg-[#070b19]/60 border border-amber-500/30 rounded-2xl space-y-3">
                         <ShieldAlert className="w-8 h-8 text-amber-400 mx-auto" />
                         <p className="text-sm font-bold text-amber-300">No confirmed suppliers available</p>
                         <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -438,7 +438,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
                                 isSelected
                                   ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
-                                  : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                                  : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                               }`}
                               id={`select-supplier-card-${supplier.id}`}
                             >
@@ -464,7 +464,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               </div>
 
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-slate-700'
+                                isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-blue-900/65'
                               }`}>
                                 {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>
@@ -473,12 +473,12 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                         })}
 
                         {unconfirmedSuppliers.length > 0 && (
-                          <div className="pt-4 border-t border-slate-800/80 space-y-2">
+                          <div className="pt-4 border-t border-blue-950/60/80 space-y-2">
                             <p className="text-xs font-bold text-slate-500">Unconfirmed Suppliers (Not selectable):</p>
                             {unconfirmedSuppliers.map((supplier) => (
                               <div
                                 key={supplier.id}
-                                className="p-3.5 rounded-2xl bg-slate-950/40 border border-slate-800/60 opacity-50 flex items-center justify-between gap-3 cursor-not-allowed"
+                                className="p-3.5 rounded-2xl bg-[#070b19]/40 border border-blue-950/60/60 opacity-50 flex items-center justify-between gap-3 cursor-not-allowed"
                               >
                                 <div className="flex items-center gap-3">
                                   <Building2 className="w-4 h-4 text-slate-600 shrink-0" />
@@ -504,10 +504,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                   <div className="space-y-4">
                     <h4 className="text-sm font-extrabold text-white">Review Trip Summary & Confirm Payment</h4>
 
-                    <div className="bg-slate-950 border border-slate-800 rounded-2xl p-5 space-y-4">
+                    <div className="bg-[#070b19] border border-blue-950/60 rounded-2xl p-5 space-y-4">
                       
                       {/* Truck Details */}
-                      <div className="flex items-start gap-4 pb-4 border-b border-slate-800">
+                      <div className="flex items-start gap-4 pb-4 border-b border-blue-950/60">
                         <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
                           <Truck className="w-5 h-5" />
                         </div>
@@ -519,7 +519,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                       </div>
 
                       {/* Destination Details */}
-                      <div className="flex items-start gap-4 pb-4 border-b border-slate-800">
+                      <div className="flex items-start gap-4 pb-4 border-b border-blue-950/60">
                         <div className="w-10 h-10 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
                           <Building2 className="w-5 h-5" />
                         </div>
@@ -566,7 +566,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex items-center justify-between gap-3">
+          <div className="bg-[#070b19] px-6 py-4 border-t border-blue-950/60 flex items-center justify-between gap-3">
             {step > 1 ? (
               <button
                 type="button"
@@ -636,8 +636,8 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
       {/* Paystack Checkout Modal Overlay */}
       {paystackModalOpen && paystackData && (
-        <div className="fixed inset-0 z-65 bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full shadow-2xl p-6 text-center space-y-5">
+        <div className="fixed inset-0 z-65 bg-[#070b19]/90 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-md w-full shadow-2xl p-6 text-center space-y-5">
             <div className="w-16 h-16 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto">
               <CreditCard className="w-8 h-8" />
             </div>
@@ -650,7 +650,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               <p className="text-[11px] text-slate-500 font-mono">Reference: {paystackData.reference}</p>
             </div>
 
-            <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-left space-y-2">
+            <div className="bg-[#070b19] p-4 rounded-2xl border border-blue-950/60 text-left space-y-2">
               <p className="text-xs text-slate-400 font-medium">
                 1. If the Paystack checkout window didn't open automatically, click below:
               </p>

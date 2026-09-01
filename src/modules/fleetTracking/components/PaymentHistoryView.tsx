@@ -47,7 +47,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
 
   if (!isCEO) {
     return (
-      <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-3xl space-y-3 my-6">
+      <div className="p-8 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-3 my-6">
         <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto" />
         <h3 className="text-base font-black text-white">Access Restricted</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto">
@@ -60,7 +60,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
   return (
     <div className="space-y-6 animate-fadeIn">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-slate-800 p-6 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-slate-900 to-slate-950 border border-blue-950/60 p-6 rounded-3xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 shrink-0">
             <CreditCard className="w-6 h-6" />
@@ -71,7 +71,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
           </div>
         </div>
 
-        <div className="bg-slate-950 border border-emerald-500/30 px-5 py-3 rounded-2xl flex items-center gap-3">
+        <div className="bg-[#070b19] border border-emerald-500/30 px-5 py-3 rounded-2xl flex items-center gap-3">
           <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
             ₦
           </div>
@@ -92,12 +92,12 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
 
       {/* Loading State */}
       {isLoading ? (
-        <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-slate-900 border border-slate-800 rounded-3xl">
+        <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-[#0b1329] border border-blue-950/60 rounded-3xl">
           <Loader2 className="w-8 h-8 animate-spin text-emerald-400" />
           <p className="text-xs font-bold">Loading payment records...</p>
         </div>
       ) : payments.length === 0 ? (
-        <div className="py-16 text-center bg-slate-900 border border-slate-800 rounded-3xl space-y-3">
+        <div className="py-16 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-3">
           <CreditCard className="w-10 h-10 text-slate-600 mx-auto" />
           <h4 className="text-sm font-bold text-white">No Payment Records Yet</h4>
           <p className="text-xs text-slate-400 max-w-sm mx-auto">
@@ -105,8 +105,8 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
           </p>
         </div>
       ) : (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-xl">
-          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl overflow-hidden shadow-xl">
+          <div className="px-6 py-4 border-b border-blue-950/60 flex items-center justify-between">
             <span className="text-xs font-extrabold text-white uppercase tracking-wider">Transactions ({payments.length})</span>
             <span className="text-xs text-slate-400">Verified via Paystack API</span>
           </div>
@@ -115,7 +115,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
             {payments.map((payment) => {
               const isMonthly = payment.payment_plan === 'monthly';
               return (
-                <div key={payment.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-slate-950/40 transition-colors">
+                <div key={payment.id} className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 hover:bg-[#070b19]/40 transition-colors">
                   <div className="flex items-start gap-3.5">
                     <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
                       isMonthly ? 'bg-orange-500/10 border border-orange-500/30 text-orange-400' : 'bg-blue-500/10 border border-blue-500/30 text-blue-400'
@@ -153,7 +153,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
                     </div>
                   </div>
 
-                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-slate-800">
+                  <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-2 pt-3 sm:pt-0 border-t sm:border-t-0 border-blue-950/60">
                     <div className="text-base font-black text-emerald-400">
                       ₦{(payment.payment_amount || 0).toLocaleString()}
                     </div>

@@ -244,7 +244,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
     <div className="space-y-6">
       
       {/* Top Banner & Control Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
             <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-400 mb-1">
@@ -263,7 +263,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             <button
               onClick={loadTrucks}
               disabled={loading}
-              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl border border-slate-700 transition-colors cursor-pointer"
+              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl border border-blue-900/65 transition-colors cursor-pointer"
               title="Refresh Trucks"
               id="refresh-trucks-btn"
             >
@@ -316,7 +316,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plate number, driver..."
-            className="w-full bg-slate-900 border border-slate-800 rounded-2xl pl-11 pr-4 py-3 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+            className="w-full bg-[#0b1329] border border-blue-950/60 rounded-2xl pl-11 pr-4 py-3 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
             id="truck-search-input"
           />
         </div>
@@ -329,13 +329,13 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
 
       {/* Trucks List Grid */}
       {loading ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-3">
+        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-3">
           <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
           <p className="text-xs font-bold text-slate-400">Loading fleet truck profiles...</p>
         </div>
       ) : filteredTrucks.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4">
-          <div className="w-16 h-16 rounded-3xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-500">
+        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4">
+          <div className="w-16 h-16 rounded-3xl bg-slate-800/80 border border-blue-900/65 flex items-center justify-center text-slate-500">
             <Truck className="w-8 h-8" />
           </div>
           <div className="space-y-1">
@@ -364,7 +364,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             return (
               <div
                 key={truck.id}
-                className="bg-slate-900 border border-slate-800 hover:border-slate-700 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all group"
+                className="bg-[#0b1329] border border-blue-950/60 hover:border-blue-900/65 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all group"
                 id={`truck-card-${truck.id}`}
               >
                 {/* Card Top Header */}
@@ -372,7 +372,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                   <div className="flex items-start justify-between gap-3">
                     {/* Plate Number */}
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center text-amber-400 shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-blue-900/65 flex items-center justify-center text-amber-400 shrink-0">
                         <Truck className="w-5 h-5" />
                       </div>
                       <div>
@@ -446,7 +446,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                   </div>
 
                   {/* Driver Details */}
-                  <div className="bg-slate-950/80 border border-slate-800/80 rounded-2xl p-3.5 space-y-2">
+                  <div className="bg-[#070b19]/80 border border-blue-950/60/80 rounded-2xl p-3.5 space-y-2">
                     <div className="flex items-center justify-between text-xs">
                       <span className="text-slate-500 font-bold flex items-center gap-1.5">
                         <User className="w-3.5 h-3.5 text-slate-400" />
@@ -455,7 +455,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                       <span className="font-extrabold text-white">{truck.driver_name}</span>
                     </div>
 
-                    <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-800/50">
+                    <div className="flex items-center justify-between text-xs pt-1.5 border-t border-blue-950/60/50">
                       <span className="text-slate-500 font-bold flex items-center gap-1.5">
                         <Phone className="w-3.5 h-3.5 text-slate-400" />
                         Phone
@@ -471,7 +471,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 </div>
 
                 {/* Card Footer / Actions */}
-                <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between text-xs text-slate-500">
+                <div className="pt-3 border-t border-blue-950/60/80 flex items-center justify-between text-xs text-slate-500">
                   <span className="text-[11px] font-medium text-slate-500 flex items-center gap-1">
                     <Calendar className="w-3 h-3 text-slate-600" />
                     Added {new Date(truck.created_at || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
@@ -524,12 +524,12 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
       {selectedTruckForPlan && (
         <div
           id="plan-selector-modal-overlay"
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fadeIn"
         >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col my-4">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-md w-full shadow-2xl overflow-hidden flex flex-col my-4">
             
             {/* Header */}
-            <div className="bg-slate-950 px-6 py-4 border-b border-slate-800 flex items-center justify-between">
+            <div className="bg-[#070b19] px-6 py-4 border-b border-blue-950/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
                   <CreditCard className="w-5 h-5" />
@@ -572,7 +572,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 className={`w-full p-4 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-center justify-between gap-4 ${
                   selectedPlanOption === 'per_trip'
                     ? 'bg-blue-500/10 border-blue-500 shadow-lg shadow-blue-500/10'
-                    : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                    : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                 }`}
                 id="select-option-per-trip"
               >
@@ -596,7 +596,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 </div>
 
                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  selectedPlanOption === 'per_trip' ? 'border-blue-500 bg-blue-500 text-white' : 'border-slate-700'
+                  selectedPlanOption === 'per_trip' ? 'border-blue-500 bg-blue-500 text-white' : 'border-blue-900/65'
                 }`}>
                   {selectedPlanOption === 'per_trip' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                 </div>
@@ -609,7 +609,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 className={`w-full p-4 rounded-2xl border-2 text-left transition-all cursor-pointer flex items-center justify-between gap-4 ${
                   selectedPlanOption === 'monthly'
                     ? 'bg-orange-500/10 border-orange-500 shadow-lg shadow-orange-500/10'
-                    : 'bg-slate-950 border-slate-800 hover:border-slate-700'
+                    : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                 }`}
                 id="select-option-monthly"
               >
@@ -633,7 +633,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 </div>
 
                 <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                  selectedPlanOption === 'monthly' ? 'border-orange-500 bg-orange-500 text-slate-950' : 'border-slate-700'
+                  selectedPlanOption === 'monthly' ? 'border-orange-500 bg-orange-500 text-slate-950' : 'border-blue-900/65'
                 }`}>
                   {selectedPlanOption === 'monthly' && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                 </div>
@@ -642,7 +642,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             </div>
 
             {/* Actions */}
-            <div className="bg-slate-950 px-6 py-4 border-t border-slate-800 flex flex-col gap-2">
+            <div className="bg-[#070b19] px-6 py-4 border-t border-blue-950/60 flex flex-col gap-2">
               <button
                 type="button"
                 onClick={handleConfirmPlanChange}
@@ -679,9 +679,9 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
       {deletingTruckId && (
         <div
           id="delete-truck-modal-overlay"
-          className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
+          className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn"
         >
-          <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
+          <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-sm w-full p-6 space-y-4 shadow-2xl text-center">
             <div className="w-12 h-12 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
               <Trash2 className="w-6 h-6" />
             </div>

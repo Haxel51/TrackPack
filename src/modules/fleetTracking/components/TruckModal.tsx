@@ -92,12 +92,12 @@ export const TruckModal: React.FC<TruckModalProps> = ({
   return (
     <div
       id="truck-modal-overlay"
-      className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
+      className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-fadeIn"
     >
-      <div className="bg-slate-900 border border-slate-800 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col my-8">
+      <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-lg w-full shadow-2xl overflow-hidden flex flex-col my-8">
         
         {/* Header */}
-        <div className="bg-slate-950 px-6 py-5 border-b border-slate-800 flex items-center justify-between">
+        <div className="bg-[#070b19] px-6 py-5 border-b border-blue-950/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
               <Truck className="w-5 h-5" />
@@ -143,7 +143,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={plateNumber}
               onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
               placeholder="e.g. KAN 482 XA"
-              className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors uppercase tracking-wider"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors uppercase tracking-wider"
               id="truck-plate-input"
             />
           </div>
@@ -159,7 +159,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={driverName}
               onChange={(e) => setDriverName(e.target.value)}
               placeholder="e.g. Ibrahim Bello"
-              className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
               id="truck-driver-name-input"
             />
           </div>
@@ -175,13 +175,13 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={driverPhone}
               onChange={(e) => setDriverPhone(e.target.value)}
               placeholder="e.g. 08012345678 or +2348012345678"
-              className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
               id="truck-driver-phone-input"
             />
           </div>
 
           {/* Payment Plan Selector */}
-          <div className="space-y-2 pt-2 border-t border-slate-800/80">
+          <div className="space-y-2 pt-2 border-t border-blue-950/60/80">
             <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
               <CreditCard className="w-3.5 h-3.5 text-amber-400" />
               <span>Payment Plan Option</span>
@@ -195,7 +195,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
                   paymentPlan === 'per_trip'
                     ? 'bg-blue-500/10 border-blue-500 text-white'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    : 'bg-[#070b19] border-blue-950/60 text-slate-400 hover:border-blue-900/65'
                 }`}
                 id="plan-option-per-trip"
               >
@@ -223,7 +223,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
                 className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-start gap-3 ${
                   paymentPlan === 'monthly'
                     ? 'bg-emerald-500/10 border-emerald-500 text-white'
-                    : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
+                    : 'bg-[#070b19] border-blue-950/60 text-slate-400 hover:border-blue-900/65'
                 }`}
                 id="plan-option-monthly"
               >
@@ -257,7 +257,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-3 pt-4 border-t border-slate-800">
+          <div className="flex items-center gap-3 pt-4 border-t border-blue-950/60">
             <button
               type="button"
               onClick={onClose}
