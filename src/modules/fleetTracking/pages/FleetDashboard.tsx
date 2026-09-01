@@ -10,6 +10,7 @@ import { TeamManagement } from '../components/TeamManagement';
 import { PaymentHistoryView } from '../components/PaymentHistoryView';
 import { NotificationCenterModal, FleetNotification } from '../components/NotificationCenterModal';
 import { FleetNotificationPromptOverlay } from '../components/FleetNotificationPromptOverlay';
+import { FleetPushNotificationCard } from '../components/FleetPushNotificationCard';
 import { initializeFCM, requestNotificationPermission, isIframeContext } from '../fcm';
 import {
   MapPin,
@@ -47,7 +48,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   const canSwitchModule = Boolean(onSwitchModule && showSwitchModule && !isManager && !isTripMonitor && role === 'company');
 
   const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments'>(
-    isTripMonitor ? 'trips' : 'trucks'
+    'overview'
   );
 
   const [notifications, setNotifications] = useState<FleetNotification[]>([]);
@@ -247,6 +248,19 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
         {/* Tab Sub-Navigation */}
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex border-t border-slate-800/80 gap-2 pt-2 overflow-x-auto scrollbar-none pb-1">
+          <button
+            onClick={() => setActiveTab('overview')}
+            className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
+              activeTab === 'overview'
+                ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                : 'text-slate-400 hover:text-slate-200 border-transparent'
+            }`}
+            id="fleet-tab-overview"
+          >
+            <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-amber-400' : 'text-slate-500'}`} />
+            <span>{t('fleetOverviewTab')}</span>
+          </button>
+
           {!isTripMonitor && (
             <button
               onClick={() => setActiveTab('trucks')}
@@ -304,19 +318,6 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <span>{t('fleetTeamTab')}</span>
             </button>
           )}
-
-          <button
-            onClick={() => setActiveTab('overview')}
-            className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
-              activeTab === 'overview'
-                ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
-                : 'text-slate-400 hover:text-slate-200 border-transparent'
-            }`}
-            id="fleet-tab-overview"
-          >
-            <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-amber-400' : 'text-slate-500'}`} />
-            <span>{t('fleetOverviewTab')}</span>
-          </button>
 
           {isCEO && (
             <button
@@ -388,6 +389,8 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         {/* TAB 3: FLEET OVERVIEW */}
         {activeTab === 'overview' && (
           <div className="space-y-6 animate-fade-in" id="fleet-overview-view">
+            <FleetPushNotificationCard />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-6 space-y-2">
                 <div className="flex items-center justify-between text-slate-400 text-xs font-extrabold uppercase tracking-wider">

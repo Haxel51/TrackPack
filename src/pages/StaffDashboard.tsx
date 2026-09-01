@@ -10,6 +10,7 @@ import { WaybillHistory } from '../components/staff/WaybillHistory';
 import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
+import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
 type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history';
 
@@ -150,6 +151,9 @@ export const StaffDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
+
+            {/* Push Notifications Card */}
+            <FleetPushNotificationCard />
 
             {/* Blinking Red Alert Panel if there is any pending job to do */}
             {hasWaybillJobs && (

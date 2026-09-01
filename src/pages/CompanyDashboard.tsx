@@ -39,6 +39,7 @@ import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocation
 import { ModuleSelectionScreen } from '../components/ModuleSelectionScreen';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { getSavedModulePreference, saveModulePreference, clearModulePreference, ModuleType } from '../lib/userPreferences';
+import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -1120,7 +1121,8 @@ export const CompanyDashboard: React.FC = () => {
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6" id="overview-tab">
-              
+              <FleetPushNotificationCard />
+
               {/* WAYBILL OPERATIONS BANNER */}
               <div 
                 className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 

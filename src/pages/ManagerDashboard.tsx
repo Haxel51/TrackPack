@@ -20,6 +20,7 @@ import {
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { DriverScreen } from './DriverScreen';
 import { initializeFCM } from '../modules/fleetTracking/fcm';
+import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -377,6 +378,8 @@ export const ManagerDashboard: React.FC = () => {
             {/* TAB: OVERVIEW */}
             {activeTab === 'overview' && overview && (
               <div className="space-y-6">
+                <FleetPushNotificationCard />
+
                 {/* Metrics Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                   {/* Waybill Volume */}

@@ -55,57 +55,54 @@ async function sendFleetNotification(
   const eventType = data?.eventType || "general";
 
   let tokens: string[] = [];
+  const lowerRoles = roles ? roles.map(r => r.toLowerCase().trim()) : [];
 
-  // Normalize role matching strings
-  const lowerRoles = roles.map(r => r.toLowerCase().trim());
-
-  // Get FCM tokens for specified roles from fleetTracking_users
+  // 1. Get FCM tokens from fleetTracking_users
   try {
     const usersSnapshot = await getDocs(
-      query(
-        collection(db, "fleetTracking_users"),
-        where("companyId", "==", companyId),
-        where("is_active", "==", true)
-      )
+      query(collection(db, "fleetTracking_users"), where("companyId", "==", companyId))
     );
-
-    const userTokens = usersSnapshot.docs
-      .map(docSnap => docSnap.data())
-      .filter(u => {
-        if (!roles || roles.length === 0) return true;
-        const userRole = (u.role || u.manager_type || "").toLowerCase().trim();
-        return lowerRoles.includes(userRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo");
-      })
-      .map(u => u.fcmToken)
-      .filter(Boolean);
-
-    tokens.push(...userTokens);
+    usersSnapshot.docs.forEach(docSnap => {
+      const u = docSnap.data();
+      const userRole = (u.role || u.manager_type || "").toLowerCase().trim();
+      if (!lowerRoles.length || lowerRoles.includes(userRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo")) {
+        if (u.fcmToken) tokens.push(u.fcmToken);
+        if (u.fcm_token) tokens.push(u.fcm_token);
+      }
+    });
   } catch (err) {
     console.warn("Could not query fleetTracking_users for FCM tokens:", err);
   }
 
-  // Get FCM tokens from managers collection as well
+  // 2. Get FCM tokens from managers collection
   try {
     const mgrSnapshot = await getDocs(
-      query(
-        collection(db, "managers"),
-        where("company_id", "==", companyId)
-      )
+      query(collection(db, "managers"), where("company_id", "==", companyId))
     );
-
-    const mgrTokens = mgrSnapshot.docs
-      .map(docSnap => docSnap.data())
-      .filter(m => {
-        if (!roles || roles.length === 0) return true;
-        const mgrRole = (m.role || m.manager_type || "").toLowerCase().trim();
-        return lowerRoles.includes(mgrRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo");
-      })
-      .map(m => m.fcmToken)
-      .filter(Boolean);
-
-    tokens.push(...mgrTokens);
+    mgrSnapshot.docs.forEach(docSnap => {
+      const m = docSnap.data();
+      const mgrRole = (m.role || m.manager_type || "").toLowerCase().trim();
+      if (!lowerRoles.length || lowerRoles.includes(mgrRole) || lowerRoles.includes("owner") || lowerRoles.includes("manager") || lowerRoles.includes("ceo")) {
+        if (m.fcmToken) tokens.push(m.fcmToken);
+        if (m.fcm_token) tokens.push(m.fcm_token);
+      }
+    });
   } catch (err) {
     console.warn("Could not query managers for FCM tokens:", err);
+  }
+
+  // 3. Get FCM tokens from users collection
+  try {
+    const uSnapshot = await getDocs(
+      query(collection(db, "users"), where("company_id", "==", companyId))
+    );
+    uSnapshot.docs.forEach(docSnap => {
+      const u = docSnap.data();
+      if (u.fcmToken) tokens.push(u.fcmToken);
+      if (u.fcm_token) tokens.push(u.fcm_token);
+    });
+  } catch (err) {
+    // ignore
   }
 
   // Filter & deduplicate tokens
@@ -137,12 +134,12 @@ async function sendFleetNotification(
 
     try {
       const response = await getMessaging().sendEachForMulticast(message as any);
-      console.log(`[FCM] Sent ${response.successCount} notifications, ${response.failureCount} failures`);
+      console.log(`[FCM Fleet Push] Sent ${response.successCount} notifications (${response.failureCount} failed) for company ${companyId}`);
     } catch (fcmErr) {
-      console.warn("[FCM] Error sending multicast notification:", fcmErr);
+      console.warn("[FCM Fleet Push Error]:", fcmErr);
     }
   } else {
-    console.log("[FCM] No FCM tokens found for:", roles);
+    console.log("[FCM Fleet Push] No device tokens found for company:", companyId, "roles:", roles);
   }
 
   // Also save to notifications and fleetTracking_notifications collection
@@ -9755,6 +9752,30 @@ app.post("/api/fleet-tracking/fcm-token", async (req, res) => {
     res.json({ success: true });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/fcm-token:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// Trigger a direct test Push Alert for Fleet Tracking
+app.post("/api/fleet-tracking/notifications/test", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+    const companyId = authInfo.companyId || "DEFAULT";
+
+    await sendFleetNotification(
+      companyId,
+      ["Owner", "CEO", "Manager", "Trip Monitor", "Driver"],
+      "🚚 Fleet Push Alert Test",
+      "Real-time push notifications are active and working on your phone!",
+      { type: "test", timestamp: new Date().toISOString() }
+    );
+
+    res.json({ success: true, message: "Test push notification dispatched to your device!" });
+  } catch (err: any) {
+    console.error("Error sending test push notification:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
