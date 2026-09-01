@@ -8,6 +8,7 @@ import { TrucksManagement } from '../components/TrucksManagement';
 import { TripsManagement } from '../components/TripsManagement';
 import { TeamManagement } from '../components/TeamManagement';
 import { PaymentHistoryView } from '../components/PaymentHistoryView';
+import { FleetAnalyticsManagement } from '../components/FleetAnalyticsManagement';
 import { NotificationCenterModal, FleetNotification } from '../components/NotificationCenterModal';
 import { FleetNotificationPromptOverlay } from '../components/FleetNotificationPromptOverlay';
 import { FleetPushNotificationCard } from '../components/FleetPushNotificationCard';
@@ -47,7 +48,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
   const canSwitchModule = Boolean(onSwitchModule && showSwitchModule && !isManager && !isTripMonitor && role === 'company');
 
-  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments'>(
+  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments' | 'analytics'>(
     'overview'
   );
 
@@ -333,6 +334,21 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <span>{t('fleetPaymentTab')}</span>
             </button>
           )}
+
+          {(isCEO || isManager) && (
+            <button
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
+                activeTab === 'analytics'
+                  ? 'bg-slate-900 text-amber-400 border-amber-500 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200 border-transparent'
+              }`}
+              id="fleet-tab-analytics"
+            >
+              <BarChart3 className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span>Analytics & Reports</span>
+            </button>
+          )}
         </div>
       </header>
 
@@ -384,6 +400,11 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         {/* TAB 5: PAYMENT HISTORY */}
         {activeTab === 'payments' && (
           <PaymentHistoryView token={token || ''} isCEO={isCEO} />
+        )}
+
+        {/* TAB 6: ANALYTICS & REPORTS */}
+        {activeTab === 'analytics' && (isCEO || isManager) && (
+          <FleetAnalyticsManagement token={token || ''} role={role} user={user} />
         )}
 
         {/* TAB 3: FLEET OVERVIEW */}
