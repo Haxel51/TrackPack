@@ -377,7 +377,7 @@ export const CustomerDashboard: React.FC = () => {
               <button
                 onClick={handleEnableNotifications}
                 disabled={isRequestingNotif}
-                className="bg-[#0A1F44] hover:bg-slate-900 text-white font-extrabold px-6 py-3 rounded-2xl text-xs transition-all shadow-md cursor-pointer whitespace-nowrap flex items-center gap-2"
+                className="bg-[#0A1F44] hover:bg-[#091026] text-white font-extrabold px-6 py-3 rounded-2xl text-xs transition-all shadow-md cursor-pointer whitespace-nowrap flex items-center gap-2"
               >
                 {isRequestingNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4 text-[#F2A93B]" />}
                 Enable Notifications
@@ -530,7 +530,7 @@ export const CustomerDashboard: React.FC = () => {
 
       {/* Shipment Details Backdrop / Modal Dialog */}
       {selectedWaybill && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+        <div className="fixed inset-0 bg-[#091026]/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
           <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto relative animate-scaleUp">
             
             {/* Modal Close Button */}

@@ -749,7 +749,7 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* CREATE STAFF MODAL */}
       {showCreateStaffModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4 z-50">
+        <div className="fixed inset-0 bg-[#091026]/60 backdrop-blur-xs flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-4">
             <div className="flex justify-between items-center pb-2 border-b border-slate-100">
               <h3 className="font-extrabold text-[#0A1F44]">Add New Park Staff</h3>
@@ -810,7 +810,7 @@ export const ManagerDashboard: React.FC = () => {
 
       {/* ONE-TIME PIN DISPLAY MODAL */}
       {pinModal && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex justify-center items-center p-4 z-50">
+        <div className="fixed inset-0 bg-[#091026]/60 backdrop-blur-xs flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
             <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto">
               <Key className="w-6 h-6 text-amber-600" />

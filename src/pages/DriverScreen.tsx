@@ -1,11 +1,45 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Settings, LogOut } from 'lucide-react';
-import { getDriverActiveTrip } from '../modules/fleetTracking/api';
+import { 
+  getDriverActiveTrip,
+  sendDriverHeartbeat,
+  checkDriverReinstall
+} from '../modules/fleetTracking/api';
+import { db } from '../lib/firebase';
+import { doc, updateDoc, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import {
   sendLocationWithRetry,
   flushPendingLocations,
 } from '../modules/fleetTracking/offlineLocationSync';
+
+// FEATURE 2 — DEVICE ID GENERATION & DEVICE INFO HELPERS
+export function getDeviceId(): string {
+  let deviceId = typeof localStorage !== 'undefined' ? localStorage.getItem('fleet_device_id') : null;
+  if (!deviceId) {
+    deviceId = typeof crypto !== 'undefined' && crypto.randomUUID 
+      ? crypto.randomUUID() 
+      : ('device_' + Math.random().toString(36).substring(2, 15) + Date.now().toString(36));
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem('fleet_device_id', deviceId);
+    }
+  }
+  return deviceId;
+}
+
+export function getDeviceInfo() {
+  return {
+    userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    platform: typeof navigator !== 'undefined' ? navigator.platform : '',
+    screenWidth: typeof window !== 'undefined' && window.screen ? window.screen.width : 0,
+    screenHeight: typeof window !== 'undefined' && window.screen ? window.screen.height : 0,
+    language: typeof navigator !== 'undefined' ? navigator.language : 'en',
+    timestamp: new Date().toISOString()
+  };
+}
+
+// FEATURE 1 — DAILY HEARTBEAT CONSTANT
+const HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
 function calculateDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -34,12 +68,180 @@ export const DriverScreen: React.FC = () => {
   const noTripTimerRef = useRef<NodeJS.Timeout | null>(null);
   const gpsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tripCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const companyName = user?.company_name || 'Transport Company';
   const driverName = user?.name || 'Driver';
   const plateNumber = (user as any)?.plate_number || 'Truck Plate';
+  const driverId = user?.id || '';
+
+  // FEATURE 1 — SEND HEARTBEAT
+  const sendHeartbeat = useCallback(async (targetDriverId: string) => {
+    if (!targetDriverId) return;
+    try {
+      let locationPerm = 'prompt';
+      try {
+        if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
+          const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as any });
+          locationPerm = permissionStatus.state;
+        } else if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          locationPerm = permissionState === 'denied' ? 'denied' : 'granted';
+        }
+      } catch {
+        locationPerm = permissionState === 'denied' ? 'denied' : 'granted';
+      }
+
+      const currentDeviceId = getDeviceId();
+      const currentDeviceInfo = getDeviceInfo();
+
+      // 1. Send via backend API
+      await sendDriverHeartbeat({
+        driverId: targetDriverId,
+        locationPermission: locationPerm,
+        deviceId: currentDeviceId,
+        deviceInfo: currentDeviceInfo,
+        driverName: user?.name,
+        driverPhone: user?.phone,
+        companyId: user?.company_id || (user as any)?.companyId
+      }).catch(() => {});
+
+      // 2. Direct Firestore update for immediate redundancy
+      try {
+        const driverRef = doc(db, 'fleetTracking_users', targetDriverId);
+        await updateDoc(driverRef, {
+          lastHeartbeatAt: serverTimestamp(),
+          locationPermission: locationPerm,
+          appInstalled: true,
+          deviceId: currentDeviceId,
+          deviceInfo: currentDeviceInfo
+        });
+
+        // PART B — DETECT LOCATION PERMISSION OFF
+        if (locationPerm === 'denied') {
+          await addDoc(collection(db, 'fleetTracking_users', targetDriverId, 'events'), {
+            type: 'location_permission_disabled',
+            timestamp: serverTimestamp(),
+            driverName: user?.name || 'Driver',
+            driverPhone: user?.phone || '',
+            companyId: user?.company_id || (user as any)?.companyId || '',
+            deviceId: currentDeviceId
+          });
+        }
+      } catch (fsErr) {
+        console.warn('[Heartbeat Direct Firestore Update]:', fsErr);
+      }
+    } catch (err) {
+      console.warn('[Heartbeat Error]:', err);
+    }
+  }, [permissionState, user]);
+
+  // FEATURE 1 — START & STOP HEARTBEAT SYSTEM
+  const startHeartbeat = useCallback((targetDriverId: string) => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+    // Send immediately on app open/login
+    sendHeartbeat(targetDriverId);
+    // Then send every 24 hours
+    heartbeatIntervalRef.current = setInterval(() => {
+      sendHeartbeat(targetDriverId);
+    }, HEARTBEAT_INTERVAL);
+  }, [sendHeartbeat]);
+
+  const stopHeartbeat = useCallback(() => {
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current);
+      heartbeatIntervalRef.current = null;
+    }
+  }, []);
+
+  // FEATURE 2 — REINSTALL DETECTION ON LOGIN / APP LAUNCH
+  const checkReinstallFlow = useCallback(async (targetDriverId: string) => {
+    if (!targetDriverId) return;
+    try {
+      const currentDeviceId = getDeviceId();
+      const currentDeviceInfo = getDeviceInfo();
+
+      // 1. API Verification
+      await checkDriverReinstall({
+        driverId: targetDriverId,
+        deviceId: currentDeviceId,
+        deviceInfo: currentDeviceInfo,
+        driverData: user
+      }).catch(() => {});
+
+      // 2. Direct Firestore Verification
+      try {
+        const driverRef = doc(db, 'fleetTracking_users', targetDriverId);
+        const driverSnap = await getDoc(driverRef);
+        if (driverSnap.exists()) {
+          const data = driverSnap.data();
+          const savedDeviceId = data.deviceId;
+          const loginCount = data.loginCount || 0;
+
+          if (!savedDeviceId) {
+            // First time login ever
+            await updateDoc(driverRef, {
+              deviceId: currentDeviceId,
+              firstLoginAt: serverTimestamp(),
+              lastLoginAt: serverTimestamp(),
+              loginCount: 1,
+              lastLoginDevice: currentDeviceInfo,
+              reinstallCount: 0
+            });
+          } else if (savedDeviceId !== currentDeviceId) {
+            // Device ID changed — app was reinstalled
+            const nextCount = (data.reinstallCount || 0) + 1;
+            await updateDoc(driverRef, {
+              deviceId: currentDeviceId,
+              lastLoginAt: serverTimestamp(),
+              loginCount: loginCount + 1,
+              lastLoginDevice: currentDeviceInfo,
+              reinstallDetectedAt: serverTimestamp(),
+              reinstallCount: nextCount
+            });
+
+            await addDoc(collection(db, 'fleetTracking_users', targetDriverId, 'events'), {
+              type: 'app_reinstalled',
+              timestamp: serverTimestamp(),
+              newDeviceId: currentDeviceId,
+              previousDeviceId: savedDeviceId,
+              driverName: data.full_name || data.name || user?.name || 'Driver',
+              driverPhone: data.phone || user?.phone || '',
+              companyId: data.companyId || user?.company_id || '',
+              deviceInfo: currentDeviceInfo,
+              reinstallCount: nextCount
+            });
+          } else {
+            // Same device — normal login
+            await updateDoc(driverRef, {
+              lastLoginAt: serverTimestamp(),
+              loginCount: loginCount + 1
+            });
+          }
+        }
+      } catch (fsErr) {
+        console.warn('[Reinstall Direct Firestore Update]:', fsErr);
+      }
+    } catch (err) {
+      console.warn('[Check Reinstall Flow Error]:', err);
+    }
+  }, [user]);
+
+  // Launch Reinstall Check & Daily Heartbeat on Mount
+  useEffect(() => {
+    if (driverId) {
+      checkReinstallFlow(driverId);
+      startHeartbeat(driverId);
+    }
+    return () => {
+      stopHeartbeat();
+    };
+  }, [driverId, checkReinstallFlow, startHeartbeat, stopHeartbeat]);
 
   // FIX 3: Wake Lock API request and release helpers
+
   const requestWakeLock = useCallback(async () => {
     try {
       if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && (navigator as any).wakeLock) {
@@ -295,8 +497,8 @@ export const DriverScreen: React.FC = () => {
   // IF DRIVER TAPS "Allow all the time" ✅
   if (permissionState === 'allow_all') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
-        <div className="my-auto space-y-6 max-w-sm w-full bg-slate-900 border border-slate-800 rounded-3xl p-8 shadow-2xl animate-fade-in">
+      <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
+        <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto font-black text-xl">
             {companyName.charAt(0)}
           </div>
@@ -328,7 +530,7 @@ export const DriverScreen: React.FC = () => {
         <div className="pt-6 pb-2">
           <button
             onClick={() => setShowLogoutConfirm(true)}
-            className="text-xs text-slate-500 hover:text-slate-300 transition-colors font-medium cursor-pointer flex items-center gap-1.5 mx-auto py-2 px-4 rounded-xl hover:bg-slate-900/60"
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors font-medium cursor-pointer flex items-center gap-1.5 mx-auto py-2 px-4 rounded-xl hover:bg-[#091026]/60"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>Sign Out</span>
@@ -338,7 +540,7 @@ export const DriverScreen: React.FC = () => {
         {/* FIX 10: Sign Out Confirmation Modal */}
         {showLogoutConfirm && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-slate-900 border border-slate-800 text-white w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-4 text-center">
+            <div className="bg-[#091026] border border-blue-950/80 text-white w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-4 text-center">
               <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
                 <AlertCircle className="w-6 h-6" />
               </div>
@@ -351,7 +553,7 @@ export const DriverScreen: React.FC = () => {
               <div className="grid grid-cols-2 gap-2 pt-2">
                 <button
                   onClick={() => setShowLogoutConfirm(false)}
-                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
+                  className="py-2.5 px-3 bg-[#131e3d] hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -372,8 +574,8 @@ export const DriverScreen: React.FC = () => {
   // IF DRIVER DENIES "Don't allow" ❌
   if (permissionState === 'denied') {
     return (
-      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
-        <div className="space-y-6 max-w-sm w-full bg-slate-900 border border-rose-500/30 rounded-3xl p-8 shadow-2xl">
+      <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
+        <div className="space-y-6 max-w-sm w-full bg-[#091026] border border-rose-500/30 rounded-3xl p-8 shadow-2xl">
           <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
             <AlertCircle className="w-8 h-8" />
           </div>
@@ -385,7 +587,7 @@ export const DriverScreen: React.FC = () => {
             </p>
           </div>
 
-          <div className="bg-slate-950 p-4 rounded-2xl border border-slate-800 text-[11px] text-slate-400 flex items-center gap-3 text-left">
+          <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80 text-[11px] text-slate-400 flex items-center gap-3 text-left">
             <Settings className="w-5 h-5 text-amber-400 shrink-0" />
             <span>Driver accounts cannot access any part of the app without full background location permissions.</span>
           </div>
@@ -404,7 +606,7 @@ export const DriverScreen: React.FC = () => {
   // Initial prompt state: Standard Android/iOS style popup with NO mention of location and only showing "Allow all the time"
   return (
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1e1e1e] text-white border border-slate-700 w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-5 text-center animate-scaleIn">
+      <div className="bg-[#1e1e1e] text-white border border-blue-900/60 w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-5 text-center animate-scaleIn">
         {errorMessage && (
           <div className="p-2.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[11px] font-bold rounded-xl">
             {errorMessage}

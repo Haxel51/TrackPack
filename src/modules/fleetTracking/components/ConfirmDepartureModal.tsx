@@ -108,7 +108,7 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
             type="button"
             disabled={isLoading}
             onClick={onClose}
-            className="w-full sm:w-1/2 bg-slate-800 hover:bg-slate-700 text-slate-300 font-extrabold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-blue-900/65 transition-colors cursor-pointer"
+            className="w-full sm:w-1/2 bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-extrabold py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 border border-blue-900/65 transition-colors cursor-pointer"
             id="departure-not-yet-btn"
           >
             <XCircle className="w-4 h-4 text-slate-400" />

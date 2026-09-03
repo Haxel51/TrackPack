@@ -39,6 +39,9 @@ service cloud.firestore {
 
     match /fleetTracking_users/{userId} {
       allow read, write: if true;
+      match /events/{eventId} {
+        allow read, write: if true;
+      }
     }
 
     match /fleetTracking_payments/{paymentId} {

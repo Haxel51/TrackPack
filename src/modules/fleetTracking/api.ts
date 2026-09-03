@@ -716,6 +716,124 @@ export async function getSubscriptionAlerts(
   }
 }
 
+// 34. Get Fleet Notifications
+export async function getFleetNotifications(
+  token?: string
+): Promise<{ success: boolean; notifications: any[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/notifications`, {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, notifications: [], error: data.error || `HTTP ${res.status}: Failed to fetch notifications` };
+    }
+    return { success: true, notifications: Array.isArray(data.notifications) ? data.notifications : [] };
+  } catch (err: any) {
+    return { success: false, notifications: [], error: err?.message || 'Network error fetching notifications' };
+  }
+}
+
+// 35. Mark Notification As Read
+export async function markNotificationAsRead(
+  id: string,
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/${id}/read`, {
+      method: 'PATCH',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+// 36. Mark All Notifications As Read
+export async function markAllNotificationsAsRead(
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/notifications/read-all`, {
+      method: 'POST',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+// 37. Send Driver Daily Heartbeat
+export async function sendDriverHeartbeat(
+  payload: {
+    driverId: string;
+    locationPermission: string;
+    deviceId: string;
+    deviceInfo: any;
+    driverName?: string;
+    driverPhone?: string;
+    companyId?: string;
+  },
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/fleet-tracking/driver/heartbeat', {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false, error: data.error };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+// 38. Check Driver Reinstall on Login
+export async function checkDriverReinstall(
+  payload: {
+    driverId: string;
+    deviceId: string;
+    deviceInfo: any;
+    driverData?: any;
+  },
+  token?: string
+): Promise<{ success: boolean; isFirstLogin?: boolean; isReinstall?: boolean; reinstallCount?: number; error?: string }> {
+  try {
+    const res = await fetch('/api/fleet-tracking/driver/check-reinstall', {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false, ...data };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+// 39. Trigger Heartbeat Audit Check
+export async function triggerHeartbeatAudit(
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/fleet-tracking/cron/check-driver-heartbeats', {
+      method: 'GET',
+      headers: getHeaders(token),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false, error: data.error };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+
 
 
 

@@ -114,7 +114,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/80 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-[#131e3d]/80 transition-colors cursor-pointer"
             id="close-truck-modal-btn"
           >
             <X className="w-5 h-5" />
@@ -261,7 +261,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
+              className="flex-1 bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
               id="cancel-truck-modal-btn"
             >
               Cancel

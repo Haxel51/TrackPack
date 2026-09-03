@@ -320,7 +320,7 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/80 transition-colors cursor-pointer"
+            className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-[#131e3d]/80 transition-colors cursor-pointer"
             id="close-redirect-modal-btn"
           >
             <X className="w-5 h-5" />
@@ -443,7 +443,7 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
                       >
                         <div className="flex items-start gap-3">
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
-                            isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400'
+                            isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
                           }`}>
                             <Building2 className="w-4 h-4" />
                           </div>
@@ -523,7 +523,7 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
                       <div
                         key={item.id}
                         onClick={() => handleSelectAddressSuggestion(item)}
-                        className="p-3 hover:bg-slate-800/80 cursor-pointer text-xs text-slate-200 border-b border-blue-950/60/60 last:border-0 flex items-center gap-2.5"
+                        className="p-3 hover:bg-[#131e3d]/80 cursor-pointer text-xs text-slate-200 border-b border-blue-950/60/60 last:border-0 flex items-center gap-2.5"
                       >
                         <MapPin className="w-4 h-4 text-amber-400 shrink-0" />
                         <div>
@@ -581,7 +581,7 @@ export const RedirectTripModal: React.FC<RedirectTripModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={isSubmitting}
-            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+            className="bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
           >
             Cancel
           </button>

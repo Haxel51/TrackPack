@@ -352,7 +352,7 @@ export const HomePage: React.FC = () => {
 
       {/* How It Works Guide Modal */}
       {showHowItWorksModal && (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
           <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">

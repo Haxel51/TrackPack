@@ -75,7 +75,7 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
 
         {/* Animated Gold Loading Indicator centered at the bottom of the premium background */}
         <div className="relative z-20 w-full max-w-xs flex flex-col items-center space-y-2 mb-2">
-          <div className="w-48 h-1.5 bg-slate-900/80 rounded-full overflow-hidden relative shadow-inner border border-slate-700/30">
+          <div className="w-48 h-1.5 bg-[#091026]/80 rounded-full overflow-hidden relative shadow-inner border border-blue-900/60/30">
             <div
               className={`h-full bg-gradient-to-r from-[#F2A93B] via-amber-400 to-[#F2A93B] rounded-full transition-all ease-out shadow-[0_0_10px_rgba(242,169,59,0.6)] ${progressWidth}`}
               style={{

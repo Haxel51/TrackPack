@@ -37,6 +37,8 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
 
   // Quick Pop-up Modal state for registering a new vehicle without losing draft
   const [showRegisterBusModal, setShowRegisterBusModal] = useState(false);
+  // Warning confirmation modal when shipping fee is left blank
+  const [showShippingFeeWarningModal, setShowShippingFeeWarningModal] = useState(false);
 
   const [parks, setParks] = useState<{ id: string; park_name: string; park_location: string }[]>([]);
   const [availableBuses, setAvailableBuses] = useState<Bus[]>([]);
@@ -297,30 +299,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     fetchMetadata();
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!senderName.trim() || !senderPhone.trim() || !receiverName.trim() || !receiverPhone.trim() || !itemDescription.trim() || !destinationPark.trim()) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-
-    if (!busId || busId === 'Unassigned') {
-      setError(`Assigning an active loading vehicle for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a vehicle or click "Register New Vehicle".`);
-      return;
-    }
-
-    const cleanSender = (senderPhone || '').replace(/\D/g, '');
-    if (cleanSender.length !== 11) {
-      setError('Sender phone number must be exactly 11 digits (e.g. 08012345678).');
-      return;
-    }
-
-    const cleanReceiver = (receiverPhone || '').replace(/\D/g, '');
-    if (cleanReceiver.length !== 11) {
-      setError('Receiver phone number must be exactly 11 digits (e.g. 08012345678).');
-      return;
-    }
-
+  const executeCreateWaybill = async () => {
     setSubmitLoading(true);
     setError(null);
 
@@ -360,6 +339,40 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     } finally {
       setSubmitLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!senderName.trim() || !senderPhone.trim() || !receiverName.trim() || !receiverPhone.trim() || !itemDescription.trim() || !destinationPark.trim()) {
+      setError('Please fill in all required fields.');
+      return;
+    }
+
+    if (!busId || busId === 'Unassigned') {
+      setError(`Assigning an active loading vehicle for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a vehicle or click "Register New Vehicle".`);
+      return;
+    }
+
+    const cleanSender = (senderPhone || '').replace(/\D/g, '');
+    if (cleanSender.length !== 11) {
+      setError('Sender phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
+    const cleanReceiver = (receiverPhone || '').replace(/\D/g, '');
+    if (cleanReceiver.length !== 11) {
+      setError('Receiver phone number must be exactly 11 digits (e.g. 08012345678).');
+      return;
+    }
+
+    // Check if shipping fee is left blank or 0 - prompt confirmation warning
+    const parsedFee = waybillFee ? parseFloat(waybillFee) : 0;
+    if (!parsedFee || isNaN(parsedFee) || parsedFee <= 0) {
+      setShowShippingFeeWarningModal(true);
+      return;
+    }
+
+    await executeCreateWaybill();
   };
 
   // Stage 6: Manually verify transfer / trigger poll
@@ -619,7 +632,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               href={activePayment.checkoutUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-black py-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 no-underline shadow-md"
+              className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-black py-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 no-underline shadow-md"
               id="paystack-checkout-link"
             >
               <ExternalLink className="w-4 h-4 text-[#F2A93B]" />
@@ -1007,9 +1020,51 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         </form>
       )}
 
+      {/* Warning confirmation modal when shipping fee is left blank */}
+      {showShippingFeeWarningModal && (
+        <div className="fixed inset-0 z-50 bg-[#091026]/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in" id="shipping-fee-warning-modal">
+          <div className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 text-center space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-base font-extrabold text-[#0A1F44]">
+                No Shipping Fee Entered
+              </h3>
+              <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                You haven't entered a shipping fee for this waybill. This means it won't be counted in your park's earnings records. Continue anyway?
+              </p>
+            </div>
+
+            <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+              <button
+                type="button"
+                id="shipping-fee-warning-go-back-btn"
+                onClick={() => setShowShippingFeeWarningModal(false)}
+                className="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 px-4 rounded-xl text-xs transition-colors cursor-pointer"
+              >
+                Go Back & Enter Fee
+              </button>
+              <button
+                type="button"
+                id="shipping-fee-warning-continue-btn"
+                onClick={async () => {
+                  setShowShippingFeeWarningModal(false);
+                  await executeCreateWaybill();
+                }}
+                className="flex-1 bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-3 px-4 rounded-xl text-xs transition-colors cursor-pointer shadow-md"
+              >
+                Continue Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Pop-up Modal for Registering New Vehicle without losing Waybill form data */}
       {showRegisterBusModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
+        <div className="fixed inset-0 z-50 bg-[#091026]/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
           <div className="relative w-full max-w-xl my-8">
             <div className="absolute top-4 right-4 z-10">
               <button

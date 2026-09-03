@@ -13,6 +13,7 @@ import { NotificationCenterModal, FleetNotification } from '../components/Notifi
 import { FleetNotificationPromptOverlay } from '../components/FleetNotificationPromptOverlay';
 import { FleetPushNotificationCard } from '../components/FleetPushNotificationCard';
 import { initializeFCM, requestNotificationPermission, isIframeContext } from '../fcm';
+import { getFleetNotifications } from '../api';
 import {
   MapPin,
   Truck,
@@ -48,7 +49,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
   const canSwitchModule = Boolean(onSwitchModule && showSwitchModule && !isManager && !isTripMonitor && role === 'company');
 
-  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'payments' | 'analytics'>(
+  const [activeTab, setActiveTab] = useState<'trucks' | 'locations' | 'trips' | 'team' | 'overview' | 'analytics'>(
     'overview'
   );
 
@@ -68,19 +69,15 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   const isEligibleForPush = !isDriver && (isCEO || isManager || isTripMonitor || role === 'company' || role === 'manager' || role === 'trip_monitor');
 
   const fetchNotifications = useCallback(async () => {
-    if (!token) return;
     try {
-      const res = await fetch('/api/fleet-tracking/notifications', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      const data = await res.json();
-      if (data.success && Array.isArray(data.notifications)) {
-        setNotifications(data.notifications);
+      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
+      if (!activeToken) return;
+      const res = await getFleetNotifications(activeToken);
+      if (res.success && Array.isArray(res.notifications)) {
+        setNotifications(res.notifications);
       }
     } catch (e) {
-      console.error('Error fetching fleet notifications:', e);
+      // Graceful fallback for offline / disconnected states
     }
   }, [token]);
 
@@ -215,7 +212,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
                   <ArrowRightLeft className="w-4 h-4 text-amber-400" />
                   <span>{t('switchModule')}</span>
                 </button>
-                <div className="h-6 w-[1px] bg-slate-800 hidden md:block" />
+                <div className="h-6 w-[1px] bg-[#131e3d] hidden md:block" />
               </>
             )}
 
@@ -223,7 +220,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
             <button
               onClick={() => setIsNotifOpen(true)}
-              className="relative p-2 rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-blue-900/65/80 text-slate-300 hover:text-white transition-all cursor-pointer"
+              className="relative p-2 rounded-xl bg-[#131e3d]/80 hover:bg-[#131e3d] border border-blue-900/65/80 text-slate-300 hover:text-white transition-all cursor-pointer"
               title="Fleet Notifications"
               id="fleet-notification-bell-btn"
             >
@@ -320,20 +317,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             </button>
           )}
 
-          {isCEO && (
-            <button
-              onClick={() => setActiveTab('payments')}
-              className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
-                activeTab === 'payments'
-                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200 border-transparent'
-              }`}
-              id="fleet-tab-payments"
-            >
-              <CreditCard className={`w-4 h-4 ${activeTab === 'payments' ? 'text-amber-400' : 'text-slate-500'}`} />
-              <span>{t('fleetPaymentTab')}</span>
-            </button>
-          )}
+
 
           {(isCEO || isManager) && (
             <button
@@ -397,10 +381,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
           <TeamManagement token={token || ''} role={role} user={user} />
         )}
 
-        {/* TAB 5: PAYMENT HISTORY */}
-        {activeTab === 'payments' && (
-          <PaymentHistoryView token={token || ''} isCEO={isCEO} />
-        )}
+
 
         {/* TAB 6: ANALYTICS & REPORTS */}
         {activeTab === 'analytics' && (isCEO || isManager) && (

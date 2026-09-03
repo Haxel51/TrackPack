@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
 interface ProtectedRouteProps {
@@ -9,6 +9,7 @@ interface ProtectedRouteProps {
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowedRole }) => {
   const { token, role, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) {
     return (
@@ -19,14 +20,23 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     );
   }
 
-  // Redirect to homepage if not authenticated or role mismatch
   const isAuthorized = 
     role === allowedRole || 
     (allowedRole === 'manager' && (role === 'trip_monitor' || role === 'driver'));
 
   if (!token || !isAuthorized) {
-    return <Navigate to="/" replace />;
+    let targetLogin = '/';
+    if (allowedRole === 'customer') targetLogin = '/customer/login';
+    else if (allowedRole === 'company') targetLogin = '/company/login';
+    else if (allowedRole === 'staff') targetLogin = '/staff/login';
+    else if (allowedRole === 'admin') targetLogin = '/admin/login';
+    else if (allowedRole === 'manager') targetLogin = '/login/manager';
+    else if (allowedRole === 'driver') targetLogin = '/login/driver';
+    else if (allowedRole === 'supplier_staff') targetLogin = '/login/supplier-staff';
+
+    return <Navigate to={`${targetLogin}?expired=true`} state={{ sessionExpired: true, from: location }} replace />;
   }
 
   return <>{children}</>;
 };
+

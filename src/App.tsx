@@ -43,10 +43,15 @@ export default function App() {
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
             <Route path="/login/customer" element={<CustomerLogin />} />
+            <Route path="/customer/login" element={<CustomerLogin />} />
             <Route path="/login/staff" element={<StaffLogin />} />
+            <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/login/manager" element={<ManagerLogin />} />
+            <Route path="/manager/login" element={<ManagerLogin />} />
             <Route path="/login/company" element={<CompanyLogin />} />
+            <Route path="/company/login" element={<CompanyLogin />} />
             <Route path="/login/admin" element={<AdminLogin />} />
+            <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
 
             {/* Protected Routes */}

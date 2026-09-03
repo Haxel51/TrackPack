@@ -987,7 +987,7 @@ export const CompanyDashboard: React.FC = () => {
 
   if (moduleLoading) {
     return (
-      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center space-y-4 text-white font-sans">
+      <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center space-y-4 text-white font-sans">
         <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
         <p className="text-sm font-bold text-slate-400">Loading workspace configuration...</p>
       </div>
@@ -1026,7 +1026,7 @@ export const CompanyDashboard: React.FC = () => {
                 <span className="font-black text-sm sm:text-base text-white tracking-wide truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[280px] md:max-w-none">
                   {user?.company_name || 'Waybilla Partner'}
                 </span>
-                <div className="inline-flex items-center gap-1.5 bg-slate-800/90 text-slate-200 border border-slate-700/80 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold shrink-0">
+                <div className="inline-flex items-center gap-1.5 bg-[#131e3d]/90 text-slate-200 border border-blue-900/60/80 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold shrink-0">
                   <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
                   <span className="text-blue-300">📦 Waybill Module</span>
                 </div>
@@ -1070,7 +1070,7 @@ export const CompanyDashboard: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border-0 shrink-0 ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-sm'
+                    ? 'bg-[#091026] text-white shadow-sm'
                     : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
                 }`}
               >
@@ -1093,7 +1093,7 @@ export const CompanyDashboard: React.FC = () => {
                 onClick={() => setActiveTab(tab.id as any)}
                 className={`w-full text-left px-4 py-3.5 rounded-xl text-sm font-extrabold flex items-center gap-3 transition-all cursor-pointer border-0 ${
                   isActive
-                    ? 'bg-slate-900 text-white shadow-md'
+                    ? 'bg-[#091026] text-white shadow-md'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
                 }`}
                 id={`tab-btn-${tab.id}`}
@@ -1646,7 +1646,7 @@ export const CompanyDashboard: React.FC = () => {
                 <div className="md:col-span-1">
                   <button
                     type="submit"
-                    className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold p-2.5 rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer border-0"
+                    className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-extrabold p-2.5 rounded-xl text-xs flex items-center justify-center transition-all cursor-pointer border-0"
                     id="apply-filters-btn"
                   >
                     <Filter className="w-3.5 h-3.5" />
@@ -1959,7 +1959,7 @@ export const CompanyDashboard: React.FC = () => {
                                 type="button"
                                 onClick={handleVerifyAccount}
                                 disabled={verifyingAccount || accountNumber.length !== 10}
-                                className="bg-[#0A1F44] hover:bg-slate-800 disabled:opacity-40 text-white font-extrabold px-4.5 py-3 rounded-xl text-xs transition-all border-0 cursor-pointer shrink-0"
+                                className="bg-[#0A1F44] hover:bg-[#131e3d] disabled:opacity-40 text-white font-extrabold px-4.5 py-3 rounded-xl text-xs transition-all border-0 cursor-pointer shrink-0"
                                 id="verify-account-btn"
                               >
                                 {verifyingAccount ? 'Verifying...' : 'Verify'}
@@ -2305,7 +2305,7 @@ export const CompanyDashboard: React.FC = () => {
 
             <button
               onClick={() => setResetPinSuccessState(null)}
-              className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
+              className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
               id="confirm-reset-pin-close-btn"
             >
               I Have Written It Down
@@ -2403,7 +2403,7 @@ export const CompanyDashboard: React.FC = () => {
 
             <button
               onClick={() => setManagerResetSuccessState(null)}
-              className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
+              className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
             >
               Done & Close
             </button>
@@ -2444,7 +2444,7 @@ export const CompanyDashboard: React.FC = () => {
 
             <button
               onClick={() => setPinSuccessState(null)}
-              className="w-full bg-[#0A1F44] hover:bg-slate-800 text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
+              className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-extrabold py-3.5 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0"
               id="confirm-pin-btn"
             >
               I Have Written It Down

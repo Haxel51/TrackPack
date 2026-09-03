@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCustomer, registerCustomer, requestCustomerPinReset, resetCustomerPin } from '../lib/api';
 import { Package, Phone, Lock, Eye, EyeOff, ChevronLeft, UserPlus, ArrowRight, KeyRound, CheckCircle2, Info } from 'lucide-react';
+import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 
 export const CustomerLogin: React.FC = () => {
   const { token, role, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
+  const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
 
   const [mode, setMode] = useState<'login' | 'signup' | 'forgot_pin'>('login');
   const [resetStep, setResetStep] = useState<1 | 2>(1);
@@ -195,6 +201,7 @@ export const CustomerLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center items-center p-4">
+      <SessionExpiredBanner show={showExpiredBanner} onDismiss={() => setShowExpiredBanner(false)} />
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">

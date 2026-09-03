@@ -245,7 +245,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
             <button
               type="button"
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/80 transition-colors cursor-pointer"
+              className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-[#131e3d]/80 transition-colors cursor-pointer"
               id="close-create-trip-modal-btn"
             >
               <X className="w-5 h-5" />
@@ -259,7 +259,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               step === 1 ? 'text-amber-400' : step > 1 ? 'text-emerald-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 1 ? 'bg-amber-500 text-slate-950 font-black' : step > 1 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                step === 1 ? 'bg-amber-500 text-slate-950 font-black' : step > 1 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 {step > 1 ? <CheckCircle2 className="w-4 h-4 stroke-[3]" /> : '1'}
               </div>
@@ -272,7 +272,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               step === 2 ? 'text-amber-400' : step > 2 ? 'text-emerald-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 2 ? 'bg-amber-500 text-slate-950 font-black' : step > 2 ? 'bg-emerald-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                step === 2 ? 'bg-amber-500 text-slate-950 font-black' : step > 2 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 {step > 2 ? <CheckCircle2 className="w-4 h-4 stroke-[3]" /> : '2'}
               </div>
@@ -285,7 +285,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               step === 3 ? 'text-amber-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 3 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400'
+                step === 3 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 3
               </div>
@@ -352,7 +352,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5">
                                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                    isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400'
+                                    isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
                                   }`}>
                                     <Truck className="w-5 h-5" />
                                   </div>
@@ -444,7 +444,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                             >
                               <div className="flex items-start gap-3.5">
                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                                  isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-slate-800 text-slate-400'
+                                  isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
                                 }`}>
                                   <Building2 className="w-5 h-5" />
                                 </div>
@@ -572,7 +572,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 type="button"
                 onClick={() => setStep((s) => (s - 1) as any)}
                 disabled={isSubmitting}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="bg-[#131e3d] hover:bg-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <ChevronLeft className="w-4 h-4" />
                 <span>Back</span>
@@ -582,7 +582,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 type="button"
                 onClick={onClose}
                 disabled={isSubmitting}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
+                className="bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -658,7 +658,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 href={paystackData.checkout_url}
                 target="_blank"
                 rel="noreferrer"
-                className="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
+                className="w-full bg-[#131e3d] hover:bg-slate-700 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 transition-colors"
               >
                 <span>Open Paystack Checkout Portal</span>
                 <ExternalLink className="w-4 h-4" />
@@ -689,7 +689,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 type="button"
                 onClick={handleCancelPaymentModal}
                 disabled={isSubmitting}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs transition-colors cursor-pointer"
+                className="w-full bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs transition-colors cursor-pointer"
               >
                 Cancel / Close (Do Not Create Trip)
               </button>

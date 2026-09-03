@@ -26,7 +26,9 @@ import {
   AlertCircle,
   Check,
   Building2,
-  ChevronLeft
+  ChevronLeft,
+  Truck,
+  XCircle
 } from 'lucide-react';
 
 // Gray pulsing Skeleton placeholder
@@ -37,7 +39,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers' | 'fleetTrips'>('overview');
 
   // Managers Read-Only View State (Super Admin)
   const [managers, setManagers] = useState<any[]>([]);
@@ -65,6 +67,36 @@ export const AdminDashboard: React.FC = () => {
   useEffect(() => {
     if (activeTab === 'managers') {
       loadManagers();
+    }
+  }, [activeTab]);
+
+  // Fleet Trips Super Admin State
+  const [fleetTripsData, setFleetTripsData] = useState<any | null>(null);
+  const [fleetTripsLoading, setFleetTripsLoading] = useState(false);
+  const [fleetTripsError, setFleetTripsError] = useState(false);
+  const [fleetSubTab, setFleetSubTab] = useState<'companies' | 'trucks' | 'trips' | 'team'>('companies');
+
+  const loadFleetTrips = async () => {
+    setFleetTripsLoading(true);
+    setFleetTripsError(false);
+    try {
+      const res = await fetchWithTimeout('/api/admin/fleet-trips');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setFleetTripsData(data);
+      } else {
+        setFleetTripsError(true);
+      }
+    } catch (err) {
+      setFleetTripsError(true);
+    } finally {
+      setFleetTripsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'fleetTrips') {
+      loadFleetTrips();
     }
   }, [activeTab]);
 
@@ -274,6 +306,7 @@ export const AdminDashboard: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [companyFilter, setCompanyFilter] = useState('all');
+  const [parkFilter, setParkFilter] = useState('all');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [csvData, setCsvData] = useState<any[]>([]); // stores full filtered records for CSV export
@@ -288,6 +321,7 @@ export const AdminDashboard: React.FC = () => {
         search: searchQuery,
         status: statusFilter,
         company: companyFilter,
+        park: parkFilter,
         startDate,
         endDate
       });
@@ -314,7 +348,7 @@ export const AdminDashboard: React.FC = () => {
     if (activeTab === 'shipments') {
       loadShipments(1);
     }
-  }, [activeTab, searchQuery, statusFilter, companyFilter, startDate, endDate]);
+  }, [activeTab, searchQuery, statusFilter, companyFilter, parkFilter, startDate, endDate]);
 
   const handleDownloadCSV = () => {
     if (csvData.length === 0) return;
@@ -349,12 +383,13 @@ export const AdminDashboard: React.FC = () => {
   const [revenueData, setRevenueData] = useState<any | null>(null);
   const [revenueLoading, setRevenueLoading] = useState(false);
   const [revenueError, setRevenueError] = useState(false);
+  const [revenuePeriod, setRevenuePeriod] = useState<'all' | 'day' | 'week' | 'month'>('all');
 
-  const loadRevenue = async () => {
+  const loadRevenue = async (period: string = revenuePeriod) => {
     setRevenueLoading(true);
     setRevenueError(false);
     try {
-      const res = await fetchWithTimeout('/api/admin/revenue');
+      const res = await fetchWithTimeout(`/api/admin/revenue?period=${period}`);
       const data = await res.json().catch(() => ({}));
       if (res.ok) {
         setRevenueData(data);
@@ -370,9 +405,9 @@ export const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (activeTab === 'revenue') {
-      loadRevenue();
+      loadRevenue(revenuePeriod);
     }
-  }, [activeTab]);
+  }, [activeTab, revenuePeriod]);
 
   // ==========================================
   // TAB 5: DISPUTES STATE & ACTIONS
@@ -432,7 +467,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'managers', 'shipments', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
+            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -446,7 +481,7 @@ export const AdminDashboard: React.FC = () => {
                 }`}
                 id={`tab-btn-${tab}`}
               >
-                {tab === 'recovery' ? 'Account Recovery' : tab}
+                {tab === 'recovery' ? 'Account Recovery' : tab === 'fleetTrips' ? 'Fleet Trips & Revenue' : tab}
               </button>
             ))}
           </nav>
@@ -479,7 +514,7 @@ export const AdminDashboard: React.FC = () => {
         {activeTab === 'overview' && (
           <div className="space-y-6" id="overview-tab-content">
             {/* Summary Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4" id="overview-metrics-grid">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4" id="overview-metrics-grid">
               
               {/* Card 1: Total Companies */}
               <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm min-h-[140px] flex flex-col justify-between relative">
@@ -533,7 +568,35 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Card 3: Today Shipments */}
+              {/* Card 3: Active Disputes */}
+              <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm min-h-[140px] flex flex-col justify-between relative">
+                {overviewLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-8 w-1/4" />
+                  </div>
+                ) : overviewError ? (
+                  <button onClick={loadOverview} className="absolute inset-0 flex flex-col items-center justify-center text-xs font-bold text-red-500 bg-red-50/50 hover:bg-red-50 rounded-3xl p-4 gap-1">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span>Couldn't load. Tap to retry.</span>
+                  </button>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between text-slate-500">
+                      <span className="text-xs font-extrabold tracking-wider uppercase">Active Disputes</span>
+                      <AlertTriangle className={`w-4 h-4 ${(overviewData?.stats?.activeDisputes ?? 0) > 0 ? 'text-red-500 animate-pulse' : 'text-slate-400'}`} />
+                    </div>
+                    <div>
+                      <h2 className={`text-3xl font-black ${(overviewData?.stats?.activeDisputes ?? 0) > 0 ? 'text-red-600' : 'text-[#0A1F44]'}`}>
+                        {overviewData?.stats?.activeDisputes ?? 0}
+                      </h2>
+                      <p className="text-[10px] text-slate-400 font-bold mt-1">Overdue shipments</p>
+                    </div>
+                  </>
+                )}
+              </div>
+
+              {/* Card 4: Today Shipments */}
               <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm min-h-[140px] flex flex-col justify-between relative">
                 {overviewLoading ? (
                   <div className="space-y-2">
@@ -559,7 +622,7 @@ export const AdminDashboard: React.FC = () => {
                 )}
               </div>
 
-              {/* Card 4: Monthly Shipments */}
+              {/* Card 5: Active Staff */}
               <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm min-h-[140px] flex flex-col justify-between relative">
                 {overviewLoading ? (
                   <div className="space-y-2">
@@ -590,6 +653,33 @@ export const AdminDashboard: React.FC = () => {
             {/* Platform Revenue Secondary Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6" id="revenue-secondary-grid">
               
+              <div className="md:col-span-1 bg-gradient-to-br from-emerald-50/80 to-emerald-100/40 border border-emerald-200/70 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative min-h-[180px]">
+                {overviewLoading ? (
+                  <div className="space-y-3">
+                    <Skeleton className="h-4 w-1/2" />
+                    <Skeleton className="h-8 w-1/4" />
+                  </div>
+                ) : overviewError ? (
+                  <button onClick={loadOverview} className="absolute inset-0 flex flex-col items-center justify-center text-xs font-bold text-red-500 bg-red-50/50 hover:bg-red-50 rounded-3xl p-4 gap-1">
+                    <AlertTriangle className="w-5 h-5" />
+                    <span>Couldn't load. Tap to retry.</span>
+                  </button>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <span className="bg-emerald-200/80 text-emerald-900 text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider inline-block">
+                        All-Time Platform Revenue
+                      </span>
+                      <h3 className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider block pt-2">Total Commission Earned</h3>
+                      <p className="text-2xl font-black text-emerald-950">₦{(overviewData?.stats?.totalRevenue ?? 0).toLocaleString()}</p>
+                    </div>
+                    <p className="text-[10px] text-emerald-700/80 font-bold leading-relaxed pt-3">
+                      Cumulative Waybilla platform net earnings across all registered transport operators.
+                    </p>
+                  </>
+                )}
+              </div>
+
               <div className="md:col-span-1 bg-gradient-to-br from-slate-50 to-slate-100/50 border border-slate-200/60 rounded-3xl p-6 shadow-sm flex flex-col justify-between relative min-h-[180px]">
                 {overviewLoading ? (
                   <div className="space-y-3">
@@ -605,10 +695,10 @@ export const AdminDashboard: React.FC = () => {
                   <>
                     <div className="space-y-2">
                       <span className="bg-amber-100 text-[#0A1F44] text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider inline-block">
-                        Revenue Target
+                        Weekly Period
                       </span>
                       <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block pt-2">This Week's Income</h3>
-                      <p className="text-2xl font-black text-[#0A1F44]">₦{overviewData?.stats?.revenueWeek ?? 0}</p>
+                      <p className="text-2xl font-black text-[#0A1F44]">₦{(overviewData?.stats?.revenueWeek ?? 0).toLocaleString()}</p>
                     </div>
                     <p className="text-[10px] text-slate-400 font-bold leading-relaxed pt-3">
                       Real-time revenue tracked securely via Paystack live subaccount payment settlement.
@@ -635,7 +725,7 @@ export const AdminDashboard: React.FC = () => {
                         Monthly Period
                       </span>
                       <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block pt-2">This Month's Income</h3>
-                      <p className="text-2xl font-black text-[#0A1F44]">₦{overviewData?.stats?.revenueMonth ?? 0}</p>
+                      <p className="text-2xl font-black text-[#0A1F44]">₦{(overviewData?.stats?.revenueMonth ?? 0).toLocaleString()}</p>
                     </div>
                     <p className="text-[10px] text-slate-400 font-bold leading-relaxed pt-3">
                       Automatic platform commission split calculated on every successful transaction.
@@ -891,6 +981,58 @@ export const AdminDashboard: React.FC = () => {
                     )}
                   </div>
 
+                  {/* SECTION C — REJECTED APPLICATIONS */}
+                  <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center border-b border-slate-50 pb-3">
+                      <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
+                        <XCircle className="w-4 h-4 text-red-500" />
+                        <span>Rejected Applications</span>
+                      </h3>
+                      <span className="text-[10px] font-extrabold bg-red-50 text-red-700 px-2 py-0.5 rounded-full">
+                        {companies.filter(c => c.rejected === true).length} rejected
+                      </span>
+                    </div>
+
+                    {companies.filter(c => c.rejected === true).length === 0 ? (
+                      <div className="text-center py-6 text-xs text-slate-400 font-bold">
+                        No rejected applications.
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-slate-50" id="rejected-applications-list">
+                        {companies.filter(c => c.rejected === true).map((comp: any, index: number) => (
+                          <div key={`adm-rejcomp-${comp.id || index}-${index}`} className="py-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                            <div className="space-y-1">
+                              <div className="flex items-center gap-2">
+                                <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
+                                <span className="text-[9px] font-black bg-red-100 text-red-800 border border-red-200 px-2 py-0.5 rounded-md uppercase tracking-wider">
+                                  Rejected
+                                </span>
+                              </div>
+                              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F2A93B]" /> Owner: {comp.owner_phone}</span>
+                                <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || comp.park_name || 'N/A'}</span>
+                                <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-indigo-500" /> Date: {comp.rejected_at ? new Date(comp.rejected_at).toLocaleDateString() : (comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'N/A')}</span>
+                              </div>
+                              {comp.rejection_reason && (
+                                <p className="text-[11px] text-red-600 font-medium bg-red-50/70 rounded-lg px-2.5 py-1 mt-1 inline-block">
+                                  <strong>Reason:</strong> {comp.rejection_reason}
+                                </p>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <button
+                                onClick={() => handleApproveCompany(comp.id)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-3.5 py-1.5 rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1"
+                              >
+                                <Check className="w-3.5 h-3.5" /> Re-Approve
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
                 </div>
 
                 {/* Right Side: Company Details Audit Panel */}
@@ -1100,7 +1242,7 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               {/* Filters Panel */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3" id="shipments-filter-panel">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3" id="shipments-filter-panel">
                 
                 {/* Search query */}
                 <div className="relative">
@@ -1109,7 +1251,7 @@ export const AdminDashboard: React.FC = () => {
                   </span>
                   <input
                     type="text"
-                    placeholder="Search tracking code, names..."
+                    placeholder="Search tracking, names..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full bg-slate-50/70 border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-xl py-2.5 pl-9 pr-3 text-xs font-semibold outline-none transition-all"
@@ -1140,6 +1282,20 @@ export const AdminDashboard: React.FC = () => {
                     <option key={`adm-copt-${c.id || index}-${index}`} value={c.id}>{c.company_name}</option>
                   ))}
                 </select>
+
+                {/* Park Selector / Filter */}
+                <div className="relative">
+                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400 pointer-events-none">
+                    <MapPin className="w-3.5 h-3.5" />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Filter by Park..."
+                    value={parkFilter === 'all' ? '' : parkFilter}
+                    onChange={(e) => setParkFilter(e.target.value || 'all')}
+                    className="w-full bg-slate-50/70 border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-xl py-2.5 pl-9 pr-3 text-xs font-semibold outline-none transition-all"
+                  />
+                </div>
 
                 {/* Date range filter */}
                 <input
@@ -1278,7 +1434,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="space-y-6" id="revenue-tab-content">
             <div className="bg-white border border-slate-100 rounded-3xl p-8 shadow-sm space-y-6">
               
-              <div className="flex justify-between items-center border-b border-slate-50 pb-4">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-50 pb-4">
                 <div>
                   <h3 className="text-sm font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
                     <CheckCircle className="w-4.5 h-4.5 text-emerald-600" />
@@ -1288,12 +1444,49 @@ export const AdminDashboard: React.FC = () => {
                     Live settlement distribution metrics split automatically on-the-fly via Paystack routing.
                   </p>
                 </div>
-                <button
-                  onClick={loadRevenue}
-                  className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs px-3 py-1.5 rounded-xl cursor-pointer"
-                >
-                  Refresh Data
-                </button>
+                <div className="flex items-center gap-2">
+                  {/* Period Filter Buttons */}
+                  <div className="flex bg-slate-100 p-1 rounded-xl gap-1" id="revenue-period-selector">
+                    <button
+                      onClick={() => setRevenuePeriod('day')}
+                      className={`text-xs font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        revenuePeriod === 'day' ? 'bg-[#0A1F44] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Day
+                    </button>
+                    <button
+                      onClick={() => setRevenuePeriod('week')}
+                      className={`text-xs font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        revenuePeriod === 'week' ? 'bg-[#0A1F44] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Week
+                    </button>
+                    <button
+                      onClick={() => setRevenuePeriod('month')}
+                      className={`text-xs font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        revenuePeriod === 'month' ? 'bg-[#0A1F44] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      Month
+                    </button>
+                    <button
+                      onClick={() => setRevenuePeriod('all')}
+                      className={`text-xs font-black px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
+                        revenuePeriod === 'all' ? 'bg-[#0A1F44] text-white shadow-sm' : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      All Time
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => loadRevenue(revenuePeriod)}
+                    className="bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-600 font-bold text-xs px-3 py-2 rounded-xl cursor-pointer"
+                  >
+                    Refresh
+                  </button>
+                </div>
               </div>
 
               {revenueLoading ? (
@@ -1488,6 +1681,13 @@ export const AdminDashboard: React.FC = () => {
                           <div><strong>Departure:</strong> {new Date(disp.departed_at).toLocaleString()}</div>
                           <div><strong>Elapsed:</strong> {disp.elapsed_hours} Hours ({disp.estimated_hours}h estimated)</div>
                         </div>
+                        <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-slate-600 pt-1 border-t border-red-100/60">
+                          <div><span className="text-slate-400 font-semibold">Sender:</span> <strong>{disp.sender_name || 'N/A'}</strong> ({disp.sender_phone || 'N/A'})</div>
+                          <div><span className="text-slate-400 font-semibold">Receiver:</span> <strong>{disp.receiver_name || 'N/A'}</strong> ({disp.receiver_phone || 'N/A'})</div>
+                          {disp.item_description && disp.item_description !== 'N/A' && (
+                            <div><span className="text-slate-400 font-semibold">Item:</span> <em>{disp.item_description}</em></div>
+                          )}
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 self-stretch md:self-auto">
                         <button
@@ -1585,6 +1785,299 @@ export const AdminDashboard: React.FC = () => {
                       ))}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB: FLEET TRIPS & REVENUE (SUPER ADMIN)
+            ========================================== */}
+        {activeTab === 'fleetTrips' && (
+          <div className="space-y-6" id="fleet-trips-tab-content">
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-amber-500" />
+                    <span>God-Tier Fleet Tracking, Trucks, Teams & Revenue Control</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Complete 360-degree Super Admin visibility of all registered transport companies, trucks, managers, trip monitors, dispatches, and profit margins.
+                  </p>
+                </div>
+                <button
+                  onClick={loadFleetTrips}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer border-0 self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${fleetTripsLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Fleet Data</span>
+                </button>
+              </div>
+
+              {/* Fleet Stats Cards */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-slate-500 font-extrabold uppercase block truncate">Transport Cos</span>
+                  <span className="text-lg font-black text-[#0A1F44]">{fleetTripsData?.stats?.totalCompanies ?? 0}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block truncate">Operators</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-slate-500 font-extrabold uppercase block truncate">Total Trucks</span>
+                  <span className="text-lg font-black text-[#0A1F44]">{fleetTripsData?.stats?.totalTrucks ?? 0}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block truncate">{fleetTripsData?.stats?.activeTrucks ?? 0} Active</span>
+                </div>
+                <div className="bg-slate-50 border border-slate-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-slate-500 font-extrabold uppercase block truncate">Total Trips</span>
+                  <span className="text-lg font-black text-[#0A1F44]">{fleetTripsData?.stats?.totalTrips ?? 0}</span>
+                  <span className="text-[8px] text-slate-400 font-semibold block truncate">Dispatches</span>
+                </div>
+                <div className="bg-amber-50/50 border border-amber-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-amber-800 font-extrabold uppercase block truncate">Active Transit</span>
+                  <span className="text-lg font-black text-amber-900">{fleetTripsData?.stats?.activeTrips ?? 0}</span>
+                  <span className="text-[8px] text-amber-700 font-semibold block truncate">On Route</span>
+                </div>
+                <div className="bg-blue-50/50 border border-blue-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-blue-800 font-extrabold uppercase block truncate">Fleet Revenue</span>
+                  <span className="text-base font-black text-blue-900 truncate">₦{(fleetTripsData?.stats?.totalFleetRevenue ?? 0).toLocaleString()}</span>
+                  <span className="text-[8px] text-blue-700 font-semibold block truncate">Haulage</span>
+                </div>
+                <div className="bg-emerald-50/50 border border-emerald-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-emerald-800 font-extrabold uppercase block truncate">App Revenue</span>
+                  <span className="text-base font-black text-emerald-900 truncate">₦{(fleetTripsData?.stats?.appTotalRevenue ?? fleetTripsData?.stats?.totalFleetRevenue ?? 0).toLocaleString()}</span>
+                  <span className="text-[8px] text-emerald-700 font-semibold block truncate">100% App</span>
+                </div>
+              </div>
+
+              {/* Fleet Sub-Navigation Tabs */}
+              <div className="flex flex-wrap border-b border-slate-100 gap-1.5 pt-2">
+                <button
+                  onClick={() => setFleetSubTab('companies')}
+                  className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
+                    fleetSubTab === 'companies' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                  }`}
+                >
+                  Companies ({fleetTripsData?.companies?.length ?? 0})
+                </button>
+                <button
+                  onClick={() => setFleetSubTab('trucks')}
+                  className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
+                    fleetSubTab === 'trucks' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                  }`}
+                >
+                  Trucks ({fleetTripsData?.trucks?.length ?? 0})
+                </button>
+                <button
+                  onClick={() => setFleetSubTab('trips')}
+                  className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
+                    fleetSubTab === 'trips' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                  }`}
+                >
+                  Dispatches ({fleetTripsData?.trips?.length ?? 0})
+                </button>
+                <button
+                  onClick={() => setFleetSubTab('team')}
+                  className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
+                    fleetSubTab === 'team' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                  }`}
+                >
+                  Team ({((fleetTripsData?.managers?.length ?? 0) + (fleetTripsData?.staff?.length ?? 0))})
+                </button>
+              </div>
+
+              {fleetTripsLoading ? (
+                <div className="space-y-3 py-6">
+                  <Skeleton className="h-12" />
+                  <Skeleton className="h-12" />
+                  <Skeleton className="h-12" />
+                </div>
+              ) : fleetTripsError ? (
+                <div className="text-center py-10">
+                  <button onClick={loadFleetTrips} className="bg-red-50 border border-red-100 text-red-600 font-extrabold text-xs px-4 py-2 rounded-xl cursor-pointer border-0">
+                    Could not load fleet data. Tap to retry.
+                  </button>
+                </div>
+              ) : (
+                <div className="pt-2">
+                  {/* SUBTAB 1: COMPANIES & OPERATORS */}
+                  {fleetSubTab === 'companies' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Transport Companies & Fleet Breakdown</h4>
+                      {!fleetTripsData?.companies || fleetTripsData.companies.length === 0 ? (
+                        <div className="text-center py-10 text-xs text-slate-400 font-bold">No registered transport companies found.</div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {fleetTripsData.companies.map((c: any) => (
+                            <div key={`comp-sum-${c.id}`} className="bg-slate-50 border border-slate-100 rounded-2xl p-5 space-y-4">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <h5 className="text-sm font-black text-[#0A1F44]">{c.company_name}</h5>
+                                  <p className="text-[11px] text-slate-500">Owner: {c.owner_name} ({c.owner_phone})</p>
+                                </div>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${c.approved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                  {c.approved ? 'Approved' : 'Pending'}
+                                </span>
+                              </div>
+
+                              <div className="grid grid-cols-3 gap-2 bg-white p-3 rounded-xl border border-slate-100 text-center">
+                                <div>
+                                  <span className="text-[9px] text-slate-400 uppercase block font-bold">Trucks</span>
+                                  <span className="text-sm font-black text-slate-800">{c.totalTrucks} ({c.activeTrucks} active)</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 uppercase block font-bold">Trips</span>
+                                  <span className="text-sm font-black text-[#0A1F44]">{c.totalTrips} ({c.activeTrips} live)</span>
+                                </div>
+                                <div>
+                                  <span className="text-[9px] text-slate-400 uppercase block font-bold">Revenue</span>
+                                  <span className="text-sm font-black text-emerald-600">₦{c.totalRevenue.toLocaleString()}</span>
+                                </div>
+                              </div>
+
+                              <div className="text-[11px] text-slate-600 space-y-1">
+                                <p><strong className="text-slate-800">Managers Assigned:</strong> {c.managers.length > 0 ? c.managers.map((m: any) => m.name || m.phone).join(', ') : 'None'}</p>
+                                <p><strong className="text-slate-800">Trip Monitors / Staff:</strong> {c.staff.length > 0 ? c.staff.map((s: any) => s.name || s.phone).join(', ') : 'None'}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SUBTAB 2: REGISTERED TRUCKS */}
+                  {fleetSubTab === 'trucks' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">All Registered Trucks Across Companies</h4>
+                      {!fleetTripsData?.trucks || fleetTripsData.trucks.length === 0 ? (
+                        <div className="text-center py-10 text-xs text-slate-400 font-bold">No trucks registered yet.</div>
+                      ) : (
+                        <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                                <th className="py-3 px-4">Company</th>
+                                <th className="py-3 px-4">Truck Plate No.</th>
+                                <th className="py-3 px-4">Assigned Driver</th>
+                                <th className="py-3 px-4">Payment Plan</th>
+                                <th className="py-3 px-4 text-center">Status</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
+                              {fleetTripsData.trucks.map((tr: any, idx: number) => (
+                                <tr key={`adm-truck-${tr.id || idx}`} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-3 px-4 font-extrabold text-[#0A1F44]">{tr.company_name}</td>
+                                  <td className="py-3 px-4 font-mono font-bold text-slate-800">{tr.plate_number}</td>
+                                  <td className="py-3 px-4">{tr.driver_name}</td>
+                                  <td className="py-3 px-4 capitalize">
+                                    <span className="px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 text-[10px] font-bold">
+                                      {tr.payment_plan === 'monthly' ? 'Monthly Sub' : 'Per Trip'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-center">
+                                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase bg-emerald-100 text-emerald-800">
+                                      {tr.status || 'Active'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SUBTAB 3: TRIP DISPATCHES */}
+                  {fleetSubTab === 'trips' && (
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider">Complete Fleet Trip Dispatches & Haulage Ledger</h4>
+                      {!fleetTripsData?.trips || fleetTripsData.trips.length === 0 ? (
+                        <div className="text-center py-12 text-xs text-slate-400 font-bold">No fleet tracking trips recorded across any company yet.</div>
+                      ) : (
+                        <div className="overflow-x-auto border border-slate-100 rounded-2xl">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead>
+                              <tr className="bg-slate-50 text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">
+                                <th className="py-3 px-4">Company</th>
+                                <th className="py-3 px-4">Truck Plate</th>
+                                <th className="py-3 px-4">Driver Name</th>
+                                <th className="py-3 px-4">Route (Origin → Destination)</th>
+                                <th className="py-3 px-4 text-center">Status</th>
+                                <th className="py-3 px-4 text-right">Fare / Amount</th>
+                                <th className="py-3 px-4">Dispatched At</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 text-slate-700 font-semibold">
+                              {fleetTripsData.trips.map((t: any, idx: number) => (
+                                <tr key={`adm-ftrip-${t.id || idx}`} className="hover:bg-slate-50/50 transition-colors">
+                                  <td className="py-3 px-4 font-extrabold text-[#0A1F44]">{t.company_name}</td>
+                                  <td className="py-3 px-4 font-mono font-bold text-slate-800">{t.truck_plate || t.truck || 'N/A'}</td>
+                                  <td className="py-3 px-4">{t.driver_name || t.driver || 'N/A'}</td>
+                                  <td className="py-3 px-4 text-slate-600">{t.origin} → {t.destination}</td>
+                                  <td className="py-3 px-4 text-center">
+                                    <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                                      t.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
+                                      t.status === 'arrived' || t.status === 'completed' || t.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
+                                      'bg-slate-100 text-slate-800'
+                                    }`}>
+                                      {t.status || 'Active'}
+                                    </span>
+                                  </td>
+                                  <td className="py-3 px-4 text-right font-black text-[#0A1F44]">
+                                    ₦{(Number(t.payment_amount) || Number(t.amount) || Number(t.fare) || 0).toLocaleString()}
+                                  </td>
+                                  <td className="py-3 px-4 text-slate-400 text-[10px]">
+                                    {t.created_at || t.dispatch_time ? new Date(t.created_at || t.dispatch_time).toLocaleString() : 'N/A'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* SUBTAB 4: MANAGERS & STAFF */}
+                  {fleetSubTab === 'team' && (
+                    <div className="space-y-6">
+                      <div>
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Company Managers</h4>
+                        {!fleetTripsData?.managers || fleetTripsData.managers.length === 0 ? (
+                          <div className="text-center py-6 text-xs text-slate-400 font-bold bg-slate-50 rounded-2xl">No managers recorded.</div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {fleetTripsData.managers.map((m: any, idx: number) => (
+                              <div key={`adm-mgr-${m.id || idx}`} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
+                                <span className="text-sm font-black text-[#0A1F44]">{m.name || m.full_name || 'Manager'}</span>
+                                <p className="text-xs text-slate-600">Phone: {m.phone || 'N/A'}</p>
+                                <span className="text-[10px] text-slate-400 font-semibold block">Company ID: {m.companyId}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-black text-slate-400 uppercase tracking-wider mb-3">Trip Monitors & Staff</h4>
+                        {!fleetTripsData?.staff || fleetTripsData.staff.length === 0 ? (
+                          <div className="text-center py-6 text-xs text-slate-400 font-bold bg-slate-50 rounded-2xl">No trip monitors or staff recorded.</div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {fleetTripsData.staff.map((s: any, idx: number) => (
+                              <div key={`adm-staff-${s.id || idx}`} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
+                                <span className="text-sm font-black text-[#0A1F44]">{s.name || s.full_name || 'Staff'}</span>
+                                <p className="text-xs text-slate-600">Role: <span className="capitalize font-bold text-amber-600">{s.role}</span></p>
+                                <p className="text-xs text-slate-600">Phone: {s.phone || 'N/A'}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

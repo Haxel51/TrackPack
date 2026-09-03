@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Bell, X, Check, Clock, CheckCheck, Truck, Navigation, AlertTriangle, ShieldAlert, CreditCard } from 'lucide-react';
+import { markNotificationAsRead as apiMarkRead, markAllNotificationsAsRead as apiMarkAllRead } from '../api';
 
 export interface FleetNotification {
   id: string;
@@ -49,33 +50,21 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const markAsRead = async (id: string) => {
     try {
-      if (token) {
-        await fetch(`/api/fleet-tracking/notifications/${id}/read`, {
-          method: 'PATCH',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
+      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
+      await apiMarkRead(id, activeToken || undefined);
       onRefresh();
     } catch (e) {
-      console.error('Error marking notification as read:', e);
+      // Graceful fallback
     }
   };
 
   const markAllAsRead = async () => {
     try {
-      if (token) {
-        await fetch('/api/fleet-tracking/notifications/read-all', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-      }
+      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
+      await apiMarkAllRead(activeToken || undefined);
       onRefresh();
     } catch (e) {
-      console.error('Error marking all notifications as read:', e);
+      // Graceful fallback
     }
   };
 
@@ -128,7 +117,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           <div className="flex items-center gap-2">
             <button
               onClick={markAllAsRead}
-              className="text-[11px] font-bold text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-800 cursor-pointer"
+              className="text-[11px] font-bold text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-[#131e3d] cursor-pointer"
               title="Mark all as read"
             >
               <CheckCheck className="w-3.5 h-3.5" />
@@ -136,7 +125,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#131e3d] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -150,7 +139,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'all'
                 ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
             }`}
           >
             All ({notifications.length})
@@ -160,7 +149,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'unread'
                 ? 'bg-amber-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
             }`}
           >
             Unread ({notifications.filter(n => !n.read).length})
@@ -187,7 +176,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
                     notif.read
                       ? 'bg-[#0b1329]/60 border-blue-950/60/80 hover:border-blue-900/65 text-slate-300'
-                      : 'bg-slate-800/80 border-amber-500/40 hover:border-amber-500 text-slate-100 shadow-sm'
+                      : 'bg-[#131e3d]/80 border-amber-500/40 hover:border-amber-500 text-slate-100 shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3">

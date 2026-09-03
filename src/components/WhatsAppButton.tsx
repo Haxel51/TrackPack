@@ -10,7 +10,7 @@ export function WhatsAppButton() {
   return (
     <div className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2 group">
       {/* Expanded Label on Hover / Tap */}
-      <div className="hidden sm:flex items-center gap-2 bg-[#0A1F44] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-slate-700/50 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
+      <div className="hidden sm:flex items-center gap-2 bg-[#0A1F44] text-white text-xs font-bold px-3 py-1.5 rounded-full shadow-lg border border-blue-900/60/50 opacity-0 group-hover:opacity-100 transition-all duration-200 translate-y-1 group-hover:translate-y-0">
         <span>Need help? Chat on WhatsApp</span>
       </div>
 

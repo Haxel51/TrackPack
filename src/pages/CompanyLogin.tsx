@@ -1,13 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginCompany, registerCompany, requestCompanyPasswordReset, resetCompanyPassword } from '../lib/api';
 import { Building2, Phone, Lock, Eye, EyeOff, ChevronLeft, MapPin, CheckCircle2, ArrowRight, KeyRound } from 'lucide-react';
 import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
+import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 
 export const CompanyLogin: React.FC = () => {
   const { token, role, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
+  const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
 
   const [mode, setMode] = useState<'login' | 'register' | 'forgot_password'>('login');
   const [resetStep, setResetStep] = useState<1 | 2>(1);
@@ -239,6 +245,7 @@ export const CompanyLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center items-center p-4 py-8">
+      <SessionExpiredBanner show={showExpiredBanner} onDismiss={() => setShowExpiredBanner(false)} />
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">

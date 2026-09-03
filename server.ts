@@ -5901,6 +5901,33 @@ app.get("/api/admin/overview", async (req, res) => {
     const shipmentsWeek = waybills.filter(w => new Date(w.created_at || w.booked_at || 0).getTime() >= weekStart).length;
     const shipmentsMonth = waybills.filter(w => new Date(w.created_at || w.booked_at || 0).getTime() >= monthStart).length;
 
+    // Compute active disputes count
+    const routesSnap = await getDocs(collection(db, "routes"));
+    const routesMap = new Map();
+    routesSnap.docs.forEach(d => {
+      const r = d.data();
+      const key = `${r.origin_park?.trim().toLowerCase()}_to_${r.destination_park?.trim().toLowerCase()}`;
+      routesMap.set(key, r.estimated_hours || 8.0);
+    });
+
+    const nowTimeDisputes = Date.now();
+    let activeDisputesCount = 0;
+    waybills.forEach(wb => {
+      if (wb.status !== "collected" && wb.status !== "arrived" && wb.dispute_resolved !== true) {
+        if (wb.status === "in_transit" || wb.status === "departed") {
+          const departureTime = wb.departed_at || wb.booked_at || wb.created_at;
+          if (departureTime) {
+            const elapsedHours = (nowTimeDisputes - new Date(departureTime).getTime()) / (1000 * 60 * 60);
+            const routeKey = `${wb.origin_park?.trim().toLowerCase()}_to_${wb.destination_park?.trim().toLowerCase()}`;
+            const estimatedHours = routesMap.get(routeKey) || 8.0;
+            if (elapsedHours > estimatedHours + 24) {
+              activeDisputesCount++;
+            }
+          }
+        }
+      }
+    });
+
     // Activity feed: latest 10 events across companies, waybills, buses
     const events: any[] = [];
 
@@ -5986,6 +6013,8 @@ app.get("/api/admin/overview", async (req, res) => {
       .filter(p => (nowTime - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneMonthMs)
       .reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
 
+    const totalPlatformRevenue = payments.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
+
     res.json({
       success: true,
       stats: {
@@ -5996,6 +6025,8 @@ app.get("/api/admin/overview", async (req, res) => {
         shipmentsMonth,
         revenueWeek: Math.round(revenueWeek),
         revenueMonth: Math.round(revenueMonth),
+        totalRevenue: Math.round(totalPlatformRevenue),
+        activeDisputes: activeDisputesCount,
         activeStaff: activeStaffCount
       },
       recentActivity
@@ -6151,7 +6182,7 @@ app.post("/api/admin/companies/:id/toggle-suspend", async (req, res) => {
         let logoutNeeded = false;
         if (sData.userId === compId && sData.userRole === "company") {
           logoutNeeded = true;
-        } else if (sData.userRole === "staff" && sData.userData && sData.userData.company_id === compId) {
+        } else if ((sData.userRole === "staff" || sData.userRole === "manager") && sData.userData && sData.userData.company_id === compId) {
           logoutNeeded = true;
         }
 
@@ -6307,6 +6338,15 @@ app.get("/api/admin/shipments", async (req, res) => {
       waybills = waybills.filter(wb => wb.company_id === companyId);
     }
 
+    // Park filter (matches origin or destination park)
+    const park = (req.query.park as string || "").trim().toLowerCase();
+    if (park && park !== "all") {
+      waybills = waybills.filter(wb => 
+        (wb.origin_park || "").toLowerCase().includes(park) ||
+        (wb.destination_park || "").toLowerCase().includes(park)
+      );
+    }
+
     // Date range filter
     const startDate = req.query.startDate as string || "";
     const endDate = req.query.endDate as string || "";
@@ -6352,6 +6392,146 @@ app.get("/api/admin/shipments", async (req, res) => {
     });
   } catch (err) {
     console.error("Error fetching admin waybills:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// GET /api/admin/fleet-trips - Get comprehensive fleet tracking data, trucks, managers, staff, revenue, profit for Super Admin
+app.get("/api/admin/fleet-trips", async (req, res) => {
+  try {
+    const session = await validateAdminSessionFromHeader(req, res);
+    if (!session) return;
+
+    // 1. Fetch all trips
+    const tripsSnap = await getDocs(collection(db, "fleetTracking_trips"));
+    const trips = tripsSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        ...data,
+        companyId: data.company_id || data.companyId || 'default_company',
+        truck_plate: data.truck_plate || data.plate_number || data.truck || 'N/A',
+        driver_name: data.driver_name || data.driver || 'N/A',
+        origin: data.origin || data.garage_name || 'Garage',
+        destination: data.destination || data.primary_destination_name || 'Destination',
+        status: data.status || data.trip_status || 'created',
+        payment_amount: Number(data.payment_amount) || Number(data.amount) || Number(data.fare) || 1000
+      };
+    });
+
+    // 2. Fetch all trucks
+    const trucksSnap = await getDocs(collection(db, "fleetTracking_trucks"));
+    const trucks = trucksSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        ...data,
+        companyId: data.company_id || data.companyId || 'default_company',
+        plate_number: data.plate_number || data.truck_plate || 'N/A',
+        driver_name: data.driver_name || data.driver || 'Unassigned',
+        payment_plan: data.payment_plan || data.plan || 'per_trip',
+        status: data.status || 'active'
+      };
+    });
+
+    // 3. Fetch all companies
+    const compSnap = await getDocs(collection(db, "companies"));
+    const companies = compSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+    const companyMap = new Map(companies.map(c => [c.id, c.company_name || c.name || 'Company']));
+
+    // 4. Fetch all managers
+    const mgrSnap = await getDocs(collection(db, "managers"));
+    const managers = mgrSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        ...data,
+        companyId: data.company_id || data.companyId || 'default_company'
+      };
+    });
+
+    // 5. Fetch all staff / trip monitors
+    const staffSnap = await getDocs(collection(db, "staff"));
+    const staff = staffSnap.docs.map(doc => {
+      const data = doc.data() as any;
+      return {
+        id: doc.id,
+        ...data,
+        companyId: data.company_id || data.companyId || 'default_company',
+        role: data.role || data.position || 'trip_monitor'
+      };
+    });
+
+    // 6. Fetch suppliers & garages
+    const suppliersSnap = await getDocs(collection(db, "fleetTracking_suppliers"));
+    const suppliers = suppliersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    const garagesSnap = await getDocs(collection(db, "fleetTracking_garages"));
+    const garages = garagesSnap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+
+    // Enrich trips with company name
+    const enrichedTrips = trips.map(t => ({
+      ...t,
+      company_name: companyMap.get(t.companyId) || t.company_name || 'Registered Transport Company'
+    }));
+
+    // Enrich trucks with company name
+    const enrichedTrucks = trucks.map(tr => ({
+      ...tr,
+      company_name: companyMap.get(tr.companyId) || 'Registered Transport Company'
+    }));
+
+    // Build company summaries
+    const companySummaries = companies.map(comp => {
+      const compId = comp.id;
+      const compTrips = enrichedTrips.filter(t => t.companyId === compId);
+      const compTrucks = enrichedTrucks.filter(tr => tr.companyId === compId);
+      const compMgrs = managers.filter(m => m.companyId === compId);
+      const compStaff = staff.filter(s => s.companyId === compId);
+      const revenue = compTrips.reduce((sum, t) => sum + Number(t.payment_amount), 0);
+
+      return {
+        id: compId,
+        company_name: comp.company_name || comp.name || 'Company',
+        owner_name: comp.owner_name || comp.contact_name || 'N/A',
+        owner_phone: comp.owner_phone || comp.phone || 'N/A',
+        approved: comp.approved !== false,
+        totalTrucks: compTrucks.length,
+        activeTrucks: compTrucks.filter(tr => tr.status === 'active' || tr.status === 'in_transit').length,
+        totalTrips: compTrips.length,
+        activeTrips: compTrips.filter(t => t.status === 'in_transit' || t.status === 'payment_confirmed').length,
+        totalRevenue: revenue,
+        appRevenue: revenue, // 100% goes to the app alone
+        managers: compMgrs,
+        staff: compStaff
+      };
+    });
+
+    const totalFleetRevenue = enrichedTrips.reduce((sum, t) => sum + Number(t.payment_amount), 0);
+    const appTotalRevenue = totalFleetRevenue; // 100% of fleet revenue goes to the app alone (no profit sharing with fleet companies)
+
+    res.json({
+      success: true,
+      trips: enrichedTrips,
+      trucks: enrichedTrucks,
+      companies: companySummaries,
+      managers: managers,
+      staff: staff,
+      suppliers: suppliers,
+      garages: garages,
+      stats: {
+        totalCompanies: companies.length,
+        totalTrucks: trucks.length,
+        activeTrucks: trucks.filter(tr => tr.status === 'active' || tr.status === 'in_transit').length,
+        totalTrips: enrichedTrips.length,
+        activeTrips: enrichedTrips.filter(t => t.status === 'in_transit' || t.status === 'payment_confirmed').length,
+        completedTrips: enrichedTrips.filter(t => t.status === 'arrived' || t.status === 'completed' || t.status === 'delivered').length,
+        totalFleetRevenue: totalFleetRevenue,
+        appTotalRevenue: appTotalRevenue
+      }
+    });
+  } catch (err) {
+    console.error("Error fetching admin fleet trips:", err);
     res.status(500).json({ error: "Internal server error." });
   }
 });
@@ -6413,7 +6593,12 @@ app.get("/api/admin/disputes", async (req, res) => {
             status: wb.status,
             estimated_hours: estimatedHours,
             elapsed_hours: Math.round(elapsedHours),
-            overdue_hours: Math.round(elapsedHours - thresholdHours)
+            overdue_hours: Math.round(elapsedHours - thresholdHours),
+            sender_name: wb.sender_name || "N/A",
+            sender_phone: wb.sender_phone || "N/A",
+            receiver_name: wb.receiver_name || "N/A",
+            receiver_phone: wb.receiver_phone || "N/A",
+            item_description: wb.item_description || "N/A"
           });
         }
       }
@@ -7740,14 +7925,38 @@ app.get("/api/admin/revenue", async (req, res) => {
     // Sort descending
     allPayments.sort((a, b) => new Date(b.confirmed_at || b.created_at || 0).getTime() - new Date(a.confirmed_at || a.created_at || 0).getTime());
 
-    // Compute totals
+    // Compute totals & breakdowns by time range
+    const nowMs = Date.now();
+    const oneDayMs = 24 * 60 * 60 * 1000;
+    const oneWeekMs = 7 * 24 * 60 * 60 * 1000;
+    const oneMonthMs = 30 * 24 * 60 * 60 * 1000;
+
+    const paymentsToday = allPayments.filter(p => (nowMs - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneDayMs);
+    const paymentsWeek = allPayments.filter(p => (nowMs - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneWeekMs);
+    const paymentsMonth = allPayments.filter(p => (nowMs - new Date(p.confirmed_at || p.created_at || 0).getTime()) <= oneMonthMs);
+
+    const revenueToday = paymentsToday.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
+    const revenueWeek = paymentsWeek.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
+    const revenueMonth = paymentsMonth.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
+
     const totalPlatformRevenue = allPayments.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0);
     const totalCompanyRevenue = allPayments.reduce((sum, p) => sum + (Number(p.company_share) || 0), 0);
     const totalTransactions = allPayments.length;
 
+    // Optional period filter for breakdown table
+    const period = (req.query.period as string || "all").toLowerCase();
+    let filteredForBreakdown = allPayments;
+    if (period === "day" || period === "today") {
+      filteredForBreakdown = paymentsToday;
+    } else if (period === "week") {
+      filteredForBreakdown = paymentsWeek;
+    } else if (period === "month") {
+      filteredForBreakdown = paymentsMonth;
+    }
+
     // Compute breakdown per company
     const breakdownMap = new Map();
-    allPayments.forEach(p => {
+    filteredForBreakdown.forEach(p => {
       const current = breakdownMap.get(p.company_id) || { total: 0, platform: 0, company: 0, count: 0 };
       current.total += p.amount;
       current.platform += Number(p.platform_share) || 0;
@@ -7770,10 +7979,17 @@ app.get("/api/admin/revenue", async (req, res) => {
       stats: {
         total_platform_revenue: Math.round(totalPlatformRevenue),
         total_company_revenue: Math.round(totalCompanyRevenue),
-        total_transactions_count: totalTransactions
+        total_transactions_count: totalTransactions,
+        revenue_today: Math.round(revenueToday),
+        revenue_week: Math.round(revenueWeek),
+        revenue_month: Math.round(revenueMonth),
+        period_platform_revenue: Math.round(filteredForBreakdown.reduce((sum, p) => sum + (Number(p.platform_share) || 0), 0)),
+        period_company_revenue: Math.round(filteredForBreakdown.reduce((sum, p) => sum + (Number(p.company_share) || 0), 0)),
+        period_transactions_count: filteredForBreakdown.length
       },
+      period,
       breakdown: companyBreakdown,
-      recent_payments: allPayments.slice(0, 50).map(p => ({
+      recent_payments: filteredForBreakdown.slice(0, 50).map(p => ({
         ...p,
         company_name: companiesMap.get(p.company_id) || "Unknown Company"
       }))
@@ -7833,6 +8049,14 @@ async function getCompanyIdFromToken(req: express.Request): Promise<{ companyId:
     companyId = session.userId;
   } else if (session.userData?.company_id) {
     companyId = session.userData.company_id;
+  } else if (session.userData?.companyId) {
+    companyId = session.userData.companyId;
+  } else if (session.companyId || session.company_id) {
+    companyId = session.companyId || session.company_id;
+  } else if (session.userRole === "admin" || session.userRole === "super_admin") {
+    companyId = session.userData?.company_id || session.userData?.companyId || session.userId;
+  } else if (session.userId) {
+    companyId = session.userId;
   }
 
   if (!companyId) return null;
@@ -9724,6 +9948,275 @@ app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
   }
 });
 
+// FEATURE 1 — DRIVER DAILY HEARTBEAT ENDPOINT
+app.post(["/api/fleet-tracking/driver/heartbeat", "/api/fleet/driver/heartbeat"], async (req, res) => {
+  try {
+    const { driverId, locationPermission, deviceId, deviceInfo, driverName, driverPhone, companyId } = req.body;
+    if (!driverId) {
+      return res.status(400).json({ error: "driverId is required." });
+    }
+
+    const now = new Date().toISOString();
+    const updatePayload: any = {
+      lastHeartbeatAt: now,
+      locationPermission: locationPermission || 'granted',
+      appInstalled: true,
+      updated_at: now
+    };
+    if (deviceId) updatePayload.deviceId = deviceId;
+    if (deviceInfo) updatePayload.deviceInfo = deviceInfo;
+
+    let matchedCompanyId = companyId;
+    let resolvedName = driverName || 'Driver';
+    let resolvedPhone = driverPhone || '';
+
+    const fuRef = doc(db, "fleetTracking_users", driverId);
+    const fuSnap = await getDoc(fuRef);
+    if (fuSnap.exists()) {
+      const data = fuSnap.data();
+      matchedCompanyId = matchedCompanyId || data.companyId || data.company_id;
+      resolvedName = resolvedName || data.full_name || data.name;
+      resolvedPhone = resolvedPhone || data.phone;
+      await updateDoc(fuRef, updatePayload);
+    } else {
+      const mgrRef = doc(db, "managers", driverId);
+      const mgrSnap = await getDoc(mgrRef);
+      if (mgrSnap.exists()) {
+        const data = mgrSnap.data();
+        matchedCompanyId = matchedCompanyId || data.company_id || data.companyId;
+        resolvedName = resolvedName || data.name || data.full_name;
+        resolvedPhone = resolvedPhone || data.phone;
+        await updateDoc(mgrRef, updatePayload);
+      }
+    }
+
+    // PART B — DETECT LOCATION PERMISSION OFF
+    if (locationPermission === 'denied') {
+      try {
+        await addDoc(collection(db, "fleetTracking_users", driverId, "events"), {
+          type: 'location_permission_disabled',
+          timestamp: now,
+          driverName: resolvedName,
+          driverPhone: resolvedPhone,
+          companyId: matchedCompanyId,
+          deviceId: deviceId || null
+        });
+      } catch (e) {
+        console.warn("Could not save location_permission_disabled event:", e);
+      }
+
+      if (matchedCompanyId) {
+        await sendFleetNotification(
+          matchedCompanyId,
+          ['owner', 'manager', 'trip_monitor'],
+          '🚫 Location Access Disabled',
+          `${resolvedName} (${resolvedPhone}) has turned off location access. Tracking is not possible until re-enabled.`,
+          {
+            eventType: 'location_permission_off',
+            driverId,
+            companyId: matchedCompanyId
+          }
+        );
+      }
+    }
+
+    res.json({ success: true, message: "Heartbeat recorded successfully." });
+  } catch (err: any) {
+    console.error("Error POST /api/fleet-tracking/driver/heartbeat:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// FEATURE 2 — DRIVER REINSTALL DETECTION ENDPOINT
+app.post(["/api/fleet-tracking/driver/check-reinstall", "/api/fleet/driver/check-reinstall"], async (req, res) => {
+  try {
+    const { driverId, deviceId, deviceInfo, driverData } = req.body;
+    if (!driverId) {
+      return res.status(400).json({ error: "driverId is required." });
+    }
+
+    const now = new Date().toISOString();
+    let currentDoc: any = null;
+    let targetRef: any = null;
+
+    const fuRef = doc(db, "fleetTracking_users", driverId);
+    const fuSnap = await getDoc(fuRef);
+    if (fuSnap.exists()) {
+      currentDoc = fuSnap.data();
+      targetRef = fuRef;
+    } else {
+      const mgrRef = doc(db, "managers", driverId);
+      const mgrSnap = await getDoc(mgrRef);
+      if (mgrSnap.exists()) {
+        currentDoc = mgrSnap.data();
+        targetRef = mgrRef;
+      }
+    }
+
+    if (!currentDoc) {
+      return res.json({ success: true, isFirstLogin: true, isReinstall: false });
+    }
+
+    const savedDeviceId = currentDoc.deviceId;
+    const loginCount = currentDoc.loginCount || 0;
+    const currentDeviceId = deviceId;
+    const companyId = currentDoc.companyId || currentDoc.company_id || driverData?.companyId || driverData?.company_id;
+    const driverName = currentDoc.full_name || currentDoc.name || driverData?.full_name || driverData?.name || "Driver";
+    const driverPhone = currentDoc.phone || driverData?.phone || "";
+
+    if (!savedDeviceId) {
+      // First time login ever
+      const updateData = {
+        deviceId: currentDeviceId,
+        firstLoginAt: now,
+        lastLoginAt: now,
+        loginCount: 1,
+        lastLoginDevice: deviceInfo || null,
+        reinstallCount: 0
+      };
+      await updateDoc(targetRef, updateData);
+      return res.json({ success: true, isFirstLogin: true, isReinstall: false });
+    }
+
+    if (savedDeviceId !== currentDeviceId) {
+      // Device ID changed — app was reinstalled
+      const nextReinstallCount = (currentDoc.reinstallCount || 0) + 1;
+      const updateData = {
+        deviceId: currentDeviceId,
+        lastLoginAt: now,
+        loginCount: loginCount + 1,
+        lastLoginDevice: deviceInfo || null,
+        reinstallDetectedAt: now,
+        reinstallCount: nextReinstallCount
+      };
+      await updateDoc(targetRef, updateData);
+
+      try {
+        await addDoc(collection(db, "fleetTracking_users", driverId, "events"), {
+          type: 'app_reinstalled',
+          timestamp: now,
+          newDeviceId: currentDeviceId,
+          previousDeviceId: savedDeviceId,
+          driverName,
+          driverPhone,
+          companyId,
+          deviceInfo: deviceInfo || null,
+          reinstallCount: nextReinstallCount
+        });
+      } catch (e) {
+        console.warn("Could not save app_reinstalled event:", e);
+      }
+
+      if (companyId) {
+        await sendFleetNotification(
+          companyId,
+          ['owner', 'manager', 'trip_monitor'],
+          '⚠️ Driver App Reinstalled',
+          `${driverName} (${driverPhone}) has reinstalled the Waybilla app on their device. Please verify with the driver.`,
+          {
+            eventType: 'app_reinstalled',
+            driverId,
+            companyId
+          }
+        );
+      }
+
+      return res.json({ success: true, isFirstLogin: false, isReinstall: true, reinstallCount: nextReinstallCount });
+    } else {
+      // Same device — normal login
+      await updateDoc(targetRef, {
+        lastLoginAt: now,
+        loginCount: loginCount + 1
+      });
+      return res.json({ success: true, isFirstLogin: false, isReinstall: false, loginCount: loginCount + 1 });
+    }
+  } catch (err: any) {
+    console.error("Error checking driver reinstall:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// FEATURE 1 PART C — HEARTBEAT CHECK CRON & ROUTINE
+async function executeHeartbeatAuditJob() {
+  console.log("[HEARTBEAT AUDIT] Checking driver heartbeats across active fleet...");
+  const now = Date.now();
+  const twentyFourHoursAgo = now - (24 * 60 * 60 * 1000);
+  let checkedCount = 0;
+  let alertCount = 0;
+
+  try {
+    const driversSnapshot = await getDocs(
+      query(collection(db, "fleetTracking_users"), where("is_active", "==", true))
+    );
+
+    for (const driverDoc of driversSnapshot.docs) {
+      const driver = driverDoc.data();
+      const roleVal = (driver.role || driver.manager_type || "").toLowerCase();
+      if (!roleVal.includes("driver")) continue;
+
+      if (!driver.lastHeartbeatAt && !driver.lastLoginAt) continue;
+
+      checkedCount++;
+      const lastHeartbeatTime = driver.lastHeartbeatAt
+        ? (typeof driver.lastHeartbeatAt.toDate === 'function' ? driver.lastHeartbeatAt.toDate().getTime() : (driver.lastHeartbeatAt.seconds ? driver.lastHeartbeatAt.seconds * 1000 : new Date(driver.lastHeartbeatAt).getTime()))
+        : (driver.lastLoginAt ? (typeof driver.lastLoginAt.toDate === 'function' ? driver.lastLoginAt.toDate().getTime() : (driver.lastLoginAt.seconds ? driver.lastLoginAt.seconds * 1000 : new Date(driver.lastLoginAt).getTime())) : 0);
+
+      const driverName = driver.full_name || driver.name || "Driver";
+      const driverPhone = driver.phone || "";
+      const companyId = driver.companyId || driver.company_id;
+
+      if (!companyId) continue;
+
+      if (lastHeartbeatTime > 0 && lastHeartbeatTime < twentyFourHoursAgo) {
+        alertCount++;
+        await sendFleetNotification(
+          companyId,
+          ['owner', 'manager', 'trip_monitor'],
+          '⚠️ Driver App Issue Detected',
+          `${driverName} (${driverPhone}) has not sent a signal in over 24 hours. They may have deleted the app or disabled location access. Please contact the driver.`,
+          {
+            eventType: 'heartbeat_missing',
+            driverId: driverDoc.id,
+            companyId
+          }
+        );
+      }
+
+      if (driver.locationPermission === 'denied') {
+        await sendFleetNotification(
+          companyId,
+          ['owner', 'manager', 'trip_monitor'],
+          '🚫 Location Access Disabled',
+          `${driverName} (${driverPhone}) has turned off location access for the app. Tracking is not possible until it is re-enabled.`,
+          {
+            eventType: 'location_permission_off',
+            driverId: driverDoc.id,
+            companyId
+          }
+        );
+      }
+    }
+  } catch (e) {
+    console.error("[HEARTBEAT AUDIT ERROR]:", e);
+  }
+  return { checkedCount, alertCount };
+}
+
+app.get(["/api/fleet-tracking/cron/check-driver-heartbeats", "/api/fleet/cron/check-driver-heartbeats"], async (req, res) => {
+  try {
+    const result = await executeHeartbeatAuditJob();
+    res.json({ success: true, ...result });
+  } catch (err: any) {
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// Periodic heartbeat audit runner: runs once every 6 hours
+setInterval(() => {
+  executeHeartbeatAuditJob().catch(() => {});
+}, 6 * 60 * 60 * 1000);
+
+
 // Register FCM Push Token for Manager/CEO/Trip Monitor
 app.post("/api/fleet-tracking/fcm-token", async (req, res) => {
   try {
@@ -9784,30 +10277,52 @@ app.get("/api/fleet-tracking/notifications", async (req, res) => {
   try {
     const authInfo = await getCompanyIdFromToken(req);
     if (!authInfo) {
-      return res.status(401).json({ error: "Unauthorized or missing company association." });
+      return res.json({ success: true, notifications: [] });
     }
-    const q1 = query(
-      collection(db, "notifications"),
-      where("company_id", "==", authInfo.companyId)
-    );
-    const snap1 = await getDocs(q1);
-
-    const q2 = query(
-      collection(db, "notifications"),
-      where("companyId", "==", authInfo.companyId)
-    );
-    const snap2 = await getDocs(q2);
-
     const map = new Map<string, any>();
-    snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
-    snap2.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+
+    try {
+      const q1 = query(
+        collection(db, "notifications"),
+        where("company_id", "==", authInfo.companyId)
+      );
+      const snap1 = await getDocs(q1);
+      snap1.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    } catch (e) {}
+
+    try {
+      const q2 = query(
+        collection(db, "notifications"),
+        where("companyId", "==", authInfo.companyId)
+      );
+      const snap2 = await getDocs(q2);
+      snap2.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    } catch (e) {}
+
+    try {
+      const q3 = query(
+        collection(db, "fleetTracking_notifications"),
+        where("company_id", "==", authInfo.companyId)
+      );
+      const snap3 = await getDocs(q3);
+      snap3.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    } catch (e) {}
+
+    try {
+      const q4 = query(
+        collection(db, "fleetTracking_notifications"),
+        where("companyId", "==", authInfo.companyId)
+      );
+      const snap4 = await getDocs(q4);
+      snap4.docs.forEach(d => map.set(d.id, { id: d.id, ...d.data() }));
+    } catch (e) {}
 
     const notifications = Array.from(map.values());
     notifications.sort((a: any, b: any) => new Date(b.created_at || b.timestamp || 0).getTime() - new Date(a.created_at || a.timestamp || 0).getTime());
-    res.json({ success: true, notifications });
+    return res.json({ success: true, notifications });
   } catch (err: any) {
     console.error("Error GET /api/fleet-tracking/notifications:", err);
-    res.status(500).json({ error: err?.message || "Internal server error." });
+    return res.json({ success: true, notifications: [] });
   }
 });
 

@@ -31,6 +31,12 @@ function formatETATime(secondsFromNow: number): string {
 }
 import { getFleetRole, FleetPermissions } from '../utils/permissions';
 import {
+  getHumanTripStatusBadge,
+  getHumanTripStatus,
+  formatHumanAuditLogEntry,
+  getHumanPaymentStatus,
+} from '../utils/statusFormatters';
+import {
   getGarageLocation,
   updateTripStatus,
   acknowledgeStoppedAlert,
@@ -1083,35 +1089,9 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     }
   };
 
-  // Status Badge Logic
-  const getStatusBadge = (status: string, _hasRedirect: boolean) => {
-    const s = (status || 'created').toLowerCase();
-    switch (s) {
-      case 'completed':
-        return { label: 'Completed ✅', bg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' };
-      case 'cancelled':
-        return { label: 'Cancelled ❌', bg: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
-      case 'departed':
-        return { label: 'Departed 🏁', bg: 'bg-blue-500/20 text-blue-300 border-blue-500/40' };
-      case 'in_progress':
-        return { label: 'In Progress 🚚', bg: 'bg-amber-500/20 text-amber-300 border-amber-500/40' };
-      case 'arrived_at_supplier':
-        return { label: 'Arrived at Supplier 🏭', bg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40' };
-      case 'loaded':
-        return { label: 'Loaded 📦', bg: 'bg-purple-500/20 text-purple-300 border-purple-500/40' };
-      case 'arrived_at_destination':
-        return { label: 'Arrived at Customer 🎯', bg: 'bg-teal-500/20 text-teal-300 border-teal-500/40' };
-      case 'returning':
-        return { label: 'Returning to Base 🏠', bg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40' };
-      case 'stopped_warning':
-        return { label: 'Stopped Warning ⚠️', bg: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' };
-      case 'stopped_alert':
-        return { label: 'Stopped Alert 🔴', bg: 'bg-rose-500/20 text-rose-300 border-rose-500/40' };
-      case 'stopped':
-        return { label: 'Stopped 🛑', bg: 'bg-orange-500/20 text-orange-300 border-orange-500/40' };
-      default:
-        return { label: 'Created 🆕', bg: 'bg-slate-700/60 text-slate-300 border-slate-600' };
-    }
+  // Status Badge Logic (Human-friendly status language and color styles)
+  const getStatusBadge = (status: string, hasRedirect: boolean) => {
+    return getHumanTripStatusBadge(status, hasRedirect);
   };
 
   const activeDest = getActiveDestination();
@@ -1208,7 +1188,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         <button
           type="button"
           onClick={onBack}
-          className="pointer-events-auto bg-[#0b1329]/90 hover:bg-slate-800 backdrop-blur-md text-white border border-blue-900/65/80 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 font-black text-xs transition-all cursor-pointer hover:scale-105 active:scale-95"
+          className="pointer-events-auto bg-[#0b1329]/90 hover:bg-[#131e3d] backdrop-blur-md text-white border border-blue-900/65/80 px-4 py-2.5 rounded-2xl shadow-xl flex items-center gap-2 font-black text-xs transition-all cursor-pointer hover:scale-105 active:scale-95"
           id="trip-detail-back-btn"
         >
           <ArrowLeft className="w-4 h-4 text-amber-400 stroke-[3]" />
@@ -1303,7 +1283,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           {/* COLLAPSED BAR HEADER */}
           <div
             onClick={() => setIsExpanded(!isExpanded)}
-            className="p-3.5 sm:p-4 flex items-center justify-between cursor-pointer hover:bg-slate-800/60 transition-colors select-none"
+            className="p-3.5 sm:p-4 flex items-center justify-between cursor-pointer hover:bg-[#131e3d]/60 transition-colors select-none"
             id="trip-detail-toggle-panel-btn"
           >
             {/* Left: Plate, Status, Driver */}
@@ -1395,7 +1375,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
               <button
                 type="button"
-                className="bg-slate-800 hover:bg-slate-700 text-amber-400 border border-blue-900/65 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
+                className="bg-[#131e3d] hover:bg-slate-700 text-amber-400 border border-blue-900/65 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md transition-all cursor-pointer"
               >
                 <span>{isExpanded ? 'Hide Info' : 'Details'}</span>
                 {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronUp className="w-4 h-4" />}
@@ -1418,7 +1398,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   type="button"
                   disabled={isSubmittingKeepOpen}
                   onClick={handleKeepTripOpen}
-                  className="bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-600 cursor-pointer"
+                  className="bg-[#131e3d] hover:bg-slate-700 text-slate-200 text-xs font-bold px-3 py-1.5 rounded-xl border border-slate-600 cursor-pointer"
                   id="keep-trip-open-btn"
                 >
                   Keep Trip Open
@@ -1555,7 +1535,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                     type="button"
                     onClick={handleRefreshRouteETA}
                     disabled={isRefreshingRoute}
-                    className="bg-slate-800 hover:bg-slate-700 text-amber-400 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border border-blue-900/65/80 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
+                    className="bg-[#131e3d] hover:bg-slate-700 text-amber-400 text-[11px] font-extrabold px-3 py-1.5 rounded-xl border border-blue-900/65/80 flex items-center gap-1.5 cursor-pointer transition-transform hover:scale-105 active:scale-95"
                     id="resync-route-eta-btn"
                   >
                     <Loader2 className={`w-3.5 h-3.5 ${isRefreshingRoute ? 'animate-spin' : ''}`} />
@@ -1646,7 +1626,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                       }}
                       className={`w-full md:w-auto px-5 py-3 rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all shadow-lg ${
                         isCompletedOrCancelled
-                          ? 'bg-slate-800 text-slate-500 cursor-not-allowed border border-blue-900/65/50 opacity-60'
+                          ? 'bg-[#131e3d] text-slate-500 cursor-not-allowed border border-blue-900/65/50 opacity-60'
                           : 'bg-purple-600 hover:bg-purple-500 text-white border border-purple-400/40 shadow-purple-950/40 cursor-pointer hover:scale-105 active:scale-95'
                       }`}
                       id="trip-detail-redirect-btn"
@@ -1678,11 +1658,22 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                     </div>
                   ) : (
                     statusHistory.map((item: TripStatusHistoryEntry, idx: number) => {
-                      const itemBadge = getStatusBadge(item.status, false);
+                      const formattedAudit = formatHumanAuditLogEntry(
+                        item.status,
+                        item.triggered_by,
+                        item.note,
+                        {
+                          destinationName: activeDest.name || trip.primary_destination_name,
+                          supplierName: trip.primary_destination_name,
+                          driverName: trip.driver_name,
+                        }
+                      );
+                      const itemBadge = formattedAudit.badge;
+
                       return (
                         <div key={idx} className="flex items-start gap-3 relative text-xs">
                           {/* Timeline dot */}
-                          <div className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0 mt-1 shadow-sm shadow-amber-400/50" />
+                          <div className={`w-2.5 h-2.5 rounded-full shrink-0 mt-1 shadow-sm ${itemBadge.dot || 'bg-amber-400'}`} />
                           <div className="flex-1 bg-[#0b1329]/90 p-3 rounded-xl border border-blue-950/60/80">
                             <div className="flex items-center justify-between flex-wrap gap-2">
                               <span className={`px-2 py-0.5 rounded text-[10px] font-extrabold border ${itemBadge.bg}`}>
@@ -1694,17 +1685,15 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                               </div>
                             </div>
 
+                            <p className="text-xs text-white font-medium mt-1.5 leading-relaxed">
+                              {formattedAudit.description}
+                            </p>
+
                             <div className="flex items-center justify-between gap-2 mt-2 pt-1 border-t border-blue-950/60/50 text-[11px]">
-                              <span className="text-slate-300 font-medium">
-                                Triggered by: <strong className="text-white">{item.triggered_by}</strong>
+                              <span className="text-slate-400 text-[10px]">
+                                {formattedAudit.triggeredBy}
                               </span>
                             </div>
-
-                            {item.note && (
-                              <p className="text-[11px] text-amber-300/90 mt-1 italic font-sans bg-amber-500/5 p-1.5 rounded border border-amber-500/10">
-                                "{item.note}"
-                              </p>
-                            )}
                           </div>
                         </div>
                       );
@@ -1763,7 +1752,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
               <button
                 type="button"
                 onClick={() => setPaymentModalData(null)}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs cursor-pointer"
+                className="w-full bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs cursor-pointer"
               >
                 Cancel / Close
               </button>
@@ -1814,7 +1803,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
               <button
                 type="button"
                 onClick={() => setShowEndTripModal(false)}
-                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
+                className="px-4 py-2 bg-[#131e3d] hover:bg-slate-700 text-slate-300 text-xs font-bold rounded-xl cursor-pointer"
               >
                 Cancel
               </button>

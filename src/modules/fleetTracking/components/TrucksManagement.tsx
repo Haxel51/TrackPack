@@ -263,7 +263,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             <button
               onClick={loadTrucks}
               disabled={loading}
-              className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-2xl border border-blue-900/65 transition-colors cursor-pointer"
+              className="p-3 bg-[#131e3d] hover:bg-slate-700 text-slate-300 rounded-2xl border border-blue-900/65 transition-colors cursor-pointer"
               title="Refresh Trucks"
               id="refresh-trucks-btn"
             >
@@ -335,7 +335,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
         </div>
       ) : filteredTrucks.length === 0 ? (
         <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-4">
-          <div className="w-16 h-16 rounded-3xl bg-slate-800/80 border border-blue-900/65 flex items-center justify-center text-slate-500">
+          <div className="w-16 h-16 rounded-3xl bg-[#131e3d]/80 border border-blue-900/65 flex items-center justify-center text-slate-500">
             <Truck className="w-8 h-8" />
           </div>
           <div className="space-y-1">
@@ -372,7 +372,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                   <div className="flex items-start justify-between gap-3">
                     {/* Plate Number */}
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-slate-800 border border-blue-900/65 flex items-center justify-center text-amber-400 shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-[#131e3d] border border-blue-900/65 flex items-center justify-center text-amber-400 shrink-0">
                         <Truck className="w-5 h-5" />
                       </div>
                       <div>
@@ -482,7 +482,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                       {canEditTruck && (
                         <button
                           onClick={() => handleOpenEditModal(truck)}
-                          className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold"
+                          className="p-2 bg-[#131e3d] hover:bg-slate-700 text-slate-300 rounded-xl transition-colors cursor-pointer flex items-center gap-1 text-[11px] font-bold"
                           title="Edit Truck Profile"
                           id={`edit-truck-btn-${truck.id}`}
                         >
@@ -544,7 +544,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
               <button
                 type="button"
                 onClick={() => setSelectedTruckForPlan(null)}
-                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-slate-800/80 transition-colors cursor-pointer"
+                className="text-slate-400 hover:text-white p-2 rounded-xl hover:bg-[#131e3d]/80 transition-colors cursor-pointer"
                 id="close-plan-selector-btn"
               >
                 <X className="w-5 h-5" />
@@ -578,7 +578,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
               >
                 <div className="flex items-center gap-3.5">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                    selectedPlanOption === 'per_trip' ? 'bg-blue-500 text-white' : 'bg-slate-800 text-slate-400'
+                    selectedPlanOption === 'per_trip' ? 'bg-blue-500 text-white' : 'bg-[#131e3d] text-slate-400'
                   }`}>
                     <CreditCard className="w-5 h-5" />
                   </div>
@@ -615,7 +615,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
               >
                 <div className="flex items-center gap-3.5">
                   <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                    selectedPlanOption === 'monthly' ? 'bg-orange-500 text-slate-950' : 'bg-slate-800 text-slate-400'
+                    selectedPlanOption === 'monthly' ? 'bg-orange-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
                   }`}>
                     <CreditCard className="w-5 h-5" />
                   </div>
@@ -664,7 +664,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 type="button"
                 onClick={() => setSelectedTruckForPlan(null)}
                 disabled={!!planChangingTruckId}
-                className="w-full bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
+                className="w-full bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
                 id="cancel-plan-change-btn"
               >
                 Cancel
@@ -698,7 +698,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 type="button"
                 onClick={() => setDeletingTruckId(null)}
                 disabled={isDeleting}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
+                className="flex-1 bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs transition-colors cursor-pointer"
                 id="cancel-delete-truck-btn"
               >
                 Cancel

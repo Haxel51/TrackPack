@@ -76,7 +76,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
             ₦
           </div>
           <div>
-            <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">Total Revenue Collected</span>
+            <span className="text-[10px] uppercase tracking-wider font-extrabold text-emerald-400">Total Fees Paid</span>
             <div className="text-base font-black text-white">₦{totalCollected.toLocaleString()}</div>
           </div>
         </div>

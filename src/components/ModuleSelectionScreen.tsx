@@ -18,14 +18,14 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
   onLogout,
 }) => {
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950 font-sans">
+    <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950 font-sans">
       
       {/* Top Bar Header */}
-      <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur-md sticky top-0 z-50">
+      <header className="border-b border-blue-950/80/80 bg-[#091026]/60 backdrop-blur-md sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Logo className="h-9 w-auto text-white" />
-            <div className="hidden sm:block h-5 w-[1px] bg-slate-800" />
+            <div className="hidden sm:block h-5 w-[1px] bg-[#131e3d]" />
             <span className="hidden sm:inline-block text-xs font-semibold text-slate-400 uppercase tracking-wider">
               Workspace Portal
             </span>
@@ -47,7 +47,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
 
             <button
               onClick={onLogout}
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all border border-slate-700 cursor-pointer shadow-sm active:scale-95"
+              className="flex items-center gap-2 bg-[#131e3d] hover:bg-slate-700 text-slate-300 hover:text-white px-4 py-2 rounded-xl text-xs font-extrabold transition-all border border-blue-900/60 cursor-pointer shadow-sm active:scale-95"
               id="logout-module-btn"
             >
               <LogOut className="w-4 h-4 text-rose-400 shrink-0" />
@@ -83,7 +83,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
           {/* Card 1: Fleet Tracking */}
           <div
             onClick={() => onSelectModule('fleet')}
-            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-slate-800 hover:border-amber-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
+            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-blue-950/80 hover:border-amber-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
             id="select-module-fleet-card"
           >
             {/* Top Accent Light Beam */}
@@ -112,7 +112,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
               </div>
 
               {/* Feature Highlights */}
-              <div className="pt-4 border-t border-slate-800/80 space-y-3">
+              <div className="pt-4 border-t border-blue-950/80/80 space-y-3">
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
                   <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
                   <span>Garage Origin & Geofenced Locations</span>
@@ -145,7 +145,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
           {/* Card 2: Waybill */}
           <div
             onClick={() => onSelectModule('waybill')}
-            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-slate-800 hover:border-blue-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
+            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-blue-950/80 hover:border-blue-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-blue-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
             id="select-module-waybill-card"
           >
             {/* Top Accent Light Beam */}
@@ -174,7 +174,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
               </div>
 
               {/* Feature Highlights */}
-              <div className="pt-4 border-t border-slate-800/80 space-y-3">
+              <div className="pt-4 border-t border-blue-950/80/80 space-y-3">
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
                   <CheckCircle2 className="w-4 h-4 text-blue-400 shrink-0" />
                   <span>Motor Park Branches & Staff Accounts</span>
@@ -207,14 +207,14 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
         </div>
 
         {/* Bottom Switch Module Tip */}
-        <div className="mt-12 text-center text-xs text-slate-500 font-medium max-w-lg mx-auto bg-slate-900/40 border border-slate-800/60 p-4 rounded-2xl">
+        <div className="mt-12 text-center text-xs text-slate-500 font-medium max-w-lg mx-auto bg-[#091026]/40 border border-blue-950/80/60 p-4 rounded-2xl">
           💡 <span className="text-slate-400">Pro Tip:</span> You can switch modules at any time by clicking the <strong className="text-slate-200 font-bold">"Switch Module"</strong> button in the top navigation bar of your workspace.
         </div>
 
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800/60 py-6 text-center text-xs text-slate-500 space-y-1">
+      <footer className="border-t border-blue-950/80/60 py-6 text-center text-xs text-slate-500 space-y-1">
         <div>Waybilla is a product of <span className="text-slate-300 font-bold">Haxel Tech-Solutions</span></div>
         <div className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
       </footer>

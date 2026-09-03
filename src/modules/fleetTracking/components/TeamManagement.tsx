@@ -24,7 +24,11 @@ import {
   XCircle,
   Building,
   UserCheck,
-  Clock
+  Clock,
+  Activity,
+  Smartphone,
+  Signal,
+  ShieldAlert
 } from 'lucide-react';
 
 interface TeamManagementProps {
@@ -48,6 +52,17 @@ export interface TeamMember {
   truck_id?: string;
   truck_plate?: string;
   created_at?: string;
+  // Security monitoring fields:
+  lastHeartbeatAt?: any;
+  locationPermission?: 'granted' | 'denied' | 'prompt' | string;
+  appInstalled?: boolean;
+  deviceId?: string;
+  deviceInfo?: any;
+  loginCount?: number;
+  reinstallCount?: number;
+  firstLoginAt?: any;
+  lastLoginAt?: any;
+  reinstallDetectedAt?: any;
 }
 
 export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, user }) => {
@@ -531,6 +546,147 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   )}
                 </div>
 
+                {/* Driver App & Security Monitoring Box (Feature 1 & Feature 2) */}
+                {(m.role === 'driver' || m.manager_type === 'Driver') && (() => {
+                  const rawSignal = m.lastHeartbeatAt || m.lastLoginAt;
+                  let signalDate: Date | null = null;
+                  if (rawSignal) {
+                    if (typeof rawSignal.toDate === 'function') {
+                      signalDate = rawSignal.toDate();
+                    } else if (rawSignal.seconds) {
+                      signalDate = new Date(rawSignal.seconds * 1000);
+                    } else {
+                      signalDate = new Date(rawSignal);
+                    }
+                  }
+                  const isSignalValid = signalDate && !isNaN(signalDate.getTime());
+                  const hasRecentSignal = isSignalValid && (Date.now() - signalDate.getTime() <= 24 * 60 * 60 * 1000);
+                  const formattedSignal = isSignalValid 
+                    ? signalDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : null;
+
+                  const rawLogin = m.lastLoginAt;
+                  let loginDate: Date | null = null;
+                  if (rawLogin) {
+                    if (typeof rawLogin.toDate === 'function') {
+                      loginDate = rawLogin.toDate();
+                    } else if (rawLogin.seconds) {
+                      loginDate = new Date(rawLogin.seconds * 1000);
+                    } else {
+                      loginDate = new Date(rawLogin);
+                    }
+                  }
+                  const formattedLogin = loginDate && !isNaN(loginDate.getTime()) 
+                    ? loginDate.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) 
+                    : (m.created_at ? new Date(m.created_at).toLocaleDateString() : 'Never');
+
+                  const rawReinstall = m.reinstallDetectedAt;
+                  let reinstallDate: Date | null = null;
+                  if (rawReinstall) {
+                    if (typeof rawReinstall.toDate === 'function') {
+                      reinstallDate = rawReinstall.toDate();
+                    } else if (rawReinstall.seconds) {
+                      reinstallDate = new Date(rawReinstall.seconds * 1000);
+                    } else {
+                      reinstallDate = new Date(rawReinstall);
+                    }
+                  }
+                  const formattedReinstall = reinstallDate && !isNaN(reinstallDate.getTime())
+                    ? reinstallDate.toLocaleDateString()
+                    : ((m.reinstallCount || 0) > 0 ? 'Detected on login' : 'None');
+
+                  const reinstalls = m.reinstallCount || 0;
+                  const totalLogins = m.loginCount || (m.account_created ? 1 : 0);
+
+                  return (
+                    <div className="bg-[#050a18] border border-blue-900/50 rounded-xl p-3 text-xs space-y-2 text-slate-300">
+                      <div className="flex items-center justify-between pb-1 border-b border-blue-950/60">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                          <Smartphone className="w-3.5 h-3.5 text-amber-400" /> Driver Security & App Status
+                        </span>
+                        {hasRecentSignal ? (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" /> Live Signal
+                          </span>
+                        ) : (
+                          <span className="flex items-center gap-1 text-[10px] font-bold text-rose-400">
+                            <span className="w-1.5 h-1.5 rounded-full bg-rose-400" /> Offline
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 1. Last app signal */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400">Last app signal:</span>
+                        <span className="font-semibold text-right">
+                          {hasRecentSignal && formattedSignal ? (
+                            <span className="text-emerald-400 font-mono text-[11px]">{formattedSignal}</span>
+                          ) : (
+                            <span className="text-rose-400 font-bold text-[11px] flex items-center gap-1">
+                              <span>No signal in 24+ hours</span>
+                              <span>🔴</span>
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* 2. Location permission */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400">Location permission:</span>
+                        <span className="font-bold">
+                          {m.locationPermission === 'denied' ? (
+                            <span className="text-rose-300 bg-rose-500/10 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] flex items-center gap-1">
+                              🚫 Disabled
+                            </span>
+                          ) : m.locationPermission === 'granted' || m.locationPermission === 'allow_all' ? (
+                            <span className="text-emerald-300 bg-emerald-500/10 border border-emerald-500/30 px-2 py-0.5 rounded text-[10px] flex items-center gap-1">
+                              ✅ Enabled
+                            </span>
+                          ) : (
+                            <span className="text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded text-[10px]">
+                              ⏳ Prompt / Pending
+                            </span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* 3. App reinstalls */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400">App reinstalls:</span>
+                        <span className="font-bold">
+                          {reinstalls > 0 ? (
+                            <span className="text-rose-300 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded text-[10px] font-mono flex items-center gap-1">
+                              <span>🔴 {reinstalls} {reinstalls === 1 ? 'reinstall' : 'reinstalls'}</span>
+                            </span>
+                          ) : (
+                            <span className="text-slate-300 font-mono text-[11px]">0</span>
+                          )}
+                        </span>
+                      </div>
+
+                      {/* 4. Last reinstall */}
+                      {(reinstalls > 0 || m.reinstallDetectedAt) && (
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-400">Last reinstall:</span>
+                          <span className="font-mono text-rose-300 text-[10px]">{formattedReinstall}</span>
+                        </div>
+                      )}
+
+                      {/* 5. Total logins */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400">Total logins:</span>
+                        <span className="font-mono text-slate-200 text-[11px]">{totalLogins}</span>
+                      </div>
+
+                      {/* 6. Last login */}
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-slate-400">Last login:</span>
+                        <span className="font-mono text-slate-300 text-[10px]">{formattedLogin}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Action Buttons */}
                 <div className="flex items-center gap-2 pt-2 border-t border-blue-950/60/80">
                   <button
@@ -661,7 +817,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-blue-950/60 text-xs font-bold text-slate-400 hover:bg-slate-800 cursor-pointer"
+                  className="px-4 py-2.5 rounded-xl border border-blue-950/60 text-xs font-bold text-slate-400 hover:bg-[#131e3d] cursor-pointer"
                 >
                   Cancel
                 </button>
@@ -731,7 +887,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmModal(prev => ({ ...prev, open: false }))}
-                className="flex-1 py-2.5 rounded-xl border border-blue-950/60 text-xs font-bold text-slate-400 hover:bg-slate-800 cursor-pointer"
+                className="flex-1 py-2.5 rounded-xl border border-blue-950/60 text-xs font-bold text-slate-400 hover:bg-[#131e3d] cursor-pointer"
               >
                 Cancel
               </button>

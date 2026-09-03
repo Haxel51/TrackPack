@@ -24,7 +24,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/65 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
+    <div className="fixed inset-0 z-50 bg-[#091026]/65 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
       <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-6 relative border border-slate-100">
         <button
           onClick={onDismiss}

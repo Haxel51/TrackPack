@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { loginAdmin, verifyAdminOTP } from '../lib/api';
 import { ShieldAlert, Mail, Lock, Eye, EyeOff, ChevronLeft, KeyRound, ArrowRight, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 
 export const AdminLogin: React.FC = () => {
   const { token, role, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
+  const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
 
   const [step, setStep] = useState<'credentials' | '2fa'>('credentials');
   const [email, setEmail] = useState('');
@@ -116,6 +122,7 @@ export const AdminLogin: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-center items-center p-4">
+      <SessionExpiredBanner show={showExpiredBanner} onDismiss={() => setShowExpiredBanner(false)} />
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         
         {/* Back Link & Header */}

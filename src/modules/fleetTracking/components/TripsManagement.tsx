@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TripRecord } from '../types';
 import { getTrips, updateTripStatus, getSubscriptionAlerts } from '../api';
 import { getFleetRole, FleetPermissions } from '../utils/permissions';
+import { getHumanTripStatusBadge, getHumanPaymentStatus } from '../utils/statusFormatters';
 import { CreateTripModal } from './CreateTripModal';
 import { RedirectTripModal } from './RedirectTripModal';
 import { ConfirmDepartureModal } from './ConfirmDepartureModal';
@@ -140,18 +141,9 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
     return true;
   });
 
-  // Get status badge styling
+  // Get status badge styling with human-friendly language
   const getTripStatusBadge = (status: string, hasRedirect: boolean) => {
-    if (status === 'completed') {
-      return { label: 'Completed', bg: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' };
-    }
-    if (status === 'cancelled') {
-      return { label: 'Cancelled', bg: 'bg-rose-500/10 text-rose-400 border-rose-500/30' };
-    }
-    if (hasRedirect || status === 'redirected') {
-      return { label: 'Redirected 🔀', bg: 'bg-purple-500/10 text-purple-400 border-purple-500/30' };
-    }
-    return { label: 'Active Trip 🚚', bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30' };
+    return getHumanTripStatusBadge(status, hasRedirect);
   };
 
   // If a trip card was selected, show the full screen map & details view
@@ -364,9 +356,9 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                       {statusBadge.label}
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      trip.payment_status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-400'
+                      trip.payment_status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-300'
                     }`}>
-                      Payment: {trip.payment_status.toUpperCase()} (₦{trip.payment_amount.toLocaleString()})
+                      {getHumanPaymentStatus(trip.payment_status)} (₦{trip.payment_amount.toLocaleString()})
                     </span>
                   </div>
                 </div>

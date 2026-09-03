@@ -125,7 +125,7 @@ export const FleetPushNotificationCard: React.FC = () => {
           ) : (
             <button
               onClick={handleDisableNotifications}
-              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-200 border border-blue-900/65 font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-[#131e3d] hover:bg-slate-700 text-slate-200 border border-blue-900/65 font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-2 shrink-0"
               id="disable-fleet-push-card-btn"
             >
               <span>Turn Off</span>
