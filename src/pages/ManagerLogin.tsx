@@ -13,6 +13,9 @@ export const ManagerLogin: React.FC = () => {
   const [searchParams] = useSearchParams();
   const roleParam = searchParams.get('role') || searchParams.get('type') || '';
 
+  const isDriverRoute = location.pathname.includes('driver') || roleParam === 'driver';
+  const isTripMonitorRoute = location.pathname.includes('trip_monitor') || roleParam === 'trip_monitor';
+
   const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
   const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
 
@@ -54,10 +57,10 @@ export const ManagerLogin: React.FC = () => {
     const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
     const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
     const currentToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null);
-    if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || roleParam === 'driver' || roleParam === 'trip_monitor' || roleParam === 'manager')) {
+    if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || isDriverRoute || isTripMonitorRoute)) {
       navigate('/manager/dashboard', { replace: true });
     }
-  }, [token, role, navigate, roleParam]);
+  }, [token, role, navigate, roleParam, location.pathname, isDriverRoute, isTripMonitorRoute]);
 
   const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
   const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
@@ -73,13 +76,13 @@ export const ManagerLogin: React.FC = () => {
     );
   }
 
-  const portalTitle = roleParam === 'driver' 
+  const portalTitle = isDriverRoute 
     ? 'Driver Portal' 
-    : roleParam === 'trip_monitor' 
+    : isTripMonitorRoute 
       ? 'Trip Monitor Portal' 
       : 'Manager & Operational Staff Portal';
 
-  const detectedRole = roleParam || managerInfo?.role || (managerInfo?.manager_type === 'Driver' ? 'driver' : managerInfo?.manager_type === 'Trip Monitor' ? 'trip_monitor' : 'manager');
+  const detectedRole = isDriverRoute ? 'driver' : isTripMonitorRoute ? 'trip_monitor' : (managerInfo?.role || (managerInfo?.manager_type === 'Driver' ? 'driver' : managerInfo?.manager_type === 'Trip Monitor' ? 'trip_monitor' : 'manager'));
   const isDriver = detectedRole === 'driver';
   const isTripMonitor = detectedRole === 'trip_monitor';
 
@@ -262,9 +265,9 @@ export const ManagerLogin: React.FC = () => {
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
           <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
-            {roleParam === 'driver' ? (
+            {isDriverRoute ? (
               <Truck className="text-[#F2A93B] w-7 h-7" />
-            ) : roleParam === 'trip_monitor' ? (
+            ) : isTripMonitorRoute ? (
               <Eye className="text-[#F2A93B] w-7 h-7" />
             ) : (
               <UserCheck className="text-[#F2A93B] w-7 h-7" />
@@ -279,9 +282,9 @@ export const ManagerLogin: React.FC = () => {
               : step === 'forgot_pin'
                 ? 'Recover access to your account by verifying your registered phone number.'
                 : step === 'phone' 
-                  ? roleParam === 'driver' 
+                  ? isDriverRoute 
                     ? 'Enter your phone number to sign in to your Driver Portal.'
-                    : roleParam === 'trip_monitor'
+                    : isTripMonitorRoute
                       ? 'Enter your phone number to sign in to your Trip Monitor Portal.'
                       : 'Enter your phone number to match your registered transport company profile.' 
                   : managerInfo?.has_pin 
@@ -446,7 +449,7 @@ export const ManagerLogin: React.FC = () => {
           <form onSubmit={handleCheckPhone} className="space-y-5">
             <div className="space-y-1.5">
               <label htmlFor="manager-phone" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                Manager Phone Number
+                {isDriverRoute ? 'Driver Phone Number' : isTripMonitorRoute ? 'Trip Monitor Phone Number' : 'Manager Phone Number'}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">

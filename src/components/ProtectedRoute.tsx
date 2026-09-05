@@ -31,10 +31,17 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     else if (allowedRole === 'staff') targetLogin = '/staff/login';
     else if (allowedRole === 'admin') targetLogin = '/admin/login';
     else if (allowedRole === 'manager') targetLogin = '/login/manager';
-    else if (allowedRole === 'driver') targetLogin = '/login/driver';
+    else if (allowedRole === 'driver') targetLogin = '/login/manager?role=driver';
     else if (allowedRole === 'supplier_staff') targetLogin = '/login/supplier-staff';
 
-    return <Navigate to={`${targetLogin}?expired=true`} state={{ sessionExpired: true, from: location }} replace />;
+    const hadPriorSession = Boolean(
+      typeof localStorage !== 'undefined' &&
+      (localStorage.getItem('auth_token') || localStorage.getItem('token'))
+    );
+
+    const redirectUrl = hadPriorSession ? `${targetLogin}${targetLogin.includes('?') ? '&' : '?'}expired=true` : targetLogin;
+
+    return <Navigate to={redirectUrl} state={{ sessionExpired: hadPriorSession, from: location }} replace />;
   }
 
   return <>{children}</>;
