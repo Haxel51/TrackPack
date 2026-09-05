@@ -672,7 +672,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                     <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
                       <Receipt className="w-6 h-6" />
                     </div>
-                    <h2 className="text-xl font-black text-[#0A1F44]">Waybilla Nigeria</h2>
+                    <h2 className="text-xl font-black text-[#0A1F44]">Waybilla</h2>
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Official Digital Waybill Transaction Receipt</p>
                     <div className="inline-block bg-blue-50 text-blue-700 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider mt-1">
                       Ref: {tracking_code}

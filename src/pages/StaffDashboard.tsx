@@ -330,13 +330,6 @@ export const StaffDashboard: React.FC = () => {
             <Logo size="sm" showText={false} />
             <div className="flex items-center gap-1.5 sm:gap-2 font-extrabold text-base sm:text-lg tracking-wider min-w-0">
               <span className="truncate">Waybilla</span>
-              <span className="hidden xs:inline-flex items-center shadow-xs rounded overflow-hidden border border-white/20 shrink-0" title="Nigeria">
-                <svg className="w-4 sm:w-5 h-3 sm:h-3.5" viewBox="0 0 3 2">
-                  <rect width="1" height="2" x="0" fill="#008751" />
-                  <rect width="1" height="2" x="1" fill="#FFFFFF" />
-                  <rect width="1" height="2" x="2" fill="#008751" />
-                </svg>
-              </span>
               <span className="text-slate-300 font-normal text-xs sm:text-sm ml-0.5 sm:ml-1 flex items-center gap-1.5 shrink-0">
                 <span className="hidden sm:inline">Staff</span>
                 <span className="sm:hidden">Stf</span>

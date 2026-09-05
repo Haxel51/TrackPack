@@ -70,7 +70,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
   const fetchNotifications = useCallback(async () => {
     try {
-      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
+      const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
       if (!activeToken) return;
       const res = await getFleetNotifications(activeToken);
       if (res.success && Array.isArray(res.notifications)) {
@@ -82,7 +82,8 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   }, [token]);
 
   const handleEnableNotifications = async () => {
-    const perm = await requestNotificationPermission(token || undefined, user?.id || user?.owner_phone);
+    const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') : null);
+    const perm = await requestNotificationPermission(activeToken || undefined, user?.id || user?.owner_phone);
     if (perm !== 'unsupported' && perm !== 'iframe_blocked') {
       setNotifPermission(perm);
     }
@@ -130,10 +131,11 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
   }, [fetchNotifications]);
 
   useEffect(() => {
-    if (token) {
-      initializeFCM(token, user?.id || user?.owner_phone);
+    const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
+    if (activeToken) {
+      initializeFCM(activeToken, user?.id || user?.owner_phone);
       fetchNotifications();
-      const interval = setInterval(fetchNotifications, 15000);
+      const interval = setInterval(fetchNotifications, 10000);
       return () => clearInterval(interval);
     }
   }, [token, fetchNotifications, user?.id, user?.owner_phone]);
@@ -442,6 +444,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         token={token}
         notifications={notifications}
         onRefresh={fetchNotifications}
+        onMarkAllRead={() => {
+          setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+        }}
+        onMarkSingleRead={(id) => {
+          setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+        }}
         onSelectTrip={() => {
           setActiveTab('trips');
         }}

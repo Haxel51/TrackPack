@@ -754,12 +754,14 @@ export async function markNotificationAsRead(
 
 // 36. Mark All Notifications As Read
 export async function markAllNotificationsAsRead(
-  token?: string
+  token?: string,
+  ids?: string[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/notifications/read-all`, {
       method: 'POST',
       headers: getHeaders(token),
+      body: JSON.stringify({ ids }),
     });
     const data = await res.json().catch(() => ({}));
     return { success: res.ok && data.success !== false };

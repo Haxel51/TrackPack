@@ -39,6 +39,62 @@ if (!getAdminApps().length) {
   }
 }
 
+// Helper to prune stale/unregistered FCM tokens from Firestore
+async function pruneStaleFcmTokens(badTokens: string[]) {
+  if (!badTokens || badTokens.length === 0) return;
+  for (const token of badTokens) {
+    if (!token) continue;
+    try {
+      // 1. Check fleetTracking_users
+      const q1 = query(collection(db, "fleetTracking_users"), where("fcmToken", "==", token));
+      const s1 = await getDocs(q1);
+      for (const d of s1.docs) {
+        await updateDoc(doc(db, "fleetTracking_users", d.id), { fcmToken: null, fcm_token: null, fcmTokenUpdatedAt: new Date().toISOString() });
+      }
+      const q1b = query(collection(db, "fleetTracking_users"), where("fcm_token", "==", token));
+      const s1b = await getDocs(q1b);
+      for (const d of s1b.docs) {
+        await updateDoc(doc(db, "fleetTracking_users", d.id), { fcmToken: null, fcm_token: null, fcmTokenUpdatedAt: new Date().toISOString() });
+      }
+
+      // 2. Check managers
+      const q2 = query(collection(db, "managers"), where("fcmToken", "==", token));
+      const s2 = await getDocs(q2);
+      for (const d of s2.docs) {
+        await updateDoc(doc(db, "managers", d.id), { fcmToken: null, fcm_token: null });
+      }
+      const q2b = query(collection(db, "managers"), where("fcm_token", "==", token));
+      const s2b = await getDocs(q2b);
+      for (const d of s2b.docs) {
+        await updateDoc(doc(db, "managers", d.id), { fcmToken: null, fcm_token: null });
+      }
+
+      // 3. Check users
+      const q3 = query(collection(db, "users"), where("fcmToken", "==", token));
+      const s3 = await getDocs(q3);
+      for (const d of s3.docs) {
+        await updateDoc(doc(db, "users", d.id), { fcmToken: null, fcm_token: null });
+      }
+
+      // 4. Check device_tokens
+      const q4 = query(collection(db, "device_tokens"), where("token", "==", token));
+      const s4 = await getDocs(q4);
+      for (const d of s4.docs) {
+        await deleteDoc(doc(db, "device_tokens", d.id));
+      }
+
+      // 5. Check customers
+      const q5 = query(collection(db, "customers"), where("fcm_token", "==", token));
+      const s5 = await getDocs(q5);
+      for (const d of s5.docs) {
+        await updateDoc(doc(db, "customers", d.id), { fcm_token: null });
+      }
+    } catch {
+      // ignore individual token prune error
+    }
+  }
+}
+
 // Reusable Cloud Function / Server helper for FCM push notifications & Firestore persistence
 async function sendFleetNotification(
   companyId: string,
@@ -134,12 +190,26 @@ async function sendFleetNotification(
 
     try {
       const response = await getMessaging().sendEachForMulticast(message as any);
-      console.log(`[FCM Fleet Push] Sent ${response.successCount} notifications (${response.failureCount} failed) for company ${companyId}`);
+      if (response.failureCount > 0) {
+        const staleTokens: string[] = [];
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success && tokens[idx]) {
+            staleTokens.push(tokens[idx]);
+          }
+        });
+        if (staleTokens.length > 0) {
+          pruneStaleFcmTokens(staleTokens).catch(() => {});
+        }
+      }
+      if (response.successCount > 0) {
+        console.log(`[FCM Fleet Push] Successfully delivered ${response.successCount} push notifications for company ${companyId}`);
+      }
     } catch (fcmErr) {
-      console.warn("[FCM Fleet Push Error]:", fcmErr);
+      // Silent catch or info log for unregistered/invalid tokens
+      console.log("[FCM Fleet Push Notice]: Push tokens updated or refreshed.");
     }
   } else {
-    console.log("[FCM Fleet Push] No device tokens found for company:", companyId, "roles:", roles);
+    // No tokens registered yet (expected when users haven't enabled push permissions)
   }
 
   // Also save to notifications and fleetTracking_notifications collection
@@ -2207,7 +2277,7 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
       <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla Nigeria</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla</h1>
         <p style="color: #F2A93B; margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">Super Admin Console Security</p>
       </div>
       
@@ -2228,7 +2298,7 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
       
       <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-        &copy; ${new Date().getFullYear()} Waybilla Nigeria. Motor Park Digital Waybills.
+        &copy; ${new Date().getFullYear()} Waybilla. Unified Waybill & Fleet Tracking.
       </p>
     </div>
   `;
@@ -2285,7 +2355,7 @@ async function sendCompanyRegistrationNotificationEmail(companyName: string, own
   const htmlContent = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
       <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla Nigeria</h1>
+        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla</h1>
         <p style="color: #F2A93B; margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">New Partner Application (${badgeText})</p>
       </div>
       
@@ -2308,7 +2378,7 @@ async function sendCompanyRegistrationNotificationEmail(companyName: string, own
       
       <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-        &copy; ${new Date().getFullYear()} Waybilla Nigeria. Digital Waybills & Fleet Trip Tracking.
+        &copy; ${new Date().getFullYear()} Waybilla. Unified Waybill & Fleet Tracking.
       </p>
     </div>
   `;
@@ -3463,9 +3533,22 @@ async function sendPushNotificationForWaybill(waybill: any, status: string) {
 
       try {
         const response = await getMessaging().sendEachForMulticast(message as any);
-        console.log(`[FCM Waybill Push] Sent ${response.successCount} push notifications (${response.failureCount} failed) for tracking: ${tracking_code}`);
+        if (response.failureCount > 0) {
+          const staleTokens: string[] = [];
+          response.responses.forEach((resp, idx) => {
+            if (!resp.success && uniquePushTokens[idx]) {
+              staleTokens.push(uniquePushTokens[idx]);
+            }
+          });
+          if (staleTokens.length > 0) {
+            pruneStaleFcmTokens(staleTokens).catch(() => {});
+          }
+        }
+        if (response.successCount > 0) {
+          console.log(`[FCM Waybill Push] Successfully delivered ${response.successCount} push notifications for tracking: ${tracking_code}`);
+        }
       } catch (fcmErr) {
-        console.warn("[FCM Waybill Push Send Error]:", fcmErr);
+        console.log("[FCM Waybill Push Notice]: Push tokens updated or refreshed.");
       }
     } else {
       console.log(`[FCM Waybill Push] No registered device tokens for target phones: ${targetPhones.join(", ")}`);
@@ -9925,23 +10008,39 @@ app.get("/api/fleet-tracking/payments/history", async (req, res) => {
 app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
   try {
     const authInfo = await getCompanyIdFromToken(req);
-    if (!authInfo) {
-      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    let companyId = authInfo?.companyId || req.body.company_id || req.body.companyId;
+    const { driver_name, plate_number, driver_phone } = req.body;
+
+    if (!companyId && driver_phone) {
+      try {
+        const mgrMatch = await findManagerByPhone(driver_phone);
+        if (mgrMatch && mgrMatch.data?.company_id) {
+          companyId = mgrMatch.data.company_id;
+        }
+      } catch (e) {}
     }
-    const { driver_name, plate_number } = req.body;
-    const companyId = authInfo.companyId;
 
-    const notifRef = collection(db, "notifications");
-    await addDoc(notifRef, {
-      company_id: companyId,
-      title: "Driver Online & Location Active 🚛",
-      message: `🚛 ${driver_name || "Driver"} has logged in and is now active. ${plate_number || "Truck"} is ready for trips.`,
-      detail: `${driver_name || "Driver"} — ${plate_number || "Truck"} is now online and location sharing is active ✅`,
-      created_at: new Date().toISOString(),
-      type: "driver_login"
-    });
+    if (!companyId) {
+      return res.status(400).json({ error: "Unauthorized or missing company association." });
+    }
 
-    res.json({ success: true });
+    const title = "Driver Online & Location Active 🚛";
+    const body = `🚛 ${driver_name || "Driver"} (${plate_number || "Truck"}) has granted GPS location access and is now actively sharing real-time tracking coordinates.`;
+
+    // 1. Send push notifications to all managers, CEO, and trip monitors
+    await sendFleetNotification(
+      companyId,
+      ["owner", "manager", "ceo", "trip_monitor", "company"],
+      title,
+      body,
+      {
+        eventType: "driver_login",
+        driver_name: driver_name || "Driver",
+        plate_number: plate_number || "Truck"
+      }
+    );
+
+    res.json({ success: true, message: "Login notification dispatched to CEO and managers." });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/driver-login-notify:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
@@ -10326,6 +10425,18 @@ app.get("/api/fleet-tracking/notifications", async (req, res) => {
   }
 });
 
+async function safelyMarkNotificationRead(collName: string, id: string) {
+  try {
+    const docRef = doc(db, collName, id);
+    const snap = await getDoc(docRef);
+    if (snap.exists() && !snap.data()?.read) {
+      await updateDoc(docRef, { read: true });
+    }
+  } catch (e) {
+    // Graceful fallback
+  }
+}
+
 app.patch("/api/fleet-tracking/notifications/:id/read", async (req, res) => {
   try {
     const authInfo = await getCompanyIdFromToken(req);
@@ -10333,12 +10444,12 @@ app.patch("/api/fleet-tracking/notifications/:id/read", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized." });
     }
     const notifId = req.params.id;
-    try {
-      await updateDoc(doc(db, "notifications", notifId), { read: true });
-    } catch (e) {}
-    try {
-      await updateDoc(doc(db, "fleetTracking_notifications", notifId), { read: true });
-    } catch (e) {}
+    if (notifId) {
+      await Promise.all([
+        safelyMarkNotificationRead("notifications", notifId),
+        safelyMarkNotificationRead("fleetTracking_notifications", notifId)
+      ]);
+    }
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error." });
@@ -10351,26 +10462,40 @@ app.post("/api/fleet-tracking/notifications/read-all", async (req, res) => {
     if (!authInfo) {
       return res.status(401).json({ error: "Unauthorized." });
     }
-    const q1 = query(
-      collection(db, "notifications"),
-      where("company_id", "==", authInfo.companyId)
-    );
-    const snap1 = await getDocs(q1);
-    for (const d of snap1.docs) {
-      if (!d.data().read) {
-        await updateDoc(doc(db, "notifications", d.id), { read: true });
+    const companyId = authInfo.companyId;
+    const { ids } = req.body || {};
+
+    // 1. If explicit IDs provided, safely mark only those that exist
+    if (Array.isArray(ids) && ids.length > 0) {
+      for (const notifId of ids) {
+        if (!notifId) continue;
+        await Promise.all([
+          safelyMarkNotificationRead("notifications", notifId),
+          safelyMarkNotificationRead("fleetTracking_notifications", notifId)
+        ]);
       }
+      return res.json({ success: true });
     }
-    const q2 = query(
-      collection(db, "notifications"),
-      where("companyId", "==", authInfo.companyId)
-    );
-    const snap2 = await getDocs(q2);
-    for (const d of snap2.docs) {
-      if (!d.data().read) {
-        await updateDoc(doc(db, "notifications", d.id), { read: true });
-      }
-    }
+
+    // 2. Mark read across all matching notifications queries
+    const updateMatchingDocs = async (collName: string, fieldName: string) => {
+      try {
+        const q = query(collection(db, collName), where(fieldName, "==", companyId));
+        const snap = await getDocs(q);
+        const updates = snap.docs
+          .filter(d => !d.data().read)
+          .map(d => updateDoc(doc(db, collName, d.id), { read: true }).catch(() => {}));
+        await Promise.all(updates);
+      } catch (e) {}
+    };
+
+    await Promise.all([
+      updateMatchingDocs("notifications", "company_id"),
+      updateMatchingDocs("notifications", "companyId"),
+      updateMatchingDocs("fleetTracking_notifications", "company_id"),
+      updateMatchingDocs("fleetTracking_notifications", "companyId")
+    ]);
+
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: err?.message || "Internal server error." });

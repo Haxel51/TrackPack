@@ -266,7 +266,7 @@ export const CompanyLogin: React.FC = () => {
             {mode === 'login'
               ? 'Log in to manage your motor parks, register transport staff, and audit transit operations.'
               : mode === 'register'
-              ? 'Apply to join Waybilla Nigeria. Once approved by Super Admin, you can manage your parks and staff.'
+              ? 'Apply to join Waybilla. Once approved by Super Admin, you can manage your parks and staff.'
               : 'Recover access to your company account by verifying your registered owner phone number.'}
           </p>
         </div>

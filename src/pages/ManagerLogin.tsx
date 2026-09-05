@@ -50,10 +50,28 @@ export const ManagerLogin: React.FC = () => {
 
   // Redirect if already logged in as manager, trip monitor, or driver
   useEffect(() => {
-    if (token && (role === 'manager' || role === 'trip_monitor' || role === 'driver')) {
+    const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
+    const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
+    const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
+    const currentToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null);
+    if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || roleParam === 'driver' || roleParam === 'trip_monitor' || roleParam === 'manager')) {
       navigate('/manager/dashboard', { replace: true });
     }
-  }, [token, role, navigate]);
+  }, [token, role, navigate, roleParam]);
+
+  const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
+  const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
+  const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
+  const currentToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null);
+
+  if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || (cachedUser && (cachedUser.name || cachedUser.phone)))) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4">
+        <div className="w-10 h-10 border-4 border-[#0A1F44] border-t-[#F2A93B] rounded-full animate-spin"></div>
+        <p className="mt-3 text-xs font-bold text-slate-600">Restoring your verified session...</p>
+      </div>
+    );
+  }
 
   const portalTitle = roleParam === 'driver' 
     ? 'Driver Portal' 

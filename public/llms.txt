@@ -1,8 +1,8 @@
-# Waybilla Nigeria
+# Waybilla
 
-> Nigeria's #1 Dedicated Waybill Live Tracking Platform for interstate motor parks and commercial transport companies.
+> Unified Waybill & Fleet Tracking platform for interstate motor parks, transport companies, and commercial fleets.
 
-Track and manage interstate parcels sent through major transit lines like Peace Mass, GUO, GIGM, Young Shall Grow, Romchi, and other Nigerian motor parks in real-time.
+Track and manage interstate parcels sent through major transit lines like Peace Mass, GUO, GIGM, Young Shall Grow, Romchi, and other motor parks and commercial truck fleets in real-time.
 
 ## Key Features
 

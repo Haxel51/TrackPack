@@ -1,6 +1,6 @@
 {
-  "name": "Waybilla Nigeria",
-  "description": "Waybilla Nigeria - Nigeria's #1 Dedicated Waybill Live Tracking Platform and digital waybill for interstate motor parks, transport lines, and commercial goods terminals.",
+  "name": "Waybilla",
+  "description": "Waybilla — Unified Waybill & Fleet Tracking platform for motor parks, commercial transport companies, and logistics operators.",
   "requestFramePermissions": ["geolocation"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

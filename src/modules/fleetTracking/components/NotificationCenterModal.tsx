@@ -26,6 +26,8 @@ interface NotificationCenterModalProps {
   token: string | null;
   notifications: FleetNotification[];
   onRefresh: () => void;
+  onMarkAllRead?: () => void;
+  onMarkSingleRead?: (id: string) => void;
   onSelectTrip?: (tripId: string) => void;
   onSelectTruck?: (truckId: string) => void;
 }
@@ -36,6 +38,8 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   token,
   notifications,
   onRefresh,
+  onMarkAllRead,
+  onMarkSingleRead,
   onSelectTrip,
   onSelectTruck
 }) => {
@@ -50,7 +54,10 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const markAsRead = async (id: string) => {
     try {
-      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
+      if (onMarkSingleRead) {
+        onMarkSingleRead(id);
+      }
+      const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
       await apiMarkRead(id, activeToken || undefined);
       onRefresh();
     } catch (e) {
@@ -60,8 +67,12 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
 
   const markAllAsRead = async () => {
     try {
-      const activeToken = token || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token');
-      await apiMarkAllRead(activeToken || undefined);
+      if (onMarkAllRead) {
+        onMarkAllRead();
+      }
+      const allIds = notifications.map(n => n.id).filter(Boolean);
+      const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
+      await apiMarkAllRead(activeToken || undefined, allIds);
       onRefresh();
     } catch (e) {
       // Graceful fallback

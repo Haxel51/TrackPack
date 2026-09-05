@@ -99,7 +99,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
       `*👤 Sender:* ${senderName} (${senderPhone})\n` +
       `*👤 Receiver:* ${receiverName} (${receiverPhone})\n\n` +
       `🔗 *Track Live Movement:* ${trackingUrl}\n\n` +
-      `Thank you for choosing Waybilla Nigeria! 🇳🇬`;
+      `Thank you for choosing Waybilla! 🚚📦`;
   };
 
   const handleWhatsAppShare = (code: string) => {

@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle, Settings, LogOut } from 'lucide-react';
+import { AlertCircle, Settings, ArrowLeft, LogOut } from 'lucide-react';
 import { 
   getDriverActiveTrip,
   sendDriverHeartbeat,
   checkDriverReinstall
 } from '../modules/fleetTracking/api';
 import { db } from '../lib/firebase';
-import { doc, updateDoc, collection, addDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, serverTimestamp, getDoc, getDocs, query, where, limit } from 'firebase/firestore';
 import {
   sendLocationWithRetry,
   flushPendingLocations,
@@ -54,11 +55,16 @@ function calculateDistanceInMeters(lat1: number, lon1: number, lat2: number, lon
 }
 
 export const DriverScreen: React.FC = () => {
-  const { user, logout } = useAuth();
-  const [permissionState, setPermissionState] = useState<'prompting' | 'allow_all' | 'allow_while_using' | 'denied'>('prompting');
+  const navigate = useNavigate();
+  const { user, token, logout } = useAuth();
+  const [permissionState, setPermissionState] = useState<'prompting' | 'allow_all' | 'allow_while_using' | 'denied'>(() => {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('waybilla_driver_allowed') === 'true') {
+      return 'allow_all';
+    }
+    return 'prompting';
+  });
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasActiveTrip, setHasActiveTrip] = useState<boolean>(false);
-  const [showLogoutConfirm, setShowLogoutConfirm] = useState<boolean>(false);
 
   const activeTripIdRef = useRef<string | null>(null);
   const wakeLockRef = useRef<any>(null);
@@ -70,10 +76,114 @@ export const DriverScreen: React.FC = () => {
   const tripCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const companyName = user?.company_name || 'Transport Company';
+  const [dynamicCompanyName, setDynamicCompanyName] = useState<string>(() => {
+    if (user?.company_name && user.company_name !== 'Transport Company') {
+      return user.company_name;
+    }
+    const cached = typeof localStorage !== 'undefined' ? localStorage.getItem('driver_company_name') : null;
+    return cached || user?.company_name || 'Transport Company';
+  });
+
   const driverName = user?.name || 'Driver';
   const plateNumber = (user as any)?.plate_number || 'Truck Plate';
   const driverId = user?.id || '';
+
+  // DYNAMIC COMPANY RESOLUTION: Fetch official registered company name
+  useEffect(() => {
+    let isMounted = true;
+    async function resolveRegisteredCompany() {
+      try {
+        const companyId = user?.company_id || (user as any)?.companyId;
+        const driverPhone = user?.phone;
+
+        // 1. Direct query on companies collection with companyId
+        if (companyId && companyId !== 'default_company') {
+          const compSnap = await getDoc(doc(db, 'companies', companyId));
+          if (compSnap.exists()) {
+            const data = compSnap.data();
+            const resolved = data.company_name || data.name || data.park_name;
+            if (resolved && isMounted) {
+              setDynamicCompanyName(resolved);
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('driver_company_name', resolved);
+              }
+              return;
+            }
+          }
+        }
+
+        // 2. Query driver record in fleetTracking_users
+        if (driverId) {
+          const ftSnap = await getDoc(doc(db, 'fleetTracking_users', driverId));
+          if (ftSnap.exists()) {
+            const ftData = ftSnap.data();
+            if (ftData.company_name && ftData.company_name !== 'Transport Company') {
+              if (isMounted) {
+                setDynamicCompanyName(ftData.company_name);
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('driver_company_name', ftData.company_name);
+                }
+                return;
+              }
+            }
+            const cId = ftData.companyId || ftData.company_id;
+            if (cId && cId !== 'default_company') {
+              const compSnap = await getDoc(doc(db, 'companies', cId));
+              if (compSnap.exists()) {
+                const data = compSnap.data();
+                const resolved = data.company_name || data.name || data.park_name;
+                if (resolved && isMounted) {
+                  setDynamicCompanyName(resolved);
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('driver_company_name', resolved);
+                  }
+                  return;
+                }
+              }
+            }
+          }
+        }
+
+        // 3. Query fleetTracking_trucks by driver phone
+        if (driverPhone) {
+          const qTruck = query(collection(db, 'fleetTracking_trucks'), where('driver_phone', '==', driverPhone), limit(1));
+          const tSnap = await getDocs(qTruck);
+          if (!tSnap.empty) {
+            const tData = tSnap.docs[0].data();
+            if (tData.company_name && tData.company_name !== 'Transport Company') {
+              if (isMounted) {
+                setDynamicCompanyName(tData.company_name);
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('driver_company_name', tData.company_name);
+                }
+                return;
+              }
+            }
+            if (tData.company_id && tData.company_id !== 'default_company') {
+              const compSnap = await getDoc(doc(db, 'companies', tData.company_id));
+              if (compSnap.exists()) {
+                const data = compSnap.data();
+                const resolved = data.company_name || data.name;
+                if (resolved && isMounted) {
+                  setDynamicCompanyName(resolved);
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('driver_company_name', resolved);
+                  }
+                  return;
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Could not dynamically resolve driver company name:', err);
+      }
+    }
+    resolveRegisteredCompany();
+    return () => {
+      isMounted = false;
+    };
+  }, [user, driverId]);
 
   // FEATURE 1 — SEND HEARTBEAT
   const sendHeartbeat = useCallback(async (targetDriverId: string) => {
@@ -274,45 +384,58 @@ export const DriverScreen: React.FC = () => {
 
   useEffect(() => {
     if (permissionState === 'allow_all') {
-      const token =
-        localStorage.getItem('token') ||
-        localStorage.getItem('company_token') ||
-        localStorage.getItem('manager_token') ||
+      const activeToken =
+        token ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null) ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('token') : null) ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('manager_token') : null) ||
+        (typeof localStorage !== 'undefined' ? localStorage.getItem('company_token') : null) ||
         sessionStorage.getItem('token') ||
         '';
+
+      const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
+      const effectiveUser = user || cachedUser || {};
+      const effectiveDriverName = effectiveUser?.name || effectiveUser?.driver_name || driverName || 'Driver';
+      const effectivePlateNumber = (effectiveUser as any)?.plate_number || (effectiveUser as any)?.truck_plate || plateNumber || 'Truck Plate';
+      const effectiveDriverPhone = effectiveUser?.phone || effectiveUser?.owner_phone || effectiveUser?.phone_number || '';
+      const effectiveCompanyId = effectiveUser?.company_id || (effectiveUser as any)?.companyId || '';
 
       // FIX 3: Request Wake Lock when driver is active
       requestWakeLock();
 
       // Send login notification to Manager & CEO
-      if (token) {
-        fetch('/api/fleet-tracking/driver-login-notify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({
-            driver_name: driverName,
-            plate_number: plateNumber
-          })
-        }).catch(() => {});
+      fetch('/api/fleet-tracking/driver-login-notify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
+        },
+        body: JSON.stringify({
+          driver_name: effectiveDriverName,
+          plate_number: effectivePlateNumber,
+          driver_phone: effectiveDriverPhone,
+          company_id: effectiveCompanyId
+        })
+      }).catch((err) => {
+        console.warn('driver-login-notify error:', err);
+      });
 
+      if (activeToken) {
         // Flush any offline pending coordinates immediately upon grant
-        flushPendingLocations(token);
+        flushPendingLocations(activeToken);
       }
 
       // FIX 1: Listen to online events to automatically flush offline buffered coordinates
       const handleOnline = () => {
-        if (token) {
-          flushPendingLocations(token);
+        if (activeToken) {
+          flushPendingLocations(activeToken);
         }
       };
       window.addEventListener('online', handleOnline);
 
       // Perform single GPS sync with dynamic power mode & retry
       const performGpsSync = () => {
-        if (!navigator.geolocation || !token) return;
+        if (!navigator.geolocation) return;
 
         const highAccuracy = isHighAccuracyRef.current;
 
@@ -346,24 +469,26 @@ export const DriverScreen: React.FC = () => {
             lastCoordsRef.current = { lat: latitude, lng: longitude };
 
             // 1. Update truck general location
-            fetch('/api/fleet/trucks/update-location', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${token}`
-              },
-              body: JSON.stringify({
-                lat: latitude,
-                lng: longitude,
-                speed: speed || 0,
-                heading: heading || 0
-              })
-            }).catch(() => {});
+            if (activeToken) {
+              fetch('/api/fleet/trucks/update-location', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Authorization': `Bearer ${activeToken}`
+                },
+                body: JSON.stringify({
+                  lat: latitude,
+                  lng: longitude,
+                  speed: speed || 0,
+                  heading: heading || 0
+                })
+              }).catch(() => {});
+            }
 
             // 2. If active trip exists, update trip GPS with silent retry and offline buffering
-            if (activeTripIdRef.current) {
+            if (activeTripIdRef.current && activeToken) {
               const tripRes = await sendLocationWithRetry(
-                token,
+                activeToken,
                 activeTripIdRef.current,
                 latitude,
                 longitude
@@ -402,9 +527,9 @@ export const DriverScreen: React.FC = () => {
 
       // FIX 8 & 11: Sync Active Trip & handle 10-minute idle suspension
       const syncActiveTrip = async () => {
-        if (!token) return;
+        if (!activeToken) return;
         try {
-          const res = await getDriverActiveTrip(token);
+          const res = await getDriverActiveTrip(activeToken);
           if (res.success && res.trip && res.trip.id) {
             activeTripIdRef.current = res.trip.id;
             setHasActiveTrip(true);
@@ -477,21 +602,16 @@ export const DriverScreen: React.FC = () => {
       setPermissionState('prompting');
       setErrorMessage('Background location access is required ("Allow all the time"). Please select "Allow all the time".');
     } else if (choice === 'denied') {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('waybilla_driver_allowed');
+      }
       setPermissionState('denied');
     } else if (choice === 'allow_all') {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.setItem('waybilla_driver_allowed', 'true');
+      }
       setPermissionState('allow_all');
     }
-  };
-
-  // FIX 10: Confirm and execute driver logout
-  const handleConfirmLogout = async () => {
-    setShowLogoutConfirm(false);
-    await releaseWakeLock();
-    if (gpsIntervalRef.current) clearInterval(gpsIntervalRef.current);
-    if (tripCheckIntervalRef.current) clearInterval(tripCheckIntervalRef.current);
-    if (noTripTimerRef.current) clearTimeout(noTripTimerRef.current);
-    activeTripIdRef.current = null;
-    logout();
   };
 
   // IF DRIVER TAPS "Allow all the time" ✅
@@ -500,7 +620,7 @@ export const DriverScreen: React.FC = () => {
       <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
         <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto font-black text-xl">
-            {companyName.charAt(0)}
+            {(dynamicCompanyName || 'T').charAt(0).toUpperCase()}
           </div>
 
           <div className="space-y-3">
@@ -508,7 +628,7 @@ export const DriverScreen: React.FC = () => {
               Welcome, {driverName}! 🚛
             </h1>
             <p className="text-xs text-slate-300 leading-relaxed">
-              You are now officially recognized as <strong className="text-white">{companyName}</strong> Truck Driver.
+              You are now officially recognized as <strong className="text-white">{dynamicCompanyName}</strong> Truck Driver.
             </p>
           </div>
 
@@ -526,47 +646,29 @@ export const DriverScreen: React.FC = () => {
           )}
         </div>
 
-        {/* FIX 10: Subtle Driver Logout Button at bottom */}
-        <div className="pt-6 pb-2">
+        {/* Driver Actions: Return to Home (keeps session) or Sign Out (ends session) */}
+        <div className="pt-6 pb-2 flex flex-wrap items-center justify-center gap-3">
           <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="text-xs text-slate-500 hover:text-slate-300 transition-colors font-medium cursor-pointer flex items-center gap-1.5 mx-auto py-2 px-4 rounded-xl hover:bg-[#091026]/60"
+            onClick={() => navigate('/')}
+            className="text-xs text-slate-300 hover:text-white transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#091026] hover:bg-[#131e3d] border border-blue-950/80 shadow-md active:scale-95"
+            aria-label="Return to Home"
           >
-            <LogOut className="w-3.5 h-3.5" />
+            <ArrowLeft className="w-4 h-4 text-amber-400" />
+            <span>Return to Home</span>
+          </button>
+
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/');
+            }}
+            className="text-xs text-rose-300 hover:text-rose-100 transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#1b0d14] hover:bg-[#2b101c] border border-rose-900/60 shadow-md active:scale-95"
+            aria-label="Sign Out"
+          >
+            <LogOut className="w-4 h-4 text-rose-400" />
             <span>Sign Out</span>
           </button>
         </div>
-
-        {/* FIX 10: Sign Out Confirmation Modal */}
-        {showLogoutConfirm && (
-          <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <div className="bg-[#091026] border border-blue-950/80 text-white w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-4 text-center">
-              <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto">
-                <AlertCircle className="w-6 h-6" />
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-base font-bold text-white">Sign Out</h3>
-                <p className="text-xs text-slate-300">
-                  Are you sure you want to sign out? This will stop location sharing.
-                </p>
-              </div>
-              <div className="grid grid-cols-2 gap-2 pt-2">
-                <button
-                  onClick={() => setShowLogoutConfirm(false)}
-                  className="py-2.5 px-3 bg-[#131e3d] hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleConfirmLogout}
-                  className="py-2.5 px-3 bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold rounded-xl transition-all cursor-pointer shadow-sm"
-                >
-                  Yes, Sign Out
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     );
   }

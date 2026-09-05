@@ -1,7 +1,7 @@
 {
-  "name": "Waybilla Nigeria",
+  "name": "Waybilla",
   "short_name": "Waybilla",
-  "description": "Nigeria's #1 Dedicated Waybill Live Tracking Platform and digital waybill for commercial transport motor parks.",
+  "description": "Waybilla — Unified Waybill & Fleet Tracking platform for commercial transport motor parks and fleets.",
   "id": "/",
   "orientation": "portrait",
   "prefer_related_applications": false,

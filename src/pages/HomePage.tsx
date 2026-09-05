@@ -4,12 +4,25 @@ import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Ph
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { token, role, user } = useAuth();
+
+  const cachedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null;
+  const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
+  const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? (() => {
+    try { return JSON.parse(localStorage.getItem('auth_user')!); } catch { return null; }
+  })() : null;
+
+  const activeToken = token || cachedToken;
+  const activeRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : null);
+  const activeUser = user || cachedUser;
+
   const [trackingCode, setTrackingCode] = useState('');
   const [trackAlert, setTrackAlert] = useState<string | null>(null);
   const [isTracking, setIsTracking] = useState(false);
@@ -123,20 +136,11 @@ export const HomePage: React.FC = () => {
           <div 
             onClick={handleSecretTap}
             className="flex items-center gap-3 cursor-pointer select-none"
-            title="Waybilla Nigeria"
+            title="Waybilla"
           >
             <Logo size="md" showText={false} />
             <div className="flex items-center gap-2 font-black text-xl tracking-tight">
               <span>Way<span className="text-[#F2A93B]">billa</span></span>
-              {/* Nigerian Flag Badge */}
-              <span className="inline-flex items-center shadow-sm rounded overflow-hidden border border-white/20 w-7 h-5 shrink-0" title="Nigeria Flag">
-                <svg className="w-full h-full" viewBox="0 0 3 2" role="img" aria-label="Nigeria Flag">
-                  <title>Nigeria Flag</title>
-                  <rect width="1" height="2" x="0" fill="#008751" />
-                  <rect width="1" height="2" x="1" fill="#FFFFFF" />
-                  <rect width="1" height="2" x="2" fill="#008751" />
-                </svg>
-              </span>
             </div>
           </div>
 
@@ -150,8 +154,8 @@ export const HomePage: React.FC = () => {
       <main className="max-w-xl w-full mx-auto flex-grow px-6 py-8 flex flex-col justify-center space-y-8">
         {/* Intro */}
         <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-50 border border-emerald-300 text-emerald-900 text-xs font-extrabold shadow-xs">
-            <span role="img" aria-label="Nigeria Flag">🇳🇬</span>
+          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-300 text-[#0A1F44] text-xs font-extrabold shadow-xs">
+            <span>⚡</span>
             <span>{t('builtForNigeria')}</span>
           </div>
           
@@ -303,7 +307,13 @@ export const HomePage: React.FC = () => {
             <span className="text-xs font-bold text-slate-600">{t('parkStaffOperators')}</span>
             
             <button
-              onClick={() => navigate('/login/staff')}
+              onClick={() => {
+                if (activeToken && activeRole === 'staff') {
+                  navigate('/staff/dashboard');
+                } else {
+                  navigate('/login/staff');
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Staff Login"
             >
@@ -312,7 +322,13 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login/manager?role=manager')}
+              onClick={() => {
+                if (activeToken && (activeRole === 'manager' || activeRole === 'driver' || activeRole === 'trip_monitor')) {
+                  navigate('/manager/dashboard');
+                } else {
+                  navigate('/login/manager?role=manager');
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Manager Login"
             >
@@ -321,7 +337,13 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login/manager?role=trip_monitor')}
+              onClick={() => {
+                if (activeToken && (activeRole === 'trip_monitor' || activeRole === 'manager' || activeRole === 'driver')) {
+                  navigate('/manager/dashboard');
+                } else {
+                  navigate('/login/manager?role=trip_monitor');
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Trip Monitor Login"
             >
@@ -330,7 +352,13 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login/manager?role=driver')}
+              onClick={() => {
+                if (activeToken && (activeRole === 'driver' || activeRole === 'manager' || activeRole === 'trip_monitor' || activeUser?.manager_type === 'Driver' || activeUser?.role === 'driver')) {
+                  navigate('/manager/dashboard');
+                } else {
+                  navigate('/login/manager?role=driver');
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Driver Login"
             >
@@ -339,7 +367,13 @@ export const HomePage: React.FC = () => {
             </button>
 
             <button
-              onClick={() => navigate('/login/company')}
+              onClick={() => {
+                if (activeToken && activeRole === 'company') {
+                  navigate('/company/dashboard');
+                } else {
+                  navigate('/login/company');
+                }
+              }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
               aria-label="Company Portal Login"
             >
