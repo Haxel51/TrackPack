@@ -30,18 +30,20 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     else if (allowedRole === 'company') targetLogin = '/company/login';
     else if (allowedRole === 'staff') targetLogin = '/staff/login';
     else if (allowedRole === 'admin') targetLogin = '/admin/login';
-    else if (allowedRole === 'manager') targetLogin = '/login/manager';
-    else if (allowedRole === 'driver') targetLogin = '/login/manager?role=driver';
+    else if (allowedRole === 'manager') {
+      const lastPortal = typeof localStorage !== 'undefined' ? localStorage.getItem('last_portal_role') : null;
+      if (lastPortal === 'driver' || role === 'driver') {
+        targetLogin = '/login/driver';
+      } else if (lastPortal === 'trip_monitor' || role === 'trip_monitor') {
+        targetLogin = '/login/manager?role=trip_monitor';
+      } else {
+        targetLogin = '/login/manager';
+      }
+    }
+    else if (allowedRole === 'driver') targetLogin = '/login/driver';
     else if (allowedRole === 'supplier_staff') targetLogin = '/login/supplier-staff';
 
-    const hadPriorSession = Boolean(
-      typeof localStorage !== 'undefined' &&
-      (localStorage.getItem('auth_token') || localStorage.getItem('token'))
-    );
-
-    const redirectUrl = hadPriorSession ? `${targetLogin}${targetLogin.includes('?') ? '&' : '?'}expired=true` : targetLogin;
-
-    return <Navigate to={redirectUrl} state={{ sessionExpired: hadPriorSession, from: location }} replace />;
+    return <Navigate to={targetLogin} replace />;
   }
 
   return <>{children}</>;

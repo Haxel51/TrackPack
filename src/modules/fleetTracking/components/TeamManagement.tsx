@@ -507,11 +507,11 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                       {m.active ? 'Active' : 'Deactivated'}
                     </span>
                     <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                      m.account_created
+                      (m.account_created || m.lastLoginAt || m.last_login_at || m.firstLoginAt)
                         ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
                         : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
                     }`}>
-                      {m.account_created ? (
+                      {(m.account_created || m.lastLoginAt || m.last_login_at || m.firstLoginAt) ? (
                         <>
                           <CheckCircle2 className="w-2.5 h-2.5 text-blue-400" />
                           <span>Registered</span>

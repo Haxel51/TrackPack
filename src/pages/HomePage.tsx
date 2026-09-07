@@ -353,10 +353,13 @@ export const HomePage: React.FC = () => {
 
             <button
               onClick={() => {
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('last_portal_role', 'driver');
+                }
                 if (activeToken && (activeRole === 'driver' || activeRole === 'manager' || activeRole === 'trip_monitor' || activeUser?.manager_type === 'Driver' || activeUser?.role === 'driver')) {
                   navigate('/manager/dashboard');
                 } else {
-                  navigate('/login/manager?role=driver');
+                  navigate('/login/driver');
                 }
               }}
               className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"

@@ -1867,6 +1867,46 @@ app.post("/api/auth/manager/login", async (req, res) => {
     // Success! Clear PIN lockouts
     await handlePinSuccess(`mgr_${cleanPhone}`);
 
+    // Update account_created and last_login_at across both collections
+    const nowIso = new Date().toISOString();
+    try {
+      const primaryCollection = managerResult.collection || "managers";
+      const targetRef = doc(db, primaryCollection, managerDocId);
+      await updateDoc(targetRef, {
+        account_created: true,
+        has_pin: true,
+        last_login_at: nowIso,
+        lastLoginAt: nowIso
+      });
+
+      const possiblePhones = Array.from(new Set([cleanPhone, rawPhone])).filter(Boolean);
+      for (const pFmt of possiblePhones) {
+        const mgrQ = query(collection(db, "managers"), where("phone", "==", pFmt));
+        const mgrDocs = await getDocs(mgrQ);
+        for (const md of mgrDocs.docs) {
+          await updateDoc(doc(db, "managers", md.id), {
+            account_created: true,
+            has_pin: true,
+            last_login_at: nowIso,
+            lastLoginAt: nowIso
+          });
+        }
+
+        const ftQ = query(collection(db, "fleetTracking_users"), where("phone", "==", pFmt));
+        const ftDocs = await getDocs(ftQ);
+        for (const fd of ftDocs.docs) {
+          await updateDoc(doc(db, "fleetTracking_users", fd.id), {
+            account_created: true,
+            has_pin: true,
+            last_login_at: nowIso,
+            lastLoginAt: nowIso
+          });
+        }
+      }
+    } catch (syncLoginErr) {
+      console.warn("Error updating manager login status timestamp:", syncLoginErr);
+    }
+
     // Create session token
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -4762,6 +4802,7 @@ app.get("/api/company/team", async (req, res) => {
       const data = d.data();
       const roleVal = data.role || (data.manager_type === 'Trip Monitor' ? 'trip_monitor' : data.manager_type === 'Driver' ? 'driver' : 'manager');
       const mgrTypeVal = data.manager_type || (roleVal === 'trip_monitor' ? 'Trip Monitor' : roleVal === 'driver' ? 'Driver' : 'Manager');
+      const isAccountCreated = data.account_created === true || Boolean(data.password_hash || data.pin_hash || data.has_pin || data.last_login_at || data.lastLoginAt);
       return {
         id: d.id,
         ...data,
@@ -4770,7 +4811,7 @@ app.get("/api/company/team", async (req, res) => {
         phone: data.phone,
         role: roleVal,
         manager_type: mgrTypeVal,
-        account_created: data.account_created === true,
+        account_created: isAccountCreated,
         is_active: data.is_active !== false && data.active !== false,
         active: data.is_active !== false && data.active !== false,
         truck_id: data.truck_id || null,
@@ -4785,6 +4826,7 @@ app.get("/api/company/team", async (req, res) => {
       const { pin_hash, password_hash, ...data } = d.data();
       const roleVal = data.role || (data.manager_type === 'Trip Monitor' ? 'trip_monitor' : data.manager_type === 'Driver' ? 'driver' : 'manager');
       const mgrTypeVal = data.manager_type || (roleVal === 'trip_monitor' ? 'Trip Monitor' : roleVal === 'driver' ? 'Driver' : 'Manager');
+      const isAccountCreated = data.account_created === true || Boolean(pin_hash || password_hash || data.pin_hash || data.password_hash || data.has_pin || data.last_login_at || data.lastLoginAt);
       return {
         id: d.id,
         ...data,
@@ -4793,7 +4835,7 @@ app.get("/api/company/team", async (req, res) => {
         phone: data.phone,
         role: roleVal,
         manager_type: mgrTypeVal,
-        account_created: data.account_created === true || Boolean(data.pin_hash || data.password_hash),
+        account_created: isAccountCreated,
         is_active: data.active !== false && data.is_active !== false,
         active: data.active !== false && data.is_active !== false,
         truck_id: data.truck_id || null,
@@ -4808,9 +4850,13 @@ app.get("/api/company/team", async (req, res) => {
       if (!memberMap.has(normP)) {
         memberMap.set(normP, m);
       } else {
-        // Prefer fleetTracking_users data if present
         const existing = memberMap.get(normP);
-        memberMap.set(normP, { ...existing, ...m });
+        const mergedAccountCreated = existing.account_created === true || m.account_created === true;
+        memberMap.set(normP, {
+          ...existing,
+          ...m,
+          account_created: mergedAccountCreated
+        });
       }
     }
 

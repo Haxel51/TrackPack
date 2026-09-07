@@ -6,15 +6,29 @@ import { Shield, Eye, EyeOff, ChevronLeft, Phone, UserCheck, Building2, MapPin, 
 import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 
-export const ManagerLogin: React.FC = () => {
+interface ManagerLoginProps {
+  roleOverride?: 'driver' | 'trip_monitor' | 'manager';
+}
+
+export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
   const { token, role, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
   const roleParam = searchParams.get('role') || searchParams.get('type') || '';
 
-  const isDriverRoute = location.pathname.includes('driver') || roleParam === 'driver';
-  const isTripMonitorRoute = location.pathname.includes('trip_monitor') || roleParam === 'trip_monitor';
+  const lastPortalRole = typeof localStorage !== 'undefined' ? localStorage.getItem('last_portal_role') : null;
+
+  const isDriverRoute = roleOverride === 'driver' || location.pathname.includes('driver') || roleParam === 'driver' || lastPortalRole === 'driver';
+  const isTripMonitorRoute = roleOverride === 'trip_monitor' || location.pathname.includes('trip_monitor') || roleParam === 'trip_monitor' || lastPortalRole === 'trip_monitor';
+
+  useEffect(() => {
+    if (typeof localStorage !== 'undefined') {
+      if (isDriverRoute) localStorage.setItem('last_portal_role', 'driver');
+      else if (isTripMonitorRoute) localStorage.setItem('last_portal_role', 'trip_monitor');
+      else if (roleParam === 'manager') localStorage.setItem('last_portal_role', 'manager');
+    }
+  }, [isDriverRoute, isTripMonitorRoute, roleParam]);
 
   const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
   const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
@@ -56,18 +70,25 @@ export const ManagerLogin: React.FC = () => {
     const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
     const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
     const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
-    const currentToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null);
-    if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || isDriverRoute || isTripMonitorRoute)) {
+    const managerToken = typeof localStorage !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('manager_token')) : null;
+    const currentToken = token || managerToken;
+
+    const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver';
+
+    if (currentToken && isAuthorizedRole) {
       navigate('/manager/dashboard', { replace: true });
     }
-  }, [token, role, navigate, roleParam, location.pathname, isDriverRoute, isTripMonitorRoute]);
+  }, [token, role, navigate]);
 
   const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
   const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
   const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
-  const currentToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null);
+  const managerToken = typeof localStorage !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('manager_token')) : null;
+  const currentToken = token || managerToken;
 
-  if (currentToken && (currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver' || (cachedUser && (cachedUser.name || cachedUser.phone)))) {
+  const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver';
+
+  if (currentToken && isAuthorizedRole) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4">
         <div className="w-10 h-10 border-4 border-[#0A1F44] border-t-[#F2A93B] rounded-full animate-spin"></div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { AlertCircle, Settings, ArrowLeft, LogOut } from 'lucide-react';
+import { AlertCircle, Settings, ArrowLeft, LogOut, ShieldAlert, CheckCircle2, Navigation } from 'lucide-react';
 import { 
   getDriverActiveTrip,
   sendDriverHeartbeat,
@@ -596,26 +596,46 @@ export const DriverScreen: React.FC = () => {
     }
   }, [permissionState, driverName, plateNumber, requestWakeLock, releaseWakeLock]);
 
+  const handleRequestNativePermission = () => {
+    setErrorMessage(null);
+    if (!navigator.geolocation) {
+      setErrorMessage('Location services are not supported on this device or browser.');
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('waybilla_driver_allowed', 'true');
+        }
+        setPermissionState('allow_all');
+      },
+      (err) => {
+        console.warn('Geolocation error / permission rejected:', err);
+        setErrorMessage('Location permission was denied or dismissed. You MUST select "While using the app" for trip tracking.');
+        setPermissionState('denied');
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      }
+    );
+  };
+
   const handleChoice = (choice: 'allow_all' | 'allow_while_using' | 'denied') => {
-    if (choice === 'allow_while_using') {
-      // Do NOT accept this — immediately show permission request again forcing "Allow all the time"
-      setPermissionState('prompting');
-      setErrorMessage('Background location access is required ("Allow all the time"). Please select "Allow all the time".');
-    } else if (choice === 'denied') {
+    if (choice === 'denied') {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('waybilla_driver_allowed');
       }
       setPermissionState('denied');
-    } else if (choice === 'allow_all') {
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('waybilla_driver_allowed', 'true');
-      }
-      setPermissionState('allow_all');
+    } else {
+      handleRequestNativePermission();
     }
   };
 
-  // IF DRIVER TAPS "Allow all the time" ✅
-  if (permissionState === 'allow_all') {
+  // IF DRIVER TAPS "Allow all the time" / "While using the app" ✅
+  if (permissionState === 'allow_all' || permissionState === 'allow_while_using') {
     return (
       <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
         <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">
@@ -632,7 +652,7 @@ export const DriverScreen: React.FC = () => {
             </p>
           </div>
 
-          {/* FIX 11: Dynamic Trip Status Badge */}
+          {/* Dynamic Trip Status Badge */}
           {hasActiveTrip ? (
             <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold text-emerald-400">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
@@ -673,7 +693,7 @@ export const DriverScreen: React.FC = () => {
     );
   }
 
-  // IF DRIVER DENIES "Don't allow" ❌
+  // IF DRIVER DENIES "Don't allow" or "Only this time" revoked ❌
   if (permissionState === 'denied') {
     return (
       <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
@@ -683,50 +703,84 @@ export const DriverScreen: React.FC = () => {
           </div>
 
           <div className="space-y-2">
-            <h2 className="text-lg font-black text-white">Location Permission Required</h2>
+            <h2 className="text-lg font-black text-white">Location Access Required</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Please go to your phone Settings &gt; Apps &gt; Waybilla &gt; Permissions &gt; Location &gt; Allow all the time
+              Waybilla requires continuous location permission to track your assigned truck and trips.
             </p>
           </div>
 
-          <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80 text-[11px] text-slate-400 flex items-center gap-3 text-left">
-            <Settings className="w-5 h-5 text-amber-400 shrink-0" />
-            <span>Driver accounts cannot access any part of the app without full background location permissions.</span>
+          {/* Android Visual Instruction Guide */}
+          <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80 text-left space-y-2.5 text-xs text-slate-300">
+            <div className="flex items-center gap-2 font-bold text-amber-400">
+              <ShieldAlert className="w-4 h-4" />
+              <span>Required Android Setting:</span>
+            </div>
+            <p className="text-[11px] text-slate-400 leading-normal">
+              When the popup appears, tap <strong className="text-blue-400">"While using the app"</strong> or go to:
+            </p>
+            <div className="bg-[#0c142c] p-2.5 rounded-xl text-[10px] font-mono text-slate-300 border border-blue-900/50">
+              Settings &gt; Apps &gt; Waybilla &gt; Permissions &gt; Location &gt; <span className="text-emerald-400 font-bold">Allow only while using the app</span> (or Allow all the time)
+            </div>
           </div>
 
           <button
-            onClick={() => setPermissionState('prompting')}
-            className="w-full py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl text-xs transition-all cursor-pointer"
+            onClick={handleRequestNativePermission}
+            className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
           >
-            I have enabled it in Settings (Retry)
+            <CheckCircle2 className="w-4 h-4" />
+            <span>Enable Location &amp; Try Again</span>
           </button>
         </div>
       </div>
     );
   }
 
-  // Initial prompt state: Standard Android/iOS style popup with NO mention of location and only showing "Allow all the time"
+  // Pre-permission prompt & Android instruction walkthrough
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-[#1e1e1e] text-white border border-blue-900/60 w-full max-w-xs rounded-2xl p-6 shadow-2xl space-y-5 text-center animate-scaleIn">
+    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
+      <div className="bg-[#121829] text-white border border-blue-900/60 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-scaleIn">
+        <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 mx-auto">
+          <Navigation className="w-7 h-7" />
+        </div>
+
+        <div className="space-y-1.5">
+          <h3 className="text-lg font-black text-white tracking-tight">
+            Enable Trip Tracking
+          </h3>
+          <p className="text-xs text-slate-300 leading-relaxed">
+            Waybilla uses GPS to monitor your route and update dispatch in real-time.
+          </p>
+        </div>
+
         {errorMessage && (
-          <div className="p-2.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[11px] font-bold rounded-xl">
+          <div className="p-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-2xl text-left">
             {errorMessage}
           </div>
         )}
 
-        <div className="space-y-2">
-          <h3 className="text-base font-bold text-white tracking-wide">
-            Allow Waybilla?
-          </h3>
+        {/* Visual Callout for "While using the app" */}
+        <div className="bg-[#080d1e] border border-blue-900/50 rounded-2xl p-4 text-left space-y-2">
+          <div className="text-[11px] font-extrabold uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
+            <span>👉 IMPORTANT STEP</span>
+          </div>
+          <p className="text-xs text-slate-200 leading-normal">
+            When Android asks for permission, you <strong className="text-white">MUST select</strong>:
+          </p>
+          <div className="bg-blue-600 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-xl flex items-center justify-between shadow-md">
+            <span>While using the app</span>
+            <CheckCircle2 className="w-4 h-4 text-white" />
+          </div>
+          <p className="text-[10px] text-slate-400 italic">
+            Do not select "Only this time" or "Don't allow" so your trip status remains active.
+          </p>
         </div>
 
-        <div className="space-y-2 pt-2">
+        <div className="space-y-2 pt-1">
           <button
-            onClick={() => handleChoice('allow_all')}
-            className="w-full py-3 bg-[#0a84ff] hover:bg-[#0071e3] text-white font-bold rounded-xl text-xs transition-all cursor-pointer shadow-sm"
+            onClick={handleRequestNativePermission}
+            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95"
           >
-            Allow all the time
+            Allow Location &amp; Start Driving
           </button>
         </div>
       </div>
