@@ -9,7 +9,7 @@ function getApiHost(): string {
       origin.startsWith('file://') ||
       (origin.includes('localhost') && !(window as any).__IS_DEV_SERVER__);
     if (isCapacitor) {
-      return (import.meta.env.VITE_API_BASE_URL || 'https://waybilla.com.ng').replace(/\/$/, '');
+      return (import.meta.env.VITE_API_BASE_URL || 'https://trackpack.onrender.com').replace(/\/$/, '');
     }
   }
   return '';

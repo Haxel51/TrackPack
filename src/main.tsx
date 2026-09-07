@@ -26,7 +26,7 @@ if (typeof window !== 'undefined') {
           (origin.includes('localhost') && !(window as any).__IS_DEV_SERVER__);
 
         if (rawUrl.startsWith('/') && !rawUrl.startsWith('//')) {
-          const defaultHost = (import.meta.env.VITE_API_BASE_URL || 'https://waybilla.com.ng').replace(/\/$/, '');
+          const defaultHost = (import.meta.env.VITE_API_BASE_URL || 'https://trackpack.onrender.com').replace(/\/$/, '');
           const targetBase = isCapacitor ? defaultHost : '';
           if (targetBase) {
             const fullUrl = `${targetBase}${rawUrl}`;
