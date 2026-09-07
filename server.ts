@@ -95,6 +95,9 @@ async function pruneStaleFcmTokens(badTokens: string[]) {
   }
 }
 
+// In-memory cache to deduplicate identical fleet notifications sent within 10 minutes
+const recentNotificationCache = new Map<string, number>();
+
 // Reusable Cloud Function / Server helper for FCM push notifications & Firestore persistence
 async function sendFleetNotification(
   companyId: string,
@@ -109,6 +112,27 @@ async function sendFleetNotification(
   const tripId = data?.tripId || data?.trip_id || null;
   const truckId = data?.truckId || data?.truck_id || null;
   const eventType = data?.eventType || "general";
+  const driverKey = data?.driver_name || data?.driver_phone || "";
+  const plateKey = data?.plate_number || "";
+
+  // Deduplicate identical alerts for the same company, event type, driver & truck within 10 minutes (600,000 ms)
+  const dedupKey = `${companyId}_${eventType}_${driverKey}_${plateKey}_${title}`;
+  const lastSentTime = recentNotificationCache.get(dedupKey) || 0;
+  const nowMs = Date.now();
+  if (nowMs - lastSentTime < 10 * 60 * 1000) {
+    console.log(`[DEDUPLICATE ALERT] Skipped duplicate alert: ${dedupKey}`);
+    return;
+  }
+  recentNotificationCache.set(dedupKey, nowMs);
+
+  // Clean up cache older than 1 hour periodically
+  if (recentNotificationCache.size > 2000) {
+    for (const [k, time] of recentNotificationCache.entries()) {
+      if (nowMs - time > 60 * 60 * 1000) {
+        recentNotificationCache.delete(k);
+      }
+    }
+  }
 
   let tokens: string[] = [];
   const lowerRoles = roles ? roles.map(r => r.toLowerCase().trim()) : [];

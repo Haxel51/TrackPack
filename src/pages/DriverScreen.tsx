@@ -2,6 +2,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Settings, ArrowLeft, LogOut, ShieldAlert, CheckCircle2, Navigation } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Geolocation } from '@capacitor/geolocation';
+import { App } from '@capacitor/app';
+import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 import { 
   getDriverActiveTrip,
   sendDriverHeartbeat,
@@ -66,6 +70,13 @@ export const DriverScreen: React.FC = () => {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [hasActiveTrip, setHasActiveTrip] = useState<boolean>(false);
 
+  // CAPACITOR NATIVE LOCATION STATES
+  const isNativeApp = Capacitor.isNativePlatform();
+  const [nativeLocationStatus, setNativeLocationStatus] = useState<
+    'checking' | 'granted_always' | 'need_always_guidance' | 'denied' | 'max_attempts_exceeded'
+  >('checking');
+  const [settingsAttempts, setSettingsAttempts] = useState<number>(0);
+
   const activeTripIdRef = useRef<string | null>(null);
   const wakeLockRef = useRef<any>(null);
   const isHighAccuracyRef = useRef<boolean>(true);
@@ -75,6 +86,7 @@ export const DriverScreen: React.FC = () => {
   const gpsIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const tripCheckIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hasSentLoginNotifyRef = useRef<boolean>(false);
 
   const [dynamicCompanyName, setDynamicCompanyName] = useState<string>(() => {
     if (user?.company_name && user.company_name !== 'Transport Company') {
@@ -184,6 +196,107 @@ export const DriverScreen: React.FC = () => {
       isMounted = false;
     };
   }, [user, driverId]);
+
+  // CAPACITOR NATIVE LOCATION & SETTINGS CHECK EFFECT
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let isMounted = true;
+
+    const verifyNativePermission = async () => {
+      try {
+        const check = await Geolocation.checkPermissions();
+        const locState = check.location as string;
+        const coarseState = (check as any).coarseLocation as string;
+
+        if (locState === 'always' || coarseState === 'always') {
+          if (isMounted) {
+            setNativeLocationStatus('granted_always');
+            setPermissionState('allow_all');
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('waybilla_driver_allowed', 'true');
+            }
+          }
+        } else if (locState === 'granted' || coarseState === 'granted') {
+          if (isMounted) {
+            setNativeLocationStatus('need_always_guidance');
+          }
+        } else {
+          const req = await Geolocation.requestPermissions();
+          const reqLocState = req.location as string;
+          const reqCoarseState = (req as any).coarseLocation as string;
+
+          if (reqLocState === 'always' || reqCoarseState === 'always') {
+            if (isMounted) {
+              setNativeLocationStatus('granted_always');
+              setPermissionState('allow_all');
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('waybilla_driver_allowed', 'true');
+              }
+            }
+          } else if (reqLocState === 'granted' || reqCoarseState === 'granted') {
+            if (isMounted) {
+              setNativeLocationStatus('need_always_guidance');
+            }
+          } else {
+            if (isMounted) {
+              setNativeLocationStatus('denied');
+            }
+          }
+        }
+      } catch (err) {
+        console.warn('Native permission check error:', err);
+      }
+    };
+
+    verifyNativePermission();
+
+    const appStateListener = App.addListener('appStateChange', async ({ isActive }) => {
+      if (isActive && isMounted) {
+        try {
+          const status = await Geolocation.checkPermissions();
+          const stLoc = status.location as string;
+          const stCoarse = (status as any).coarseLocation as string;
+
+          if (stLoc === 'always' || stCoarse === 'always') {
+            setNativeLocationStatus('granted_always');
+            setPermissionState('allow_all');
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('waybilla_driver_allowed', 'true');
+            }
+          } else {
+            setSettingsAttempts((prev) => {
+              const nextCount = prev + 1;
+              if (nextCount >= 3) {
+                setNativeLocationStatus('max_attempts_exceeded');
+              } else {
+                setNativeLocationStatus('need_always_guidance');
+              }
+              return nextCount;
+            });
+          }
+        } catch (e) {
+          console.warn('App foreground permission check error:', e);
+        }
+      }
+    });
+
+    return () => {
+      isMounted = false;
+      appStateListener.then((l) => l.remove()).catch(() => {});
+    };
+  }, []);
+
+  const handleOpenNativeSettings = async () => {
+    try {
+      await NativeSettings.openAndroid({
+        option: AndroidSettings.ApplicationDetails,
+      });
+    } catch (err) {
+      console.warn('Error opening native settings:', err);
+      setErrorMessage('Please go to phone Settings > Apps > Waybilla > Permissions > Location > Allow all the time');
+    }
+  };
 
   // FEATURE 1 — SEND HEARTBEAT
   const sendHeartbeat = useCallback(async (targetDriverId: string) => {
@@ -403,22 +516,25 @@ export const DriverScreen: React.FC = () => {
       // FIX 3: Request Wake Lock when driver is active
       requestWakeLock();
 
-      // Send login notification to Manager & CEO
-      fetch('/api/fleet-tracking/driver-login-notify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
-        },
-        body: JSON.stringify({
-          driver_name: effectiveDriverName,
-          plate_number: effectivePlateNumber,
-          driver_phone: effectiveDriverPhone,
-          company_id: effectiveCompanyId
-        })
-      }).catch((err) => {
-        console.warn('driver-login-notify error:', err);
-      });
+      // Send login notification to Manager & CEO (strictly once per session)
+      if (!hasSentLoginNotifyRef.current) {
+        hasSentLoginNotifyRef.current = true;
+        fetch('/api/fleet-tracking/driver-login-notify', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
+          },
+          body: JSON.stringify({
+            driver_name: effectiveDriverName,
+            plate_number: effectivePlateNumber,
+            driver_phone: effectiveDriverPhone,
+            company_id: effectiveCompanyId
+          })
+        }).catch((err) => {
+          console.warn('driver-login-notify error:', err);
+        });
+      }
 
       if (activeToken) {
         // Flush any offline pending coordinates immediately upon grant
@@ -634,8 +750,96 @@ export const DriverScreen: React.FC = () => {
     }
   };
 
+  // NATIVE APP OVERLAYS (Capacitor APK only)
+  if (isNativeApp && nativeLocationStatus === 'need_always_guidance') {
+    return (
+      <div className="fixed inset-0 bg-[#050914] z-50 flex flex-col items-center justify-center p-6 text-center font-sans overflow-y-auto select-none">
+        <div className="w-full max-w-sm bg-[#091026] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-5 animate-scaleIn">
+          {/* 📍 Big Location Pin Icon */}
+          <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-4xl shadow-inner">
+            📍
+          </div>
+
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-white tracking-tight">
+              One More Step Required
+            </h2>
+            <p className="text-xs text-slate-300 leading-relaxed px-1">
+              To track your location during deliveries, please enable <strong className="text-amber-400 font-extrabold">'Allow all the time'</strong> in your phone settings.
+            </p>
+          </div>
+
+          {/* Step by step guide */}
+          <div className="bg-[#050914] border border-blue-950 p-4 rounded-2xl text-left space-y-2.5 text-xs">
+            <div className="font-extrabold text-amber-400 tracking-wide text-[11px] uppercase">
+              Step by step guide:
+            </div>
+            <ol className="space-y-2 text-slate-200 font-medium text-xs">
+              <li className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">1</span>
+                <span>Tap <strong>'Open Settings'</strong> below</span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">2</span>
+                <span>Tap <strong>'Permissions'</strong></span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">3</span>
+                <span>Tap <strong>'Location'</strong></span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-400 font-bold text-[11px] flex items-center justify-center">4</span>
+                <span>Select <strong>'Allow all the time'</strong></span>
+              </li>
+            </ol>
+          </div>
+
+          {/* Green Open Settings Button */}
+          <button
+            onClick={handleOpenNativeSettings}
+            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
+          >
+            <span>Open Settings</span>
+          </button>
+
+          <p className="text-[10px] text-slate-400 italic pt-1">
+            This is required for delivery tracking to work correctly
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isNativeApp && nativeLocationStatus === 'max_attempts_exceeded') {
+    return (
+      <div className="fixed inset-0 bg-[#050914] z-50 flex flex-col items-center justify-center p-6 text-center font-sans select-none">
+        <div className="w-full max-w-sm bg-[#091026] border border-rose-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto text-3xl">
+            📍
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-lg font-black text-white">Location Access Required</h2>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Location access is required for this app. Please contact your manager if you need help enabling location access on your device.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setSettingsAttempts(0);
+              setNativeLocationStatus('need_always_guidance');
+              handleOpenNativeSettings();
+            }}
+            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
+          >
+            <span>Try Again</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   // IF DRIVER TAPS "Allow all the time" / "While using the app" ✅
-  if (permissionState === 'allow_all' || permissionState === 'allow_while_using') {
+  if (permissionState === 'allow_all' || permissionState === 'allow_while_using' || (isNativeApp && nativeLocationStatus === 'granted_always')) {
     return (
       <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
         <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">

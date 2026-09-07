@@ -2,6 +2,8 @@ import { getMessaging, getToken, onMessage, isSupported } from 'firebase/messagi
 import { app, db } from '../../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { triggerOSNotification } from '../../utils/notifications';
+import { Capacitor } from '@capacitor/core';
+import { PushNotifications } from '@capacitor/push-notifications';
 
 export async function markNotificationPromptShown(userId: string): Promise<void> {
   if (!userId) return;
@@ -227,6 +229,22 @@ export function isIframeContext(): boolean {
 
 export async function requestNotificationPermission(token?: string, currentUserId?: string): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
   try {
+    // 1. Native Capacitor App handling
+    if (Capacitor.isNativePlatform()) {
+      try {
+        const result = await PushNotifications.requestPermissions();
+        if (result.receive === 'granted') {
+          await PushNotifications.register().catch(() => {});
+          await initializeFCM(token, currentUserId);
+          return 'granted';
+        }
+        return result.receive === 'denied' ? 'denied' : 'default';
+      } catch (capErr) {
+        console.warn('[PushNotifications] Capacitor Native permission error:', capErr);
+      }
+    }
+
+    // 2. Standard Web Browser handling
     if (typeof window === 'undefined' || !('Notification' in window)) {
       console.log('Browser does not support notifications');
       return 'unsupported';
@@ -246,7 +264,13 @@ export async function requestNotificationPermission(token?: string, currentUserI
       return 'denied';
     }
 
-    const permission = await Notification.requestPermission();
+    // Wrap Notification.requestPermission in a 5s race timeout so WebView never hangs loading forever
+    const permPromise = Notification.requestPermission();
+    const timeoutPromise = new Promise<NotificationPermission>((resolve) => {
+      setTimeout(() => resolve((Notification.permission as NotificationPermission) || 'denied'), 5000);
+    });
+
+    const permission = await Promise.race([permPromise, timeoutPromise]);
     if (permission === 'granted') {
       await initializeFCM(token, currentUserId);
     }

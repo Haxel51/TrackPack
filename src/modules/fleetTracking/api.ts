@@ -1,6 +1,21 @@
 import { GarageLocation, SupplierLocation, ConfirmLocationPayload } from './types';
 
-const API_BASE = '/api/fleet-tracking';
+function getApiHost(): string {
+  if (typeof window !== 'undefined') {
+    const origin = window.location.origin || '';
+    const isCapacitor =
+      (window as any).Capacitor?.isNativePlatform?.() ||
+      origin.startsWith('capacitor://') ||
+      origin.startsWith('file://') ||
+      (origin.includes('localhost') && !(window as any).__IS_DEV_SERVER__);
+    if (isCapacitor) {
+      return (import.meta.env.VITE_API_BASE_URL || 'https://waybilla.com.ng').replace(/\/$/, '');
+    }
+  }
+  return '';
+}
+
+const API_BASE = `${getApiHost()}/api/fleet-tracking`;
 
 const getHeaders = (token?: string) => {
   const headers: Record<string, string> = {
