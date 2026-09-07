@@ -227,18 +227,96 @@ export function isIframeContext(): boolean {
   }
 }
 
-export async function requestNotificationPermission(token?: string, currentUserId?: string): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
+let pushListenersInitialized = false;
+
+export function setupCapacitorPushListeners(currentUserId?: string, userPhone?: string, authToken?: string) {
+  if (!Capacitor.isNativePlatform() || pushListenersInitialized) return;
+  pushListenersInitialized = true;
+
+  try {
+    // 1. On Push Registration Success
+    PushNotifications.addListener('registration', async (token) => {
+      console.log('[Native Push] FCM Token received:', token.value);
+      if (token.value) {
+        localStorage.setItem('fleet_fcm_token', token.value);
+        if (currentUserId) {
+          await saveFcmTokenToFirestore(currentUserId, token.value, userPhone);
+        }
+        if (authToken) {
+          await registerFcmPushToken(authToken, token.value);
+        }
+      }
+    });
+
+    // 2. On Registration Error
+    PushNotifications.addListener('registrationError', (error) => {
+      console.error('[Native Push] Registration error:', error);
+    });
+
+    // 3. On Foreground Push Received
+    PushNotifications.addListener('pushNotificationReceived', (notification) => {
+      console.log('[Native Push] Push notification received in foreground:', notification);
+      const title = notification.title || 'Waybilla Alert 🚛';
+      const body = notification.body || '';
+      triggerOSNotification(title, {
+        body,
+        data: notification.data || {}
+      });
+
+      const event = new CustomEvent('fleet_foreground_notification', {
+        detail: {
+          title,
+          body,
+          data: notification.data || {}
+        }
+      });
+      window.dispatchEvent(event);
+    });
+
+    // 4. On Push Notification Action Performed (Notification tapped)
+    PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
+      console.log('[Native Push] Push notification tapped:', action);
+      const data = action.notification?.data || {};
+      const tripId = data.tripId || data.trip_id;
+      if (tripId && typeof window !== 'undefined') {
+        window.location.href = `/fleet-tracking/trip/${tripId}`;
+      }
+    });
+  } catch (err) {
+    console.warn('[Native Push] Listener setup error:', err);
+  }
+}
+
+export async function requestNotificationPermission(
+  token?: string,
+  currentUserId?: string,
+  userPhone?: string
+): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
   try {
     // 1. Native Capacitor App handling
     if (Capacitor.isNativePlatform()) {
       try {
-        const result = await PushNotifications.requestPermissions();
-        if (result.receive === 'granted') {
-          await PushNotifications.register().catch(() => {});
-          await initializeFCM(token, currentUserId);
-          return 'granted';
+        setupCapacitorPushListeners(currentUserId, userPhone, token);
+
+        const status = await PushNotifications.checkPermissions();
+        const receiveState = status.receive as string;
+        let isGranted = receiveState === 'granted';
+
+        if (!isGranted && (receiveState === 'prompt' || receiveState === 'prompt-with-rationale' || !receiveState)) {
+          const reqResult = await PushNotifications.requestPermissions();
+          isGranted = reqResult.receive === 'granted';
         }
-        return result.receive === 'denied' ? 'denied' : 'default';
+
+        if (isGranted) {
+          await PushNotifications.register().catch(() => {});
+          const storedToken = localStorage.getItem('fleet_fcm_token');
+          if (storedToken && currentUserId) {
+            await saveFcmTokenToFirestore(currentUserId, storedToken, userPhone);
+          }
+          return 'granted';
+        } else {
+          return 'denied';
+        }
       } catch (capErr) {
         console.warn('[PushNotifications] Capacitor Native permission error:', capErr);
       }

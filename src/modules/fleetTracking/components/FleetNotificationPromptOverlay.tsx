@@ -5,6 +5,7 @@ import {
   markNotificationPromptShown,
   checkNotificationPromptShown,
   saveFcmTokenToFirestore,
+  requestNotificationPermission,
   isIframeContext
 } from '../fcm';
 import { Bell, CheckCircle, ExternalLink } from 'lucide-react';
@@ -34,12 +35,7 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
         return;
       }
 
-      if (typeof window === 'undefined' || !('Notification' in window)) {
-        setPermission('unsupported');
-        return;
-      }
-
-      const currentPerm = Notification.permission;
+      const currentPerm = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
       if (isMounted) {
         setPermission(currentPerm);
       }
@@ -94,17 +90,12 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
     }
 
     try {
-      const result = await Notification.requestPermission();
+      const result = await requestNotificationPermission(token || undefined, userId, userPhone);
       setPermission(result);
 
       if (result === 'granted') {
         setShowOverlay(false);
         setShowBanner(false);
-
-        const fcmTok = await initializeFCM(token || undefined, userId);
-        if (fcmTok) {
-          await saveFcmTokenToFirestore(userId, fcmTok, userPhone);
-        }
 
         setToastMessage('✅ Push notifications enabled! You will receive instant phone alerts.');
         setTimeout(() => setToastMessage(null), 4500);
@@ -140,15 +131,11 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
     }
 
     try {
-      const result = await Notification.requestPermission();
+      const result = await requestNotificationPermission(token || undefined, userId, userPhone);
       setPermission(result);
 
       if (result === 'granted') {
         setShowBanner(false);
-        const fcmTok = await initializeFCM(token || undefined, userId);
-        if (fcmTok) {
-          await saveFcmTokenToFirestore(userId, fcmTok, userPhone);
-        }
         setToastMessage('✅ Push notifications enabled! You will receive instant phone alerts.');
         setTimeout(() => setToastMessage(null), 4500);
       }
