@@ -2,6 +2,13 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import './index.css';
+import { Capacitor } from '@capacitor/core';
+import { setupCapacitorPushListeners } from './modules/fleetTracking/fcm';
+
+// Early initialization of native Capacitor push listeners on app startup
+if (Capacitor.isNativePlatform()) {
+  setupCapacitorPushListeners();
+}
 
 // Global Fetch Interceptor for Capacitor WebView compatibility
 if (typeof window !== 'undefined') {

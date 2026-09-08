@@ -295,30 +295,38 @@ export async function requestNotificationPermission(
   try {
     // 1. Native Capacitor App handling
     if (Capacitor.isNativePlatform()) {
+      console.log('Running on native Android');
       try {
         setupCapacitorPushListeners(currentUserId, userPhone, token);
 
         const status = await PushNotifications.checkPermissions();
-        const receiveState = status.receive as string;
-        let isGranted = receiveState === 'granted';
+        console.log('Permission status:', JSON.stringify(status));
 
-        if (!isGranted && (receiveState === 'prompt' || receiveState === 'prompt-with-rationale' || !receiveState)) {
+        let isGranted = (status.receive as string) === 'granted';
+
+        if (!isGranted) {
           const reqResult = await PushNotifications.requestPermissions();
+          console.log('Permission result:', JSON.stringify(reqResult));
           isGranted = reqResult.receive === 'granted';
         }
 
         if (isGranted) {
-          await PushNotifications.register().catch(() => {});
+          console.log('Calling register...');
+          await PushNotifications.register();
+          console.log('Register called successfully');
+
           const storedToken = localStorage.getItem('fleet_fcm_token');
           if (storedToken && currentUserId) {
             await saveFcmTokenToFirestore(currentUserId, storedToken, userPhone);
           }
           return 'granted';
         } else {
+          console.log('Permission denied or prompt dismissed');
           return 'denied';
         }
       } catch (capErr) {
-        console.warn('[PushNotifications] Capacitor Native permission error:', capErr);
+        console.error('Push notification error:', JSON.stringify(capErr));
+        return 'denied';
       }
     }
 
