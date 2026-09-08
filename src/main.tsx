@@ -5,9 +5,13 @@ import './index.css';
 import { Capacitor } from '@capacitor/core';
 import { setupCapacitorPushListeners } from './modules/fleetTracking/fcm';
 
-// Early initialization of native Capacitor push listeners on app startup
-if (Capacitor.isNativePlatform()) {
-  setupCapacitorPushListeners();
+// Early initialization of native Capacitor push listeners on app startup if plugin available
+if (typeof window !== 'undefined' && Capacitor.isPluginAvailable('PushNotifications')) {
+  try {
+    setupCapacitorPushListeners();
+  } catch (e) {
+    console.warn('[FCM] Native push init skipped on web:', e);
+  }
 }
 
 // Global Fetch Interceptor for Capacitor WebView compatibility

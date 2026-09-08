@@ -17,6 +17,7 @@ import {
   sendLocationWithRetry,
   flushPendingLocations,
 } from '../modules/fleetTracking/offlineLocationSync';
+import { checkIsAndroidWebView } from '../modules/fleetTracking/fcm';
 
 // FEATURE 2 — DEVICE ID GENERATION & DEVICE INFO HELPERS
 export function getDeviceId(): string {
@@ -199,7 +200,7 @@ export const DriverScreen: React.FC = () => {
 
   // CAPACITOR NATIVE LOCATION & SETTINGS CHECK EFFECT
   useEffect(() => {
-    if (!Capacitor.isNativePlatform()) return;
+    if (!checkIsAndroidWebView()) return;
 
     let isMounted = true;
 

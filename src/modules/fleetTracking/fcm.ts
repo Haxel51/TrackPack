@@ -227,10 +227,40 @@ export function isIframeContext(): boolean {
   }
 }
 
+export function checkIsAndroidWebView(): boolean {
+  if (typeof window === 'undefined') return false;
+  
+  const isPluginAvailable = Capacitor.isPluginAvailable('PushNotifications');
+  if (isPluginAvailable) return true;
+
+  const ua = navigator.userAgent || '';
+  const isAndroidByUA = /Android/i.test(ua) && !/Chrome/i.test(ua);
+  const isAndroidCustomUA = ua.includes('Waybilla') || ua.includes('wv') || (window as any).Android !== undefined;
+  const isCapacitorUrl = document.URL.startsWith('capacitor://') || document.URL.startsWith('http://localhost');
+  const isCapacitorOverride = (window as any).__CAPACITOR_PLATFORM__ === 'android';
+  const isCapacitorNative = Capacitor.isNativePlatform();
+
+  const isWv = isCapacitorNative || (isPluginAvailable && (isAndroidByUA || isAndroidCustomUA || isCapacitorUrl || isCapacitorOverride));
+
+  console.log('[Platform Detection Method]', {
+    isWvResult: isWv,
+    isPluginAvailable,
+    isCapacitorNative,
+    isAndroidByUA,
+    isAndroidCustomUA,
+    isCapacitorUrl,
+    isCapacitorOverride,
+    userAgent: ua,
+    currentUrl: document.URL
+  });
+
+  return isWv;
+}
+
 let pushListenersInitialized = false;
 
 export function setupCapacitorPushListeners(currentUserId?: string, userPhone?: string, authToken?: string) {
-  if (!Capacitor.isNativePlatform() || pushListenersInitialized) return;
+  if (!Capacitor.isPluginAvailable('PushNotifications') || pushListenersInitialized) return;
   pushListenersInitialized = true;
 
   try {
@@ -293,27 +323,27 @@ export async function requestNotificationPermission(
   userPhone?: string
 ): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
   try {
-    // 1. Native Capacitor App handling
-    if (Capacitor.isNativePlatform()) {
-      console.log('Running on native Android');
+    // 1. Android Native WebView/Capacitor App handling
+    if (Capacitor.isPluginAvailable('PushNotifications')) {
+      console.log('[Push] Running on native Android WebView container with PushNotifications plugin');
       try {
         setupCapacitorPushListeners(currentUserId, userPhone, token);
 
         const status = await PushNotifications.checkPermissions();
-        console.log('Permission status:', JSON.stringify(status));
+        console.log('[Push] Permission status:', JSON.stringify(status));
 
         let isGranted = (status.receive as string) === 'granted';
 
         if (!isGranted) {
           const reqResult = await PushNotifications.requestPermissions();
-          console.log('Permission result:', JSON.stringify(reqResult));
+          console.log('[Push] Permission result:', JSON.stringify(reqResult));
           isGranted = reqResult.receive === 'granted';
         }
 
         if (isGranted) {
-          console.log('Calling register...');
+          console.log('[Push] Calling register...');
           await PushNotifications.register();
-          console.log('Register called successfully');
+          console.log('[Push] Register called successfully');
 
           const storedToken = localStorage.getItem('fleet_fcm_token');
           if (storedToken && currentUserId) {
@@ -321,11 +351,18 @@ export async function requestNotificationPermission(
           }
           return 'granted';
         } else {
-          console.log('Permission denied or prompt dismissed');
+          console.log('[Push] Permission denied or prompt dismissed');
           return 'denied';
         }
       } catch (capErr) {
-        console.error('Push notification error:', JSON.stringify(capErr));
+        console.error('[Push] Capacitor PushNotifications failed, attempting direct web fallback:', JSON.stringify(capErr));
+        if (typeof window !== 'undefined' && 'Notification' in window) {
+          const permission = await Notification.requestPermission();
+          if (permission === 'granted' && currentUserId) {
+            await initializeFCM(token, currentUserId);
+          }
+          return permission;
+        }
         return 'denied';
       }
     }
