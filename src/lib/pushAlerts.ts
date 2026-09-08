@@ -1,24 +1,17 @@
-// Notification helper for in-app and browser web push notifications
-export function requestNotificationPermission() {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }
+import { triggerOSNotification } from '../utils/notifications';
+import { requestNotificationPermission as unifiedRequestPermission } from '../modules/fleetTracking/fcm';
+
+// Notification helper for in-app and browser/native push notifications
+export function requestNotificationPermission(token?: string, userId?: string, userPhone?: string) {
+  return unifiedRequestPermission(token, userId, userPhone);
 }
 
 export function sendBrowserNotification(title: string, options?: NotificationOptions) {
-  if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'granted') {
-      try {
-        new Notification(title, {
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          ...options
-        });
-      } catch (e) {
-        console.warn('Browser notification error:', e);
-      }
-    }
-  }
+  return triggerOSNotification(title, {
+    body: options?.body,
+    icon: options?.icon || '/icon-192.png',
+    badge: options?.badge || '/icon-192.png',
+    tag: options?.tag,
+    data: options?.data
+  });
 }

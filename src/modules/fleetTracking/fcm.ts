@@ -307,9 +307,18 @@ export function setupCapacitorPushListeners(currentUserId?: string, userPhone?: 
     PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
       console.log('[Native Push] Push notification tapped:', action);
       const data = action.notification?.data || {};
+      const targetUrl = data.url || data.link;
       const tripId = data.tripId || data.trip_id;
-      if (tripId && typeof window !== 'undefined') {
-        window.location.href = `/fleet-tracking/trip/${tripId}`;
+      const waybillNumber = data.waybillNumber || data.waybill_number || data.waybillId || data.waybill_id;
+
+      if (typeof window !== 'undefined') {
+        if (targetUrl) {
+          window.location.href = targetUrl;
+        } else if (tripId) {
+          window.location.href = `/fleet-tracking/trip/${tripId}`;
+        } else if (waybillNumber) {
+          window.location.href = `/customer`;
+        }
       }
     });
   } catch (err) {
@@ -323,6 +332,48 @@ export async function requestNotificationPermission(
   userPhone?: string
 ): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
   try {
+    // 0. Check if Android Direct Native Bridge exists (WebView Java Interface)
+    if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
+      console.log('[Push] Direct AndroidBridge detected');
+      try {
+        (window as any).AndroidBridge.requestNotificationPermission();
+
+        const enabled = (window as any).AndroidBridge.areNotificationsEnabled();
+        console.log('[Push] AndroidBridge notifications enabled status:', enabled);
+
+        if (enabled) {
+          try {
+            (window as any).AndroidBridge.showTestNotification();
+          } catch (e) {
+            console.warn('[Push] Error calling showTestNotification:', e);
+          }
+
+          if (currentUserId) {
+            const payload = {
+              notificationsEnabled: true,
+              notificationPlatform: 'android-native-bridge',
+              notificationsEnabledAt: serverTimestamp(),
+              notificationPromptShown: true,
+              updated_at: new Date().toISOString()
+            };
+            try {
+              await setDoc(doc(db, 'fleetTracking_users', currentUserId), payload, { merge: true });
+            } catch (e) { /* ignore */ }
+            try {
+              await setDoc(doc(db, 'users', currentUserId), payload, { merge: true });
+            } catch (e) { /* ignore */ }
+          }
+
+          return 'granted';
+        } else {
+          return 'denied';
+        }
+      } catch (bridgeErr) {
+        console.error('[Push] AndroidBridge execution error:', bridgeErr);
+        return 'denied';
+      }
+    }
+
     // 1. Android Native WebView/Capacitor App handling
     if (Capacitor.isPluginAvailable('PushNotifications')) {
       console.log('[Push] Running on native Android WebView container with PushNotifications plugin');

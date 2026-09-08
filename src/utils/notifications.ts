@@ -1,7 +1,7 @@
 /**
  * Native OS Notification Dispatcher for Waybilla
- * Dispatches notifications directly via ServiceWorkerRegistration.showNotification()
- * to guarantee delivery on Android, iOS Web, and Desktop browsers.
+ * Dispatches notifications directly via AndroidBridge on Native Android APK,
+ * or via ServiceWorkerRegistration.showNotification() on Android Web, iOS Web, and Desktop browsers.
  */
 
 export const triggerOSNotification = async (title: string, options: {
@@ -11,13 +11,7 @@ export const triggerOSNotification = async (title: string, options: {
   tag?: string;
   data?: any;
 } = {}) => {
-  if (typeof window === 'undefined' || !('Notification' in window)) {
-    console.warn('Notifications not supported in this browser environment.');
-    return false;
-  }
-
-  if (Notification.permission !== 'granted') {
-    console.log('Notification permission not granted:', Notification.permission);
+  if (typeof window === 'undefined') {
     return false;
   }
 
@@ -30,6 +24,40 @@ export const triggerOSNotification = async (title: string, options: {
     data: { url: '/customer' },
     ...options
   };
+
+  // 0. Native Android APK via AndroidBridge (Direct Native Status Bar Notification)
+  if ((window as any).AndroidBridge) {
+    try {
+      const bridge = (window as any).AndroidBridge;
+      const isEnabled = typeof bridge.areNotificationsEnabled === 'function' ? bridge.areNotificationsEnabled() : true;
+      if (isEnabled) {
+        if (typeof bridge.showNotification === 'function') {
+          bridge.showNotification(title, defaultOptions.body || '', defaultOptions.data?.url || '/customer');
+          console.log('[Native AndroidBridge Notification Dispatched]:', title);
+          return true;
+        } else if (typeof bridge.showWaybillNotification === 'function') {
+          bridge.showWaybillNotification(title, defaultOptions.body || '', defaultOptions.tag || '');
+          console.log('[Native AndroidBridge Waybill Notification Dispatched]:', title);
+          return true;
+        } else if (typeof bridge.showTestNotification === 'function') {
+          bridge.showTestNotification();
+          return true;
+        }
+      }
+    } catch (bridgeErr) {
+      console.warn('[AndroidBridge notification error]:', bridgeErr);
+    }
+  }
+
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported in this browser environment.');
+    return false;
+  }
+
+  if (Notification.permission !== 'granted') {
+    console.log('Notification permission not granted:', Notification.permission);
+    return false;
+  }
 
   // 1. Try Service Worker Registration (Required on Android Chrome & PWAs)
   try {

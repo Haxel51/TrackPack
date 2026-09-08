@@ -23,6 +23,7 @@ import {
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
 import { triggerOSNotification } from '../utils/notifications';
+import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 import { getCustomerWaybills, confirmCustomerWaybillReceived } from '../lib/api';
 
 export const CustomerDashboard: React.FC = () => {
@@ -142,17 +143,20 @@ export const CustomerDashboard: React.FC = () => {
 
   const handleEnableNotifications = async () => {
     setIsRequestingNotif(true);
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          // Trigger test notification to prove OS notifications are active on device status bar
-          await triggerOSNotification('Waybilla Push Alerts Active 🔔', {
-            body: 'Push notifications are enabled! You will get instant alerts on your phone notification bar when your waybill status updates.',
-            tag: 'waybilla-welcome'
-          });
+    const userId = user?.id || user?.customer_id || user?.phone_number || user?.phone || '';
+    const userPhone = user?.phone_number || user?.phone || '';
 
-          const deviceToken = `fcm_web_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    try {
+      const permission = await requestNotificationPermission(token || undefined, userId, userPhone);
+      if (permission === 'granted') {
+        // Trigger test notification to prove OS notifications are active on device status bar
+        await triggerOSNotification('Waybilla Push Alerts Active 🔔', {
+          body: 'Push notifications are enabled! You will get instant alerts on your phone notification bar when your waybill status updates.',
+          tag: 'waybilla-welcome'
+        });
+
+        const deviceToken = localStorage.getItem('fleet_fcm_token') || `fcm_web_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+        try {
           await fetch('/api/customer/fcm-token', {
             method: 'POST',
             headers: {
@@ -161,18 +165,21 @@ export const CustomerDashboard: React.FC = () => {
             },
             body: JSON.stringify({ token: deviceToken })
           });
-          setNotificationsEnabled(true);
-          setNotificationDismissed(false);
-        } else {
-          setNotificationDismissed(true);
+        } catch (apiErr) {
+          console.warn('Customer FCM token registration notice:', apiErr);
         }
-      } catch (e) {
-        console.error('Error enabling notifications:', e);
-      } finally {
-        setIsRequestingNotif(false);
+
+        setNotificationsEnabled(true);
+        setNotificationDismissed(false);
+      } else {
+        setNotificationDismissed(true);
       }
+    } catch (e) {
+      console.error('Error enabling notifications:', e);
+    } finally {
+      setIsRequestingNotif(false);
+      setShowNotifModal(false);
     }
-    setShowNotifModal(false);
   };
 
   const handleToggleNotifications = async () => {
