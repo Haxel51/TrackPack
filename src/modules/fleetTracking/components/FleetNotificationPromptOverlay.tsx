@@ -8,7 +8,8 @@ import {
   requestNotificationPermission,
   isIframeContext
 } from '../fcm';
-import { Bell, CheckCircle, ExternalLink } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Bell, CheckCircle, ExternalLink, X } from 'lucide-react';
 
 export const FleetNotificationPromptOverlay: React.FC = () => {
   const { user, token, role } = useAuth();
@@ -18,12 +19,27 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
   const [showBanner, setShowBanner] = useState(false);
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isDismissedSession, setIsDismissedSession] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('waybilla_notif_banner_dismissed') === 'true';
+    }
+    return false;
+  });
 
   const userId = user?.id || user?.owner_phone || user?.phone_number || user?.phone || user?.customer_id;
   const userPhone = user?.phone_number || user?.phone || user?.owner_phone || '';
 
   const isDriver = role === 'driver' || user?.role === 'driver' || user?.manager_type === 'Driver';
-  const isInIframe = isIframeContext();
+  
+  const isCapacitorOrNative =
+    typeof window !== 'undefined' &&
+    (Capacitor.isNativePlatform() ||
+      (window as any).AndroidBridge !== undefined ||
+      /Android/i.test(navigator.userAgent) ||
+      document.URL.startsWith('capacitor://') ||
+      document.URL.startsWith('http://localhost'));
+
+  const isInIframe = !isCapacitorOrNative && isIframeContext();
 
   useEffect(() => {
     let isMounted = true;
@@ -60,9 +76,9 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
           setShowOverlay(true);
           setShowBanner(false);
         } else {
-          // SUBSEQUENT LOGINS or Drivers: Show small banner
+          // SUBSEQUENT LOGINS or Drivers: Show small banner if not dismissed this session
           setShowOverlay(false);
-          setShowBanner(true);
+          setShowBanner(!isDismissedSession);
         }
       }
     }
@@ -72,7 +88,7 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [userId, token, isDriver, userPhone]);
+  }, [userId, token, isDriver, userPhone, isDismissedSession]);
 
   // Handle "Allow Notifications" button click on the Overlay
   const handleAllowClick = async () => {
@@ -138,11 +154,22 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
         setShowBanner(false);
         setToastMessage('✅ Push notifications enabled! You will receive instant phone alerts.');
         setTimeout(() => setToastMessage(null), 4500);
+      } else if (result === 'denied') {
+        setToastMessage('🔔 Push notifications are disabled in settings.');
+        setTimeout(() => setToastMessage(null), 4000);
       }
     } catch (err) {
       console.error('Error enabling notifications from banner:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDismissBanner = () => {
+    setIsDismissedSession(true);
+    setShowBanner(false);
+    if (typeof window !== 'undefined') {
+      sessionStorage.setItem('waybilla_notif_banner_dismissed', 'true');
     }
   };
 
@@ -210,39 +237,58 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
         </div>
       )}
 
-      {/* PERSISTENT SMALL YELLOW BANNER AT TOP OF DASHBOARD */}
-      {showBanner && permission !== 'granted' && !showOverlay && (
-        <div className="bg-amber-500/15 border-b border-amber-500/30 px-4 py-3 text-xs flex flex-col sm:flex-row items-center justify-between gap-3 text-amber-200 shadow-sm relative z-40">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <Bell className="w-4 h-4 text-amber-400 shrink-0 animate-bounce" />
-            <span className="font-semibold leading-relaxed truncate">
-              {permission === 'denied'
-                ? '🔔 Push notifications blocked. You may miss real-time waybill and fleet alerts.'
-                : '🔔 Enable notifications to get real-time phone alerts for waybills & fleet'}
-            </span>
-          </div>
+      {/* PERSISTENT NON-OVERFLOWING CLEAN TOP BANNER */}
+      {showBanner && !isDismissedSession && permission !== 'granted' && !showOverlay && (
+        <div
+          className="w-full max-w-full overflow-hidden bg-[#0c142b] border-b border-amber-500/30 text-amber-200 shadow-md relative z-40 px-3 sm:px-4 py-2"
+          id="global-notification-banner"
+        >
+          <div className="max-w-7xl mx-auto flex items-center justify-between gap-2.5">
+            {/* Left: Icon & Text */}
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400">
+                <Bell className="w-3 h-3" />
+              </div>
+              <p className="text-[11px] sm:text-xs text-amber-100 font-medium leading-tight truncate">
+                {permission === 'denied'
+                  ? 'Push notifications are turned off. Enable to get instant alerts.'
+                  : 'Enable notifications for real-time waybill & fleet tracking phone alerts.'}
+              </p>
+            </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {isInIframe && (
+            {/* Right: Actions */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              {isInIframe && (
+                <button
+                  onClick={() => window.open(window.location.href, '_blank')}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                >
+                  <span>Open Tab</span>
+                  <ExternalLink className="w-3 h-3" />
+                </button>
+              )}
               <button
-                onClick={() => window.open(window.location.href, '_blank')}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                onClick={handleEnableNowClick}
+                disabled={loading}
+                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 whitespace-nowrap flex items-center gap-1 disabled:opacity-50"
+                id="enable-now-banner-btn"
               >
-                <span>🚀 Open in New Tab</span>
-                <ExternalLink className="w-3 h-3" />
+                {loading ? '...' : 'Enable'}
               </button>
-            )}
-            <button
-              onClick={handleEnableNowClick}
-              disabled={loading}
-              className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-4 py-1.5 rounded-xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
-              id="enable-now-banner-btn"
-            >
-              {loading ? 'Requesting...' : 'Enable Now'}
-            </button>
+              <button
+                onClick={handleDismissBanner}
+                className="p-1 text-amber-300/70 hover:text-amber-100 hover:bg-amber-500/20 rounded-lg transition-colors cursor-pointer"
+                title="Dismiss"
+                aria-label="Dismiss notification prompt"
+                id="dismiss-notif-banner-btn"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       )}
     </>
   );
 };
+

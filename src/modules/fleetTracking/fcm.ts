@@ -429,7 +429,9 @@ export async function requestNotificationPermission(
       return 'granted';
     }
 
-    if (isIframeContext()) {
+    const isNativeOrCapacitor = Capacitor.isNativePlatform() || (window as any).AndroidBridge !== undefined;
+
+    if (!isNativeOrCapacitor && isIframeContext()) {
       console.warn('[FCM] Inside iframe context. Browsers block Notification.requestPermission in cross-origin iframes.');
       return 'iframe_blocked';
     }

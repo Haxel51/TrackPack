@@ -338,9 +338,6 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
         </div>
       </header>
 
-      {/* Notification Permission Request Flow (Overlay + Banner) */}
-      <FleetNotificationPromptOverlay />
-
       {/* Foreground Toast Notification Banner */}
       {foregroundToast && (
         <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-[#070b19]/95 border border-amber-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
