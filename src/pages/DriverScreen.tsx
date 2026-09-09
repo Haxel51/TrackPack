@@ -200,17 +200,59 @@ export const DriverScreen: React.FC = () => {
 
   // CAPACITOR NATIVE LOCATION & SETTINGS CHECK EFFECT
   useEffect(() => {
-    if (!checkIsAndroidWebView()) return;
-
     let isMounted = true;
+
+    const checkAnyLocationGranted = async (): Promise<boolean> => {
+      // 1. Check AndroidBridge if available
+      try {
+        if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.hasLocationPermission === 'function') {
+          if ((window as any).AndroidBridge.hasLocationPermission()) {
+            return true;
+          }
+        }
+      } catch (e) {}
+
+      // 2. Check Capacitor Geolocation
+      try {
+        const check = await Geolocation.checkPermissions();
+        const locState = (check.location as string) || '';
+        const coarseState = ((check as any).coarseLocation as string) || '';
+
+        if (locState === 'granted' || locState === 'always' || coarseState === 'granted' || coarseState === 'always') {
+          return true;
+        }
+      } catch (err) {
+        console.warn('Capacitor checkPermissions check error:', err);
+      }
+
+      // 3. Fallback check standard web navigator.permissions
+      if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
+        try {
+          const p = await navigator.permissions.query({ name: 'geolocation' as any });
+          if (p.state === 'granted') {
+            return true;
+          }
+        } catch (e) {}
+      }
+
+      // 4. Quick non-blocking geolocation check
+      return new Promise<boolean>((resolve) => {
+        if (typeof navigator !== 'undefined' && navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            () => resolve(true),
+            () => resolve(false),
+            { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
+          );
+        } else {
+          resolve(false);
+        }
+      });
+    };
 
     const verifyNativePermission = async () => {
       try {
-        const check = await Geolocation.checkPermissions();
-        const locState = check.location as string;
-        const coarseState = (check as any).coarseLocation as string;
-
-        if (locState === 'always' || coarseState === 'always') {
+        const alreadyGranted = await checkAnyLocationGranted();
+        if (alreadyGranted) {
           if (isMounted) {
             setNativeLocationStatus('granted_always');
             setPermissionState('allow_all');
@@ -218,84 +260,144 @@ export const DriverScreen: React.FC = () => {
               localStorage.setItem('waybilla_driver_allowed', 'true');
             }
           }
-        } else if (locState === 'granted' || coarseState === 'granted') {
-          if (isMounted) {
-            setNativeLocationStatus('need_always_guidance');
-          }
-        } else {
-          const req = await Geolocation.requestPermissions();
-          const reqLocState = req.location as string;
-          const reqCoarseState = (req as any).coarseLocation as string;
+          return;
+        }
 
-          if (reqLocState === 'always' || reqCoarseState === 'always') {
-            if (isMounted) {
-              setNativeLocationStatus('granted_always');
-              setPermissionState('allow_all');
-              if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('waybilla_driver_allowed', 'true');
+        // If not yet granted on native app, request permission once
+        if (Capacitor.isPluginAvailable('Geolocation')) {
+          try {
+            const req = await Geolocation.requestPermissions();
+            const reqLocState = (req.location as string) || '';
+            const reqCoarseState = ((req as any).coarseLocation as string) || '';
+
+            if (reqLocState === 'granted' || reqLocState === 'always' || reqCoarseState === 'granted' || reqCoarseState === 'always') {
+              if (isMounted) {
+                setNativeLocationStatus('granted_always');
+                setPermissionState('allow_all');
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('waybilla_driver_allowed', 'true');
+                }
               }
+              return;
             }
-          } else if (reqLocState === 'granted' || reqCoarseState === 'granted') {
-            if (isMounted) {
-              setNativeLocationStatus('need_always_guidance');
-            }
-          } else {
-            if (isMounted) {
-              setNativeLocationStatus('denied');
-            }
+          } catch (reqErr) {
+            console.warn('Geolocation.requestPermissions error:', reqErr);
           }
+        }
+
+        if (isMounted) {
+          setNativeLocationStatus('need_always_guidance');
         }
       } catch (err) {
         console.warn('Native permission check error:', err);
       }
     };
 
-    verifyNativePermission();
+    if (checkIsAndroidWebView() || isNativeApp) {
+      verifyNativePermission();
+    }
+
+    const handleResumeCheck = async () => {
+      if (!isMounted) return;
+      const isNowGranted = await checkAnyLocationGranted();
+      if (isNowGranted) {
+        setNativeLocationStatus('granted_always');
+        setPermissionState('allow_all');
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('waybilla_driver_allowed', 'true');
+        }
+      }
+    };
 
     const appStateListener = App.addListener('appStateChange', async ({ isActive }) => {
       if (isActive && isMounted) {
-        try {
-          const status = await Geolocation.checkPermissions();
-          const stLoc = status.location as string;
-          const stCoarse = (status as any).coarseLocation as string;
-
-          if (stLoc === 'always' || stCoarse === 'always') {
-            setNativeLocationStatus('granted_always');
-            setPermissionState('allow_all');
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('waybilla_driver_allowed', 'true');
-            }
-          } else {
-            setSettingsAttempts((prev) => {
-              const nextCount = prev + 1;
-              if (nextCount >= 3) {
-                setNativeLocationStatus('max_attempts_exceeded');
-              } else {
-                setNativeLocationStatus('need_always_guidance');
-              }
-              return nextCount;
-            });
-          }
-        } catch (e) {
-          console.warn('App foreground permission check error:', e);
-        }
+        await handleResumeCheck();
       }
     });
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        handleResumeCheck();
+      }
+    };
+
+    window.addEventListener('focus', handleResumeCheck);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('focus', handleResumeCheck);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
       appStateListener.then((l) => l.remove()).catch(() => {});
     };
-  }, []);
+  }, [isNativeApp]);
 
   const handleOpenNativeSettings = async () => {
+    try {
+      if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openLocationSettings === 'function') {
+        (window as any).AndroidBridge.openLocationSettings();
+        return;
+      }
+      if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openAppSettings === 'function') {
+        (window as any).AndroidBridge.openAppSettings();
+        return;
+      }
+    } catch (e) {}
+
     try {
       await NativeSettings.openAndroid({
         option: AndroidSettings.ApplicationDetails,
       });
+      return;
     } catch (err) {
-      console.warn('Error opening native settings:', err);
-      setErrorMessage('Please go to phone Settings > Apps > Waybilla > Permissions > Location > Allow all the time');
+      console.warn('Error opening native settings via NativeSettings plugin:', err);
+    }
+
+    try {
+      window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.waybilla.app;end';
+    } catch (e) {
+      try {
+        window.location.href = 'app-settings:com.waybilla.app';
+      } catch (err) {
+        setErrorMessage('Please go to phone Settings > Apps > Waybilla > Permissions > Location > Allow');
+      }
+    }
+  };
+
+  const handleManualLocationConfirmation = () => {
+    setErrorMessage(null);
+    if (typeof navigator !== 'undefined' && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        () => {
+          setNativeLocationStatus('granted_always');
+          setPermissionState('allow_all');
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('waybilla_driver_allowed', 'true');
+          }
+        },
+        (err) => {
+          console.warn('Manual confirm geolocation error:', err);
+          // Check Geolocation plugin
+          Geolocation.checkPermissions().then((status) => {
+            const st = status.location as string;
+            if (st === 'granted' || st === 'always') {
+              setNativeLocationStatus('granted_always');
+              setPermissionState('allow_all');
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('waybilla_driver_allowed', 'true');
+              }
+            } else {
+              setErrorMessage('Location is still turned off. Please ensure Location is enabled in Settings.');
+            }
+          }).catch(() => {
+            setErrorMessage('Could not verify location. Please tap "Open Settings" and enable Location.');
+          });
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    } else {
+      setNativeLocationStatus('granted_always');
+      setPermissionState('allow_all');
     }
   };
 
@@ -795,13 +897,33 @@ export const DriverScreen: React.FC = () => {
             </ol>
           </div>
 
-          {/* Green Open Settings Button */}
-          <button
-            onClick={handleOpenNativeSettings}
-            className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
-          >
-            <span>Open Settings</span>
-          </button>
+          {errorMessage && (
+            <div className="p-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-2xl text-left">
+              {errorMessage}
+            </div>
+          )}
+
+          {/* Action Buttons */}
+          <div className="space-y-2.5">
+            {/* Green Open Settings Button */}
+            <button
+              onClick={handleOpenNativeSettings}
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
+              id="open-location-settings-btn"
+            >
+              <span>Open Settings</span>
+            </button>
+
+            {/* Direct Verification & Continue Button */}
+            <button
+              onClick={handleManualLocationConfirmation}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
+              id="continue-location-btn"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>I've Enabled It / Continue</span>
+            </button>
+          </div>
 
           <p className="text-[10px] text-slate-400 italic pt-1">
             This is required for delivery tracking to work correctly
@@ -821,19 +943,23 @@ export const DriverScreen: React.FC = () => {
           <div className="space-y-2">
             <h2 className="text-lg font-black text-white">Location Access Required</h2>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Location access is required for this app. Please contact your manager if you need help enabling location access on your device.
+              Location access is required for this app. Please make sure location permission is enabled for Waybilla in your device settings.
             </p>
           </div>
-          <button
-            onClick={() => {
-              setSettingsAttempts(0);
-              setNativeLocationStatus('need_always_guidance');
-              handleOpenNativeSettings();
-            }}
-            className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
-          >
-            <span>Try Again</span>
-          </button>
+          <div className="space-y-2">
+            <button
+              onClick={handleManualLocationConfirmation}
+              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>Continue to App</span>
+            </button>
+            <button
+              onClick={handleOpenNativeSettings}
+              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2"
+            >
+              <span>Open Settings</span>
+            </button>
+          </div>
         </div>
       </div>
     );
