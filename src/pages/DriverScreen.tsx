@@ -202,26 +202,33 @@ export const DriverScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const checkAnyLocationGranted = async (): Promise<boolean> => {
+    const checkAnyLocationGranted = async (): Promise<{ granted: boolean; details: any }> => {
+      let statusDetails: any = {};
       // 1. Check AndroidBridge if available
       try {
         if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.hasLocationPermission === 'function') {
-          if ((window as any).AndroidBridge.hasLocationPermission()) {
-            return true;
+          const hasBridgePerm = (window as any).AndroidBridge.hasLocationPermission();
+          statusDetails.androidBridge = hasBridgePerm;
+          if (hasBridgePerm) {
+            return { granted: true, details: statusDetails };
           }
         }
-      } catch (e) {}
+      } catch (e) {
+        statusDetails.androidBridgeError = String(e);
+      }
 
       // 2. Check Capacitor Geolocation
       try {
         const check = await Geolocation.checkPermissions();
         const locState = (check.location as string) || '';
         const coarseState = ((check as any).coarseLocation as string) || '';
+        statusDetails.capacitorGeolocation = check;
 
         if (locState === 'granted' || locState === 'always' || coarseState === 'granted' || coarseState === 'always') {
-          return true;
+          return { granted: true, details: statusDetails };
         }
       } catch (err) {
+        statusDetails.capacitorGeolocationError = String(err);
         console.warn('Capacitor checkPermissions check error:', err);
       }
 
@@ -229,30 +236,42 @@ export const DriverScreen: React.FC = () => {
       if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
         try {
           const p = await navigator.permissions.query({ name: 'geolocation' as any });
+          statusDetails.webPermissions = p.state;
           if (p.state === 'granted') {
-            return true;
+            return { granted: true, details: statusDetails };
           }
-        } catch (e) {}
+        } catch (e) {
+          statusDetails.webPermissionsError = String(e);
+        }
       }
 
       // 4. Quick non-blocking geolocation check
-      return new Promise<boolean>((resolve) => {
+      return new Promise<{ granted: boolean; details: any }>((resolve) => {
         if (typeof navigator !== 'undefined' && navigator.geolocation) {
           navigator.geolocation.getCurrentPosition(
-            () => resolve(true),
-            () => resolve(false),
+            () => {
+              statusDetails.getCurrentPosition = 'success';
+              resolve({ granted: true, details: statusDetails });
+            },
+            (err) => {
+              statusDetails.getCurrentPosition = 'error: ' + err.message;
+              resolve({ granted: false, details: statusDetails });
+            },
             { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
           );
         } else {
-          resolve(false);
+          statusDetails.getCurrentPosition = 'navigator.geolocation undefined';
+          resolve({ granted: false, details: statusDetails });
         }
       });
     };
 
     const verifyNativePermission = async () => {
       try {
-        const alreadyGranted = await checkAnyLocationGranted();
+        const { granted: alreadyGranted, details } = await checkAnyLocationGranted();
+        console.log('PERMISSION CHECK RESULT:', JSON.stringify(details));
         if (alreadyGranted) {
+          console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
           if (isMounted) {
             setNativeLocationStatus('granted_always');
             setPermissionState('allow_all');
@@ -271,6 +290,7 @@ export const DriverScreen: React.FC = () => {
             const reqCoarseState = ((req as any).coarseLocation as string) || '';
 
             if (reqLocState === 'granted' || reqLocState === 'always' || reqCoarseState === 'granted' || reqCoarseState === 'always') {
+              console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
               if (isMounted) {
                 setNativeLocationStatus('granted_always');
                 setPermissionState('allow_all');
@@ -285,7 +305,9 @@ export const DriverScreen: React.FC = () => {
           }
         }
 
+        console.log('PERMISSION STILL NOT GRANTED - KEEPING GUIDE VISIBLE');
         if (isMounted) {
+          console.log('GUIDE SCREEN SHOWN');
           setNativeLocationStatus('need_always_guidance');
         }
       } catch (err) {
@@ -299,13 +321,18 @@ export const DriverScreen: React.FC = () => {
 
     const handleResumeCheck = async () => {
       if (!isMounted) return;
-      const isNowGranted = await checkAnyLocationGranted();
+      console.log('APP RETURNED TO FOREGROUND - CHECKING PERMISSIONS NOW');
+      const { granted: isNowGranted, details } = await checkAnyLocationGranted();
+      console.log('PERMISSION CHECK RESULT:', JSON.stringify(details));
       if (isNowGranted) {
+        console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
         setNativeLocationStatus('granted_always');
         setPermissionState('allow_all');
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('waybilla_driver_allowed', 'true');
         }
+      } else {
+        console.log('PERMISSION STILL NOT GRANTED - KEEPING GUIDE VISIBLE');
       }
     };
 
@@ -333,6 +360,7 @@ export const DriverScreen: React.FC = () => {
   }, [isNativeApp]);
 
   const handleOpenNativeSettings = async () => {
+    console.log('OPENING SETTINGS');
     try {
       if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openLocationSettings === 'function') {
         (window as any).AndroidBridge.openLocationSettings();
@@ -913,16 +941,6 @@ export const DriverScreen: React.FC = () => {
             >
               <span>Open Settings</span>
             </button>
-
-            {/* Direct Verification & Continue Button */}
-            <button
-              onClick={handleManualLocationConfirmation}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-500 active:scale-95 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-md flex items-center justify-center gap-2"
-              id="continue-location-btn"
-            >
-              <CheckCircle2 className="w-4 h-4" />
-              <span>I've Enabled It / Continue</span>
-            </button>
           </div>
 
           <p className="text-[10px] text-slate-400 italic pt-1">
@@ -948,14 +966,8 @@ export const DriverScreen: React.FC = () => {
           </div>
           <div className="space-y-2">
             <button
-              onClick={handleManualLocationConfirmation}
-              className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>Continue to App</span>
-            </button>
-            <button
               onClick={handleOpenNativeSettings}
-              className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold rounded-2xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
             >
               <span>Open Settings</span>
             </button>

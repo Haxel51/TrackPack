@@ -9,6 +9,7 @@ import {
   isIframeContext
 } from '../fcm';
 import { Capacitor } from '@capacitor/core';
+import { App } from '@capacitor/app';
 import { Bell, CheckCircle, ExternalLink, X } from 'lucide-react';
 
 export const FleetNotificationPromptOverlay: React.FC = () => {
@@ -94,10 +95,17 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('focus', evaluateNotificationFlow);
 
+    const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        evaluateNotificationFlow();
+      }
+    });
+
     return () => {
       isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('focus', evaluateNotificationFlow);
+      appStateListener.then((l) => l.remove()).catch(() => {});
     };
   }, [userId, token, isDriver, userPhone, isDismissedSession]);
 

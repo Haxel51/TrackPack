@@ -4,6 +4,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { triggerOSNotification } from '../../utils/notifications';
 import { Capacitor } from '@capacitor/core';
 import { PushNotifications } from '@capacitor/push-notifications';
+import { NativeSettings, AndroidSettings } from 'capacitor-native-settings';
 
 export async function markNotificationPromptShown(userId: string): Promise<void> {
   if (!userId) return;
@@ -338,27 +339,67 @@ export function hideAndroidNotificationGuide() {
   }
 }
 
-export function openAppNotificationSettings() {
-  if (typeof window !== 'undefined') {
-    if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openNotificationSettings === 'function') {
-      try {
-        (window as any).AndroidBridge.openNotificationSettings();
-        return;
-      } catch (e) {
-        console.warn('[AndroidBridge] openNotificationSettings error:', e);
-      }
-    }
+export async function openAppNotificationSettings(): Promise<boolean> {
+  if (typeof window === 'undefined') return false;
 
+  // 1. AndroidBridge direct native method
+  if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openNotificationSettings === 'function') {
     try {
-      window.location.href = 'intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;pkg=com.waybilla.app;end';
+      (window as any).AndroidBridge.openNotificationSettings();
+      return true;
     } catch (e) {
+      console.warn('[AndroidBridge] openNotificationSettings error:', e);
+    }
+  }
+
+  // 2. AndroidBridge generic app settings method
+  if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openAppSettings === 'function') {
+    try {
+      (window as any).AndroidBridge.openAppSettings();
+      return true;
+    } catch (e) {
+      console.warn('[AndroidBridge] openAppSettings error:', e);
+    }
+  }
+
+  // 3. Try NativeSettings plugin for AppNotification
+  try {
+    await NativeSettings.openAndroid({
+      option: AndroidSettings.AppNotification,
+    });
+    return true;
+  } catch (err) {
+    console.warn('NativeSettings AppNotification error, trying ApplicationDetails:', err);
+  }
+
+  // 4. Try NativeSettings plugin for ApplicationDetails
+  try {
+    await NativeSettings.openAndroid({
+      option: AndroidSettings.ApplicationDetails,
+    });
+    return true;
+  } catch (err) {
+    console.warn('NativeSettings ApplicationDetails error:', err);
+  }
+
+  // 5. Try standard Android intent URLs
+  try {
+    window.location.href = 'intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;pkg=com.waybilla.app;end';
+    return true;
+  } catch (e) {
+    try {
+      window.location.href = 'intent:#Intent;action=android.settings.APPLICATION_DETAILS_SETTINGS;package=com.waybilla.app;end';
+      return true;
+    } catch (err) {
       try {
         window.location.href = 'app-settings:com.waybilla.app';
-      } catch (err) {
-        console.warn('Could not open settings via scheme:', err);
+        return true;
+      } catch (err2) {
+        console.warn('Could not open settings via scheme:', err2);
       }
     }
   }
+  return false;
 }
 
 export function checkIsAndroidAPK(): boolean {

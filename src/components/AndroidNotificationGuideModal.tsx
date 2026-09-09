@@ -1,31 +1,100 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, ExternalLink, X, Settings2, ShieldCheck, ArrowRight } from 'lucide-react';
-import { openAppNotificationSettings } from '../modules/fleetTracking/fcm';
+import { openAppNotificationSettings, hideAndroidNotificationGuide } from '../modules/fleetTracking/fcm';
+import { App } from '@capacitor/app';
 
 export const AndroidNotificationGuideModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    const handleOpen = () => setIsOpen(true);
-    const handleClose = () => setIsOpen(false);
+    const handleOpen = () => {
+      console.log('GUIDE SCREEN SHOWN');
+      setIsOpen(true);
+      setFeedbackMsg(null);
+    };
+    const handleClose = () => {
+      setIsOpen(false);
+      setFeedbackMsg(null);
+    };
 
     window.addEventListener('waybilla_show_android_notif_guide', handleOpen);
     window.addEventListener('waybilla_hide_android_notif_guide', handleClose);
 
+    const checkNotifPermissionStatus = async () => {
+      console.log('APP RETURNED TO FOREGROUND - CHECKING PERMISSIONS NOW');
+      let isGranted = false;
+      let status: any = { source: 'web', permission: 'default' };
+
+      if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
+        try {
+          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
+          status = { source: 'AndroidBridge', areNotificationsEnabled: isGranted };
+        } catch (e) {
+          isGranted = false;
+          status = { source: 'AndroidBridge', error: String(e) };
+        }
+      } else if (typeof window !== 'undefined' && 'Notification' in window) {
+        isGranted = Notification.permission === 'granted';
+        status = { source: 'Notification.permission', permission: Notification.permission };
+      }
+
+      console.log('PERMISSION CHECK RESULT:', JSON.stringify(status));
+
+      if (isGranted) {
+        console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
+        setIsOpen(false);
+        hideAndroidNotificationGuide();
+      } else {
+        console.log('PERMISSION STILL NOT GRANTED - KEEPING GUIDE VISIBLE');
+      }
+    };
+
+    const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
+      if (isActive) {
+        checkNotifPermissionStatus();
+      }
+    });
+
+    const handleFocus = () => {
+      checkNotifPermissionStatus();
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkNotifPermissionStatus();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
     return () => {
       window.removeEventListener('waybilla_show_android_notif_guide', handleOpen);
       window.removeEventListener('waybilla_hide_android_notif_guide', handleClose);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      appStateListener.then((l) => l.remove()).catch(() => {});
     };
   }, []);
 
   if (!isOpen) return null;
 
-  const handleOpenSettings = () => {
-    openAppNotificationSettings();
+  const handleOpenSettings = async () => {
+    console.log('OPENING SETTINGS');
+    try {
+      const opened = await openAppNotificationSettings();
+      if (!opened) {
+        setFeedbackMsg('Open phone Settings > Apps > Waybilla > Notifications');
+      }
+    } catch (e) {
+      setFeedbackMsg('Open phone Settings > Apps > Waybilla > Notifications');
+    }
   };
 
   const handleDismiss = () => {
     setIsOpen(false);
+    hideAndroidNotificationGuide();
   };
 
   return (
@@ -95,8 +164,14 @@ export const AndroidNotificationGuideModal: React.FC = () => {
           </div>
         </div>
 
+        {feedbackMsg && (
+          <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] rounded-xl text-center">
+            {feedbackMsg}
+          </div>
+        )}
+
         {/* Action Buttons */}
-        <div className="space-y-2.5 pt-1">
+        <div className="space-y-2 pt-1">
           <button
             onClick={handleOpenSettings}
             className="w-full bg-emerald-500 hover:bg-emerald-400 active:scale-95 text-slate-950 font-black py-3 px-5 rounded-2xl text-xs sm:text-sm transition-all shadow-lg cursor-pointer flex items-center justify-center gap-2"
@@ -108,7 +183,7 @@ export const AndroidNotificationGuideModal: React.FC = () => {
 
           <button
             onClick={handleDismiss}
-            className="w-full text-slate-400 hover:text-slate-200 text-xs py-2 text-center transition-colors cursor-pointer font-medium"
+            className="w-full text-slate-400 hover:text-slate-200 text-xs py-1.5 text-center transition-colors cursor-pointer font-medium"
             id="dismiss-android-guide-btn"
           >
             I'll do it later
