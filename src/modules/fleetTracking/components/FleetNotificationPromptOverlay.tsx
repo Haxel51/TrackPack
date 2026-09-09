@@ -85,8 +85,19 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
 
     evaluateNotificationFlow();
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        evaluateNotificationFlow();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', evaluateNotificationFlow);
+
     return () => {
       isMounted = false;
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', evaluateNotificationFlow);
     };
   }, [userId, token, isDriver, userPhone, isDismissedSession]);
 

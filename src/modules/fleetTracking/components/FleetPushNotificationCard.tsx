@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { requestNotificationPermission } from '../fcm';
+import { requestNotificationPermission, hideAndroidNotificationGuide } from '../fcm';
 import { triggerOSNotification } from '../../../utils/notifications';
 import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -14,11 +14,55 @@ export const FleetPushNotificationCard: React.FC = () => {
   const userPhone = user?.phone_number || user?.phone || user?.owner_phone || '';
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      setPermission(Notification.permission);
-    } else {
-      setPermission('default');
-    }
+    const checkState = () => {
+      let isGranted = false;
+      if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
+        try {
+          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
+        } catch (e) {
+          isGranted = false;
+        }
+      } else if (typeof window !== 'undefined' && 'Notification' in window) {
+        isGranted = Notification.permission === 'granted';
+      }
+
+      setPermission(isGranted ? 'granted' : (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'));
+      if (isGranted) {
+        hideAndroidNotificationGuide();
+      }
+    };
+
+    checkState();
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        let isGranted = false;
+        if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
+          try {
+            isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
+          } catch (e) {
+            isGranted = false;
+          }
+        } else if (typeof window !== 'undefined' && 'Notification' in window) {
+          isGranted = Notification.permission === 'granted';
+        }
+
+        if (isGranted) {
+          setPermission('granted');
+          hideAndroidNotificationGuide();
+          setToastMessage('✅ Notifications enabled! You will now receive fleet alerts.');
+          setTimeout(() => setToastMessage(null), 5000);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('focus', checkState);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('focus', checkState);
+    };
   }, []);
 
   const handleEnableNotifications = async () => {
@@ -34,7 +78,7 @@ export const FleetPushNotificationCard: React.FC = () => {
           tag: 'fleet-welcome'
         });
 
-        setToastMessage('✅ Push notifications enabled! Real-time fleet alerts are now active.');
+        setToastMessage('✅ Notifications are already enabled! You will receive fleet alerts.');
         setTimeout(() => setToastMessage(null), 5000);
       }
     } catch (err) {

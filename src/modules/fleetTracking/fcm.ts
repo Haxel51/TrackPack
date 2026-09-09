@@ -326,99 +326,101 @@ export function setupCapacitorPushListeners(currentUserId?: string, userPhone?: 
   }
 }
 
+export function showAndroidNotificationGuide() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('waybilla_show_android_notif_guide'));
+  }
+}
+
+export function hideAndroidNotificationGuide() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('waybilla_hide_android_notif_guide'));
+  }
+}
+
+export function openAppNotificationSettings() {
+  if (typeof window !== 'undefined') {
+    if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openNotificationSettings === 'function') {
+      try {
+        (window as any).AndroidBridge.openNotificationSettings();
+        return;
+      } catch (e) {
+        console.warn('[AndroidBridge] openNotificationSettings error:', e);
+      }
+    }
+
+    try {
+      window.location.href = 'intent:#Intent;action=android.settings.APP_NOTIFICATION_SETTINGS;pkg=com.waybilla.app;end';
+    } catch (e) {
+      try {
+        window.location.href = 'app-settings:com.waybilla.app';
+      } catch (err) {
+        console.warn('Could not open settings via scheme:', err);
+      }
+    }
+  }
+}
+
+export function checkIsAndroidAPK(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    /wv/.test(navigator.userAgent) ||
+    /Android.*Version\/[0-9.]+/i.test(navigator.userAgent) ||
+    (window as any).AndroidBridge !== undefined ||
+    Capacitor.isNativePlatform()
+  );
+}
+
 export async function requestNotificationPermission(
   token?: string,
   currentUserId?: string,
   userPhone?: string
 ): Promise<NotificationPermission | 'unsupported' | 'iframe_blocked'> {
   try {
-    // 0. Check if Android Direct Native Bridge exists (WebView Java Interface)
-    if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
-      console.log('[Push] Direct AndroidBridge detected');
-      try {
-        (window as any).AndroidBridge.requestNotificationPermission();
+    const isAndroidAPK = checkIsAndroidAPK();
 
-        const enabled = (window as any).AndroidBridge.areNotificationsEnabled();
-        console.log('[Push] AndroidBridge notifications enabled status:', enabled);
+    // 0. Dedicated Android APK Flow
+    if (isAndroidAPK) {
+      console.log('[Push] Android APK detected. Checking permission status...');
 
-        if (enabled) {
+      let isGranted = false;
+      if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
+        try {
+          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
+        } catch (e) {
+          isGranted = false;
+        }
+      } else if (typeof window !== 'undefined' && 'Notification' in window) {
+        isGranted = Notification.permission === 'granted';
+      }
+
+      if (isGranted) {
+        console.log('[Push] Notifications already enabled on Android APK');
+        if (currentUserId) {
+          const payload = {
+            notificationsEnabled: true,
+            notificationPlatform: 'android-apk',
+            notificationsEnabledAt: serverTimestamp(),
+            notificationPromptShown: true,
+            updated_at: new Date().toISOString()
+          };
           try {
-            (window as any).AndroidBridge.showTestNotification();
-          } catch (e) {
-            console.warn('[Push] Error calling showTestNotification:', e);
-          }
-
-          if (currentUserId) {
-            const payload = {
-              notificationsEnabled: true,
-              notificationPlatform: 'android-native-bridge',
-              notificationsEnabledAt: serverTimestamp(),
-              notificationPromptShown: true,
-              updated_at: new Date().toISOString()
-            };
-            try {
-              await setDoc(doc(db, 'fleetTracking_users', currentUserId), payload, { merge: true });
-            } catch (e) { /* ignore */ }
-            try {
-              await setDoc(doc(db, 'users', currentUserId), payload, { merge: true });
-            } catch (e) { /* ignore */ }
-          }
-
-          return 'granted';
-        } else {
-          return 'denied';
+            await setDoc(doc(db, 'fleetTracking_users', currentUserId), payload, { merge: true });
+          } catch (e) { /* ignore */ }
+          try {
+            await setDoc(doc(db, 'users', currentUserId), payload, { merge: true });
+          } catch (e) { /* ignore */ }
+          await initializeFCM(token, currentUserId);
         }
-      } catch (bridgeErr) {
-        console.error('[Push] AndroidBridge execution error:', bridgeErr);
+        return 'granted';
+      } else {
+        console.log('[Push] Notifications not enabled on APK. Showing in-app guide...');
+        showAndroidNotificationGuide();
         return 'denied';
       }
     }
 
-    // 1. Android Native WebView/Capacitor App handling
-    if (Capacitor.isPluginAvailable('PushNotifications')) {
-      console.log('[Push] Running on native Android WebView container with PushNotifications plugin');
-      try {
-        setupCapacitorPushListeners(currentUserId, userPhone, token);
-
-        const status = await PushNotifications.checkPermissions();
-        console.log('[Push] Permission status:', JSON.stringify(status));
-
-        let isGranted = (status.receive as string) === 'granted';
-
-        if (!isGranted) {
-          const reqResult = await PushNotifications.requestPermissions();
-          console.log('[Push] Permission result:', JSON.stringify(reqResult));
-          isGranted = reqResult.receive === 'granted';
-        }
-
-        if (isGranted) {
-          console.log('[Push] Calling register...');
-          await PushNotifications.register();
-          console.log('[Push] Register called successfully');
-
-          const storedToken = localStorage.getItem('fleet_fcm_token');
-          if (storedToken && currentUserId) {
-            await saveFcmTokenToFirestore(currentUserId, storedToken, userPhone);
-          }
-          return 'granted';
-        } else {
-          console.log('[Push] Permission denied or prompt dismissed');
-          return 'denied';
-        }
-      } catch (capErr) {
-        console.error('[Push] Capacitor PushNotifications failed, attempting direct web fallback:', JSON.stringify(capErr));
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-          const permission = await Notification.requestPermission();
-          if (permission === 'granted' && currentUserId) {
-            await initializeFCM(token, currentUserId);
-          }
-          return permission;
-        }
-        return 'denied';
-      }
-    }
-
-    // 2. Standard Web Browser handling
+    // 1. Standard Web Browser / PWA handling
     if (typeof window === 'undefined' || !('Notification' in window)) {
       console.log('Browser does not support notifications');
       return 'unsupported';
@@ -429,9 +431,7 @@ export async function requestNotificationPermission(
       return 'granted';
     }
 
-    const isNativeOrCapacitor = Capacitor.isNativePlatform() || (window as any).AndroidBridge !== undefined;
-
-    if (!isNativeOrCapacitor && isIframeContext()) {
+    if (isIframeContext()) {
       console.warn('[FCM] Inside iframe context. Browsers block Notification.requestPermission in cross-origin iframes.');
       return 'iframe_blocked';
     }
