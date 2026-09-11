@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, ExternalLink, X, Settings2, ShieldCheck, ArrowRight } from 'lucide-react';
-import { openAppNotificationSettings, hideAndroidNotificationGuide } from '../modules/fleetTracking/fcm';
+import { openAppNotificationSettings, hideAndroidNotificationGuide, checkRealNotificationStatus } from '../modules/fleetTracking/fcm';
 import { App } from '@capacitor/app';
 
 export const AndroidNotificationGuideModal: React.FC = () => {
@@ -23,23 +23,8 @@ export const AndroidNotificationGuideModal: React.FC = () => {
 
     const checkNotifPermissionStatus = async () => {
       console.log('APP RETURNED TO FOREGROUND - CHECKING PERMISSIONS NOW');
-      let isGranted = false;
-      let status: any = { source: 'web', permission: 'default' };
-
-      if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
-        try {
-          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
-          status = { source: 'AndroidBridge', areNotificationsEnabled: isGranted };
-        } catch (e) {
-          isGranted = false;
-          status = { source: 'AndroidBridge', error: String(e) };
-        }
-      } else if (typeof window !== 'undefined' && 'Notification' in window) {
-        isGranted = Notification.permission === 'granted';
-        status = { source: 'Notification.permission', permission: Notification.permission };
-      }
-
-      console.log('PERMISSION CHECK RESULT:', JSON.stringify(status));
+      const isGranted = await checkRealNotificationStatus();
+      console.log('PERMISSION CHECK RESULT:', JSON.stringify({ isGranted }));
 
       if (isGranted) {
         console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');

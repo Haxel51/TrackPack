@@ -402,6 +402,41 @@ export async function openAppNotificationSettings(): Promise<boolean> {
   return false;
 }
 
+export async function checkRealNotificationStatus(): Promise<boolean> {
+  // Check native Android status first if in APK
+  if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
+    try {
+      const enabled = (window as any).AndroidBridge.areNotificationsEnabled();
+      console.log('REAL Android notification status:', enabled);
+      return Boolean(enabled);
+    } catch (e) {
+      console.warn('AndroidBridge error:', e);
+    }
+  }
+
+  // Capacitor PushNotifications check if available
+  if (typeof window !== 'undefined' && Capacitor.isPluginAvailable('PushNotifications')) {
+    try {
+      const perm = await PushNotifications.checkPermissions();
+      if (perm.receive === 'granted') {
+        console.log('Capacitor PushNotifications permission: granted');
+        return true;
+      }
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  // Fallback to web Notification API
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    const status = Notification.permission === 'granted';
+    console.log('Web Notification permission:', status);
+    return status;
+  }
+
+  return false;
+}
+
 export function checkIsAndroidAPK(): boolean {
   if (typeof window === 'undefined') return false;
   return (
@@ -424,16 +459,7 @@ export async function requestNotificationPermission(
     if (isAndroidAPK) {
       console.log('[Push] Android APK detected. Checking permission status...');
 
-      let isGranted = false;
-      if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
-        try {
-          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
-        } catch (e) {
-          isGranted = false;
-        }
-      } else if (typeof window !== 'undefined' && 'Notification' in window) {
-        isGranted = Notification.permission === 'granted';
-      }
+      const isGranted = await checkRealNotificationStatus();
 
       if (isGranted) {
         console.log('[Push] Notifications already enabled on Android APK');

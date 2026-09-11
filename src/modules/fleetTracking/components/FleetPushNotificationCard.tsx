@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../../context/AuthContext';
-import { requestNotificationPermission, hideAndroidNotificationGuide } from '../fcm';
+import { requestNotificationPermission, hideAndroidNotificationGuide, checkRealNotificationStatus } from '../fcm';
 import { triggerOSNotification } from '../../../utils/notifications';
 import { Bell, CheckCircle, AlertTriangle } from 'lucide-react';
 
@@ -14,18 +14,8 @@ export const FleetPushNotificationCard: React.FC = () => {
   const userPhone = user?.phone_number || user?.phone || user?.owner_phone || '';
 
   useEffect(() => {
-    const checkState = () => {
-      let isGranted = false;
-      if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
-        try {
-          isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
-        } catch (e) {
-          isGranted = false;
-        }
-      } else if (typeof window !== 'undefined' && 'Notification' in window) {
-        isGranted = Notification.permission === 'granted';
-      }
-
+    const checkState = async () => {
+      const isGranted = await checkRealNotificationStatus();
       setPermission(isGranted ? 'granted' : (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default'));
       if (isGranted) {
         hideAndroidNotificationGuide();
@@ -34,19 +24,9 @@ export const FleetPushNotificationCard: React.FC = () => {
 
     checkState();
 
-    const handleVisibilityChange = () => {
+    const handleVisibilityChange = async () => {
       if (document.visibilityState === 'visible') {
-        let isGranted = false;
-        if (typeof window !== 'undefined' && (window as any).AndroidBridge && typeof (window as any).AndroidBridge.areNotificationsEnabled === 'function') {
-          try {
-            isGranted = (window as any).AndroidBridge.areNotificationsEnabled();
-          } catch (e) {
-            isGranted = false;
-          }
-        } else if (typeof window !== 'undefined' && 'Notification' in window) {
-          isGranted = Notification.permission === 'granted';
-        }
-
+        const isGranted = await checkRealNotificationStatus();
         if (isGranted) {
           setPermission('granted');
           hideAndroidNotificationGuide();

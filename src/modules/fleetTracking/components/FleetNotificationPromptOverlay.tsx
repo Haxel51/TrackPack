@@ -6,8 +6,12 @@ import {
   checkNotificationPromptShown,
   saveFcmTokenToFirestore,
   requestNotificationPermission,
-  isIframeContext
+  isIframeContext,
+  checkRealNotificationStatus,
+  hideAndroidNotificationGuide
 } from '../fcm';
+import { db } from '../../../lib/firebase';
+import { doc, setDoc } from 'firebase/firestore';
 import { Capacitor } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Bell, CheckCircle, ExternalLink, X } from 'lucide-react';
@@ -45,22 +49,48 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    async function evaluateNotificationFlow() {
+    async function checkAndUpdateBanner() {
       if (!userId) {
         setShowOverlay(false);
         setShowBanner(false);
         return;
       }
 
-      const currentPerm = typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'default';
-      if (isMounted) {
-        setPermission(currentPerm);
+      const isEnabled = await checkRealNotificationStatus();
+
+      console.log('Should show banner?', !isEnabled);
+      console.log(
+        '[NOTIFICATION BANNER CHECK]', 
+        'isEnabled:', isEnabled,
+        'showBanner:', !isEnabled
+      );
+
+      if (!isMounted) return;
+
+      setPermission(isEnabled ? 'granted' : (typeof window !== 'undefined' && 'Notification' in window ? Notification.permission : 'denied'));
+
+      // Also update Firestore to match reality
+      if (userId) {
+        try {
+          const userRef = doc(db, 'fleetTracking_users', userId);
+          await setDoc(userRef, {
+            notificationsEnabled: isEnabled,
+            notifications_enabled: isEnabled,
+            notificationPlatform: (window as any).AndroidBridge ? 'android-apk' : 'web',
+            updated_at: new Date().toISOString()
+          }, { merge: true });
+        } catch (err) {
+          console.warn('[FCM] Error updating Firestore notification status:', err);
+        }
       }
 
-      // If permission is already granted, initialize FCM silently & update token
-      if (currentPerm === 'granted') {
+      // If notifications are enabled in reality, NEVER show banner or overlay
+      if (isEnabled) {
         setShowOverlay(false);
         setShowBanner(false);
+        hideAndroidNotificationGuide();
+
+        // Initialize FCM silently & update token
         const fcmTok = await initializeFCM(token || undefined, userId);
         if (fcmTok) {
           await saveFcmTokenToFirestore(userId, fcmTok, userPhone);
@@ -68,7 +98,7 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
         return;
       }
 
-      // Permission is 'default' or 'denied'
+      // Permission is not enabled - check prompt display history
       const promptShown = await checkNotificationPromptShown(userId);
 
       if (isMounted) {
@@ -84,27 +114,29 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
       }
     }
 
-    evaluateNotificationFlow();
+    // Check immediately on mount
+    checkAndUpdateBanner();
 
+    // Check again every time app becomes visible
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
-        evaluateNotificationFlow();
+        checkAndUpdateBanner();
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('focus', evaluateNotificationFlow);
+    window.addEventListener('focus', checkAndUpdateBanner);
 
     const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
-        evaluateNotificationFlow();
+        checkAndUpdateBanner();
       }
     });
 
     return () => {
       isMounted = false;
       document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('focus', evaluateNotificationFlow);
+      window.removeEventListener('focus', checkAndUpdateBanner);
       appStateListener.then((l) => l.remove()).catch(() => {});
     };
   }, [userId, token, isDriver, userPhone, isDismissedSession]);
