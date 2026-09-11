@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell, Eye } from 'lucide-react';
+import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell, Eye, ChevronDown } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
@@ -30,6 +30,7 @@ export const HomePage: React.FC = () => {
   const [trackedRoute, setTrackedRoute] = useState<any>(null);
   const [trackedDriver, setTrackedDriver] = useState<any>(null);
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
+  const [showStaffPortalsModal, setShowStaffPortalsModal] = useState(false);
 
   const [secretTaps, setSecretTaps] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
@@ -302,86 +303,30 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
 
-          {/* Secondary Compact Operator Links (Staff & Transport Company) */}
-          <div className="pt-3 border-t border-slate-200 flex flex-wrap items-center justify-center gap-2.5 text-sm text-slate-700">
-            <span className="text-xs font-bold text-slate-600">{t('parkStaffOperators')}</span>
-            
+          {/* Secondary Operator / Staff Access Bar (Clean, Symmetrical, Never Wraps Awkwardly) */}
+          <div className="pt-3 border-t border-slate-200">
             <button
-              onClick={() => {
-                if (activeToken && activeRole === 'staff') {
-                  navigate('/staff/dashboard');
-                } else {
-                  navigate('/login/staff');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
-              aria-label="Staff Login"
+              onClick={() => setShowStaffPortalsModal(true)}
+              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-[#0A1F44] transition-all cursor-pointer shadow-xs active:scale-[0.99] group min-h-[48px]"
+              id="staff-operator-portals-trigger"
+              aria-label="Open Park Staff & Operator Portals"
             >
-              <KeyRound className="w-4 h-4 text-slate-700" />
-              <span>{t('staffPortal')}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (activeToken && (activeRole === 'manager' || activeRole === 'driver' || activeRole === 'trip_monitor')) {
-                  navigate('/manager/dashboard');
-                } else {
-                  navigate('/login/manager?role=manager');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
-              aria-label="Manager Login"
-            >
-              <ShieldCheck className="w-4 h-4 text-slate-700" />
-              <span>{t('managerPortal')}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (activeToken && (activeRole === 'trip_monitor' || activeRole === 'manager' || activeRole === 'driver')) {
-                  navigate('/manager/dashboard');
-                } else {
-                  navigate('/login/manager?role=trip_monitor');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
-              aria-label="Trip Monitor Login"
-            >
-              <Eye className="w-4 h-4 text-slate-700" />
-              <span>{t('tripMonitorPortal')}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('last_portal_role', 'driver');
-                }
-                if (activeToken && (activeRole === 'driver' || activeRole === 'manager' || activeRole === 'trip_monitor' || activeUser?.manager_type === 'Driver' || activeUser?.role === 'driver')) {
-                  navigate('/manager/dashboard');
-                } else {
-                  navigate('/login/driver');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
-              aria-label="Driver Login"
-            >
-              <Truck className="w-4 h-4 text-slate-700" />
-              <span>{t('driverPortal')}</span>
-            </button>
-
-            <button
-              onClick={() => {
-                if (activeToken && activeRole === 'company') {
-                  navigate('/company/dashboard');
-                } else {
-                  navigate('/login/company');
-                }
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 border border-slate-200 text-[#0A1F44] font-extrabold text-xs transition-colors cursor-pointer min-h-[44px]"
-              aria-label="Company Portal Login"
-            >
-              <Building2 className="w-4 h-4 text-slate-700" />
-              <span>{t('companyPortal')}</span>
+              <div className="flex items-center gap-2.5 text-left">
+                <div className="w-8 h-8 rounded-xl bg-blue-100/80 text-blue-900 flex items-center justify-center font-bold shrink-0">
+                  <ShieldCheck className="w-4 h-4 text-blue-800" />
+                </div>
+                <div>
+                  <div className="text-xs font-black tracking-tight text-[#0A1F44] flex items-center gap-1.5">
+                    <span>{t('parkStaffOperators')}</span>
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 hidden xs:inline-block">5 Portals</span>
+                  </div>
+                  <p className="text-[11px] text-slate-500 font-medium">Park Staff, Managers, Trip Monitors & Transport Companies</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-slate-400 group-hover:text-[#0A1F44] transition-colors shrink-0 ml-2">
+                <span className="text-xs font-bold hidden sm:inline-block">Select</span>
+                <ChevronDown className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
+              </div>
             </button>
           </div>
         </div>
@@ -471,6 +416,175 @@ export const HomePage: React.FC = () => {
               className="w-full bg-[#0A1F44] text-white font-bold py-3 rounded-2xl text-sm hover:bg-blue-900 transition-colors cursor-pointer"
             >
               {t('gotItClose')}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Staff & Operator Portals Modal / Bottom Sheet */}
+      {showStaffPortalsModal && (
+        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl animate-slideUp sm:animate-scaleUp border border-slate-100 max-h-[85vh] overflow-y-auto">
+            {/* Header with drag indicator on mobile */}
+            <div className="space-y-3">
+              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto sm:hidden" />
+              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-100 text-[#0A1F44] flex items-center justify-center font-extrabold">
+                    <ShieldCheck className="w-5 h-5 text-[#0A1F44]" />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-[#0A1F44]">{t('parkStaffOperators')}</h3>
+                    <p className="text-xs text-slate-500">Select your operational portal</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowStaffPortalsModal(false)}
+                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer transition-colors"
+                  aria-label="Close"
+                  id="close-staff-portals-btn"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Portal Cards List */}
+            <div className="space-y-2 pt-1">
+              {/* Park Staff */}
+              <button
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  if (activeToken && activeRole === 'staff') {
+                    navigate('/staff/dashboard');
+                  } else {
+                    navigate('/login/staff');
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+                id="portal-option-staff"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
+                    <KeyRound className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('staffPortal')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Issue waybills, print receipts & manage parcel tags</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+
+              {/* Park Manager */}
+              <button
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  if (activeToken && (activeRole === 'manager' || activeRole === 'driver' || activeRole === 'trip_monitor')) {
+                    navigate('/manager/dashboard');
+                  } else {
+                    navigate('/login/manager?role=manager');
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+                id="portal-option-manager"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                    <ShieldCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('managerPortal')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Dispatch trips, cashier audits & park control</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+
+              {/* Trip Monitor */}
+              <button
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  if (activeToken && (activeRole === 'trip_monitor' || activeRole === 'manager' || activeRole === 'driver')) {
+                    navigate('/manager/dashboard');
+                  } else {
+                    navigate('/login/manager?role=trip_monitor');
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+                id="portal-option-trip-monitor"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
+                    <Eye className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('tripMonitorPortal')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Live transit map, alerts & en-route checkpoint monitor</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+
+              {/* Driver Device Setup */}
+              <button
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('last_portal_role', 'driver');
+                  }
+                  if (activeToken && (activeRole === 'driver' || activeRole === 'manager' || activeRole === 'trip_monitor' || activeUser?.manager_type === 'Driver' || activeUser?.role === 'driver')) {
+                    navigate('/manager/dashboard');
+                  } else {
+                    navigate('/login/driver');
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+                id="portal-option-driver"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('driverPortal')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">One-time phone registration & background setup</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+
+              {/* Company Portal */}
+              <button
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  if (activeToken && activeRole === 'company') {
+                    navigate('/company/dashboard');
+                  } else {
+                    navigate('/login/company');
+                  }
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+                id="portal-option-company"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-slate-800/10 text-slate-800 flex items-center justify-center shrink-0">
+                    <Building2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('companyPortal')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Transport company fleet admin & analytics</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+            </div>
+
+            <button
+              onClick={() => setShowStaffPortalsModal(false)}
+              className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition-colors cursor-pointer"
+            >
+              Close
             </button>
           </div>
         </div>
