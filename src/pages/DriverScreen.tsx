@@ -63,7 +63,7 @@ export const DriverScreen: React.FC = () => {
   const navigate = useNavigate();
   const { user, token, logout } = useAuth();
   const [permissionState, setPermissionState] = useState<'prompting' | 'allow_all' | 'allow_while_using' | 'denied'>(() => {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('waybilla_driver_allowed') === 'true') {
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('waybilla_driver_allowed_always') === 'true') {
       return 'allow_all';
     }
     return 'prompting';
@@ -202,113 +202,86 @@ export const DriverScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const checkAnyLocationGranted = async (): Promise<{ granted: boolean; details: any }> => {
+    const checkStrictAlwaysLocationGranted = async (): Promise<{ grantedAlways: boolean; isPartial: boolean; details: any }> => {
       let statusDetails: any = {};
-      // 1. Check AndroidBridge if available
+
+      // 1. Check AndroidBridge for strict background permission if available in native APK
       try {
-        if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.hasLocationPermission === 'function') {
-          const hasBridgePerm = (window as any).AndroidBridge.hasLocationPermission();
-          statusDetails.androidBridge = hasBridgePerm;
-          if (hasBridgePerm) {
-            return { granted: true, details: statusDetails };
+        if ((window as any).AndroidBridge) {
+          if (typeof (window as any).AndroidBridge.hasBackgroundLocationPermission === 'function') {
+            const hasAlways = (window as any).AndroidBridge.hasBackgroundLocationPermission();
+            statusDetails.androidBridgeAlways = hasAlways;
+            if (hasAlways) {
+              return { grantedAlways: true, isPartial: false, details: statusDetails };
+            }
+          }
+          if (typeof (window as any).AndroidBridge.hasLocationPermission === 'function') {
+            const hasGeneral = (window as any).AndroidBridge.hasLocationPermission();
+            statusDetails.androidBridgeGeneral = hasGeneral;
+            // If has general location but not confirmed background, treat as partial (needs "Allow all the time")
+            if (hasGeneral) {
+              return { grantedAlways: false, isPartial: true, details: statusDetails };
+            }
           }
         }
       } catch (e) {
         statusDetails.androidBridgeError = String(e);
       }
 
-      // 2. Check Capacitor Geolocation
+      // 2. Check Capacitor Geolocation for 'always'
       try {
-        const check = await Geolocation.checkPermissions();
-        const locState = (check.location as string) || '';
-        const coarseState = ((check as any).coarseLocation as string) || '';
-        statusDetails.capacitorGeolocation = check;
+        if (Capacitor.isPluginAvailable('Geolocation')) {
+          const check = await Geolocation.checkPermissions();
+          const locState = (check.location as string) || '';
+          const coarseState = ((check as any).coarseLocation as string) || '';
+          statusDetails.capacitorGeolocation = check;
 
-        if (locState === 'granted' || locState === 'always' || coarseState === 'granted' || coarseState === 'always') {
-          return { granted: true, details: statusDetails };
+          // On mobile, 'always' represents background location. 'granted' is foreground only unless always is verified.
+          if (locState === 'always' || coarseState === 'always') {
+            return { grantedAlways: true, isPartial: false, details: statusDetails };
+          }
+
+          if (locState === 'granted' || coarseState === 'granted') {
+            // Foreground granted, but NOT 'always'
+            return { grantedAlways: false, isPartial: true, details: statusDetails };
+          }
         }
       } catch (err) {
         statusDetails.capacitorGeolocationError = String(err);
-        console.warn('Capacitor checkPermissions check error:', err);
+        console.warn('Capacitor checkPermissions error:', err);
       }
 
-      // 3. Fallback check standard web navigator.permissions
-      if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
-        try {
-          const p = await navigator.permissions.query({ name: 'geolocation' as any });
-          statusDetails.webPermissions = p.state;
-          if (p.state === 'granted') {
-            return { granted: true, details: statusDetails };
-          }
-        } catch (e) {
-          statusDetails.webPermissionsError = String(e);
-        }
+      // 3. Web or APK fallback: test if driver already completed the all-time pass
+      const isMarkedAlways = typeof localStorage !== 'undefined' && localStorage.getItem('waybilla_driver_allowed_always') === 'true';
+      if (isMarkedAlways) {
+        return { grantedAlways: true, isPartial: false, details: { ...statusDetails, storedAlways: true } };
       }
 
-      // 4. Quick non-blocking geolocation check
-      return new Promise<{ granted: boolean; details: any }>((resolve) => {
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            () => {
-              statusDetails.getCurrentPosition = 'success';
-              resolve({ granted: true, details: statusDetails });
-            },
-            (err) => {
-              statusDetails.getCurrentPosition = 'error: ' + err.message;
-              resolve({ granted: false, details: statusDetails });
-            },
-            { enableHighAccuracy: false, timeout: 3000, maximumAge: 60000 }
-          );
-        } else {
-          statusDetails.getCurrentPosition = 'navigator.geolocation undefined';
-          resolve({ granted: false, details: statusDetails });
-        }
-      });
+      return { grantedAlways: false, isPartial: false, details: statusDetails };
     };
 
     const verifyNativePermission = async () => {
       try {
-        const { granted: alreadyGranted, details } = await checkAnyLocationGranted();
-        console.log('PERMISSION CHECK RESULT:', JSON.stringify(details));
-        if (alreadyGranted) {
-          console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
+        const { grantedAlways, isPartial, details } = await checkStrictAlwaysLocationGranted();
+        console.log('FLEET PERMISSION CHECK RESULT:', JSON.stringify(details));
+
+        if (grantedAlways) {
+          console.log('FLEET TRIP PASS VERIFIED - ALL TIME GRANTED');
           if (isMounted) {
             setNativeLocationStatus('granted_always');
             setPermissionState('allow_all');
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('waybilla_driver_allowed', 'true');
+              localStorage.setItem('waybilla_driver_allowed_always', 'true');
             }
           }
           return;
         }
 
-        // If not yet granted on native app, request permission once
-        if (Capacitor.isPluginAvailable('Geolocation')) {
-          try {
-            const req = await Geolocation.requestPermissions();
-            const reqLocState = (req.location as string) || '';
-            const reqCoarseState = ((req as any).coarseLocation as string) || '';
-
-            if (reqLocState === 'granted' || reqLocState === 'always' || reqCoarseState === 'granted' || reqCoarseState === 'always') {
-              console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
-              if (isMounted) {
-                setNativeLocationStatus('granted_always');
-                setPermissionState('allow_all');
-                if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('waybilla_driver_allowed', 'true');
-                }
-              }
-              return;
-            }
-          } catch (reqErr) {
-            console.warn('Geolocation.requestPermissions error:', reqErr);
-          }
-        }
-
-        console.log('PERMISSION STILL NOT GRANTED - KEEPING GUIDE VISIBLE');
+        // If partial (only while using app) or not granted, guide to Settings for "Allow all the time"
         if (isMounted) {
-          console.log('GUIDE SCREEN SHOWN');
           setNativeLocationStatus('need_always_guidance');
+          setPermissionState(isPartial ? 'allow_while_using' : 'denied');
         }
       } catch (err) {
         console.warn('Native permission check error:', err);
@@ -321,18 +294,19 @@ export const DriverScreen: React.FC = () => {
 
     const handleResumeCheck = async () => {
       if (!isMounted) return;
-      console.log('APP RETURNED TO FOREGROUND - CHECKING PERMISSIONS NOW');
-      const { granted: isNowGranted, details } = await checkAnyLocationGranted();
-      console.log('PERMISSION CHECK RESULT:', JSON.stringify(details));
-      if (isNowGranted) {
-        console.log('PERMISSION GRANTED - HIDING GUIDE, SHOWING SUCCESS');
+      console.log('APP VERIFYING STRICT BACKGROUND LOCATION NOW');
+      const { grantedAlways, details } = await checkStrictAlwaysLocationGranted();
+      console.log('FLEET RESUME CHECK RESULT:', JSON.stringify(details));
+      if (grantedAlways) {
+        console.log('ALL TIME LOCATION VERIFIED - HIDING GUIDE, ENABLING FLEET PASS');
         setNativeLocationStatus('granted_always');
         setPermissionState('allow_all');
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('waybilla_driver_allowed', 'true');
+          localStorage.setItem('waybilla_driver_allowed_always', 'true');
         }
       } else {
-        console.log('PERMISSION STILL NOT GRANTED - KEEPING GUIDE VISIBLE');
+        setNativeLocationStatus('need_always_guidance');
       }
     };
 
@@ -351,8 +325,18 @@ export const DriverScreen: React.FC = () => {
     window.addEventListener('focus', handleResumeCheck);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Smart auto-polling: checks every 1000ms automatically when on screen so
+    // the very instant the driver grants "Allow all the time" in Settings and flips back,
+    // the app immediately unlocks with zero button presses needed!
+    const pollInterval = setInterval(() => {
+      if (isMounted) {
+        handleResumeCheck();
+      }
+    }, 1200);
+
     return () => {
       isMounted = false;
+      clearInterval(pollInterval);
       window.removeEventListener('focus', handleResumeCheck);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       appStateListener.then((l) => l.remove()).catch(() => {});
@@ -389,43 +373,6 @@ export const DriverScreen: React.FC = () => {
       } catch (err) {
         setErrorMessage('Please go to phone Settings > Apps > Waybilla > Permissions > Location > Allow');
       }
-    }
-  };
-
-  const handleManualLocationConfirmation = () => {
-    setErrorMessage(null);
-    if (typeof navigator !== 'undefined' && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        () => {
-          setNativeLocationStatus('granted_always');
-          setPermissionState('allow_all');
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('waybilla_driver_allowed', 'true');
-          }
-        },
-        (err) => {
-          console.warn('Manual confirm geolocation error:', err);
-          // Check Geolocation plugin
-          Geolocation.checkPermissions().then((status) => {
-            const st = status.location as string;
-            if (st === 'granted' || st === 'always') {
-              setNativeLocationStatus('granted_always');
-              setPermissionState('allow_all');
-              if (typeof localStorage !== 'undefined') {
-                localStorage.setItem('waybilla_driver_allowed', 'true');
-              }
-            } else {
-              setErrorMessage('Location is still turned off. Please ensure Location is enabled in Settings.');
-            }
-          }).catch(() => {
-            setErrorMessage('Could not verify location. Please tap "Open Settings" and enable Location.');
-          });
-        },
-        { enableHighAccuracy: true, timeout: 8000 }
-      );
-    } else {
-      setNativeLocationStatus('granted_always');
-      setPermissionState('allow_all');
     }
   };
 
@@ -859,7 +806,7 @@ export const DriverScreen: React.FC = () => {
       },
       (err) => {
         console.warn('Geolocation error / permission rejected:', err);
-        setErrorMessage('Location permission was denied or dismissed. You MUST select "While using the app" for trip tracking.');
+        setErrorMessage('Location permission was dismissed or set to "While using the app". Please select "Allow all the time" in Settings for highway road pass clearance.');
         setPermissionState('denied');
       },
       {
@@ -881,46 +828,70 @@ export const DriverScreen: React.FC = () => {
     }
   };
 
-  // NATIVE APP OVERLAYS (Capacitor APK only)
-  if (isNativeApp && nativeLocationStatus === 'need_always_guidance') {
+  // STRICT BLOCKING SCREEN: Android Setting Guide for "Allow all the time"
+  if (nativeLocationStatus === 'need_always_guidance' || (permissionState !== 'allow_all' && nativeLocationStatus !== 'granted_always')) {
     return (
       <div className="fixed inset-0 bg-[#050914] z-50 flex flex-col items-center justify-center p-6 text-center font-sans overflow-y-auto select-none">
         <div className="w-full max-w-sm bg-[#091026] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-5 animate-scaleIn">
-          {/* 📍 Big Location Pin Icon */}
+          {/* Official Fleet Shield / Gate Clearance Icon */}
           <div className="w-20 h-20 rounded-3xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-4xl shadow-inner">
-            📍
+            🛡️
           </div>
 
           <div className="space-y-2">
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-[10px] font-black uppercase tracking-wider">
+              <span>● Fleet Road Pass: Verification Required</span>
+            </div>
             <h2 className="text-xl font-black text-white tracking-tight">
-              One More Step Required
+              One-Time Road Setup
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed px-1">
-              To track your location during deliveries, please enable <strong className="text-amber-400 font-extrabold">'Allow all the time'</strong> in your phone settings.
+              To secure your <strong className="text-white">Trip Fuel &amp; Allowance Clearance</strong> and connect your truck to <strong className="text-amber-400 font-extrabold">Emergency Road Assistance</strong> while driving with the screen off, select <strong className="text-amber-400 font-extrabold">'Allow all the time'</strong>.
             </p>
           </div>
 
-          {/* Step by step guide */}
+          {/* Benefits Callout */}
           <div className="bg-[#050914] border border-blue-950 p-4 rounded-2xl text-left space-y-2.5 text-xs">
-            <div className="font-extrabold text-amber-400 tracking-wide text-[11px] uppercase">
-              Step by step guide:
+            <div className="font-extrabold text-amber-400 tracking-wide text-[11px] uppercase flex items-center gap-1.5">
+              <span>Benefits for You on the Highway:</span>
             </div>
-            <ol className="space-y-2 text-slate-200 font-medium text-xs">
+            <ul className="space-y-2 text-slate-200 font-medium text-[11px] leading-snug">
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-400 font-black">✓</span>
+                <span><strong>Trip Settlement &amp; Allowances:</strong> Automatic road pass records your highway transit times so fuel and trip balances are cleared without arguments.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-400 font-black">✓</span>
+                <span><strong>No Interruption Behind Wheel:</strong> Park dispatchers won't need to call your phone repeatedly asking for your location in traffic.</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-emerald-400 font-black">✓</span>
+                <span><strong>Emergency Road Assistance:</strong> Instant mechanical recovery support if vehicle breaks down on the expressway.</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Step by step guide */}
+          <div className="bg-[#050914]/80 border border-amber-500/20 p-4 rounded-2xl text-left space-y-2 text-xs">
+            <div className="font-bold text-slate-200 text-[11px]">
+              How to complete this one-time step:
+            </div>
+            <ol className="space-y-1.5 text-slate-300 text-xs">
               <li className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">1</span>
-                <span>Tap <strong>'Open Settings'</strong> below</span>
+                <span>Tap <strong>'Configure Road Pass'</strong> below</span>
               </li>
               <li className="flex items-center gap-2">
                 <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">2</span>
-                <span>Tap <strong>'Permissions'</strong></span>
+                <span>Tap <strong>'Permissions' &gt; 'Location'</strong></span>
               </li>
               <li className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-blue-600/30 text-blue-400 font-bold text-[11px] flex items-center justify-center">3</span>
-                <span>Tap <strong>'Location'</strong></span>
-              </li>
-              <li className="flex items-center gap-2">
-                <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-400 font-bold text-[11px] flex items-center justify-center">4</span>
+                <span className="w-5 h-5 rounded-full bg-emerald-500/30 text-emerald-400 font-bold text-[11px] flex items-center justify-center">3</span>
                 <span>Select <strong>'Allow all the time'</strong></span>
+              </li>
+              <li className="flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-amber-500/30 text-amber-400 font-bold text-[11px] flex items-center justify-center">4</span>
+                <span>Return to Waybilla — setup auto-completes!</span>
               </li>
             </ol>
           </div>
@@ -931,201 +902,102 @@ export const DriverScreen: React.FC = () => {
             </div>
           )}
 
-          {/* Action Buttons */}
-          <div className="space-y-2.5">
-            {/* Green Open Settings Button */}
+          {/* Action Button */}
+          <div>
             <button
               onClick={handleOpenNativeSettings}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 active:scale-95 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 active:scale-95 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg flex items-center justify-center gap-2"
               id="open-location-settings-btn"
             >
-              <span>Open Settings</span>
+              <span>Configure Fleet Road Pass</span>
             </button>
           </div>
 
           <p className="text-[10px] text-slate-400 italic pt-1">
-            This is required for delivery tracking to work correctly
+            Required once. You will never need to open this screen again during trips.
           </p>
         </div>
       </div>
     );
   }
 
-  if (isNativeApp && nativeLocationStatus === 'max_attempts_exceeded') {
-    return (
-      <div className="fixed inset-0 bg-[#050914] z-50 flex flex-col items-center justify-center p-6 text-center font-sans select-none">
-        <div className="w-full max-w-sm bg-[#091026] border border-rose-500/40 rounded-3xl p-6 shadow-2xl space-y-5">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto text-3xl">
-            📍
-          </div>
-          <div className="space-y-2">
-            <h2 className="text-lg font-black text-white">Location Access Required</h2>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Location access is required for this app. Please make sure location permission is enabled for Waybilla in your device settings.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <button
-              onClick={handleOpenNativeSettings}
-              className="w-full py-3.5 bg-emerald-600 hover:bg-emerald-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
-            >
-              <span>Open Settings</span>
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // IF DRIVER TAPS "Allow all the time" / "While using the app" ✅
-  if (permissionState === 'allow_all' || permissionState === 'allow_while_using' || (isNativeApp && nativeLocationStatus === 'granted_always')) {
-    return (
-      <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
-        <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto font-black text-xl">
-            {(dynamicCompanyName || 'T').charAt(0).toUpperCase()}
-          </div>
-
-          <div className="space-y-3">
-            <h1 className="text-xl font-black text-white leading-snug">
-              Welcome, {driverName}! 🚛
-            </h1>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              You are now officially recognized as <strong className="text-white">{dynamicCompanyName}</strong> Truck Driver.
-            </p>
-          </div>
-
-          {/* Dynamic Trip Status Badge */}
-          {hasActiveTrip ? (
-            <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold text-emerald-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>● Active trip in progress</span>
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 px-4 py-2 rounded-full text-xs font-bold text-amber-400">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 animate-pulse" />
-              <span>● No active trip assigned</span>
-            </div>
-          )}
-        </div>
-
-        {/* Driver Actions: Return to Home (keeps session) or Sign Out (ends session) */}
-        <div className="pt-6 pb-2 flex flex-wrap items-center justify-center gap-3">
-          <button
-            onClick={() => navigate('/')}
-            className="text-xs text-slate-300 hover:text-white transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#091026] hover:bg-[#131e3d] border border-blue-950/80 shadow-md active:scale-95"
-            aria-label="Return to Home"
-          >
-            <ArrowLeft className="w-4 h-4 text-amber-400" />
-            <span>Return to Home</span>
-          </button>
-
-          <button
-            onClick={async () => {
-              await logout();
-              navigate('/');
-            }}
-            className="text-xs text-rose-300 hover:text-rose-100 transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#1b0d14] hover:bg-[#2b101c] border border-rose-900/60 shadow-md active:scale-95"
-            aria-label="Sign Out"
-          >
-            <LogOut className="w-4 h-4 text-rose-400" />
-            <span>Sign Out</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // IF DRIVER DENIES "Don't allow" or "Only this time" revoked ❌
-  if (permissionState === 'denied') {
-    return (
-      <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-center p-6 text-center font-sans">
-        <div className="space-y-6 max-w-sm w-full bg-[#091026] border border-rose-500/30 rounded-3xl p-8 shadow-2xl">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/30 flex items-center justify-center text-rose-400 mx-auto">
-            <AlertCircle className="w-8 h-8" />
-          </div>
-
-          <div className="space-y-2">
-            <h2 className="text-lg font-black text-white">Location Access Required</h2>
-            <p className="text-xs text-slate-300 leading-relaxed">
-              Waybilla requires continuous location permission to track your assigned truck and trips.
-            </p>
-          </div>
-
-          {/* Android Visual Instruction Guide */}
-          <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80 text-left space-y-2.5 text-xs text-slate-300">
-            <div className="flex items-center gap-2 font-bold text-amber-400">
-              <ShieldAlert className="w-4 h-4" />
-              <span>Required Android Setting:</span>
-            </div>
-            <p className="text-[11px] text-slate-400 leading-normal">
-              When the popup appears, tap <strong className="text-blue-400">"While using the app"</strong> or go to:
-            </p>
-            <div className="bg-[#0c142c] p-2.5 rounded-xl text-[10px] font-mono text-slate-300 border border-blue-900/50">
-              Settings &gt; Apps &gt; Waybilla &gt; Permissions &gt; Location &gt; <span className="text-emerald-400 font-bold">Allow only while using the app</span> (or Allow all the time)
-            </div>
-          </div>
-
-          <button
-            onClick={handleRequestNativePermission}
-            className="w-full py-3.5 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>Enable Location &amp; Try Again</span>
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // Pre-permission prompt & Android instruction walkthrough
+  // SUCCESS SCREEN: When "Allow all the time" is granted ✅
   return (
-    <div className="fixed inset-0 bg-black/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-      <div className="bg-[#121829] text-white border border-blue-900/60 w-full max-w-sm rounded-3xl p-6 shadow-2xl space-y-5 text-center animate-scaleIn">
-        <div className="w-14 h-14 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 mx-auto">
-          <Navigation className="w-7 h-7" />
+    <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col items-center justify-between p-6 text-center font-sans select-none relative">
+      <div className="my-auto space-y-6 max-w-sm w-full bg-[#091026] border border-blue-950/80 rounded-3xl p-8 shadow-2xl animate-fade-in">
+        <div className="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto font-black text-2xl">
+          ✓
         </div>
 
-        <div className="space-y-1.5">
-          <h3 className="text-lg font-black text-white tracking-tight">
-            Enable Trip Tracking
-          </h3>
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-3 py-1 rounded-full text-[10px] font-bold text-emerald-400 uppercase tracking-wider">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span>Fleet Terminal Verified</span>
+          </div>
+          <h1 className="text-xl font-black text-white leading-snug">
+            Welcome, {driverName}! 🚛
+          </h1>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Waybilla uses GPS to monitor your route and update dispatch in real-time.
+            Registered Fleet Driver for <strong className="text-white">{dynamicCompanyName}</strong>.
           </p>
         </div>
 
-        {errorMessage && (
-          <div className="p-3 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-bold rounded-2xl text-left">
-            {errorMessage}
+        {/* Fleet Road Status Info Card */}
+        <div className="bg-[#050914] border border-blue-950 p-4 rounded-2xl text-left space-y-2 text-xs">
+          <div className="flex justify-between items-center text-slate-400 text-[11px]">
+            <span>Assigned Plate:</span>
+            <span className="font-mono text-amber-400 font-bold">{plateNumber}</span>
+          </div>
+          <div className="flex justify-between items-center text-slate-400 text-[11px]">
+            <span>Road Assistance:</span>
+            <span className="text-emerald-400 font-bold">● Active &amp; Ready</span>
+          </div>
+          <div className="flex justify-between items-center text-slate-400 text-[11px]">
+            <span>Trip Settlement Pass:</span>
+            <span className="text-emerald-400 font-bold">● Configured</span>
+          </div>
+        </div>
+
+        {/* Dynamic Trip Status Badge */}
+        {hasActiveTrip ? (
+          <div className="inline-flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 px-4 py-2 rounded-full text-xs font-bold text-emerald-400">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span>● Active Trip in Progress</span>
+          </div>
+        ) : (
+          <div className="inline-flex items-center gap-2 bg-slate-800/80 border border-slate-700/60 px-4 py-2 rounded-full text-xs font-bold text-slate-300">
+            <span className="w-2.5 h-2.5 rounded-full bg-slate-400" />
+            <span>● Standby for Dispatch</span>
           </div>
         )}
 
-        {/* Visual Callout for "While using the app" */}
-        <div className="bg-[#080d1e] border border-blue-900/50 rounded-2xl p-4 text-left space-y-2">
-          <div className="text-[11px] font-extrabold uppercase text-amber-400 tracking-wider flex items-center gap-1.5">
-            <span>👉 IMPORTANT STEP</span>
-          </div>
-          <p className="text-xs text-slate-200 leading-normal">
-            When Android asks for permission, you <strong className="text-white">MUST select</strong>:
-          </p>
-          <div className="bg-blue-600 text-white font-extrabold text-xs py-2.5 px-3.5 rounded-xl flex items-center justify-between shadow-md">
-            <span>While using the app</span>
-            <CheckCircle2 className="w-4 h-4 text-white" />
-          </div>
-          <p className="text-[10px] text-slate-400 italic">
-            Do not select "Only this time" or "Don't allow" so your trip status remains active.
-          </p>
-        </div>
+        <p className="text-[11px] text-slate-400 leading-relaxed">
+          Device setup is complete. You do not need to keep this app open while driving. Have a safe and prosperous journey!
+        </p>
+      </div>
 
-        <div className="space-y-2 pt-1">
-          <button
-            onClick={handleRequestNativePermission}
-            className="w-full py-3.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-black rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95"
-          >
-            Allow Location &amp; Start Driving
-          </button>
-        </div>
+      {/* Driver Actions: Return to Home (keeps session) or Sign Out (ends session) */}
+      <div className="pt-6 pb-2 flex flex-wrap items-center justify-center gap-3">
+        <button
+          onClick={() => navigate('/')}
+          className="text-xs text-slate-300 hover:text-white transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#091026] hover:bg-[#131e3d] border border-blue-950/80 shadow-md active:scale-95"
+          aria-label="Return to Home"
+        >
+          <ArrowLeft className="w-4 h-4 text-amber-400" />
+          <span>Return to Home</span>
+        </button>
+
+        <button
+          onClick={async () => {
+            await logout();
+            navigate('/');
+          }}
+          className="text-xs text-rose-300 hover:text-rose-100 transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#1b0d14] hover:bg-[#2b101c] border border-rose-900/60 shadow-md active:scale-95"
+          aria-label="Sign Out"
+        >
+          <LogOut className="w-4 h-4 text-rose-400" />
+          <span>Sign Out</span>
+        </button>
       </div>
     </div>
   );

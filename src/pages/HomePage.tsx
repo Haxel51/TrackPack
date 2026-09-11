@@ -548,7 +548,7 @@ export const HomePage: React.FC = () => {
                   </div>
                   <div>
                     <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('driverPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">One-time phone registration & background setup</div>
+                    <div className="text-[11px] text-slate-500 font-medium">One-time road pass &amp; emergency support setup</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
