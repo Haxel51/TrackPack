@@ -202,96 +202,169 @@ export const DriverScreen: React.FC = () => {
   useEffect(() => {
     let isMounted = true;
 
-    const checkStrictAlwaysLocationGranted = async (): Promise<{ grantedAlways: boolean; details: any }> => {
+    const checkStrictAlwaysLocationGranted = async (): Promise<{
+      grantedAlways: boolean;
+      isPartial: boolean;
+      isDenied: boolean;
+      details: any;
+    }> => {
       let statusDetails: any = {};
 
-      // 1. Check AndroidBridge for permission if available in native APK
+      // 1. Check Native AndroidBridge if available in APK
+      let bridgeHasBackground: boolean | null = null;
+      let bridgeHasGeneral: boolean | null = null;
       try {
         if ((window as any).AndroidBridge) {
-          if (typeof (window as any).AndroidBridge.hasBackgroundLocationPermission === 'function') {
-            const hasAlways = (window as any).AndroidBridge.hasBackgroundLocationPermission();
-            statusDetails.androidBridgeAlways = hasAlways;
-            if (hasAlways) {
-              return { grantedAlways: true, details: statusDetails };
-            }
+          const bridge = (window as any).AndroidBridge;
+          if (typeof bridge.hasBackgroundLocationPermission === 'function') {
+            bridgeHasBackground = Boolean(bridge.hasBackgroundLocationPermission());
+          } else if (typeof bridge.isBackgroundLocationGranted === 'function') {
+            bridgeHasBackground = Boolean(bridge.isBackgroundLocationGranted());
+          } else if (typeof bridge.hasAlwaysLocationPermission === 'function') {
+            bridgeHasBackground = Boolean(bridge.hasAlwaysLocationPermission());
+          } else if (typeof bridge.checkBackgroundLocation === 'function') {
+            bridgeHasBackground = Boolean(bridge.checkBackgroundLocation());
+          } else if (typeof bridge.hasPermission === 'function') {
+            bridgeHasBackground = Boolean(bridge.hasPermission("android.permission.ACCESS_BACKGROUND_LOCATION"));
+          } else if (typeof bridge.checkPermission === 'function') {
+            bridgeHasBackground = Boolean(bridge.checkPermission("android.permission.ACCESS_BACKGROUND_LOCATION"));
           }
-          if (typeof (window as any).AndroidBridge.hasLocationPermission === 'function') {
-            const hasGeneral = (window as any).AndroidBridge.hasLocationPermission();
-            statusDetails.androidBridgeGeneral = hasGeneral;
-            if (hasGeneral) {
-              return { grantedAlways: true, details: statusDetails };
-            }
+
+          if (typeof bridge.hasLocationPermission === 'function') {
+            bridgeHasGeneral = Boolean(bridge.hasLocationPermission());
+          }
+
+          statusDetails.bridgeHasBackground = bridgeHasBackground;
+          statusDetails.bridgeHasGeneral = bridgeHasGeneral;
+        }
+      } catch (e) {
+        statusDetails.bridgeError = String(e);
+      }
+
+      // If Native bridge explicitly returned background location status:
+      if (bridgeHasBackground === true) {
+        return { grantedAlways: true, isPartial: false, isDenied: false, details: statusDetails };
+      }
+      if (bridgeHasBackground === false) {
+        // Native APK explicitly verified ACCESS_BACKGROUND_LOCATION is false!
+        const generalActive = bridgeHasGeneral === true;
+        return {
+          grantedAlways: false,
+          isPartial: generalActive, // true if "While using the app", false if completely denied
+          isDenied: !generalActive,
+          details: statusDetails
+        };
+      }
+
+      // 2. Check Capacitor BackgroundGeolocation plugin if present
+      try {
+        const bgPlugin = (window as any).Capacitor?.Plugins?.BackgroundGeolocation || (Capacitor as any).Plugins?.BackgroundGeolocation;
+        if (bgPlugin && typeof bgPlugin.checkPermissions === 'function') {
+          const bgCheck = await bgPlugin.checkPermissions();
+          statusDetails.bgPluginCheck = bgCheck;
+          if (bgCheck.backgroundLocation === 'granted') {
+            return { grantedAlways: true, isPartial: false, isDenied: false, details: statusDetails };
+          }
+          if (bgCheck.location === 'granted' && bgCheck.backgroundLocation !== 'granted') {
+            return { grantedAlways: false, isPartial: true, isDenied: false, details: statusDetails };
+          }
+          if (bgCheck.location === 'denied') {
+            return { grantedAlways: false, isPartial: false, isDenied: true, details: statusDetails };
           }
         }
       } catch (e) {
-        statusDetails.androidBridgeError = String(e);
+        statusDetails.bgPluginError = String(e);
       }
 
-      // 2. Check Capacitor Geolocation
+      // 3. Check standard Capacitor Geolocation plugin
+      let capacitorLoc: string = '';
+      let capacitorCoarse: string = '';
       try {
         if (Capacitor.isPluginAvailable('Geolocation')) {
           const check = await Geolocation.checkPermissions();
-          const locState = (check.location as string) || '';
-          const coarseState = ((check as any).coarseLocation as string) || '';
+          capacitorLoc = (check.location as string) || '';
+          capacitorCoarse = ((check as any).coarseLocation as string) || '';
           statusDetails.capacitorGeolocation = check;
 
-          if (locState === 'granted' || locState === 'always' || coarseState === 'granted' || coarseState === 'always') {
-            return { grantedAlways: true, details: statusDetails };
+          if (capacitorLoc === 'always' || capacitorCoarse === 'always') {
+            return { grantedAlways: true, isPartial: false, isDenied: false, details: statusDetails };
           }
         }
       } catch (err) {
         statusDetails.capacitorGeolocationError = String(err);
-        console.warn('Capacitor checkPermissions error:', err);
       }
 
-      // 3. Web navigator.permissions check
+      // 4. Web navigator.permissions check (non-intrusive query)
+      let webPermState = '';
       if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
         try {
           const p = await navigator.permissions.query({ name: 'geolocation' as any });
-          statusDetails.webPermissions = p.state;
-          if (p.state === 'granted') {
-            return { grantedAlways: true, details: statusDetails };
-          }
+          webPermState = p.state;
+          statusDetails.webPermissions = webPermState;
         } catch (e) {
           statusDetails.webPermissionsError = String(e);
         }
       }
 
-      // 4. Quick geolocation test
-      const posSuccess = await new Promise<boolean>((resolve) => {
-        if (typeof navigator !== 'undefined' && navigator.geolocation) {
-          navigator.geolocation.getCurrentPosition(
-            () => resolve(true),
-            () => resolve(false),
-            { enableHighAccuracy: false, timeout: 2000, maximumAge: 60000 }
-          );
-        } else {
-          resolve(false);
+      // Determine if foreground location is currently active
+      const hasForegroundActive =
+        bridgeHasGeneral === true ||
+        capacitorLoc === 'granted' ||
+        capacitorCoarse === 'granted' ||
+        webPermState === 'granted';
+
+      // Check if location is completely denied
+      const isCompletelyDenied =
+        (bridgeHasGeneral === false && !capacitorLoc && !webPermState) ||
+        capacitorLoc === 'denied' ||
+        webPermState === 'denied';
+
+      if (!hasForegroundActive || isCompletelyDenied) {
+        // Location is not granted at all
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.removeItem('waybilla_opened_settings');
         }
-      });
-
-      if (posSuccess) {
-        return { grantedAlways: true, details: { ...statusDetails, posSuccess: true } };
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('waybilla_driver_allowed_always');
+        }
+        return { grantedAlways: false, isPartial: false, isDenied: true, details: statusDetails };
       }
 
-      // 5. Check localStorage fallback flag
-      const isMarkedAlways = typeof localStorage !== 'undefined' && localStorage.getItem('waybilla_driver_allowed_always') === 'true';
-      if (isMarkedAlways) {
-        return { grantedAlways: true, details: { ...statusDetails, storedAlways: true } };
+      // If foreground is active, DID THE USER OPEN SETTINGS TO CONFIGURE 'ALLOW ALL THE TIME'?
+      // On Android 11+, "Allow all the time" is IMPOSSIBLE to grant from an in-app popup dialog!
+      // Therefore, if the driver has NOT visited Settings, any granted location is GUARANTEED to be "While using the app"!
+      const hasOpenedSettings = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('waybilla_opened_settings') !== null;
+
+      if (!hasOpenedSettings) {
+        // The driver was prompted in-app and selected "While using the app" without going to Settings!
+        // STRICTLY REJECT!
+        return {
+          grantedAlways: false,
+          isPartial: true,
+          isDenied: false,
+          details: { ...statusDetails, reason: 'in_app_prompt_without_settings_visit' }
+        };
       }
 
-      return { grantedAlways: false, details: statusDetails };
+      // The driver visited Settings and returned with active location.
+      return {
+        grantedAlways: true,
+        isPartial: false,
+        isDenied: false,
+        details: { ...statusDetails, reason: 'verified_return_from_settings' }
+      };
     };
 
     const verifyNativePermission = async () => {
       try {
-        const { grantedAlways, details } = await checkStrictAlwaysLocationGranted();
-        console.log('[DriverScreen] Initial permission check:', JSON.stringify(details), 'granted:', grantedAlways);
+        const { grantedAlways, isPartial, isDenied, details } = await checkStrictAlwaysLocationGranted();
+        console.log('[DriverScreen] Initial permission check:', JSON.stringify(details), 'grantedAlways:', grantedAlways);
 
         if (grantedAlways) {
           if (isMounted) {
             setNativeLocationStatus('granted_always');
             setPermissionState('allow_all');
+            setErrorMessage(null);
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('waybilla_driver_allowed', 'true');
               localStorage.setItem('waybilla_driver_allowed_always', 'true');
@@ -302,7 +375,14 @@ export const DriverScreen: React.FC = () => {
 
         if (isMounted) {
           setNativeLocationStatus('need_always_guidance');
-          setPermissionState('denied');
+          if (isPartial) {
+            setPermissionState('allow_while_using');
+            setErrorMessage(
+              "⚠️ Partial permission ('While using the app') was selected. Fleet regulations strictly require 'Allow all the time'. Please tap 'Configure Fleet Road Pass' below to open Settings and select 'Allow all the time'."
+            );
+          } else {
+            setPermissionState('denied');
+          }
         }
       } catch (err) {
         console.warn('Native permission check error:', err);
@@ -313,18 +393,25 @@ export const DriverScreen: React.FC = () => {
 
     const handleResumeCheck = async () => {
       if (!isMounted) return;
-      const { grantedAlways, details } = await checkStrictAlwaysLocationGranted();
-      console.log('[DriverScreen] Fast resume check:', JSON.stringify(details), 'granted:', grantedAlways);
+      const { grantedAlways, isPartial, isDenied, details } = await checkStrictAlwaysLocationGranted();
+      console.log('[DriverScreen] Fast resume check:', JSON.stringify(details), 'grantedAlways:', grantedAlways);
       if (grantedAlways) {
         console.log('LOCATION GRANTED - UNLOCKING DRIVER TERMINAL');
         setNativeLocationStatus('granted_always');
         setPermissionState('allow_all');
+        setErrorMessage(null);
         if (typeof localStorage !== 'undefined') {
           localStorage.setItem('waybilla_driver_allowed', 'true');
           localStorage.setItem('waybilla_driver_allowed_always', 'true');
         }
       } else {
         setNativeLocationStatus('need_always_guidance');
+        if (isPartial) {
+          setPermissionState('allow_while_using');
+          setErrorMessage(
+            "⚠️ Partial permission ('While using the app') was selected. Fleet regulations strictly require 'Allow all the time'. Please tap 'Configure Fleet Road Pass' below to open Settings and select 'Allow all the time'."
+          );
+        }
       }
     };
 
@@ -362,6 +449,11 @@ export const DriverScreen: React.FC = () => {
 
   const handleOpenNativeSettings = async () => {
     console.log('OPENING SETTINGS');
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem('waybilla_opened_settings', Date.now().toString());
+    }
+    setErrorMessage(null);
+
     try {
       if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.openLocationSettings === 'function') {
         (window as any).AndroidBridge.openLocationSettings();
@@ -815,16 +907,38 @@ export const DriverScreen: React.FC = () => {
     }
 
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('waybilla_driver_allowed', 'true');
+      async () => {
+        // An in-app popup prompt on Android 11+ CANNOT grant "Allow all the time".
+        // Re-check background permission status.
+        let bridgeAlways = false;
+        if ((window as any).AndroidBridge && typeof (window as any).AndroidBridge.hasBackgroundLocationPermission === 'function') {
+          bridgeAlways = Boolean((window as any).AndroidBridge.hasBackgroundLocationPermission());
         }
-        setPermissionState('allow_all');
+
+        if (bridgeAlways) {
+          setNativeLocationStatus('granted_always');
+          setPermissionState('allow_all');
+          setErrorMessage(null);
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('waybilla_driver_allowed', 'true');
+            localStorage.setItem('waybilla_driver_allowed_always', 'true');
+          }
+        } else {
+          // Foreground was accepted via popup, but NOT "Allow all the time"!
+          setNativeLocationStatus('need_always_guidance');
+          setPermissionState('allow_while_using');
+          setErrorMessage(
+            "⚠️ Partial permission ('While using the app') detected. Fleet regulations strictly require 'Allow all the time' to clear your road pass. Please tap 'Configure Fleet Road Pass' below to open Settings and select 'Allow all the time'."
+          );
+        }
       },
       (err) => {
         console.warn('Geolocation error / permission rejected:', err);
-        setErrorMessage('Location permission was dismissed or set to "While using the app". Please select "Allow all the time" in Settings for highway road pass clearance.');
+        setErrorMessage(
+          'Location permission was denied. Please tap "Configure Fleet Road Pass" below to grant "Allow all the time".'
+        );
         setPermissionState('denied');
+        setNativeLocationStatus('need_always_guidance');
       },
       {
         enableHighAccuracy: true,
@@ -838,10 +952,11 @@ export const DriverScreen: React.FC = () => {
     if (choice === 'denied') {
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('waybilla_driver_allowed');
+        localStorage.removeItem('waybilla_driver_allowed_always');
       }
       setPermissionState('denied');
     } else {
-      handleRequestNativePermission();
+      handleOpenNativeSettings();
     }
   };
 
@@ -886,8 +1001,13 @@ export const DriverScreen: React.FC = () => {
           </div>
 
           {errorMessage && (
-            <div className="p-2.5 bg-rose-500/20 border border-rose-500/40 text-rose-300 text-[11px] font-bold rounded-xl text-left">
-              {errorMessage}
+            <div className="p-3 bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold rounded-2xl text-left space-y-1">
+              <div className="flex items-center gap-1.5 text-amber-400 font-extrabold uppercase text-[10px] tracking-wider">
+                <span>⚠️ Road Clearance Blocked</span>
+              </div>
+              <p className="text-[11px] leading-snug text-slate-200">
+                {errorMessage}
+              </p>
             </div>
           )}
 

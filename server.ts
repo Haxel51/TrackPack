@@ -268,6 +268,11 @@ async function sendFleetNotification(
 const app = express();
 const PORT = 3000;
 
+// Health check endpoint for container and platform readiness probes
+app.get("/api/health", (req, res) => {
+  res.json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
 // Re-write icon files to ensure they are 100% correct binaries on the local filesystem
 try {
   const publicDir = path.join(process.cwd(), "public");
