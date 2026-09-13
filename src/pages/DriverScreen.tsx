@@ -67,8 +67,15 @@ export interface LocationVerificationResult {
   error?: string;
 }
 
-export async function verifyRealLocationHardware(): Promise<LocationVerificationResult> {
-  // 1. Check native AndroidBridge in APK if available
+export interface StrictLocationStatus {
+  grantedAlways: boolean;
+  isPartial: boolean;
+  reason?: string;
+}
+
+// Strict OS-level status check: distinguishes "Allow all the time" from "While using the app"
+export async function checkRealLocationStatus(): Promise<StrictLocationStatus> {
+  // 1. AndroidBridge (Native Android APK)
   if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
     try {
       const bridge = (window as any).AndroidBridge;
@@ -79,28 +86,45 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
         hasBg = Boolean(bridge.hasBackgroundLocationPermission());
       } else if (typeof bridge.isBackgroundLocationGranted === 'function') {
         hasBg = Boolean(bridge.isBackgroundLocationGranted());
+      } else if (typeof bridge.hasAlwaysLocationPermission === 'function') {
+        hasBg = Boolean(bridge.hasAlwaysLocationPermission());
+      } else if (typeof bridge.checkBackgroundLocation === 'function') {
+        hasBg = Boolean(bridge.checkBackgroundLocation());
+      } else if (typeof bridge.hasPermission === 'function') {
+        hasBg = Boolean(bridge.hasPermission('android.permission.ACCESS_BACKGROUND_LOCATION'));
+      } else if (typeof bridge.checkPermission === 'function') {
+        hasBg = Boolean(bridge.checkPermission('android.permission.ACCESS_BACKGROUND_LOCATION'));
       }
 
       if (typeof bridge.hasLocationPermission === 'function') {
         hasGeneral = Boolean(bridge.hasLocationPermission());
+      } else if (typeof bridge.isLocationGranted === 'function') {
+        hasGeneral = Boolean(bridge.isLocationGranted());
+      } else if (typeof bridge.hasPermission === 'function') {
+        hasGeneral = Boolean(bridge.hasPermission('android.permission.ACCESS_FINE_LOCATION'));
+      } else if (typeof bridge.checkPermission === 'function') {
+        hasGeneral = Boolean(bridge.checkPermission('android.permission.ACCESS_FINE_LOCATION'));
       }
 
-      console.log('REAL AndroidBridge verification - hasBg:', hasBg, 'hasGeneral:', hasGeneral);
+      console.log('[REAL AndroidBridge Status] hasBg:', hasBg, 'hasGeneral:', hasGeneral);
 
       if (hasBg === true) {
-        return { granted: true };
+        return { grantedAlways: true, isPartial: false };
       }
-      if (hasBg === false && hasGeneral === true) {
+
+      if (hasGeneral === true && hasBg === false) {
         return {
-          granted: false,
+          grantedAlways: false,
           isPartial: true,
-          error: "⚠️ Partial Permission Detected: You selected 'While using the app'. Fleet regulations strictly require 'Allow all the time' so emergency assistance and road passes stay active while driving."
+          reason: "⚠️ Partial Permission Detected: You selected 'While using the app'. Fleet tracking strictly requires 'Allow all the time'. Please tap '1. Open Settings' and change it to 'Allow all the time'."
         };
       }
+
       if (hasGeneral === false) {
         return {
-          granted: false,
-          error: "❌ Permission Denied: Location is blocked in your phone settings. Please tap 'Open Settings' and select 'Allow all the time'."
+          grantedAlways: false,
+          isPartial: false,
+          reason: "❌ Permission Denied: Location access is blocked in phone settings. Please tap '1. Open Settings' and select 'Allow all the time'."
         };
       }
     } catch (e) {
@@ -108,27 +132,128 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
     }
   }
 
-  // 2. Active hardware probe: Request live GPS coordinates
-  // Android OS will NEVER yield GPS coordinates if permission is denied or blocked!
+  // 2. Capacitor BackgroundGeolocation plugin check if available
+  try {
+    if ((window as any).Capacitor?.isPluginAvailable?.('BackgroundGeolocation')) {
+      const bgPlugin = (window as any).Capacitor.Plugins.BackgroundGeolocation;
+      const perm = await bgPlugin.checkPermissions?.();
+      if (perm) {
+        if (perm.backgroundLocation === 'granted' || perm.location === 'always') {
+          return { grantedAlways: true, isPartial: false };
+        }
+        if (perm.location === 'granted' || perm.coarseLocation === 'granted') {
+          return {
+            grantedAlways: false,
+            isPartial: true,
+            reason: "⚠️ Partial Permission: 'While using the app' detected. You must select 'Allow all the time' in Settings."
+          };
+        }
+      }
+    }
+  } catch (e) {}
+
+  // 3. Settings Visit & Backgrounding Lifecycle Verification
+  // In Android 11+, "Allow all the time" CANNOT be selected in an in-app popup dialog.
+  // It is mathematically impossible to have "Allow all the time" without visiting phone Settings!
+  const hasOpenedSettings = typeof sessionStorage !== 'undefined' && Boolean(sessionStorage.getItem('waybilla_opened_settings'));
+  const hasLeftAppSettings = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('waybilla_left_app_for_settings') === 'confirmed';
+
+  let generalGranted = false;
+  let generalPrompt = false;
+  let generalDenied = false;
+
+  try {
+    const { Geolocation } = await import('@capacitor/geolocation');
+    const status = await Geolocation.checkPermissions();
+    if (status.location === 'granted' || (status as any).coarseLocation === 'granted') {
+      generalGranted = true;
+    } else if (status.location === 'prompt' || status.location === 'prompt-with-rationale') {
+      generalPrompt = true;
+    } else if (status.location === 'denied') {
+      generalDenied = true;
+    }
+  } catch (e) {}
+
+  if (!generalGranted && !generalDenied && typeof navigator !== 'undefined' && navigator.permissions?.query) {
+    try {
+      const p = await navigator.permissions.query({ name: 'geolocation' as any });
+      if (p.state === 'granted') {
+        generalGranted = true;
+      } else if (p.state === 'prompt') {
+        generalPrompt = true;
+      } else if (p.state === 'denied') {
+        generalDenied = true;
+      }
+    } catch (e) {}
+  }
+
+  if (generalDenied) {
+    return {
+      grantedAlways: false,
+      isPartial: false,
+      reason: "❌ Permission Denied: Location is blocked in your phone settings. Please tap '1. Open Settings' and select 'Allow all the time'."
+    };
+  }
+
+  if (generalPrompt) {
+    return {
+      grantedAlways: false,
+      isPartial: false,
+      reason: "❌ Permission Not Configured: Android reports location is still unconfigured. Please tap '1. Open Settings' and select 'Allow all the time'."
+    };
+  }
+
+  if (generalGranted) {
+    // Permission is granted, BUT IS IT "ALLOW ALL THE TIME" OR "WHILE USING THE APP"?
+    if (!hasOpenedSettings) {
+      // Driver never opened Settings! Any permission granted came from an in-app popup ("While using the app")!
+      return {
+        grantedAlways: false,
+        isPartial: true,
+        reason: "⚠️ Bypass Blocked: You selected 'While using the app'. Android security rules require 'Allow all the time', which can ONLY be enabled by tapping '1. Open Settings' and choosing 'Allow all the time'."
+      };
+    }
+
+    if (!hasLeftAppSettings) {
+      return {
+        grantedAlways: false,
+        isPartial: true,
+        reason: "⚠️ Incomplete Setup: You must switch away to the phone Settings app and select 'Allow all the time' under App Permissions."
+      };
+    }
+
+    // Both settings opened AND app actually blurred/switched to Settings and returned!
+    return { grantedAlways: true, isPartial: false };
+  }
+
+  return {
+    grantedAlways: false,
+    isPartial: false,
+    reason: "❌ Location access is not granted. Please tap '1. Open Settings' and choose 'Allow all the time'."
+  };
+}
+
+// Active hardware probe: only called after OS permissions have verified 'always'
+export async function verifyRealLocationHardware(): Promise<LocationVerificationResult> {
+  const statusCheck = await checkRealLocationStatus();
+  if (!statusCheck.grantedAlways) {
+    return {
+      granted: false,
+      isPartial: statusCheck.isPartial,
+      error: statusCheck.reason
+    };
+  }
+
+  // Active hardware probe: Request live GPS coordinates
   return new Promise((resolve) => {
     let resolved = false;
 
-    const timeoutId = setTimeout(async () => {
+    const timeoutId = setTimeout(() => {
       if (!resolved) {
         resolved = true;
-        // Check plugin permission status as fallback if GPS fix timed out
-        try {
-          const { Geolocation } = await import('@capacitor/geolocation');
-          const status = await Geolocation.checkPermissions();
-          if (status.location === 'granted' || (status.location as string) === 'always') {
-            resolve({ granted: true });
-            return;
-          }
-        } catch (e) {}
-
         resolve({
           granted: false,
-          error: "❌ Live GPS Check Timed Out: Android OS did not provide location coordinates. Please ensure your phone Location (GPS) is turned ON and 'Allow all the time' is selected in Settings."
+          error: "❌ Live GPS Check Timed Out: Android OS did not provide location coordinates. Please ensure phone Location (GPS) is turned ON."
         });
       }
     }, 4500);
@@ -138,7 +263,7 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
       .then(({ Geolocation }) => {
         Geolocation.getCurrentPosition({ enableHighAccuracy: true, timeout: 4000 })
           .then((pos) => {
-            if (!resolved && pos && pos.coords && typeof pos.coords.latitude === 'number') {
+            if (!resolved && pos?.coords && typeof pos.coords.latitude === 'number') {
               resolved = true;
               clearTimeout(timeoutId);
               console.log('[GPS PROBE SUCCESS] Real coordinates retrieved via Capacitor:', pos.coords.latitude, pos.coords.longitude);
@@ -158,7 +283,7 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
       if (typeof navigator !== 'undefined' && navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
           (pos) => {
-            if (!resolved && pos && pos.coords && typeof pos.coords.latitude === 'number') {
+            if (!resolved && pos?.coords && typeof pos.coords.latitude === 'number') {
               resolved = true;
               clearTimeout(timeoutId);
               console.log('[GPS PROBE SUCCESS] Real coordinates retrieved via Web:', pos.coords.latitude, pos.coords.longitude);
@@ -171,7 +296,6 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
               clearTimeout(timeoutId);
               console.warn('[GPS PROBE REJECTED]:', err);
               if (err.code === 1) {
-                // PERMISSION_DENIED
                 resolve({
                   granted: false,
                   error: "❌ Permission Denied: Android OS confirmed that Location access is blocked. You cannot proceed without selecting 'Allow all the time'."
@@ -198,59 +322,6 @@ export async function verifyRealLocationHardware(): Promise<LocationVerification
       }
     }
   });
-}
-
-// Quick status check without forcing sensor read
-export async function checkRealLocationStatus(): Promise<boolean> {
-  // Check native AndroidBridge if available in APK
-  if (typeof window !== 'undefined' && (window as any).AndroidBridge) {
-    try {
-      const bridge = (window as any).AndroidBridge;
-      if (typeof bridge.hasBackgroundLocationPermission === 'function' && bridge.hasBackgroundLocationPermission()) {
-        console.log('REAL AndroidBridge background location status: true');
-        return true;
-      }
-      if (typeof bridge.isBackgroundLocationGranted === 'function' && bridge.isBackgroundLocationGranted()) {
-        console.log('REAL AndroidBridge background location status: true');
-        return true;
-      }
-      if (typeof bridge.hasLocationPermission === 'function' && bridge.hasLocationPermission()) {
-        console.log('REAL AndroidBridge location status: true');
-        return true;
-      }
-    } catch (e) {
-      console.warn('AndroidBridge location check error:', e);
-    }
-  }
-
-  // Check Capacitor Geolocation plugin
-  try {
-    const { Geolocation } = await import('@capacitor/geolocation');
-    const status = await Geolocation.checkPermissions();
-
-    console.log('REAL location permission status:', status.location);
-
-    const isFullyGranted =
-      status.location === 'granted' ||
-      (status.location as string) === 'always' ||
-      (status as any).coarseLocation === 'granted' ||
-      (status as any).coarseLocation === 'always';
-
-    if (isFullyGranted) return true;
-  } catch (err) {
-    console.warn('Capacitor Geolocation check error:', err);
-  }
-
-  // Fallback to web navigator.permissions
-  if (typeof navigator !== 'undefined' && navigator.permissions && navigator.permissions.query) {
-    try {
-      const p = await navigator.permissions.query({ name: 'geolocation' as any });
-      console.log('Web Geolocation permission status:', p.state);
-      if (p.state === 'granted') return true;
-    } catch (e) {}
-  }
-
-  return false;
 }
 
 export const DriverScreen: React.FC = () => {
@@ -396,19 +467,19 @@ export const DriverScreen: React.FC = () => {
 
     async function checkAndUpdateDriverScreen() {
       if (!isMounted) return;
-      const isLocationGranted = await checkRealLocationStatus();
+      const statusResult = await checkRealLocationStatus();
 
-      console.log('Should show location guide?', !isLocationGranted);
       console.log(
         '[LOCATION PERMISSION CHECK]', 
-        'isGranted:', isLocationGranted,
-        'showGuide:', !isLocationGranted
+        'grantedAlways:', statusResult.grantedAlways,
+        'isPartial:', statusResult.isPartial,
+        'reason:', statusResult.reason
       );
 
       if (!isMounted) return;
 
-      if (isLocationGranted) {
-        // Permission confirmed — hide guide screen
+      if (statusResult.grantedAlways) {
+        // Permission confirmed "always" — hide guide screen
         // Show driver welcome screen
         setShowLocationGuide(false);
         setShowDriverWelcome(true);
@@ -416,21 +487,34 @@ export const DriverScreen: React.FC = () => {
         setNativeLocationStatus('granted_always');
         setErrorMessage(null);
       } else {
-        // Still not granted — keep guide visible
+        // Still not granted "always" — keep guide visible
         setShowLocationGuide(true);
         setShowDriverWelcome(false);
-        setPermissionState('prompting');
+        setPermissionState(statusResult.isPartial ? 'allow_while_using' : 'prompting');
         setNativeLocationStatus('need_always_guidance');
+        if (statusResult.isPartial && statusResult.reason) {
+          setErrorMessage(statusResult.reason);
+        }
       }
     }
 
     // Check immediately on mount
     checkAndUpdateDriverScreen();
 
-    // Check again every time app becomes visible
+    // Check again every time app becomes visible or resumes
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
+      if (document.visibilityState === 'hidden') {
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('waybilla_opened_settings')) {
+          sessionStorage.setItem('waybilla_left_app_for_settings', 'confirmed');
+        }
+      } else if (document.visibilityState === 'visible') {
         checkAndUpdateDriverScreen();
+      }
+    };
+
+    const handleBlur = () => {
+      if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('waybilla_opened_settings')) {
+        sessionStorage.setItem('waybilla_left_app_for_settings', 'confirmed');
       }
     };
 
@@ -439,11 +523,16 @@ export const DriverScreen: React.FC = () => {
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleBlur);
     window.addEventListener('focus', handleFocus);
 
     const appStateListener = App.addListener('appStateChange', ({ isActive }) => {
       if (isActive) {
         checkAndUpdateDriverScreen();
+      } else {
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('waybilla_opened_settings')) {
+          sessionStorage.setItem('waybilla_left_app_for_settings', 'confirmed');
+        }
       }
     });
 
@@ -459,6 +548,7 @@ export const DriverScreen: React.FC = () => {
       isMounted = false;
       clearInterval(pollInterval);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('blur', handleBlur);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       appStateListener.then((l) => l.remove()).catch(() => {});
     };
@@ -468,6 +558,7 @@ export const DriverScreen: React.FC = () => {
     console.log('OPENING SETTINGS');
     if (typeof sessionStorage !== 'undefined') {
       sessionStorage.setItem('waybilla_opened_settings', Date.now().toString());
+      sessionStorage.removeItem('waybilla_left_app_for_settings');
     }
     setErrorMessage(null);
 
@@ -506,15 +597,30 @@ export const DriverScreen: React.FC = () => {
   const handleVerifyPermissionManually = async () => {
     setIsVerifying(true);
     setErrorMessage(null);
-    console.log('[MANUAL VERIFICATION] Driver tapped "I\'ve enabled it". Probing live GPS sensor...');
+    console.log('[MANUAL VERIFICATION] Driver tapped "I\'ve enabled it". Probing real OS permission...');
 
+    // 1. Strict OS-level verification (distinguishes 'always' from 'while using the app')
+    const statusCheck = await checkRealLocationStatus();
+    console.log('[MANUAL VERIFICATION OS STATUS]:', statusCheck);
+
+    if (!statusCheck.grantedAlways) {
+      setIsVerifying(false);
+      console.warn('[MANUAL VERIFICATION FAILED] Real OS check rejected:', statusCheck.reason);
+      setErrorMessage(
+        statusCheck.reason ||
+        "❌ Verification Failed: Android OS reports that location permission is still NOT set to 'Allow all the time'. Please tap '1. Open Settings' above and choose 'Allow all the time'."
+      );
+      return;
+    }
+
+    // 2. Hardware GPS sensor probe (only triggered when 'always' is verified)
     const result = await verifyRealLocationHardware();
-    console.log('[MANUAL VERIFICATION RESULT]:', result);
+    console.log('[MANUAL VERIFICATION HARDWARE RESULT]:', result);
 
     setIsVerifying(false);
 
     if (result.granted) {
-      console.log('[MANUAL VERIFICATION SUCCESS] Genuine GPS coordinates / permissions confirmed.');
+      console.log('[MANUAL VERIFICATION SUCCESS] Genuine GPS coordinates & Always permission confirmed.');
       setShowLocationGuide(false);
       setShowDriverWelcome(true);
       setPermissionState('allow_all');
@@ -524,7 +630,7 @@ export const DriverScreen: React.FC = () => {
       console.warn('[MANUAL VERIFICATION FAILED] Permission blocked or driver lying.');
       setErrorMessage(
         result.error ||
-        "❌ Verification Failed: Android OS reports that location permission is still NOT granted or set to 'Allow all the time'. Please tap 'Open Settings' above and ensure 'Allow all the time' is selected."
+        "❌ Verification Failed: Live GPS sensor read failed. Please tap '1. Open Settings' above and ensure 'Allow all the time' is selected."
       );
     }
   };
