@@ -45,7 +45,7 @@ export function getDeviceInfo() {
 }
 
 // FEATURE 1 — DAILY HEARTBEAT CONSTANT
-const HEARTBEAT_INTERVAL = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+const HEARTBEAT_INTERVAL = 60 * 1000; // 60 seconds heartbeat ping while app is open
 
 function calculateDistanceInMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371000;
@@ -280,19 +280,42 @@ export const DriverScreen: React.FC = () => {
     return cached || user?.company_name || 'Transport Company';
   });
 
+  const [dynamicPlateNumber, setDynamicPlateNumber] = useState<string>(() => {
+    const raw = (user as any)?.plate_number || (user as any)?.truck_plate;
+    if (raw && !raw.toLowerCase().includes('truck')) {
+      return raw.trim().toUpperCase();
+    }
+    const cached = typeof localStorage !== 'undefined' ? localStorage.getItem('driver_plate_number') : null;
+    if (cached && !cached.toLowerCase().includes('truck')) {
+      return cached.trim().toUpperCase();
+    }
+    return '';
+  });
+
   const driverName = user?.name || 'Driver';
-  const plateNumber = (user as any)?.plate_number || 'Truck Plate';
+  const plateNumber = dynamicPlateNumber || (user as any)?.plate_number || (user as any)?.truck_plate || '';
   const driverId = user?.id || '';
 
-  // DYNAMIC COMPANY RESOLUTION: Fetch official registered company name
+  // DYNAMIC COMPANY & TRUCK PLATE RESOLUTION
   useEffect(() => {
     let isMounted = true;
-    async function resolveRegisteredCompany() {
+
+    function cleanPhone(p?: string | null): string {
+      if (!p) return '';
+      let cleaned = p.replace(/\D/g, '');
+      if (cleaned.startsWith('234') && cleaned.length === 13) {
+        cleaned = '0' + cleaned.substring(3);
+      }
+      return cleaned;
+    }
+
+    async function resolveDriverDetails() {
       try {
         const companyId = user?.company_id || (user as any)?.companyId;
         const driverPhone = user?.phone;
+        const cPhone = cleanPhone(driverPhone);
 
-        // 1. Direct query on companies collection with companyId
+        // A. Resolve Company Name
         if (companyId && companyId !== 'default_company') {
           const compSnap = await getDoc(doc(db, 'companies', companyId));
           if (compSnap.exists()) {
@@ -303,83 +326,97 @@ export const DriverScreen: React.FC = () => {
               if (typeof localStorage !== 'undefined') {
                 localStorage.setItem('driver_company_name', resolved);
               }
-              return;
             }
           }
         }
 
-        // 2. Query driver record in fleetTracking_users
-        if (driverId) {
-          const ftSnap = await getDoc(doc(db, 'fleetTracking_users', driverId));
-          if (ftSnap.exists()) {
-            const ftData = ftSnap.data();
-            if (ftData.company_name && ftData.company_name !== 'Transport Company') {
-              if (isMounted) {
-                setDynamicCompanyName(ftData.company_name);
-                if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('driver_company_name', ftData.company_name);
-                }
-                return;
-              }
-            }
-            const cId = ftData.companyId || ftData.company_id;
-            if (cId && cId !== 'default_company') {
-              const compSnap = await getDoc(doc(db, 'companies', cId));
-              if (compSnap.exists()) {
-                const data = compSnap.data();
-                const resolved = data.company_name || data.name || data.park_name;
-                if (resolved && isMounted) {
-                  setDynamicCompanyName(resolved);
+        // B. Resolve Real Truck Registration Plate Number
+        // 1. Check fleetTracking_trucks
+        if (driverPhone || driverName) {
+          const qTrucks = companyId && companyId !== 'default_company'
+            ? query(collection(db, 'fleetTracking_trucks'), where('company_id', '==', companyId))
+            : collection(db, 'fleetTracking_trucks');
+          const tSnap = await getDocs(qTrucks);
+          for (const tDoc of tSnap.docs) {
+            const tData = tDoc.data();
+            const tCleanPhone = cleanPhone(tData.driver_phone);
+            const tName = tData.driver_name ? tData.driver_name.trim().toLowerCase() : '';
+            const dName = driverName ? driverName.trim().toLowerCase() : '';
+            if (
+              (cPhone && tCleanPhone === cPhone) ||
+              (dName && tName && (dName.includes(tName) || tName.includes(dName)))
+            ) {
+              const p = tData.plate_number || tData.truck_plate;
+              if (p && !p.toLowerCase().includes('truck')) {
+                const upperPlate = p.trim().toUpperCase();
+                if (isMounted) {
+                  setDynamicPlateNumber(upperPlate);
                   if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('driver_company_name', resolved);
+                    localStorage.setItem('driver_plate_number', upperPlate);
                   }
-                  return;
                 }
+                break;
               }
             }
           }
         }
 
-        // 3. Query fleetTracking_trucks by driver phone
-        if (driverPhone) {
-          const qTruck = query(collection(db, 'fleetTracking_trucks'), where('driver_phone', '==', driverPhone), limit(1));
-          const tSnap = await getDocs(qTruck);
-          if (!tSnap.empty) {
-            const tData = tSnap.docs[0].data();
-            if (tData.company_name && tData.company_name !== 'Transport Company') {
-              if (isMounted) {
-                setDynamicCompanyName(tData.company_name);
-                if (typeof localStorage !== 'undefined') {
-                  localStorage.setItem('driver_company_name', tData.company_name);
+        // 2. Check fleetTracking_trips if plate still unresolved
+        if (isMounted && (!dynamicPlateNumber || dynamicPlateNumber.toLowerCase().includes('truck'))) {
+          const tripsColl = collection(db, 'fleetTracking_trips');
+          const trSnap = await getDocs(tripsColl);
+          for (const trDoc of trSnap.docs) {
+            const trData = trDoc.data();
+            const trPhone = cleanPhone(trData.driver_phone);
+            const trName = trData.driver_name ? trData.driver_name.trim().toLowerCase() : '';
+            const dName = driverName ? driverName.trim().toLowerCase() : '';
+            if (
+              (driverId && (trData.driver_id === driverId || trData.driverId === driverId)) ||
+              (cPhone && trPhone === cPhone) ||
+              (dName && trName && (dName.includes(trName) || trName.includes(dName)))
+            ) {
+              const p = trData.plate_number || trData.truck_plate;
+              if (p && !p.toLowerCase().includes('truck')) {
+                const upperPlate = p.trim().toUpperCase();
+                if (isMounted) {
+                  setDynamicPlateNumber(upperPlate);
+                  if (typeof localStorage !== 'undefined') {
+                    localStorage.setItem('driver_plate_number', upperPlate);
+                  }
                 }
-                return;
+                break;
               }
             }
-            if (tData.company_id && tData.company_id !== 'default_company') {
-              const compSnap = await getDoc(doc(db, 'companies', tData.company_id));
-              if (compSnap.exists()) {
-                const data = compSnap.data();
-                const resolved = data.company_name || data.name;
-                if (resolved && isMounted) {
-                  setDynamicCompanyName(resolved);
-                  if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('driver_company_name', resolved);
-                  }
-                  return;
+          }
+        }
+
+        // 3. Fallback to managers doc
+        if (driverId && isMounted && (!dynamicPlateNumber || dynamicPlateNumber.toLowerCase().includes('truck'))) {
+          const mSnap = await getDoc(doc(db, 'managers', driverId));
+          if (mSnap.exists()) {
+            const mData = mSnap.data();
+            const p = mData.plate_number || mData.truck_plate;
+            if (p && !p.toLowerCase().includes('truck')) {
+              const upperPlate = p.trim().toUpperCase();
+              if (isMounted) {
+                setDynamicPlateNumber(upperPlate);
+                if (typeof localStorage !== 'undefined') {
+                  localStorage.setItem('driver_plate_number', upperPlate);
                 }
               }
             }
           }
         }
       } catch (err) {
-        console.warn('Could not dynamically resolve driver company name:', err);
+        console.warn('Could not dynamically resolve driver details:', err);
       }
     }
-    resolveRegisteredCompany();
+
+    resolveDriverDetails();
     return () => {
       isMounted = false;
     };
-  }, [user, driverId]);
+  }, [user, driverId, driverName]);
 
   // LIVE OS LOCATION PERMISSION & RESUME LISTENER EFFECT
   useEffect(() => {
@@ -766,7 +803,8 @@ export const DriverScreen: React.FC = () => {
       const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
       const effectiveUser = user || cachedUser || {};
       const effectiveDriverName = effectiveUser?.name || effectiveUser?.driver_name || driverName || 'Driver';
-      const effectivePlateNumber = (effectiveUser as any)?.plate_number || (effectiveUser as any)?.truck_plate || plateNumber || 'Truck Plate';
+      const rawPlate = dynamicPlateNumber || (effectiveUser as any)?.plate_number || (effectiveUser as any)?.truck_plate || (typeof localStorage !== 'undefined' ? localStorage.getItem('driver_plate_number') : null) || '';
+      const effectivePlateNumber = (rawPlate && !rawPlate.toLowerCase().includes('truck')) ? rawPlate.trim().toUpperCase() : '';
       const effectiveDriverPhone = effectiveUser?.phone || effectiveUser?.owner_phone || effectiveUser?.phone_number || '';
       const effectiveCompanyId = effectiveUser?.company_id || (effectiveUser as any)?.companyId || '';
 
@@ -776,21 +814,62 @@ export const DriverScreen: React.FC = () => {
       // Send login notification to Manager & CEO (strictly once per session)
       if (!hasSentLoginNotifyRef.current) {
         hasSentLoginNotifyRef.current = true;
-        fetch('/api/fleet-tracking/driver-login-notify', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
-          },
-          body: JSON.stringify({
-            driver_name: effectiveDriverName,
-            plate_number: effectivePlateNumber,
-            driver_phone: effectiveDriverPhone,
-            company_id: effectiveCompanyId
-          })
-        }).catch((err) => {
-          console.warn('driver-login-notify error:', err);
-        });
+
+        const sendLoginNotification = async () => {
+          let resolvedPlateToSend = effectivePlateNumber;
+
+          // If plate is still resolving on client, do a quick query on fleetTracking_trucks
+          if (!resolvedPlateToSend && effectiveDriverPhone) {
+            try {
+              let cleanP = effectiveDriverPhone.replace(/\D/g, '');
+              if (cleanP.startsWith('234') && cleanP.length === 13) cleanP = '0' + cleanP.substring(3);
+              const qTrucks = collection(db, 'fleetTracking_trucks');
+              const tSnap = await getDocs(qTrucks);
+              for (const td of tSnap.docs) {
+                const tdData = td.data();
+                let tdPhone = (tdData.driver_phone || '').replace(/\D/g, '');
+                if (tdPhone.startsWith('234') && tdPhone.length === 13) tdPhone = '0' + tdPhone.substring(3);
+                if (cleanP && tdPhone === cleanP) {
+                  const p = tdData.plate_number || tdData.truck_plate;
+                  if (p && !p.toLowerCase().includes('truck')) {
+                    resolvedPlateToSend = p.trim().toUpperCase();
+                    setDynamicPlateNumber(resolvedPlateToSend);
+                    if (typeof localStorage !== 'undefined') {
+                      localStorage.setItem('driver_plate_number', resolvedPlateToSend);
+                    }
+                    break;
+                  }
+                }
+              }
+            } catch (e) {}
+          }
+
+          fetch('/api/fleet-tracking/driver-login-notify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(activeToken ? { 'Authorization': `Bearer ${activeToken}` } : {})
+            },
+            body: JSON.stringify({
+              driver_name: effectiveDriverName,
+              plate_number: resolvedPlateToSend || '',
+              driver_phone: effectiveDriverPhone,
+              company_id: effectiveCompanyId,
+              driver_id: effectiveUser?.id || driverId
+            })
+          }).then(res => res.json()).then(data => {
+            if (data?.resolved_plate && !resolvedPlateToSend) {
+              setDynamicPlateNumber(data.resolved_plate);
+              if (typeof localStorage !== 'undefined') {
+                localStorage.setItem('driver_plate_number', data.resolved_plate);
+              }
+            }
+          }).catch((err) => {
+            console.warn('driver-login-notify error:', err);
+          });
+        };
+
+        sendLoginNotification();
       }
 
       if (activeToken) {
@@ -1149,7 +1228,9 @@ export const DriverScreen: React.FC = () => {
         <div className="bg-[#050914] border border-blue-950 p-4 rounded-2xl text-left space-y-2 text-xs">
           <div className="flex justify-between items-center text-slate-400 text-[11px]">
             <span>Assigned Plate:</span>
-            <span className="font-mono text-amber-400 font-bold">{plateNumber}</span>
+            <span className="font-mono text-amber-400 font-bold">
+              {dynamicPlateNumber || (plateNumber && !plateNumber.toLowerCase().includes('truck') ? plateNumber : 'Assigned Fleet Vehicle')}
+            </span>
           </div>
           <div className="flex justify-between items-center text-slate-400 text-[11px]">
             <span>Road Assistance:</span>

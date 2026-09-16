@@ -6,6 +6,7 @@ import {
   initializeTripCreationPayment,
   verifyTripPaymentAndCreate,
   createTripDirectly,
+  sendDriverDataReminderSms,
 } from '../api';
 import {
   X,
@@ -22,6 +23,9 @@ import {
   MapPin,
   Phone,
   ExternalLink,
+  Wifi,
+  WifiOff,
+  Send,
 } from 'lucide-react';
 
 interface CreateTripModalProps {
@@ -49,6 +53,12 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Driver mobile data gate state
+  const [isSendingSms, setIsSendingSms] = useState<boolean>(false);
+  const [smsFeedback, setSmsFeedback] = useState<string | null>(null);
+  const [showGateOfflineConfirm, setShowGateOfflineConfirm] = useState<boolean>(false);
+  const [offlineConfirmedForTruckId, setOfflineConfirmedForTruckId] = useState<string | null>(null);
+
   // Paystack modal state
   const [paystackModalOpen, setPaystackModalOpen] = useState<boolean>(false);
   const [paystackData, setPaystackData] = useState<{
@@ -65,10 +75,36 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       setSelectedTruckId(null);
       setSelectedSupplierId(null);
       setError(null);
+      setSmsFeedback(null);
+      setShowGateOfflineConfirm(false);
+      setOfflineConfirmedForTruckId(null);
       setPaystackModalOpen(false);
       setPaystackData(null);
     }
   }, [isOpen]);
+
+  const handleSendSmsReminder = async (truck: TruckProfile) => {
+    setIsSendingSms(true);
+    setSmsFeedback(null);
+    try {
+      const res = await sendDriverDataReminderSms({
+        driver_phone: truck.driver_phone,
+        driver_name: truck.driver_name,
+        plate_number: truck.plate_number,
+        reason: 'gate_dispatch'
+      }, token);
+
+      if (res.success) {
+        setSmsFeedback(`📲 SMS reminder sent to ${truck.driver_name} (${truck.driver_phone})!`);
+      } else {
+        setSmsFeedback(`⚠️ Could not deliver SMS: ${res.error || 'Network error'}`);
+      }
+    } catch (err: any) {
+      setSmsFeedback(`⚠️ Failed to send SMS: ${err?.message || 'Error'}`);
+    } finally {
+      setIsSendingSms(false);
+    }
+  };
 
   const fetchInitialData = async () => {
     setIsLoading(true);
@@ -116,6 +152,13 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       setError('Please select a truck to proceed.');
       return;
     }
+
+    // Pre-Trip Data Gate: If driver is offline, require gate confirmation before dispatching
+    if (selectedTruck && !selectedTruck.is_driver_online && offlineConfirmedForTruckId !== selectedTruck.id) {
+      setShowGateOfflineConfirm(true);
+      return;
+    }
+
     setError(null);
     setStep(2);
   };
@@ -369,13 +412,25 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                                 </div>
                               </div>
 
-                              {/* Payment Plan Badge requirement */}
+                              {/* Payment Plan Badge & Driver Online Status */}
                               <div className="pt-2 border-t border-blue-950/60/80 flex flex-col gap-1.5">
                                 <div className="flex items-center justify-between text-[11px]">
                                   <span className="text-slate-400 flex items-center gap-1">
                                     <Phone className="w-3 h-3 text-slate-500" />
                                     <span>{truck.driver_phone}</span>
                                   </span>
+
+                                  {truck.is_driver_online ? (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 rounded-md">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                      <span>Data ON</span>
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 text-[10px] font-black text-rose-400 bg-rose-500/15 border border-rose-500/30 px-2 py-0.5 rounded-md">
+                                      <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                                      <span>Data OFF</span>
+                                    </span>
+                                  )}
                                 </div>
 
                                 {truck.payment_plan === 'monthly' ? (
@@ -400,6 +455,47 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+
+                    {/* Pre-Trip Gate Warning: Driver Mobile Data is OFF */}
+                    {selectedTruck && !selectedTruck.is_driver_online && (
+                      <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-500/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                        <div className="flex items-start gap-3">
+                          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                            <WifiOff className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <div className="font-extrabold text-sm text-white flex items-center gap-2">
+                              <span>⚠️ Gate Alert: Driver Mobile Data is OFF</span>
+                              <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                {selectedTruck.driver_last_seen || 'Offline'}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-300 mt-1">
+                              Driver <strong className="text-white">{selectedTruck.driver_name}</strong> is currently not transmitting internet signals. Instruct him at the garage gate to turn ON Mobile Data before driving off.
+                            </p>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSendSmsReminder(selectedTruck)}
+                          disabled={isSendingSms}
+                          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer shadow-md self-start sm:self-center"
+                          id="send-driver-gate-sms-btn"
+                        >
+                          {isSendingSms ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                          <span>{isSendingSms ? 'Sending SMS...' : 'Send SMS to Driver'}</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Feedback pill after sending SMS */}
+                    {smsFeedback && (
+                      <div className="p-3 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                        <span>{smsFeedback}</span>
                       </div>
                     )}
                   </div>
@@ -531,7 +627,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                       </div>
 
                       {/* Payment Due Summary */}
-                      <div className="flex items-start gap-4">
+                      <div className="flex items-start gap-4 pb-4 border-b border-blue-950/60">
                         <div className="w-10 h-10 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 shrink-0">
                           <CreditCard className="w-5 h-5" />
                         </div>
@@ -555,6 +651,38 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               ? 'Renewing covers all trips for this truck for the next 30 days.'
                               : 'Payment is required to activate live tracking for this trip.'}
                           </p>
+                        </div>
+                      </div>
+
+                      {/* Driver Mobile Data / Gate Status */}
+                      <div className="flex items-start gap-4">
+                        <div className={`w-10 h-10 rounded-2xl border flex items-center justify-center shrink-0 ${
+                          selectedTruck.is_driver_online
+                            ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400'
+                            : 'bg-rose-500/10 border-rose-500/30 text-rose-400'
+                        }`}>
+                          {selectedTruck.is_driver_online ? <Wifi className="w-5 h-5" /> : <WifiOff className="w-5 h-5" />}
+                        </div>
+                        <div className="flex-1">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Driver Phone / Gate Clearance</span>
+                          <div className="font-black text-sm text-white mt-0.5 flex items-center gap-2">
+                            {selectedTruck.is_driver_online ? (
+                              <span className="text-emerald-400 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                <span>🟢 Mobile Data ON — Ready for live tracking</span>
+                              </span>
+                            ) : (
+                              <span className="text-rose-400 flex items-center gap-1.5">
+                                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                                <span>🔴 Mobile Data OFF — Driver must turn ON data at the gate</span>
+                              </span>
+                            )}
+                          </div>
+                          {!selectedTruck.is_driver_online && (
+                            <p className="text-xs text-amber-300/90 mt-1">
+                              ⚠️ Warning: Since mobile data is off, the app will store coordinates locally (offline black box) until data is restored. Confirm driver turns on data before leaving the gate.
+                            </p>
+                          )}
                         </div>
                       </div>
 
@@ -692,6 +820,92 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 className="w-full bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs transition-colors cursor-pointer"
               >
                 Cancel / Close (Do Not Create Trip)
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Gate Offline Confirmation Modal */}
+      {showGateOfflineConfirm && selectedTruck && (
+        <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-[#0f172a] border-2 border-amber-500/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                <WifiOff className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-white">Gate Warning: Driver Data is OFF</h3>
+                <p className="text-xs text-amber-400/90 font-medium">Verify before truck departs garage gate</p>
+              </div>
+            </div>
+
+            <div className="bg-[#070b19] p-4 rounded-2xl border border-blue-950/60 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Truck / Plate:</span>
+                <span className="font-extrabold text-white">{selectedTruck.plate_number}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Driver Name:</span>
+                <span className="font-extrabold text-white">{selectedTruck.driver_name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Phone Number:</span>
+                <span className="font-bold text-slate-300">{selectedTruck.driver_phone}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Data Status:</span>
+                <span className="font-black text-rose-400 flex items-center gap-1">
+                  <span className="w-2 h-2 rounded-full bg-rose-500" />
+                  <span>OFFLINE ({selectedTruck.driver_last_seen || 'No ping'})</span>
+                </span>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-300 leading-relaxed">
+              Driver <strong>{selectedTruck.driver_name}</strong> is currently not transmitting internet data. If you dispatch now, real-time live map tracking will not be visible until he switches on mobile data.
+            </p>
+
+            {/* Quick SMS Trigger */}
+            <button
+              type="button"
+              onClick={() => handleSendSmsReminder(selectedTruck)}
+              disabled={isSendingSms}
+              className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 border border-amber-500/40 hover:bg-amber-500/25 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+            >
+              {isSendingSms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <span>{isSendingSms ? 'Sending SMS Reminder...' : 'Send "Turn ON Data" SMS to Driver'}</span>
+            </button>
+
+            {smsFeedback && (
+              <div className="p-2.5 bg-emerald-500/15 border border-emerald-500/30 rounded-xl text-emerald-300 text-xs font-bold flex items-center gap-2">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <span>{smsFeedback}</span>
+              </div>
+            )}
+
+            <div className="space-y-2 pt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setOfflineConfirmedForTruckId(selectedTruck.id);
+                  setShowGateOfflineConfirm(false);
+                  setError(null);
+                  setStep(2);
+                }}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-colors"
+                id="gate-confirm-proceed-btn"
+              >
+                <span>Proceed (Driver Instructed at Gate)</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowGateOfflineConfirm(false)}
+                className="w-full bg-[#131e3d] hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-2xl text-xs transition-colors cursor-pointer"
+              >
+                Wait / Go Back to Truck Selection
               </button>
             </div>
           </div>

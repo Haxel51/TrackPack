@@ -951,11 +951,14 @@ async function findManagerByPhone(phone: string): Promise<{ id: string; collecti
     for (const tDoc of trucksSnap.docs) {
       const tData = tDoc.data();
       if (tData.driver_phone && normalizeNigerianPhone(tData.driver_phone) === normPhone) {
+        const truckPlateVal = tData.plate_number || tData.truck_plate || "";
         const newDriverData = {
           name: tData.driver_name || "Fleet Driver",
           phone: normPhone,
           pin_hash: null,
           company_id: tData.company_id,
+          plate_number: truckPlateVal,
+          truck_plate: truckPlateVal,
           park_id: "default_park",
           park_location: "Main Fleet Garage",
           role: "driver",
@@ -975,11 +978,14 @@ async function findManagerByPhone(phone: string): Promise<{ id: string; collecti
     for (const trDoc of tripsSnap.docs) {
       const trData = trDoc.data();
       if (trData.driver_phone && normalizeNigerianPhone(trData.driver_phone) === normPhone) {
+        const tripPlateVal = trData.plate_number || trData.truck_plate || "";
         const newDriverData = {
           name: trData.driver_name || "Fleet Driver",
           phone: normPhone,
           pin_hash: null,
           company_id: trData.company_id,
+          plate_number: tripPlateVal,
+          truck_plate: tripPlateVal,
           park_id: "default_park",
           park_location: trData.origin_name || "Main Fleet Garage",
           role: "driver",
@@ -999,11 +1005,14 @@ async function findManagerByPhone(phone: string): Promise<{ id: string; collecti
     for (const bDoc of busesSnap.docs) {
       const bData = bDoc.data();
       if (bData.driver_phone && normalizeNigerianPhone(bData.driver_phone) === normPhone) {
+        const busPlateVal = bData.plate_number || bData.bus_number || "";
         const newDriverData = {
           name: bData.driver_name || "Bus Driver",
           phone: normPhone,
           pin_hash: null,
           company_id: bData.company_id || "default_company",
+          plate_number: busPlateVal,
+          truck_plate: busPlateVal,
           park_id: bData.origin_park_id || "default_park",
           park_location: bData.origin_park || "Motor Park",
           role: "driver",
@@ -1022,6 +1031,104 @@ async function findManagerByPhone(phone: string): Promise<{ id: string; collecti
   }
 
   return null;
+}
+
+// Universal helper to dynamically resolve a driver's real vehicle registration plate number
+async function resolveDriverPlateNumber(
+  companyId?: string | null,
+  driverPhone?: string | null,
+  driverName?: string | null,
+  driverId?: string | null
+): Promise<string> {
+  const normPhone = driverPhone ? normalizeNigerianPhone(driverPhone) : null;
+  const cleanName = driverName ? driverName.trim().toLowerCase() : null;
+
+  const isInvalidPlate = (p?: string | null) => {
+    if (!p) return true;
+    const str = p.trim().toLowerCase();
+    return !str || str === "truck plate" || str === "truck" || str === "n/a" || str === "null" || str === "undefined";
+  };
+
+  // 1. Check fleetTracking_trucks
+  try {
+    const qTrucks = companyId
+      ? query(collection(db, "fleetTracking_trucks"), where("company_id", "==", companyId))
+      : collection(db, "fleetTracking_trucks");
+    const snap = await getDocs(qTrucks);
+    for (const d of snap.docs) {
+      const data = d.data();
+      const tPhone = data.driver_phone ? normalizeNigerianPhone(data.driver_phone) : null;
+      const tName = data.driver_name ? data.driver_name.trim().toLowerCase() : null;
+      if ((normPhone && tPhone === normPhone) || (cleanName && tName && (cleanName.includes(tName) || tName.includes(cleanName)))) {
+        if (!isInvalidPlate(data.plate_number)) {
+          return data.plate_number.trim().toUpperCase();
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("resolveDriverPlateNumber fleetTracking_trucks error:", e);
+  }
+
+  // 2. Check fleetTracking_trips
+  try {
+    const qTrips = companyId
+      ? query(collection(db, "fleetTracking_trips"), where("company_id", "==", companyId))
+      : collection(db, "fleetTracking_trips");
+    const snap = await getDocs(qTrips);
+    for (const d of snap.docs) {
+      const data = d.data();
+      const trPhone = data.driver_phone ? normalizeNigerianPhone(data.driver_phone) : null;
+      const trName = data.driver_name ? data.driver_name.trim().toLowerCase() : null;
+      const trDriverId = data.driver_id || data.driverId;
+      if ((driverId && trDriverId === driverId) || (normPhone && trPhone === normPhone) || (cleanName && trName && (cleanName.includes(trName) || trName.includes(cleanName)))) {
+        const p = data.plate_number || data.truck_plate;
+        if (!isInvalidPlate(p)) {
+          return p.trim().toUpperCase();
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("resolveDriverPlateNumber fleetTracking_trips error:", e);
+  }
+
+  // 3. Check managers or fleetTracking_users document
+  if (driverId) {
+    try {
+      const mSnap = await getDoc(doc(db, "managers", driverId));
+      if (mSnap.exists()) {
+        const p = mSnap.data().plate_number || mSnap.data().truck_plate;
+        if (!isInvalidPlate(p)) return p.trim().toUpperCase();
+      }
+    } catch (e) {}
+    try {
+      const fSnap = await getDoc(doc(db, "fleetTracking_users", driverId));
+      if (fSnap.exists()) {
+        const p = fSnap.data().plate_number || fSnap.data().truck_plate;
+        if (!isInvalidPlate(p)) return p.trim().toUpperCase();
+      }
+    } catch (e) {}
+  }
+
+  // 4. Check global trucks collection
+  try {
+    const qTrk = companyId
+      ? query(collection(db, "trucks"), where("company_id", "==", companyId))
+      : collection(db, "trucks");
+    const snap = await getDocs(qTrk);
+    for (const d of snap.docs) {
+      const data = d.data();
+      const tPhone = data.driver_phone ? normalizeNigerianPhone(data.driver_phone) : null;
+      const tName = data.driver_name ? data.driver_name.trim().toLowerCase() : null;
+      if ((normPhone && tPhone === normPhone) || (cleanName && tName && (cleanName.includes(tName) || tName.includes(cleanName)))) {
+        const p = data.plate_number || data.truck_plate;
+        if (!isInvalidPlate(p)) {
+          return p.trim().toUpperCase();
+        }
+      }
+    }
+  } catch (e) {}
+
+  return "";
 }
 
 function normalizePhoneForSMS(phone: string): string {
@@ -1946,6 +2053,11 @@ app.post("/api/auth/manager/login", async (req, res) => {
     const mgrParkLoc = managerData.park_location || null;
     const mgrCompanyId = managerData.company_id || managerData.companyId || null;
 
+    let mgrPlate = managerData.plate_number || managerData.truck_plate || "";
+    if (!mgrPlate || mgrPlate.toLowerCase().includes("truck") || mgrPlate.toLowerCase() === "n/a") {
+      mgrPlate = await resolveDriverPlateNumber(mgrCompanyId, mgrPhone, mgrName, managerDocId);
+    }
+
     await setDoc(doc(db, "sessions", token), cleanFirestoreDoc({
       userId: managerDocId,
       userRole: userRoleVal,
@@ -1953,6 +2065,8 @@ app.post("/api/auth/manager/login", async (req, res) => {
         id: managerDocId,
         name: mgrName,
         phone: mgrPhone,
+        plate_number: mgrPlate,
+        truck_plate: mgrPlate,
         company_id: mgrCompanyId,
         company_name: companyName,
         park_id: mgrParkId,
@@ -1979,6 +2093,8 @@ app.post("/api/auth/manager/login", async (req, res) => {
         id: managerDocId,
         name: mgrName,
         phone: mgrPhone,
+        plate_number: mgrPlate,
+        truck_plate: mgrPlate,
         park_location: mgrParkLoc,
         park_id: mgrParkId,
         company_id: mgrCompanyId,
@@ -8892,10 +9008,12 @@ function isValidNigerianPhone(phone: string): boolean {
 }
 
 // ==========================================
-async function syncDriverAccount(companyId: string, driverName: string, driverPhone: string) {
+async function syncDriverAccount(companyId: string, driverName: string, driverPhone: string, plateNumber?: string) {
   try {
     const cleanPhone = normalizeNigerianPhone(driverPhone);
     if (!cleanPhone || !companyId) return;
+
+    const formattedPlate = plateNumber && !plateNumber.toLowerCase().includes("truck") ? plateNumber.trim().toUpperCase() : "";
 
     const q = query(collection(db, "managers"), where("phone", "==", cleanPhone));
     const snap = await getDocs(q);
@@ -8905,6 +9023,8 @@ async function syncDriverAccount(companyId: string, driverName: string, driverPh
         phone: cleanPhone,
         pin_hash: null,
         company_id: companyId,
+        plate_number: formattedPlate,
+        truck_plate: formattedPlate,
         park_id: "default_park",
         park_location: "Main Fleet Garage",
         role: "driver",
@@ -8917,11 +9037,17 @@ async function syncDriverAccount(companyId: string, driverName: string, driverPh
     } else {
       const existingDoc = snap.docs[0];
       const data = existingDoc.data();
+      const updateData: any = {};
       if (!data.role) {
-        await updateDoc(doc(db, "managers", existingDoc.id), {
-          role: "driver",
-          manager_type: "Driver"
-        });
+        updateData.role = "driver";
+        updateData.manager_type = "Driver";
+      }
+      if (formattedPlate && (!data.plate_number || data.plate_number.toLowerCase().includes("truck"))) {
+        updateData.plate_number = formattedPlate;
+        updateData.truck_plate = formattedPlate;
+      }
+      if (Object.keys(updateData).length > 0) {
+        await updateDoc(doc(db, "managers", existingDoc.id), updateData);
       }
     }
   } catch (err) {
@@ -8947,7 +9073,7 @@ function calculateSmartRenewalExpiry(currentExpiryIso?: string | null, paymentDa
 // FLEET TRACKING: STEP 3 - TRUCK PROFILES & PAYMENT PLANS
 // ==========================================
 
-// 11. GET /api/fleet-tracking/trucks - List all trucks for company
+// 11. GET /api/fleet-tracking/trucks - List all trucks for company with real-time driver connection status
 app.get("/api/fleet-tracking/trucks", async (req, res) => {
   try {
     const authInfo = await getCompanyIdFromToken(req);
@@ -8960,7 +9086,110 @@ app.get("/api/fleet-tracking/trucks", async (req, res) => {
       where("company_id", "==", authInfo.companyId)
     );
     const snap = await getDocs(q);
-    const trucks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const rawTrucks = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    // Fetch drivers heartbeats for cross-referencing live online presence
+    // Support both fleetTracking_users (where modern app drivers register & save) and managers collections
+    const driverHeartbeatsByPhone: Record<string, string> = {};
+
+    const populateHeartbeatFromDoc = (data: any) => {
+      const phoneRaw = data.phone || data.driver_phone || data.telephone || "";
+      const p = normalizeNigerianPhone(phoneRaw);
+      if (p) {
+        // Check all candidate timestamp fields
+        const hbCandidate = data.lastHeartbeatAt || data.last_heartbeat_at || data.last_driver_ping_at || data.updated_at;
+        if (hbCandidate) {
+          // Keep the newest timestamp if already present
+          const existing = driverHeartbeatsByPhone[p];
+          if (!existing || new Date(hbCandidate).getTime() > new Date(existing).getTime()) {
+            driverHeartbeatsByPhone[p] = hbCandidate;
+          }
+        }
+      }
+    };
+
+    // 1. Query fleetTracking_users (primary driver collection)
+    try {
+      const fuQuery = query(
+        collection(db, "fleetTracking_users"),
+        where("companyId", "==", authInfo.companyId)
+      );
+      const fuSnap = await getDocs(fuQuery);
+      fuSnap.docs.forEach(d => populateHeartbeatFromDoc(d.data()));
+    } catch {
+      // Fallback: check with company_id snake_case
+      try {
+        const fuQueryAlt = query(
+          collection(db, "fleetTracking_users"),
+          where("company_id", "==", authInfo.companyId)
+        );
+        const fuSnapAlt = await getDocs(fuQueryAlt);
+        fuSnapAlt.docs.forEach(d => populateHeartbeatFromDoc(d.data()));
+      } catch {}
+    }
+
+    // 2. Query managers collection (fallback / legacy drivers)
+    try {
+      const driversQuery = query(
+        collection(db, "managers"),
+        where("company_id", "==", authInfo.companyId),
+        where("role", "==", "driver")
+      );
+      const driversSnap = await getDocs(driversQuery);
+      driversSnap.docs.forEach(d => populateHeartbeatFromDoc(d.data()));
+    } catch {}
+
+    const nowMs = Date.now();
+    const FIVE_MIN_MS = 5 * 60 * 1000; // 5 minutes threshold for active mobile data
+
+    const trucks = rawTrucks.map((truck: any) => {
+      const cleanPhone = normalizeNigerianPhone(truck.driver_phone || "");
+      const driverHeartbeat = cleanPhone ? driverHeartbeatsByPhone[cleanPhone] : null;
+
+      // Check the latest ping from either truck document, location update, or driver heartbeat
+      const lastPingCandidates = [
+        truck.last_driver_ping_at,
+        truck.last_location_at,
+        driverHeartbeat
+      ].filter(Boolean);
+
+      let lastPing: string | null = null;
+      let latestTimeMs = 0;
+      for (const candidate of lastPingCandidates) {
+        const candidateMs = new Date(candidate).getTime();
+        if (candidateMs > latestTimeMs) {
+          latestTimeMs = candidateMs;
+          lastPing = candidate;
+        }
+      }
+
+      let isDriverOnline = false;
+      let lastSeenText = "Offline (No recent data)";
+      let secondsAgo: number | null = null;
+
+      if (lastPing && latestTimeMs > 0) {
+        secondsAgo = Math.floor((nowMs - latestTimeMs) / 1000);
+        if (secondsAgo >= 0 && secondsAgo <= (5 * 60)) {
+          isDriverOnline = true;
+          lastSeenText = secondsAgo < 60 ? "Active now (Online)" : `${Math.floor(secondsAgo / 60)}m ago (Online)`;
+        } else if (secondsAgo < 3600) {
+          lastSeenText = `Offline (${Math.floor(secondsAgo / 60)}m ago)`;
+        } else if (secondsAgo < 86400) {
+          lastSeenText = `Offline (${Math.floor(secondsAgo / 3600)}h ago)`;
+        } else {
+          lastSeenText = `Offline (${new Date(lastPing).toLocaleDateString()})`;
+        }
+      }
+
+      return {
+        ...truck,
+        is_driver_online: isDriverOnline,
+        driver_connection_status: isDriverOnline ? 'online' : 'offline',
+        driver_last_seen: lastSeenText,
+        driver_last_ping_at: lastPing,
+        driver_last_ping_seconds_ago: secondsAgo
+      };
+    });
 
     // Sort by created_at descending in memory
     trucks.sort((a: any, b: any) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
@@ -8969,6 +9198,115 @@ app.get("/api/fleet-tracking/trucks", async (req, res) => {
   } catch (err: any) {
     console.error("Error GET /api/fleet-tracking/trucks:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 11b. POST /api/fleet/trucks/update-location - Driver app continuous ping & location update
+app.post(["/api/fleet/trucks/update-location", "/api/fleet-tracking/trucks/update-location", "/api/fleet-tracking/driver/ping"], async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    const { lat, lng, speed, heading, driver_phone, plate_number } = req.body;
+
+    const nowIso = new Date().toISOString();
+    let matchedTruckDocId: string | null = null;
+
+    // Resolve truck by plate_number or user session phone/id
+    const userPhone = authInfo?.session?.phone || driver_phone || authInfo?.session?.userData?.phone;
+    const cleanPhone = userPhone ? normalizeNigerianPhone(userPhone) : "";
+    const userPlate = authInfo?.session?.plate_number || authInfo?.session?.truck_plate || plate_number;
+
+    if (authInfo?.companyId) {
+      const q = query(
+        collection(db, "fleetTracking_trucks"),
+        where("company_id", "==", authInfo.companyId)
+      );
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        const t = d.data();
+        const tPhone = normalizeNigerianPhone(t.driver_phone || "");
+        if ((cleanPhone && tPhone === cleanPhone) || (userPlate && (t.plate_number || "").toUpperCase() === (userPlate || "").trim().toUpperCase())) {
+          matchedTruckDocId = d.id;
+          break;
+        }
+      }
+    }
+
+    if (matchedTruckDocId) {
+      const updateData: any = {
+        last_driver_ping_at: nowIso,
+        is_driver_online: true,
+        driver_connection_status: 'online',
+        updated_at: nowIso
+      };
+      if (typeof lat === 'number' && typeof lng === 'number') {
+        updateData.last_lat = lat;
+        updateData.last_lng = lng;
+        updateData.last_location_at = nowIso;
+      }
+      if (typeof speed === 'number') updateData.last_speed = speed;
+      if (typeof heading === 'number') updateData.last_heading = heading;
+
+      await updateDoc(doc(db, "fleetTracking_trucks", matchedTruckDocId), updateData);
+    }
+
+    // Also update driver's record in managers
+    if (authInfo?.session?.userId) {
+      await updateDoc(doc(db, "managers", authInfo.session.userId), {
+        lastHeartbeatAt: nowIso,
+        last_driver_ping_at: nowIso,
+        updated_at: nowIso
+      }).catch(() => {});
+    }
+
+    res.json({ success: true, message: "Driver ping and location updated successfully" });
+  } catch (err: any) {
+    console.error("Error in update-location:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 11c. POST /api/fleet-tracking/driver/send-data-reminder-sms - Send instant SMS to turn on Mobile Data
+app.post("/api/fleet-tracking/driver/send-data-reminder-sms", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized." });
+    }
+
+    const { driver_phone, driver_name, plate_number, reason } = req.body;
+    if (!driver_phone) {
+      return res.status(400).json({ error: "Driver phone number is required." });
+    }
+
+    const cleanPhone = normalizeNigerianPhone(driver_phone);
+    const dName = driver_name || "Driver";
+    const plate = plate_number || "assigned truck";
+
+    let messageText = `[Waybilla Fleet] DRIVER ALERT: ${dName}, please turn ON your Mobile Data immediately. Your truck (${plate}) is scheduled for dispatch. Active data is required for trip clearance.`;
+    if (reason === 'en_route_disconnected') {
+      messageText = `[Waybilla Fleet] URGENT: ${dName} (${plate}), your Mobile Data is disconnected en route! Turn it ON immediately to restore live tracking and avoid trip violation.`;
+    }
+
+    const smsRes = await sendRealWorldSMS(cleanPhone, messageText);
+
+    // Save notification / audit log
+    await addDoc(collection(db, "notifications"), {
+      company_id: authInfo.companyId,
+      title: "Driver Data Reminder SMS Dispatched 📲",
+      message: `Data reminder SMS sent to ${dName} (${cleanPhone}) for truck ${plate}.`,
+      type: "driver_data_reminder_sms",
+      created_at: new Date().toISOString()
+    }).catch(() => {});
+
+    res.json({
+      success: true,
+      sms_sent: smsRes.success,
+      provider: smsRes.provider || null,
+      message: `SMS reminder sent to driver at ${cleanPhone}`
+    });
+  } catch (err: any) {
+    console.error("Error sending driver data reminder SMS:", err);
+    res.status(500).json({ error: err?.message || "Failed to send SMS." });
   }
 });
 
@@ -9038,7 +9376,7 @@ app.post("/api/fleet-tracking/trucks", async (req, res) => {
     const docRef = await addDoc(collection(db, "fleetTracking_trucks"), newTruck);
     
     // Auto-sync driver account so the driver can log in directly via the Driver Portal
-    syncDriverAccount(authInfo.companyId, driver_name, driver_phone);
+    syncDriverAccount(authInfo.companyId, driver_name, driver_phone, formattedPlate);
 
     res.json({ success: true, truck: { id: docRef.id, ...newTruck } });
   } catch (err: any) {
@@ -9123,7 +9461,7 @@ app.put("/api/fleet-tracking/trucks/:id", async (req, res) => {
 
     await updateDoc(truckRef, updatePayload);
     
-    syncDriverAccount(authInfo.companyId, driver_name, driver_phone);
+    syncDriverAccount(authInfo.companyId, driver_name, driver_phone, formattedPlate);
 
     const updatedDoc = await getDoc(truckRef);
 
@@ -9387,7 +9725,7 @@ app.post("/api/fleet-tracking/trips", async (req, res) => {
       { tripId: docRef.id, eventType: 'trip_created' }
     );
 
-    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
+    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone, truckData.plate_number);
 
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
   } catch (err: any) {
@@ -9908,7 +10246,7 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
       );
     }
 
-    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
+    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone, truckData.plate_number);
 
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
   } catch (err: any) {
@@ -10026,7 +10364,7 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
       { tripId: docRef.id, eventType: 'trip_created' }
     );
 
-    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone);
+    syncDriverAccount(authInfo.companyId, truckData.driver_name, truckData.driver_phone, truckData.plate_number);
 
     res.json({ success: true, trip: { id: docRef.id, ...newTrip } });
   } catch (err: any) {
@@ -10084,7 +10422,7 @@ app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
   try {
     const authInfo = await getCompanyIdFromToken(req);
     let companyId = authInfo?.companyId || req.body.company_id || req.body.companyId;
-    const { driver_name, plate_number, driver_phone } = req.body;
+    let { driver_name, plate_number, driver_phone, driver_id } = req.body;
 
     if (!companyId && driver_phone) {
       try {
@@ -10099,8 +10437,28 @@ app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
       return res.status(400).json({ error: "Unauthorized or missing company association." });
     }
 
+    // Clean incoming plate_number: strip generic placeholders
+    let realPlate = (plate_number || "").trim();
+    if (
+      !realPlate ||
+      realPlate.toLowerCase() === "truck plate" ||
+      realPlate.toLowerCase() === "truck" ||
+      realPlate.toLowerCase() === "n/a" ||
+      realPlate.toLowerCase() === "null" ||
+      realPlate.toLowerCase() === "undefined"
+    ) {
+      realPlate = "";
+    }
+
+    // If realPlate is not available, dynamically resolve it from Firestore
+    if (!realPlate) {
+      realPlate = await resolveDriverPlateNumber(companyId, driver_phone, driver_name, driver_id);
+    }
+
     const title = "Driver Online & Location Active 🚛";
-    const body = `🚛 ${driver_name || "Driver"} (${plate_number || "Truck"}) has granted GPS location access and is now actively sharing real-time tracking coordinates.`;
+    const driverDisplayName = (driver_name || "Driver").trim();
+    const plateDisplay = realPlate ? ` (${realPlate})` : "";
+    const body = `🚛 ${driverDisplayName}${plateDisplay} has granted GPS location access and is now actively sharing real-time tracking coordinates.`;
 
     // 1. Send push notifications to all managers, CEO, and trip monitors
     await sendFleetNotification(
@@ -10110,12 +10468,13 @@ app.post("/api/fleet-tracking/driver-login-notify", async (req, res) => {
       body,
       {
         eventType: "driver_login",
-        driver_name: driver_name || "Driver",
-        plate_number: plate_number || "Truck"
+        driver_name: driverDisplayName,
+        plate_number: realPlate || "",
+        driver_phone: driver_phone || ""
       }
     );
 
-    res.json({ success: true, message: "Login notification dispatched to CEO and managers." });
+    res.json({ success: true, message: "Login notification dispatched to CEO and managers.", resolved_plate: realPlate });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/driver-login-notify:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
@@ -10161,6 +10520,51 @@ app.post(["/api/fleet-tracking/driver/heartbeat", "/api/fleet/driver/heartbeat"]
         resolvedName = resolvedName || data.name || data.full_name;
         resolvedPhone = resolvedPhone || data.phone;
         await updateDoc(mgrRef, updatePayload);
+      }
+    }
+
+    // Sync truck's real-time online status when driver sends heartbeat
+    if (resolvedPhone) {
+      const cleanPhone = normalizeNigerianPhone(resolvedPhone);
+      if (cleanPhone) {
+        try {
+          // If we have matchedCompanyId, match on company_id, otherwise query by driver phone
+          let tSnap;
+          if (matchedCompanyId) {
+            try {
+              const qTruck = query(
+                collection(db, "fleetTracking_trucks"),
+                where("company_id", "==", matchedCompanyId)
+              );
+              tSnap = await getDocs(qTruck);
+            } catch {
+              const qTruckAlt = query(
+                collection(db, "fleetTracking_trucks"),
+                where("companyId", "==", matchedCompanyId)
+              );
+              tSnap = await getDocs(qTruckAlt);
+            }
+          } else {
+            const qTruckAll = query(collection(db, "fleetTracking_trucks"));
+            tSnap = await getDocs(qTruckAll);
+          }
+
+          if (tSnap) {
+            for (const d of tSnap.docs) {
+              const tData = d.data();
+              if (normalizeNigerianPhone(tData.driver_phone || "") === cleanPhone) {
+                await updateDoc(doc(db, "fleetTracking_trucks", d.id), {
+                  last_driver_ping_at: now,
+                  is_driver_online: true,
+                  driver_connection_status: 'online',
+                  updated_at: now
+                });
+              }
+            }
+          }
+        } catch (syncErr) {
+          console.warn("Could not sync truck online status from heartbeat:", syncErr);
+        }
       }
     }
 
@@ -10492,6 +10896,75 @@ app.get("/api/fleet-tracking/notifications", async (req, res) => {
     } catch (e) {}
 
     const notifications = Array.from(map.values());
+
+    // Dynamically resolve real truck plates and sanitize legacy placeholder notifications
+    try {
+      const truckPlatesByDriver = new Map<string, string>();
+      const trucksSnap = await getDocs(
+        query(collection(db, "fleetTracking_trucks"), where("company_id", "==", authInfo.companyId))
+      );
+      trucksSnap.docs.forEach(td => {
+        const tData = td.data();
+        if (tData.plate_number && !tData.plate_number.toLowerCase().includes("truck")) {
+          const p = tData.plate_number.trim().toUpperCase();
+          if (tData.driver_name) truckPlatesByDriver.set(tData.driver_name.trim().toLowerCase(), p);
+          if (tData.driver_phone) truckPlatesByDriver.set(normalizeNigerianPhone(tData.driver_phone), p);
+        }
+      });
+
+      for (const notif of notifications) {
+        let text = notif.body || notif.message || "";
+        if (text.includes("(Truck Plate)") || text.includes("(Truck)") || text.includes("(truck plate)")) {
+          const dName = notif.data?.driver_name || "";
+          const dPhone = notif.data?.driver_phone ? normalizeNigerianPhone(notif.data.driver_phone) : "";
+          let foundPlate = notif.data?.plate_number && !notif.data.plate_number.toLowerCase().includes("truck") ? notif.data.plate_number : "";
+          
+          if (!foundPlate && dPhone && truckPlatesByDriver.has(dPhone)) {
+            foundPlate = truckPlatesByDriver.get(dPhone)!;
+          }
+          if (!foundPlate && dName && truckPlatesByDriver.has(dName.toLowerCase())) {
+            foundPlate = truckPlatesByDriver.get(dName.toLowerCase())!;
+          }
+          if (!foundPlate) {
+            const m = text.match(/🚛\s*([^(]+?)\s*\(Truck Plate\)/i);
+            if (m && m[1]) {
+              const extractedName = m[1].trim().toLowerCase();
+              if (truckPlatesByDriver.has(extractedName)) {
+                foundPlate = truckPlatesByDriver.get(extractedName)!;
+              }
+            }
+          }
+
+          const newText = foundPlate 
+            ? text.replace(/\s*\((?:Truck Plate|Truck)\)/gi, ` (${foundPlate})`)
+            : text.replace(/\s*\((?:Truck Plate|Truck)\)/gi, "");
+
+          if (newText !== text) {
+            notif.body = newText;
+            notif.message = newText;
+            if (foundPlate) {
+              if (!notif.data) notif.data = {};
+              notif.data.plate_number = foundPlate;
+            }
+            try {
+              updateDoc(doc(db, "fleetTracking_notifications", notif.id), { 
+                body: newText, 
+                message: newText, 
+                ...(foundPlate ? { "data.plate_number": foundPlate } : {}) 
+              }).catch(() => {});
+              updateDoc(doc(db, "notifications", notif.id), { 
+                body: newText, 
+                message: newText, 
+                ...(foundPlate ? { "data.plate_number": foundPlate } : {}) 
+              }).catch(() => {});
+            } catch (e) {}
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Notification plate resolution warning:", e);
+    }
+
     notifications.sort((a: any, b: any) => new Date(b.created_at || b.timestamp || 0).getTime() - new Date(a.created_at || a.timestamp || 0).getTime());
     return res.json({ success: true, notifications });
   } catch (err: any) {
@@ -10950,22 +11423,26 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
     location_history = location_history.slice(-500);
   }
 
-  // GPS signal restore detection
+  // GPS & Mobile Data signal restore detection
   let gps_lost_30min_sent = tripData.gps_lost_30min_sent === true;
   let gps_lost_60min_sent = tripData.gps_lost_60min_sent === true;
+  let data_disconnected = tripData.data_disconnected === true;
+  let data_disconnected_alert_sent = tripData.data_disconnected_alert_sent === true;
   let gps_signal_status = tripData.gps_signal_status || "normal";
   let gpsRestored = false;
 
-  if (gps_lost_30min_sent || gps_lost_60min_sent || (gps_signal_status !== "normal" && gps_signal_status !== undefined)) {
+  if (gps_lost_30min_sent || gps_lost_60min_sent || data_disconnected || (gps_signal_status !== "normal" && gps_signal_status !== undefined)) {
     gps_lost_30min_sent = false;
     gps_lost_60min_sent = false;
+    data_disconnected = false;
+    data_disconnected_alert_sent = false;
     gps_signal_status = "normal";
     gpsRestored = true;
     status_history.unshift({
       status: newStatus,
       triggered_by: "System",
       triggered_at: now,
-      note: "GPS signal restored — tracking resumed automatically."
+      note: "Mobile data & GPS signal restored — live tracking resumed."
     });
   }
 
@@ -10982,6 +11459,10 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
     last_known_lat: newLat,
     last_known_lng: newLng,
     last_movement_at,
+    last_gps_update_at: now,
+    data_disconnected: false,
+    data_disconnected_alert_sent: false,
+    connection_status: 'online',
     stopped_warning_sent,
     stopped_alert_sent,
     stopped_acknowledged,
@@ -11683,9 +12164,41 @@ async function checkAllActiveTripsForStoppedWarnings() {
           type: "gps_lost_30min",
           created_at: nowIso
         });
-      } else if (diffMinutes >= 5 && diffMinutes < 30 && tripData.gps_signal_status !== "weak") {
-        updates.gps_signal_status = "weak";
-        changed = true;
+      } else if (diffMinutes >= 5 && diffMinutes < 30) {
+        if (!tripData.data_disconnected || tripData.gps_signal_status !== "data_disconnected") {
+          updates.gps_signal_status = "data_disconnected";
+          updates.data_disconnected = true;
+          updates.connection_status = "data_disconnected";
+          changed = true;
+        }
+
+        if (!tripData.data_disconnected_alert_sent) {
+          updates.data_disconnected_alert_sent = true;
+          changed = true;
+
+          // Dispatch immediate fleet alert to Owner / Manager / Trip Monitor
+          await sendFleetNotification(
+            tripData.company_id,
+            ['owner', 'manager', 'trip_monitor'],
+            '⚠️ Driver Mobile Data Disconnected',
+            `⚠️ Alert: Driver ${tripData.driver_name} (${tripData.plate_number}) stopped transmitting GPS coordinates 5 minutes ago. Mobile data may be switched OFF or phone is offline.`,
+            {
+              tripId: d.id,
+              eventType: 'data_disconnected',
+              driverPhone: tripData.driver_phone,
+              plateNumber: tripData.plate_number
+            }
+          ).catch(() => {});
+
+          await addDoc(collection(db, "notifications"), {
+            company_id: tripData.company_id,
+            trip_id: d.id,
+            title: "Driver Mobile Data Disconnected ⚠️",
+            message: `⚠️ Live tracking paused: Driver ${tripData.driver_name} (${tripData.plate_number}) has stopped transmitting GPS signals. Mobile data appears to be turned OFF en route.`,
+            type: "data_disconnected",
+            created_at: nowIso
+          }).catch(() => {});
+        }
       }
 
       if (changed) {

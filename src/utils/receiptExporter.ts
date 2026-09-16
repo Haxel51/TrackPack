@@ -26,15 +26,64 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
       return null;
     }
 
-    // Trigger download
+    const fileName = `waybilla_receipt_${(trackingCode || 'receipt').replace(/\s+/g, '_')}.png`;
+
+    // 1. Mobile PWA / Standalone App / Native Share Detection
+    // In installed PWA or WebView, <a download> often fails silently.
+    // Try native share sheet with file so user can "Save image", "Save to Files", or send it directly.
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+      document.referrer.includes('android-app://');
+
+    const file = new File([blob], fileName, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: `Waybilla Receipt - ${trackingCode}`,
+          text: `Receipt for Waybill #${trackingCode}`,
+        });
+        return blob;
+      } catch (shareErr) {
+        // If user cancelled, return blob without error
+        if ((shareErr as Error)?.name === 'AbortError') {
+          return blob;
+        }
+        console.log('Native share failed, proceeding with fallback download:', shareErr);
+      }
+    }
+
+    // 2. Standard Browser Trigger using Blob URL & Anchor
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `waybilla_receipt_${(trackingCode || 'receipt').replace(/\s+/g, '_')}.png`;
+    link.download = fileName;
+    link.rel = 'noopener';
     document.body.appendChild(link);
     link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+
+    setTimeout(() => {
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }, 200);
+
+    // 3. If in standalone/PWA mode and standard link might not trigger download,
+    // also provide data URL backup in case blob was ignored
+    if (isStandalone && !navigator.canShare) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64data = reader.result as string;
+        const backupLink = document.createElement('a');
+        backupLink.href = base64data;
+        backupLink.download = fileName;
+        backupLink.target = '_blank';
+        document.body.appendChild(backupLink);
+        backupLink.click();
+        setTimeout(() => document.body.removeChild(backupLink), 200);
+      };
+      reader.readAsDataURL(blob);
+    }
 
     return blob;
   } catch (error) {

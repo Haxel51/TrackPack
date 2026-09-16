@@ -850,6 +850,56 @@ export async function triggerHeartbeatAudit(
   }
 }
 
+// 40. Send Driver Mobile Data Reminder SMS
+export async function sendDriverDataReminderSms(
+  payload: {
+    driver_phone: string;
+    driver_name?: string;
+    plate_number?: string;
+    reason?: 'gate_dispatch' | 'en_route_disconnected';
+    trip_id?: string;
+  },
+  token?: string
+): Promise<{ success: boolean; sms_sent?: boolean; message?: string; error?: string }> {
+  try {
+    const res = await fetch('/api/fleet-tracking/driver/send-data-reminder-sms', {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false, ...data };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+// 41. Ping Driver Online Status & Location
+export async function pingDriverOnlineStatus(
+  payload: {
+    lat?: number;
+    lng?: number;
+    speed?: number;
+    heading?: number;
+    driver_phone?: string;
+    plate_number?: string;
+  },
+  token?: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/fleet/trucks/update-location', {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    return { success: res.ok && data.success !== false, error: data.error };
+  } catch (err: any) {
+    return { success: false, error: err?.message };
+  }
+}
+
+
 
 
 

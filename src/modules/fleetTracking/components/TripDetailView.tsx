@@ -44,6 +44,7 @@ import {
   verifyTripPayment,
   keepTripOpen,
   endTripManually,
+  sendDriverDataReminderSms,
 } from '../api';
 import { RedirectTripModal } from './RedirectTripModal';
 import { ConfirmDepartureModal } from './ConfirmDepartureModal';
@@ -69,6 +70,8 @@ import {
   AlertTriangle,
   Crosshair,
   CheckCircle2,
+  WifiOff,
+  Send,
 } from 'lucide-react';
 
 // Off-route detection constants
@@ -166,6 +169,35 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     amount: number;
     payment_plan: string;
   } | null>(null);
+
+  // Driver data disconnection SMS alert state
+  const [isSendingDataSms, setIsSendingDataSms] = useState<boolean>(false);
+  const [dataSmsFeedback, setDataSmsFeedback] = useState<string | null>(null);
+
+  const handleSendDataReminder = async () => {
+    if (!trip.driver_phone) return;
+    setIsSendingDataSms(true);
+    setDataSmsFeedback(null);
+    try {
+      const res = await sendDriverDataReminderSms({
+        driver_phone: trip.driver_phone,
+        driver_name: trip.driver_name,
+        plate_number: trip.plate_number,
+        reason: 'en_route_disconnected',
+        trip_id: trip.id
+      }, token);
+
+      if (res.success) {
+        setDataSmsFeedback(`📲 SMS reminder sent to driver at ${trip.driver_phone}!`);
+      } else {
+        setDataSmsFeedback(`⚠️ Failed to deliver SMS: ${res.error || 'Network error'}`);
+      }
+    } catch (err: any) {
+      setDataSmsFeedback(`⚠️ Error: ${err?.message || 'Failed'}`);
+    } finally {
+      setIsSendingDataSms(false);
+    }
+  };
 
   const handleActivateTracking = async () => {
     if (trip.payment_plan === 'monthly') {
@@ -1383,6 +1415,44 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
             </div>
           </div>
+
+          {/* DRIVER MOBILE DATA DISCONNECTED ALERT BANNER */}
+          {!isCompletedOrCancelled && (trip.data_disconnected || trip.gps_signal_status === 'data_disconnected') && (
+            <div className="p-3.5 bg-gradient-to-r from-amber-950/95 via-rose-950/90 to-amber-950/95 border-t border-b border-amber-500/60 flex items-center justify-between flex-wrap gap-3 shadow-inner">
+              <div className="flex items-center gap-2.5 text-amber-200 text-xs">
+                <div className="w-8 h-8 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                  <WifiOff className="w-4 h-4 animate-pulse" />
+                </div>
+                <div>
+                  <div className="font-black text-white flex items-center gap-1.5">
+                    <span>⚠️ DRIVER MOBILE DATA DISCONNECTED:</span>
+                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">5+ Mins Offline</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 mt-0.5">
+                    Driver {trip.driver_name} ({trip.plate_number}) is not sending internet GPS coordinates. Coordinates are buffering locally on his phone (black box buffer).
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 ml-auto">
+                {dataSmsFeedback && (
+                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+                    {dataSmsFeedback}
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={handleSendDataReminder}
+                  disabled={isSendingDataSms}
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black px-3.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
+                  id="en-route-send-sms-btn"
+                >
+                  {isSendingDataSms ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                  <span>{isSendingDataSms ? 'Sending SMS...' : 'Send "Turn ON Data" SMS'}</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* GPS LOSS ALERT BANNERS */}
           {!isCompletedOrCancelled && trip.gps_signal_status === 'lost_60min' && !trip.gps_loss_dismissed && (

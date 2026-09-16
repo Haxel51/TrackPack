@@ -177,7 +177,12 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             </div>
           ) : (
             displayNotifs.map(notif => {
-              const textMsg = notif.message || notif.body || '';
+              const rawMsg = notif.message || notif.body || '';
+              const realPlate = notif.plate_number || notif.data?.plate_number;
+              const textMsg = rawMsg.replace(
+                /\s*\((?:Truck Plate|Truck)\)/gi,
+                realPlate && !realPlate.toLowerCase().includes('truck') ? ` (${realPlate})` : ''
+              );
               const timeStr = notif.created_at || notif.timestamp ? new Date(notif.created_at || notif.timestamp!).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }) : '';
               
               return (

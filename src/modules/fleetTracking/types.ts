@@ -47,6 +47,11 @@ export interface TruckProfile {
   }>;
   last_reminder_key?: string;
   last_reminder_sent_at?: string;
+  is_driver_online?: boolean;
+  driver_connection_status?: 'online' | 'offline';
+  driver_last_seen?: string;
+  driver_last_ping_at?: string;
+  driver_last_ping_seconds_ago?: number | null;
   created_at: string;
   created_by: string;
   updated_at?: string;
@@ -116,10 +121,13 @@ export interface TripRecord {
   stopped_warning_sent?: boolean;
   stopped_alert_sent?: boolean;
   stopped_acknowledged?: boolean;
-  gps_signal_status?: 'normal' | 'weak' | 'lost_30min' | 'lost_60min';
+  gps_signal_status?: 'normal' | 'weak' | 'lost_30min' | 'lost_60min' | 'data_disconnected';
   gps_lost_30min_sent?: boolean;
   gps_lost_60min_sent?: boolean;
   gps_loss_dismissed?: boolean;
+  data_disconnected?: boolean;
+  connection_status?: 'online' | 'data_disconnected';
+  data_disconnected_alert_sent?: boolean;
   location_history?: Array<{
     lat: number;
     lng: number;
