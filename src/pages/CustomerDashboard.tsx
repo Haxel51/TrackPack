@@ -23,7 +23,7 @@ import {
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
 import { triggerOSNotification } from '../utils/notifications';
-import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
+import { requestNotificationPermission, checkRealNotificationStatus } from '../modules/fleetTracking/fcm';
 import { getCustomerWaybills, confirmCustomerWaybillReceived } from '../lib/api';
 
 export const CustomerDashboard: React.FC = () => {
@@ -39,11 +39,18 @@ export const CustomerDashboard: React.FC = () => {
 
   // Push Notifications State
   const [showNotifModal, setShowNotifModal] = useState(false);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(
-    typeof window !== 'undefined' && 'Notification' in window ? Notification.permission === 'granted' : false
-  );
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(() => {
+    // 1. If stored locally or in user profile as enabled, default to true
+    if (localStorage.getItem('waybilla_notifications_enabled') === 'true') return true;
+    if (user?.notifications_enabled === true) return true;
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') return true;
+    return false;
+  });
   const [isRequestingNotif, setIsRequestingNotif] = useState(false);
-  const [notificationDismissed, setNotificationDismissed] = useState(false);
+  const [notificationDismissed, setNotificationDismissed] = useState<boolean>(() => {
+    if (localStorage.getItem('waybilla_notif_banner_dismissed') === 'true') return true;
+    return !!user?.notifications_dismissed;
+  });
 
   // Ref to track previous status of waybills for instant push triggers
   const prevWaybillStatuses = useRef<Record<string, string>>({});
@@ -98,11 +105,27 @@ export const CustomerDashboard: React.FC = () => {
 
   useEffect(() => {
     fetchWaybills();
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'granted') {
+
+    // Verify real hardware & browser notification permission status
+    const verifyNotifStatus = async () => {
+      // 1. Check native Android APK status or Capacitor or web status
+      const realStatus = await checkRealNotificationStatus();
+      if (realStatus) {
+        setNotificationsEnabled(true);
+        localStorage.setItem('waybilla_notifications_enabled', 'true');
+        return;
+      }
+
+      // 2. Check if user already dismissed or enabled
+      if (user?.notifications_enabled) {
+        setNotificationsEnabled(true);
+        localStorage.setItem('waybilla_notifications_enabled', 'true');
+      } else if (localStorage.getItem('waybilla_notifications_enabled') === 'true') {
         setNotificationsEnabled(true);
       }
-    }
+    };
+
+    verifyNotifStatus();
 
     // Connect to real-time instant SSE stream for instant updates
     let eventSource: EventSource | null = null;
@@ -169,9 +192,27 @@ export const CustomerDashboard: React.FC = () => {
           console.warn('Customer FCM token registration notice:', apiErr);
         }
 
+        // Persist enabled state locally and on server
+        localStorage.setItem('waybilla_notifications_enabled', 'true');
+        localStorage.removeItem('waybilla_notif_banner_dismissed');
         setNotificationsEnabled(true);
         setNotificationDismissed(false);
+
+        try {
+          await fetch('/api/customer/toggle-notifications', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ enabled: true })
+          });
+        } catch (err) {
+          console.warn('Sync toggle notifications error:', err);
+        }
       } else {
+        // Remember dismissal so user isn't pestered on every login
+        localStorage.setItem('waybilla_notif_banner_dismissed', 'true');
         setNotificationDismissed(true);
       }
     } catch (e) {
@@ -182,9 +223,19 @@ export const CustomerDashboard: React.FC = () => {
     }
   };
 
+  const handleDismissBanner = () => {
+    localStorage.setItem('waybilla_notif_banner_dismissed', 'true');
+    setNotificationDismissed(true);
+  };
+
   const handleToggleNotifications = async () => {
     const nextVal = !notificationsEnabled;
     setNotificationsEnabled(nextVal);
+    localStorage.setItem('waybilla_notifications_enabled', nextVal ? 'true' : 'false');
+    if (!nextVal) {
+      localStorage.setItem('waybilla_notif_banner_dismissed', 'true');
+      setNotificationDismissed(true);
+    }
     try {
       await fetch('/api/customer/toggle-notifications', {
         method: 'POST',
@@ -383,7 +434,7 @@ export const CustomerDashboard: React.FC = () => {
                 Enable Notifications
               </button>
               <button
-                onClick={() => setNotificationDismissed(true)}
+                onClick={handleDismissBanner}
                 className="text-xs font-bold text-[#0A1F44] hover:underline px-3 py-2 cursor-pointer bg-transparent border-0"
               >
                 Dismiss

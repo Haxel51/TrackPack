@@ -783,7 +783,11 @@ app.post("/api/auth/customer/login", async (req, res) => {
     await setDoc(doc(db, "sessions", token), {
       userId: customerDoc.id,
       userRole: "customer",
-      userData: { phone_number: customer.phone_number },
+      userData: { 
+        phone_number: customer.phone_number,
+        notifications_enabled: customer.notifications_enabled !== undefined ? customer.notifications_enabled : true,
+        notifications_dismissed: !!customer.notifications_dismissed
+      },
       createdAt: new Date().toISOString(),
       expiresAt
     });
@@ -792,7 +796,12 @@ app.post("/api/auth/customer/login", async (req, res) => {
       success: true,
       token,
       role: "customer",
-      user: { phone_number: customer.phone_number }
+      user: { 
+        id: customerDoc.id,
+        phone_number: customer.phone_number,
+        notifications_enabled: customer.notifications_enabled !== undefined ? customer.notifications_enabled : true,
+        notifications_dismissed: !!customer.notifications_dismissed
+      }
     });
   } catch (err) {
     console.error("Customer login error:", err);
@@ -2746,7 +2755,13 @@ app.get("/api/auth/me", async (req, res) => {
       if (docSnap.exists()) {
         const d = docSnap.data();
         if (session.userRole === "customer") {
-          freshUserData = { id: session.userId, phone_number: d.phone_number, has_completed_onboarding: !!d.has_completed_onboarding };
+          freshUserData = { 
+            id: session.userId, 
+            phone_number: d.phone_number, 
+            has_completed_onboarding: !!d.has_completed_onboarding,
+            notifications_enabled: d.notifications_enabled !== undefined ? d.notifications_enabled : true,
+            notifications_dismissed: !!d.notifications_dismissed
+          };
         } else if (session.userRole === "staff") {
           freshUserData = { id: session.userId, name: d.name, park_location: d.park_location, company_id: d.company_id, has_completed_onboarding: !!d.has_completed_onboarding };
         } else if (session.userRole === "manager" || session.userRole === "trip_monitor" || session.userRole === "driver") {

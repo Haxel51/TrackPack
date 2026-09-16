@@ -15,6 +15,8 @@ export interface User {
   approved?: boolean;
   active?: boolean;
   has_completed_onboarding?: boolean;
+  notifications_enabled?: boolean;
+  notifications_dismissed?: boolean;
 }
 
 export interface Manager {
