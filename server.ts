@@ -365,7 +365,8 @@ app.get("/screenshot-mobile.jpg", (req, res) => {
   res.send(Buffer.from(SCREENSHOT_MOBILE_BASE64, "base64"));
 });
 
-app.use(express.json());
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // 301 Permanent Redirect from legacy domain (trackpack.com.ng) to new primary domain (waybilla.com.ng)
 app.use((req, res, next) => {
@@ -3149,6 +3150,88 @@ app.post("/api/customer/waybills/:id/confirm-received", async (req, res) => {
     console.error("Confirm received error:", err);
     res.status(500).json({ error: "Internal server error." });
   }
+});
+
+// ---------------- WAYBILLA DIGITAL RECEIPT EXPORT & NATIVE DOWNLOAD API ----------------
+// High-performance in-memory cache for generated PNG receipts (TTL: 45 minutes)
+interface CachedReceiptImage {
+  buffer: Buffer;
+  fileName: string;
+  expiresAt: number;
+}
+const receiptImageCache = new Map<string, CachedReceiptImage>();
+
+// Clean expired cache items every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, val] of receiptImageCache.entries()) {
+    if (val.expiresAt < now) {
+      receiptImageCache.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Endpoint for web and mobile clients to register rendered receipt PNG for downloading
+app.post("/api/receipts/prepare-download", (req, res) => {
+  try {
+    const { base64Data, fileName, trackingCode } = req.body;
+    if (!base64Data) {
+      return res.status(400).json({ error: "Missing image data" });
+    }
+    const cleanBase64 = base64Data.replace(/^data:image\/\w+;base64,/, "");
+    const buffer = Buffer.from(cleanBase64, "base64");
+    const token = crypto.randomUUID();
+    const safeCode = (trackingCode || "receipt").toString().replace(/[^a-zA-Z0-9_-]/g, "_");
+    const safeFileName = (fileName || `waybilla_receipt_${safeCode}.png`).replace(/[^a-zA-Z0-9._-]/g, "_");
+
+    receiptImageCache.set(token, {
+      buffer,
+      fileName: safeFileName,
+      expiresAt: Date.now() + 45 * 60 * 1000 // 45 minutes
+    });
+
+    const downloadUrl = `/api/receipts/download-file/${token}/${encodeURIComponent(safeFileName)}`;
+    res.json({ success: true, downloadUrl, token, fileName: safeFileName });
+  } catch (err: any) {
+    console.error("Failed to prepare receipt download:", err);
+    res.status(500).json({ error: err.message || "Failed to process receipt image" });
+  }
+});
+
+// Real HTTPS download endpoint with Content-Disposition: attachment for instant browser & Android DownloadManager save
+app.get("/api/receipts/download-file/:token/:fileName?", (req, res) => {
+  const { token } = req.params;
+  const item = receiptImageCache.get(token);
+  if (!item) {
+    return res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt Expired</title>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0A1F44; color: #fff; text-align: center; padding: 40px 20px; }
+            h2 { color: #F2A93B; }
+            p { color: #cbd5e1; font-size: 15px; }
+            a { display: inline-block; margin-top: 20px; background: #F2A93B; color: #0A1F44; padding: 12px 24px; border-radius: 12px; font-weight: bold; text-decoration: none; }
+          </style>
+        </head>
+        <body>
+          <h2>Receipt Expired or Not Found</h2>
+          <p>The download link has expired. Please return to the Waybilla app and tap "Print / Save Receipt" again.</p>
+          <a href="/">Open Waybilla</a>
+        </body>
+      </html>
+    `);
+  }
+
+  res.setHeader("Content-Type", "image/png");
+  res.setHeader("Content-Disposition", `attachment; filename="${item.fileName}"`);
+  res.setHeader("Content-Length", item.buffer.length);
+  res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  res.setHeader("Pragma", "no-cache");
+  res.setHeader("Expires", "0");
+  res.send(item.buffer);
 });
 
 // ---------------- STAGE 3 STAFF PORTAL API ENDPOINTS ----------------
