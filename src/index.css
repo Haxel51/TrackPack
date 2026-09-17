@@ -4,3 +4,53 @@
 .gm-style {
   font-family: inherit;
 }
+
+/* ---------------- PRINT MEDIA STYLES ---------------- */
+/* Isolates the digital waybill receipt card during native Android / browser printing */
+@media print {
+  @page {
+    margin: 10mm;
+    size: auto;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide entire web app UI, headers, sidebars, banners, buttons */
+  #root > *:not(#waybilla-print-container),
+  header,
+  footer,
+  nav,
+  button,
+  .no-print,
+  #digital-waybill-receipt-modal,
+  #digital-waybill-receipt-modal button {
+    display: none !important;
+  }
+
+  /* Display only the dedicated printable receipt container */
+  #waybilla-print-container {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 480px !important;
+    margin: 0 auto !important;
+    padding: 10px !important;
+    background: #ffffff !important;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  #waybilla-print-container * {
+    visibility: visible !important;
+  }
+}
+
+#waybilla-print-container {
+  display: none;
+}
+

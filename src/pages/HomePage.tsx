@@ -1,6 +1,25 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Package, Building2, User, KeyRound, Sparkles, X, HelpCircle, Phone, CheckCircle2, ArrowRight, ShieldCheck, Truck, Receipt, Bell, Eye, ChevronDown } from 'lucide-react';
+import {
+  Search,
+  Package,
+  Building2,
+  User,
+  KeyRound,
+  X,
+  HelpCircle,
+  Phone,
+  CheckCircle2,
+  ArrowRight,
+  ShieldCheck,
+  Truck,
+  Receipt,
+  Bell,
+  Clock,
+  ChevronRight,
+  Lock,
+  Sparkles
+} from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
@@ -13,15 +32,24 @@ export const HomePage: React.FC = () => {
   const { t } = useLanguage();
   const { token, role, user } = useAuth();
 
-  const cachedToken = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') : null;
-  const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
-  const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? (() => {
-    try { return JSON.parse(localStorage.getItem('auth_user')!); } catch { return null; }
-  })() : null;
+  const cachedToken = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token')
+    : null;
+  const cachedRole = typeof localStorage !== 'undefined'
+    ? localStorage.getItem('auth_role')
+    : null;
+  const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user')
+    ? (() => {
+        try {
+          return JSON.parse(localStorage.getItem('auth_user')!);
+        } catch {
+          return null;
+        }
+      })()
+    : null;
 
   const activeToken = token || cachedToken;
   const activeRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : null);
-  const activeUser = user || cachedUser;
 
   const [trackingCode, setTrackingCode] = useState('');
   const [trackAlert, setTrackAlert] = useState<string | null>(null);
@@ -56,7 +84,6 @@ export const HomePage: React.FC = () => {
         try {
           const data = JSON.parse(event.data);
           if (data.type === 'WAYBILL_UPDATE') {
-            console.log('[SSE Public Tracking Update Received]:', data);
             triggerOSNotification(data.title || 'Waybilla Shipment Update 🚚', {
               body: data.body || 'Status updated on your tracked waybill.',
               tag: code
@@ -87,7 +114,7 @@ export const HomePage: React.FC = () => {
       const response = await fetch(`/api/track/${encodeURIComponent(cleanCode)}`);
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
-        setTrackAlert(data.error || "Waybill tracking code not found. Please double check the code written on your waybill receipt.");
+        setTrackAlert(data.error || "We could not find this waybill code. Please double-check the tracking code printed on your receipt.");
       } else {
         setTrackedWaybill(data.waybill);
         setTrackedRoute(data.route);
@@ -95,7 +122,7 @@ export const HomePage: React.FC = () => {
       }
     } catch (err) {
       console.error("Tracking request failed:", err);
-      setTrackAlert("Failed to connect to the server. Please check your connection and try again.");
+      setTrackAlert("Could not reach the tracking server. Please check your internet connection and try again.");
     } finally {
       setIsTracking(false);
     }
@@ -130,83 +157,66 @@ export const HomePage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] flex flex-col justify-between">
-      {/* Top Header Banner */}
-      <header className="bg-[#0A1F44] text-white py-4 px-6 shadow-md border-b-4 border-[#F2A93B]">
-        <div className="max-w-4xl mx-auto flex justify-between items-center">
-          <div 
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between">
+      {/* Top Navigation Bar */}
+      <header className="bg-[#0A1F44] text-white border-b-2 border-[#F2A93B]/40 sticky top-0 z-40 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <div
             onClick={handleSecretTap}
-            className="flex items-center gap-3 cursor-pointer select-none"
+            className="flex items-center gap-2.5 cursor-pointer select-none"
             title="Waybilla"
           >
             <Logo size="md" showText={false} />
-            <div className="flex items-center gap-2 font-black text-xl tracking-tight">
+            <div className="flex items-center gap-1 font-black text-xl tracking-tight">
               <span>Way<span className="text-[#F2A93B]">billa</span></span>
             </div>
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher />
+
+            {activeToken && (
+              <button
+                onClick={() => {
+                  if (activeRole === 'customer') navigate('/customer/dashboard');
+                  else if (activeRole === 'staff') navigate('/staff/dashboard');
+                  else if (activeRole === 'company') navigate('/company/dashboard');
+                  else navigate('/manager/dashboard');
+                }}
+                className="bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
+              >
+                <span>Dashboard</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
 
-      {/* Main Container */}
-      <main className="max-w-xl w-full mx-auto flex-grow px-6 py-8 flex flex-col justify-center space-y-8">
-        {/* Intro */}
-        <div className="text-center space-y-3">
-          <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-300 text-[#0A1F44] text-xs font-extrabold shadow-xs">
-            <span>⚡</span>
-            <span>{t('builtForNigeria')}</span>
+      {/* Hero Section */}
+      <main className="max-w-4xl w-full mx-auto flex-grow px-4 sm:px-6 py-8 sm:py-12 space-y-10">
+        {/* Title & Subtitle */}
+        <div className="text-center space-y-3.5 max-w-2xl mx-auto">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-[#0A1F44] text-xs font-black shadow-xs">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span>Nigeria’s Waybill Tracking Network</span>
           </div>
-          
-          <h1 className="text-2xl sm:text-3xl font-black text-[#0A1F44] tracking-tight leading-tight max-w-md mx-auto">
-            {t('heroTitle')}
+
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#0A1F44] tracking-tight leading-tight">
+            Track Your Waybill <br className="hidden sm:inline" />
+            <span className="text-[#0A1F44]">Step-by-Step</span>
           </h1>
-          
-          <p className="text-xs sm:text-sm text-slate-700 max-w-md mx-auto leading-relaxed">
-            {t('heroDesc')}
-          </p>
 
-          {/* Feature highlights pill badges */}
-          <div className="pt-2 flex flex-wrap items-center justify-center gap-2 text-xs font-bold text-[#0A1F44]">
-            <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              {t('liveStatusBadge')}
-            </span>
-            <span className="bg-white border border-slate-200 px-3 py-1 rounded-full shadow-xs flex items-center gap-1">
-              {t('digitalReceiptBadge')}
-            </span>
-          </div>
+          <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed max-w-lg mx-auto">
+            Follow your goods from park to park across Nigeria. Instant milestone updates, verified digital receipts, and secure pickup PIN.
+          </p>
         </div>
 
-        {/* What is Waybilla Friendly Disclaimer Card */}
-        <div className="bg-amber-50/90 border border-amber-200/90 rounded-2xl p-4 text-xs text-amber-950 space-y-2 shadow-xs">
-          <div className="flex items-center gap-2 font-black text-amber-900 text-sm">
-            <span>{t('quickNoticeTitle')}</span>
-          </div>
-          <p className="leading-relaxed font-medium">
-            {t('whatIsWaybilla')}
-          </p>
-          <div className="bg-white/80 p-2.5 rounded-xl border border-amber-200 text-amber-900 text-[11px] font-semibold leading-relaxed">
-            🤣 {t('noForeignCodes')}
-          </div>
-        </div>
-
-        {/* Track Box Section */}
-        <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-lg space-y-4">
-          <div className="space-y-1">
-            <h2 className="text-sm font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center justify-between">
-              <span>{t('trackWaybill')}</span>
-              <span className="text-[11px] text-slate-400 font-normal">e.g. NNW-6530</span>
-            </h2>
-            <p className="text-xs text-slate-500 font-medium">
-              {t('trackSub')}
-            </p>
-          </div>
-          
+        {/* The Tracking Command Bar */}
+        <div className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 space-y-4 max-w-2xl mx-auto">
           <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-grow">
-              <label htmlFor="tracking-code-input" className="sr-only">Waybill Tracking Code</label>
+              <label htmlFor="tracking-code-input" className="sr-only">Waybill Tracking Code or Phone Number</label>
               <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                 <Search className="w-5 h-5" />
               </span>
@@ -214,245 +224,280 @@ export const HomePage: React.FC = () => {
                 id="tracking-code-input"
                 name="trackingCode"
                 type="text"
-                placeholder={t('enterTrackingNum')}
+                placeholder="Enter Waybill Code (e.g. NNW-8392) or Phone..."
                 value={trackingCode}
                 onChange={(e) => setTrackingCode(e.target.value)}
-                className="w-full bg-[#FAFAFA] border border-slate-200 focus:border-[#0A1F44] focus:ring-1 focus:ring-[#0A1F44] rounded-2xl py-4 pl-12 pr-4 text-sm sm:text-base font-semibold placeholder-slate-400 outline-none uppercase transition-all"
-                aria-label="Enter waybill tracking code to track your waybill"
+                className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#0A1F44] focus:ring-2 focus:ring-[#0A1F44]/10 rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-sm sm:text-base font-bold placeholder-slate-400 outline-none uppercase transition-all"
+                aria-label="Enter waybill tracking code"
+                autoComplete="off"
               />
             </div>
             <button
               type="submit"
-              disabled={isTracking}
-              className="bg-[#F2A93B] hover:bg-[#d9922b] disabled:bg-amber-300 text-[#0A1F44] font-extrabold px-6 py-4 rounded-2xl text-sm transition-all shadow-sm active:scale-[0.97] cursor-pointer flex items-center justify-center shrink-0 min-h-[48px]"
-              aria-label="Track Waybill"
+              disabled={isTracking || !trackingCode.trim()}
+              className="bg-[#F2A93B] hover:bg-[#d9922b] disabled:opacity-50 text-[#0A1F44] font-black px-7 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0 min-h-[48px]"
             >
-              {isTracking ? 'Tracking...' : t('trackBtn')}
+              {isTracking ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-[#0A1F44] border-t-transparent rounded-full animate-spin"></div>
+                  <span>Searching...</span>
+                </>
+              ) : (
+                <>
+                  <span>Track Package</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
             </button>
           </form>
 
-          <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-3 text-xs text-slate-700 flex items-center justify-between gap-2">
-            <span className="text-[11px] leading-relaxed text-slate-700">
-              💡 <strong>Want to see all waybills linked to your phone number?</strong> Log in to the <strong>Customer Portal</strong> below to view all your receipts & Pickup PINs!
+          {/* Quick Helper Line */}
+          <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 pt-1 px-1">
+            <span className="flex items-center gap-1.5 font-medium">
+              <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+              <span>Official waybill code from your paper or digital receipt</span>
             </span>
+            {trackingCode && (
+              <button
+                type="button"
+                onClick={handleClearTrack}
+                className="text-red-500 hover:text-red-700 font-bold cursor-pointer"
+              >
+                Clear
+              </button>
+            )}
           </div>
 
           {trackAlert && (
-            <div className="bg-rose-50 border border-rose-200 text-rose-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-1">
-              <div>{trackAlert}</div>
-              <p className="text-[11px] text-rose-700 font-normal pt-1">
-                💡 Tip: Verify the code printed on the receipt issued to you at the motor park counter.
+            <div className="bg-rose-50 border border-rose-200 text-rose-900 p-3.5 rounded-2xl text-xs font-semibold space-y-1">
+              <div className="font-bold flex items-center gap-1.5">
+                <span>⚠️ {trackAlert}</span>
+              </div>
+              <p className="text-[11px] text-rose-700 font-normal">
+                Check the code printed on the receipt issued to you at the motor park counter, or sign in to your Customer Portal below.
               </p>
             </div>
           )}
         </div>
 
-        {/* Tracked Shipment Details View */}
+        {/* Tracked Shipment Result Card */}
         {trackedWaybill && (
-          <div className="space-y-4 animate-fadeIn">
-            <div className="flex justify-between items-center">
-              <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest">
-                {t('searchResult')}
-              </h3>
-              <button 
+          <div className="max-w-2xl mx-auto space-y-3 animate-fadeIn">
+            <div className="flex justify-between items-center px-1">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                <h3 className="text-xs font-black text-slate-800 uppercase tracking-widest">
+                  Live Waybill Status
+                </h3>
+              </div>
+              <button
                 onClick={handleClearTrack}
-                className="flex items-center gap-1 text-xs font-extrabold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-4 py-2.5 rounded-xl transition-all min-h-[44px]"
-                aria-label="Clear track details"
+                className="flex items-center gap-1 text-xs font-bold text-red-600 hover:text-red-700 bg-red-50 hover:bg-red-100 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
-                {t('clearResult')}
+                <span>Close Result</span>
               </button>
             </div>
-            <ShipmentTimeline waybill={trackedWaybill} route={trackedRoute} driver={trackedDriver} showReceiptButton={false} />
+            <ShipmentTimeline waybill={trackedWaybill} route={trackedRoute} driver={trackedDriver} showReceiptButton={true} />
           </div>
         )}
 
-        {/* Portal Entry Channels */}
-        <div className="space-y-4">
-          {/* Main Customer Portal Banner */}
-          <div className="bg-gradient-to-br from-[#0A1F44] to-[#122e60] rounded-3xl p-6 text-white shadow-md space-y-4">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-2xl bg-[#F2A93B] text-[#0A1F44] flex items-center justify-center font-black text-xl shadow-sm">
+        {/* Milestone Checkpoint Demonstration (The "Temu Experience") */}
+        {!trackedWaybill && (
+          <div className="max-w-2xl mx-auto bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-4">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div>
+                <h3 className="text-xs sm:text-sm font-black text-[#0A1F44] uppercase tracking-wider flex items-center gap-2">
+                  <span>How Waybill Checkpoints Work</span>
+                </h3>
+                <p className="text-[11px] sm:text-xs text-slate-500 font-medium">
+                  Just like Temu &amp; Amazon — verified step-by-step terminal milestones
+                </p>
+              </div>
+              <span className="bg-emerald-50 text-emerald-700 font-extrabold text-[10px] px-2.5 py-1 rounded-full border border-emerald-200/60">
+                100% Guaranteed
+              </span>
+            </div>
+
+            {/* Visual Step-by-Step Progress Track */}
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 pt-1">
+              {/* Step 1 */}
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-1.5 relative">
+                <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-900 font-black text-xs flex items-center justify-center">
+                  1
+                </div>
+                <div className="font-extrabold text-xs text-[#0A1F44]">Received at Park</div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Sender drops carton at counter; staff issues official receipt.
+                </p>
+              </div>
+
+              {/* Step 2 */}
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-1.5 relative">
+                <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center">
+                  2
+                </div>
+                <div className="font-extrabold text-xs text-[#0A1F44]">Bus Dispatched</div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Loaded into vehicle; marked in transit to destination.
+                </p>
+              </div>
+
+              {/* Step 3 */}
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-1.5 relative">
+                <div className="w-7 h-7 rounded-xl bg-emerald-100 text-emerald-900 font-black text-xs flex items-center justify-center">
+                  3
+                </div>
+                <div className="font-extrabold text-xs text-[#0A1F44]">Arrived at Park</div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Destination park logs vehicle; receiver gets arrival alert.
+                </p>
+              </div>
+
+              {/* Step 4 */}
+              <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-1.5 relative">
+                <div className="w-7 h-7 rounded-xl bg-purple-100 text-purple-900 font-black text-xs flex items-center justify-center">
+                  4
+                </div>
+                <div className="font-extrabold text-xs text-[#0A1F44]">Pickup via PIN</div>
+                <p className="text-[11px] text-slate-500 font-medium leading-snug">
+                  Receiver shows secret 4-digit code to collect goods.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* The Two Executive Doors (Customer vs Transport Company) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl mx-auto">
+          {/* Door 1: Customer Portal */}
+          <div className="bg-gradient-to-br from-[#0A1F44] to-[#122e60] rounded-3xl p-6 text-white shadow-lg space-y-4 flex flex-col justify-between border border-blue-900/30">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-[#F2A93B] text-[#0A1F44] flex items-center justify-center font-black text-xl shadow-xs">
                   📱
                 </div>
-                <div>
-                  <h3 className="font-extrabold text-base">{t('customerPortal')}</h3>
-                  <p className="text-xs text-amber-200">{t('customerSub')}</p>
-                </div>
+                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/10 text-amber-300 border border-white/10">
+                  Senders &amp; Receivers
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <h2 className="text-lg font-black tracking-tight">Customer Portal</h2>
+                <p className="text-xs text-slate-200 leading-relaxed">
+                  Log in with your phone number to see all parcels sent or received, download official receipts, and reveal your pickup PIN.
+                </p>
               </div>
             </div>
 
-            <div className="bg-white/10 p-3.5 rounded-2xl text-xs text-slate-100 space-y-1.5 border border-white/10">
-              <p className="font-bold text-amber-300 flex items-center gap-1.5">
-                <Phone className="w-3.5 h-3.5" />
-                {t('howToLoginTitle')}
-              </p>
-              <p className="leading-relaxed">
-                {t('howToLoginDesc')}
-              </p>
-            </div>
-
             <button
+              type="button"
               onClick={() => navigate('/login/customer')}
-              className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 px-5 rounded-2xl text-sm transition-all shadow-md cursor-pointer flex items-center justify-center gap-2"
-              aria-label="Go to Customer Portal"
+              className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>{t('loginSignUpCustomer')}</span>
+              <span>Open Customer Portal</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Secondary Operator / Staff Access Bar (Clean, Symmetrical, Never Wraps Awkwardly) */}
-          <div className="pt-3 border-t border-slate-200">
+          {/* Door 2: Transport Company & Park Staff */}
+          <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-6 text-slate-900 shadow-md space-y-4 flex flex-col justify-between hover:border-[#0A1F44]/40 transition-all">
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#F2A93B] flex items-center justify-center font-black text-xl shadow-xs">
+                  🏢
+                </div>
+                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                  Transport Operators
+                </span>
+              </div>
+
+              <div className="space-y-1">
+                <h2 className="text-lg font-black text-[#0A1F44] tracking-tight">Transport Company Portal</h2>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Issue waybills in 20 seconds, print digital receipts, verify receiver PINs, and manage park manifests.
+                </p>
+              </div>
+            </div>
+
             <button
+              type="button"
               onClick={() => setShowStaffPortalsModal(true)}
-              className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-[#0A1F44] transition-all cursor-pointer shadow-xs active:scale-[0.99] group min-h-[48px]"
-              id="staff-operator-portals-trigger"
-              aria-label="Open Park Staff & Operator Portals"
+              className="w-full bg-[#0A1F44] hover:bg-blue-950 text-white font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <div className="flex items-center gap-2.5 text-left">
-                <div className="w-8 h-8 rounded-xl bg-blue-100/80 text-blue-900 flex items-center justify-center font-bold shrink-0">
-                  <ShieldCheck className="w-4 h-4 text-blue-800" />
-                </div>
-                <div>
-                  <div className="text-xs font-black tracking-tight text-[#0A1F44] flex items-center gap-1.5">
-                    <span>{t('parkStaffOperators')}</span>
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-blue-50 text-blue-700 border border-blue-200/60 hidden xs:inline-block">5 Portals</span>
-                  </div>
-                  <p className="text-[11px] text-slate-500 font-medium">Park Staff, Managers, Trip Monitors & Transport Companies</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-1 text-slate-400 group-hover:text-[#0A1F44] transition-colors shrink-0 ml-2">
-                <span className="text-xs font-bold hidden sm:inline-block">Select</span>
-                <ChevronDown className="w-4 h-4 transition-transform group-hover:translate-y-0.5" />
-              </div>
+              <Building2 className="w-4 h-4 text-[#F2A93B]" />
+              <span>Staff &amp; Company Login</span>
             </button>
+          </div>
+        </div>
+
+        {/* The 3 Trust Pillars */}
+        <div className="max-w-2xl mx-auto pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-xs">
+              <div className="flex items-center gap-2 font-black text-xs text-[#0A1F44]">
+                <Lock className="w-4 h-4 text-[#F2A93B]" />
+                <span>Secret Pickup PIN</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                Cartons are only handed over when the receiver presents their private 4-digit code. No wrongful claims.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-xs">
+              <div className="flex items-center gap-2 font-black text-xs text-[#0A1F44]">
+                <Receipt className="w-4 h-4 text-emerald-600" />
+                <span>Digital Receipts</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                Instant digital proof of payment. Printable to Bluetooth printers, saveable as PDF, or sent via WhatsApp.
+              </p>
+            </div>
+
+            <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-xs">
+              <div className="flex items-center gap-2 font-black text-xs text-[#0A1F44]">
+                <Bell className="w-4 h-4 text-blue-600" />
+                <span>Arrival Alerts</span>
+              </div>
+              <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
+                Senders and receivers know the minute the vehicle arrives at the destination park without calling the driver.
+              </p>
+            </div>
           </div>
         </div>
       </main>
 
-      {/* How It Works Guide Modal */}
-      {showHowItWorksModal && (
-        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl my-8">
-            <div className="flex justify-between items-center border-b border-slate-100 pb-4">
+      {/* Staff & Operator Portals Bottom Sheet Modal */}
+      {showStaffPortalsModal && (
+        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl animate-slideUp sm:animate-scaleUp border border-slate-100 max-h-[90vh] overflow-y-auto">
+            {/* Mobile handle */}
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto sm:hidden" />
+
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-[#0A1F44] flex items-center justify-center font-extrabold">
-                  💡
+                <div className="w-10 h-10 rounded-2xl bg-blue-100 text-[#0A1F44] flex items-center justify-center font-extrabold">
+                  <ShieldCheck className="w-5 h-5 text-[#0A1F44]" />
                 </div>
                 <div>
-                  <h3 className="text-lg font-black text-[#0A1F44]">{t('howItWorks')}</h3>
-                  <p className="text-xs text-slate-500">{t('howWorksSubtitle')}</p>
+                  <h3 className="text-base font-black text-[#0A1F44]">Transport &amp; Park Portals</h3>
+                  <p className="text-xs text-slate-500 font-medium">Select your role to sign in</p>
                 </div>
               </div>
               <button
-                onClick={() => setShowHowItWorksModal(false)}
-                className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer"
+                onClick={() => setShowStaffPortalsModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer transition-colors"
+                aria-label="Close"
               >
-                <X className="w-5 h-5" />
+                <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
-              {/* For Customers */}
-              <div className="bg-blue-50/70 border border-blue-200 rounded-2xl p-4 space-y-3">
-                <div className="font-extrabold text-[#0A1F44] text-sm flex items-center gap-2">
-                  <User className="w-4 h-4 text-[#F2A93B]" />
-                  <span>{t('forCustomersTitle')}</span>
-                </div>
-                
-                <div className="space-y-2 text-xs text-slate-700">
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-blue-100">
-                    <span className="font-black text-blue-700">1.</span>
-                    <p>{t('custStep1')}</p>
-                  </div>
-
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-blue-100">
-                    <span className="font-black text-blue-700">2.</span>
-                    <p>{t('custStep2')}</p>
-                  </div>
-
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-blue-100">
-                    <span className="font-black text-blue-700">3.</span>
-                    <p>{t('custStep3')}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* For Park Staff */}
-              <div className="bg-amber-50/70 border border-amber-200 rounded-2xl p-4 space-y-3">
-                <div className="font-extrabold text-amber-950 text-sm flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-amber-600" />
-                  <span>{t('forStaffTitle')}</span>
-                </div>
-
-                <div className="space-y-2 text-xs text-slate-700">
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
-                    <span className="font-black text-amber-700">1.</span>
-                    <p>{t('staffStep1')}</p>
-                  </div>
-
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
-                    <span className="font-black text-amber-700">2.</span>
-                    <p>{t('staffStep2')}</p>
-                  </div>
-
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
-                    <span className="font-black text-amber-700">3.</span>
-                    <p>{t('staffStep3')}</p>
-                  </div>
-
-                  <div className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-amber-100">
-                    <span className="font-black text-amber-700">4.</span>
-                    <p>{t('staffStep4')}</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowHowItWorksModal(false)}
-              className="w-full bg-[#0A1F44] text-white font-bold py-3 rounded-2xl text-sm hover:bg-blue-900 transition-colors cursor-pointer"
-            >
-              {t('gotItClose')}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Staff & Operator Portals Modal / Bottom Sheet */}
-      {showStaffPortalsModal && (
-        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-y-auto animate-fadeIn">
-          <div className="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full p-5 sm:p-6 space-y-4 shadow-2xl animate-slideUp sm:animate-scaleUp border border-slate-100 max-h-[85vh] overflow-y-auto">
-            {/* Header with drag indicator on mobile */}
-            <div className="space-y-3">
-              <div className="w-12 h-1.5 bg-slate-200 rounded-full mx-auto sm:hidden" />
-              <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-10 h-10 rounded-2xl bg-blue-100 text-[#0A1F44] flex items-center justify-center font-extrabold">
-                    <ShieldCheck className="w-5 h-5 text-[#0A1F44]" />
-                  </div>
-                  <div>
-                    <h3 className="text-base sm:text-lg font-black text-[#0A1F44]">{t('parkStaffOperators')}</h3>
-                    <p className="text-xs text-slate-500">Select your operational portal</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowStaffPortalsModal(false)}
-                  className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer transition-colors"
-                  aria-label="Close"
-                  id="close-staff-portals-btn"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {/* Portal Cards List */}
+            {/* Portal Options */}
             <div className="space-y-2 pt-1">
-              {/* Park Staff */}
+              {/* Option 1: Park Counter Staff */}
               <button
+                type="button"
                 onClick={() => {
                   setShowStaffPortalsModal(false);
                   if (activeToken && activeRole === 'staff') {
@@ -461,101 +506,48 @@ export const HomePage: React.FC = () => {
                     navigate('/login/staff');
                   }
                 }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-                id="portal-option-staff"
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0">
-                    <KeyRound className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+                    <Receipt className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('staffPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Issue waybills, print receipts & manage parcel tags</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Park Counter Staff</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Issue waybills, print receipts &amp; verify pickup PINs</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
               </button>
 
-              {/* Park Manager */}
+              {/* Option 2: Park Manager */}
               <button
+                type="button"
                 onClick={() => {
                   setShowStaffPortalsModal(false);
-                  if (activeToken && (activeRole === 'manager' || activeRole === 'driver' || activeRole === 'trip_monitor')) {
+                  if (activeToken && activeRole === 'manager') {
                     navigate('/manager/dashboard');
                   } else {
                     navigate('/login/manager?role=manager');
                   }
                 }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-                id="portal-option-manager"
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-500/10 text-emerald-600 flex items-center justify-center shrink-0">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-800 flex items-center justify-center shrink-0 font-bold">
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('managerPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Dispatch trips, cashier audits & park control</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Park Manager / Auditor</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Cashier audits, vehicle departures &amp; park control</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
               </button>
 
-              {/* Trip Monitor */}
+              {/* Option 3: Transport Company Fleet */}
               <button
-                onClick={() => {
-                  setShowStaffPortalsModal(false);
-                  if (activeToken && (activeRole === 'trip_monitor' || activeRole === 'manager' || activeRole === 'driver')) {
-                    navigate('/manager/dashboard');
-                  } else {
-                    navigate('/login/manager?role=trip_monitor');
-                  }
-                }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-                id="portal-option-trip-monitor"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500/10 text-indigo-600 flex items-center justify-center shrink-0">
-                    <Eye className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('tripMonitorPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Live transit map, alerts & en-route checkpoint monitor</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-              </button>
-
-              {/* Driver Device Setup */}
-              <button
-                onClick={() => {
-                  setShowStaffPortalsModal(false);
-                  if (typeof localStorage !== 'undefined') {
-                    localStorage.setItem('last_portal_role', 'driver');
-                  }
-                  if (activeToken && (activeRole === 'driver' || activeRole === 'manager' || activeRole === 'trip_monitor' || activeUser?.manager_type === 'Driver' || activeUser?.role === 'driver')) {
-                    navigate('/manager/dashboard');
-                  } else {
-                    navigate('/login/driver');
-                  }
-                }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-                id="portal-option-driver"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0">
-                    <Truck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('driverPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">One-time road pass &amp; emergency support setup</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-              </button>
-
-              {/* Company Portal */}
-              <button
+                type="button"
                 onClick={() => {
                   setShowStaffPortalsModal(false);
                   if (activeToken && activeRole === 'company') {
@@ -564,16 +556,36 @@ export const HomePage: React.FC = () => {
                     navigate('/login/company');
                   }
                 }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-                id="portal-option-company"
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-800/10 text-slate-800 flex items-center justify-center shrink-0">
-                    <Building2 className="w-5 h-5" />
+                  <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 font-bold">
+                    <Building2 className="w-5 h-5 text-[#F2A93B]" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('companyPortal')}</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Transport company fleet admin & analytics</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Transport Company Owner</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Fleet revenue, multi-station reports &amp; records</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
+
+              {/* Option 4: Driver */}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  navigate('/login/driver');
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 font-bold">
+                    <Truck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Driver Portal</div>
+                    <div className="text-[11px] text-slate-500 font-medium">Trip waybill manifest &amp; emergency road pass</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
@@ -581,6 +593,7 @@ export const HomePage: React.FC = () => {
             </div>
 
             <button
+              type="button"
               onClick={() => setShowStaffPortalsModal(false)}
               className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-2.5 rounded-2xl text-xs transition-colors cursor-pointer"
             >
@@ -590,25 +603,83 @@ export const HomePage: React.FC = () => {
         </div>
       )}
 
+      {/* How It Works Guide Modal */}
+      {showHowItWorksModal && (
+        <div className="fixed inset-0 bg-[#091026]/80 backdrop-blur-xs z-50 flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl my-8">
+            <div className="flex justify-between items-center border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-[#0A1F44] flex items-center justify-center font-extrabold text-sm">
+                  💡
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#0A1F44]">How Waybilla Works</h3>
+                  <p className="text-xs text-slate-500">Simple 3-step guide for everyone</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowHowItWorksModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center font-bold cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs text-slate-700">
+              <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3.5 space-y-2">
+                <div className="font-extrabold text-[#0A1F44] text-xs flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-[#F2A93B]" />
+                  <span>For Senders &amp; Receivers:</span>
+                </div>
+                <ul className="space-y-1.5 text-[11px] leading-relaxed pl-1">
+                  <li><strong>1. Drop off carton:</strong> Give your phone number at the counter.</li>
+                  <li><strong>2. Track anytime:</strong> Enter code on Waybilla to see current park checkpoint.</li>
+                  <li><strong>3. Collect with PIN:</strong> Show your secret 4-digit code to collect goods.</li>
+                </ul>
+              </div>
+
+              <div className="bg-amber-50/60 border border-amber-100 rounded-2xl p-3.5 space-y-2">
+                <div className="font-extrabold text-amber-950 text-xs flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-amber-600" />
+                  <span>For Transport Companies:</span>
+                </div>
+                <ul className="space-y-1.5 text-[11px] leading-relaxed pl-1">
+                  <li><strong>1. Issue Waybills:</strong> Print digital receipts in 20 seconds.</li>
+                  <li><strong>2. Update Milestones:</strong> Mark departure and arrival at terminals.</li>
+                  <li><strong>3. Stop Theft:</strong> Secret PIN guarantees only the real owner collects goods.</li>
+                </ul>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setShowHowItWorksModal(false)}
+              className="w-full bg-[#0A1F44] text-white font-extrabold py-3 rounded-2xl text-xs hover:bg-blue-900 transition-colors cursor-pointer"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 px-6">
-        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-          <div className="space-y-1">
-            <p className="text-xs font-semibold text-slate-500">
-              &copy; {new Date().getFullYear()} {t('copyrightText')}
+      <footer className="border-t border-slate-200 bg-white py-6 px-4 sm:px-6">
+        <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-slate-700">
+              &copy; {new Date().getFullYear()} Waybilla. Nigeria’s Waybill Tracking Network.
             </p>
-            <p className="text-[11px] font-medium text-slate-600">
-              Waybilla is a product of <span className="text-slate-900 font-bold">Haxel Tech-Solutions</span>
+            <p className="text-[11px] font-medium text-slate-500">
+              A product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span>
             </p>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4">
             <button
               onClick={() => setShowHowItWorksModal(true)}
               className="text-xs font-bold text-[#0A1F44] hover:text-amber-600 flex items-center gap-1.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
             >
               <HelpCircle className="w-4 h-4 text-[#F2A93B]" />
-              <span className="underline decoration-amber-400 underline-offset-4 font-bold">FAQ / How it works</span>
+              <span className="underline decoration-amber-400 underline-offset-4 font-bold">How it Works</span>
             </button>
           </div>
         </div>
@@ -616,4 +687,3 @@ export const HomePage: React.FC = () => {
     </div>
   );
 };
-

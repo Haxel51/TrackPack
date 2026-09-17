@@ -18,7 +18,92 @@ export function isMobileAppEnvironment(): boolean {
 }
 
 /**
- * Registers the generated base64 image on the server to get a real HTTPS download URL.
+ * Renders an HTML element into a crisp PNG Data URL.
+ * Combines html-to-image with an automatic html2canvas fallback to ensure 100% reliability
+ * across all mobile browsers, TWAs, and Android Custom Tabs.
+ */
+export async function generateReceiptDataUrl(element: HTMLElement): Promise<string | null> {
+  // 1. Primary: html-to-image
+  try {
+    const dataUrl = await htmlToImage.toPng(element, {
+      backgroundColor: '#ffffff',
+      pixelRatio: 2, // Retina resolution
+      cacheBust: true,
+      skipFonts: false,
+    });
+    if (dataUrl && dataUrl.length > 100) {
+      return dataUrl;
+    }
+  } catch (err) {
+    console.warn('html-to-image failed, falling back to html2canvas:', err);
+  }
+
+  // 2. Fallback: html2canvas
+  try {
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(element, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+      logging: false,
+      allowTaint: true,
+    });
+    const canvasDataUrl = canvas.toDataURL('image/png');
+    if (canvasDataUrl && canvasDataUrl.length > 100) {
+      return canvasDataUrl;
+    }
+  } catch (canvasErr) {
+    console.error('html2canvas fallback failed as well:', canvasErr);
+  }
+
+  return null;
+}
+
+/**
+ * NATIVE PRINT: Triggers window.print() targeting only the isolated receipt element.
+ * Works natively in Chrome Custom Tabs (TWA) and Android, opening the system Print Spooler / Save as PDF dialog.
+ */
+export function printReceipt(elementId: string): boolean {
+  const element = document.getElementById(elementId);
+  if (!element) {
+    console.error(`Receipt element with ID "${elementId}" not found for printing.`);
+    return false;
+  }
+
+  try {
+    // Get or create print container
+    let printContainer = document.getElementById('waybilla-print-container');
+    if (!printContainer) {
+      printContainer = document.createElement('div');
+      printContainer.id = 'waybilla-print-container';
+      document.body.appendChild(printContainer);
+    }
+
+    // Clone element into the isolated print container
+    printContainer.innerHTML = '';
+    const clone = element.cloneNode(true) as HTMLElement;
+    clone.style.width = '100%';
+    clone.style.maxWidth = '460px';
+    clone.style.margin = '0 auto';
+    clone.style.boxShadow = 'none';
+    clone.style.border = 'none';
+    printContainer.appendChild(clone);
+
+    // Short timeout to allow layout to settle before opening native Android print sheet
+    setTimeout(() => {
+      window.print();
+    }, 150);
+
+    return true;
+  } catch (err) {
+    console.error('Print trigger failed:', err);
+    window.print();
+    return false;
+  }
+}
+
+/**
+ * Registers the rendered base64 image on the server to get a real HTTPS download URL.
  * Real HTTPS URLs bypass Chromium/Android WebView restrictions that block data: and blob: downloads.
  */
 async function registerServerDownload(
@@ -46,16 +131,57 @@ async function registerServerDownload(
 }
 
 /**
- * Displays a clean in-app modal allowing the user to download, share, or view the receipt.
- * Never traps the user or replaces the window!
+ * PDF EXPORT: Generates an official vector/image PDF receipt using jsPDF.
+ * Seamlessly saves to phone or desktop storage.
+ */
+export async function downloadReceiptPdf(elementId: string, trackingCode: string): Promise<boolean> {
+  const element = document.getElementById(elementId);
+  if (!element) return false;
+
+  try {
+    const dataUrl = await generateReceiptDataUrl(element);
+    if (!dataUrl) {
+      throw new Error('Failed to render receipt image for PDF conversion');
+    }
+
+    const { jsPDF } = await import('jspdf');
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const imgProps = pdf.getImageProperties(dataUrl);
+    const pdfWidth = pdf.internal.pageSize.getWidth();
+    
+    // Fit within margins
+    const margin = 15;
+    const contentWidth = pdfWidth - (margin * 2);
+    const contentHeight = (imgProps.height * contentWidth) / imgProps.width;
+
+    pdf.addImage(dataUrl, 'PNG', margin, margin, contentWidth, contentHeight);
+    const safeCode = (trackingCode || 'receipt').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `waybilla_receipt_${safeCode}.pdf`;
+    
+    pdf.save(fileName);
+    return true;
+  } catch (err) {
+    console.error('PDF export error:', err);
+    return false;
+  }
+}
+
+/**
+ * Displays a clean in-app modal allowing the user to download, print, share, or view the receipt.
+ * Optimized specifically for TWA and mobile apps: NO popup blockers, NO window replacements!
  */
 function showInAppReceiptDialog(
   imageDataUrl: string,
   downloadUrl: string,
   fileName: string,
-  trackingCode: string
+  trackingCode: string,
+  elementId: string
 ) {
-  // Remove existing dialog if any
   const existing = document.getElementById('waybilla-receipt-inapp-dialog');
   if (existing) existing.remove();
 
@@ -81,11 +207,11 @@ function showInAppReceiptDialog(
   `;
 
   overlay.innerHTML = `
-    <div style="max-width: 440px; width: 100%; margin: auto; display: flex; flex-direction: column; align-items: center; gap: 14px;">
+    <div style="max-width: 440px; width: 100%; margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px;">
       <!-- Header bar with title and close button -->
       <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
         <span style="color: #F2A93B; font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">
-          WAYBILLA RECEIPT #${trackingCode}
+          RECEIPT #${trackingCode}
         </span>
         <button id="btn-close-receipt-overlay" style="background: rgba(255,255,255,0.15); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">
           ✕
@@ -98,22 +224,30 @@ function showInAppReceiptDialog(
       </div>
 
       <!-- Action Buttons -->
-      <div style="width: 100%; display: flex; flex-direction: column; gap: 10px; margin-top: 6px;">
-        <button id="btn-download-receipt-device" style="background: #F2A93B; color: #0A1F44; border: none; border-radius: 14px; padding: 15px 20px; font-size: 15px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(242,169,59,0.4); text-transform: uppercase; letter-spacing: 0.5px;">
-          ⬇️ Save Image to Phone / Downloads
+      <div style="width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 4px;">
+        <!-- Print / Save as PDF button -->
+        <button id="btn-print-receipt-action" style="background: #0A1F44; color: #ffffff; border: 1.5px solid #F2A93B; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          🖨️ Print Receipt / Save as PDF
         </button>
 
-        <button id="btn-share-receipt-whatsapp" style="background: #25D366; color: #ffffff; border: none; border-radius: 14px; padding: 13px 20px; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-          💬 Share on WhatsApp
+        <!-- Save Image (PNG) directly to device -->
+        <button id="btn-download-receipt-device" style="background: #F2A93B; color: #0A1F44; border: none; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(242,169,59,0.4);">
+          ⬇️ Save Image (PNG) to Downloads
         </button>
 
-        <button id="btn-dismiss-overlay" style="background: transparent; color: #94a3b8; border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 11px 20px; font-size: 13px; font-weight: 700; cursor: pointer;">
+        <!-- Share on WhatsApp -->
+        <button id="btn-share-receipt-whatsapp" style="background: #25D366; color: #ffffff; border: none; border-radius: 14px; padding: 12px 18px; font-size: 14px; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+          💬 Share via WhatsApp
+        </button>
+
+        <!-- Dismiss button -->
+        <button id="btn-dismiss-overlay" style="background: transparent; color: #94a3b8; border: 1px solid rgba(255,255,255,0.2); border-radius: 14px; padding: 10px 18px; font-size: 13px; font-weight: 700; cursor: pointer;">
           Back to Dashboard
         </button>
       </div>
 
-      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 4px 0 16px;">
-        Tip: You can also press and hold the image to save directly to your gallery.
+      <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 4px 0 12px;">
+        Tip: Press & hold the image to save directly to your phone's photo gallery.
       </p>
     </div>
   `;
@@ -125,46 +259,48 @@ function showInAppReceiptDialog(
   overlay.querySelector('#btn-close-receipt-overlay')?.addEventListener('click', close);
   overlay.querySelector('#btn-dismiss-overlay')?.addEventListener('click', close);
 
-  // Direct device save handler using the real server HTTPS download URL
+  // Print handler
+  overlay.querySelector('#btn-print-receipt-action')?.addEventListener('click', () => {
+    printReceipt(elementId);
+  });
+
+  // Direct device download handler
   overlay.querySelector('#btn-download-receipt-device')?.addEventListener('click', () => {
     const btn = overlay.querySelector('#btn-download-receipt-device') as HTMLButtonElement;
     if (btn) {
-      btn.innerHTML = '⏳ Downloading Receipt...';
-      btn.style.opacity = '0.8';
+      btn.innerHTML = '⏳ Downloading...';
     }
 
-    // 1. Trigger system browser / Android DownloadManager
-    try {
-      window.open(fullDownloadUrl, '_system');
-    } catch (e) {
-      console.warn('System browser open error:', e);
-    }
-
-    // 2. Also trigger standard anchor download
+    // 1. Direct anchor download (without target="_blank" so Chrome Custom Tabs / TWA doesn't block it)
     try {
       const link = document.createElement('a');
       link.href = fullDownloadUrl;
-      link.setAttribute('download', fileName);
-      link.target = '_blank';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
-      setTimeout(() => link.remove(), 500);
+      setTimeout(() => link.remove(), 400);
     } catch (e) {
-      console.warn('Anchor download error:', e);
+      console.warn('Anchor click error:', e);
+    }
+
+    // 2. Direct location assign to trigger native attachment download in Chrome Custom Tabs / TWA
+    try {
+      window.location.assign(fullDownloadUrl);
+    } catch (e) {
+      console.warn('Location assign error:', e);
     }
 
     setTimeout(() => {
       if (btn) {
         btn.innerHTML = '✅ Saved! Check Downloads';
         setTimeout(() => {
-          btn.innerHTML = '⬇️ Save Image to Phone / Downloads';
-          btn.style.opacity = '1';
+          btn.innerHTML = '⬇️ Save Image (PNG) to Downloads';
         }, 3000);
       }
     }, 1200);
   });
 
-  // WhatsApp share handler
+  // WhatsApp share
   overlay.querySelector('#btn-share-receipt-whatsapp')?.addEventListener('click', () => {
     const text = encodeURIComponent(
       `🧾 Official Waybilla Digital Receipt\nWaybill Ref: ${trackingCode}\nVerify & Track at: ${window.location.origin}/?track=${encodeURIComponent(trackingCode)}`
@@ -174,11 +310,8 @@ function showInAppReceiptDialog(
 }
 
 /**
- * Renders an HTML element as a high-quality PNG image and triggers a reliable download/share.
+ * Main function to download the receipt as an image.
  * Works seamlessly across desktop browsers, mobile browsers, and installed TWA / WebViews.
- * @param elementId - The ID of the HTML element to render.
- * @param trackingCode - The waybill tracking code (used for the filename).
- * @returns A promise that resolves to the image Blob, or null if it fails.
  */
 export async function downloadReceiptImage(elementId: string, trackingCode: string): Promise<Blob | null> {
   const element = document.getElementById(elementId);
@@ -188,15 +321,10 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
   }
 
   try {
-    // 1. Generate high-resolution PNG data URL using html-to-image
-    const dataUrl = await htmlToImage.toPng(element, {
-      backgroundColor: '#ffffff',
-      pixelRatio: 2, // Crisp retina quality
-      cacheBust: true,
-    });
-
+    // 1. Generate image using resilient double-engine (html-to-image + html2canvas fallback)
+    const dataUrl = await generateReceiptDataUrl(element);
     if (!dataUrl) {
-      console.error('Failed to generate image data URL.');
+      alert('Could not render receipt image. Please try the "Print Receipt" option.');
       return null;
     }
 
@@ -208,14 +336,13 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
     const fileName = `waybilla_receipt_${safeCode}.png`;
     const isApp = isMobileAppEnvironment();
 
-    // 2. Register with backend to get a real HTTPS download URL
-    // Real HTTPS URLs trigger the device's native DownloadManager and bypass data: URL blocks in WebViews
+    // 2. Register on server for real HTTPS download URL
     const serverDownloadUrl = await registerServerDownload(dataUrl, fileName, trackingCode);
     const fullDownloadUrl = serverDownloadUrl 
       ? (serverDownloadUrl.startsWith('http') ? serverDownloadUrl : `${window.location.origin}${serverDownloadUrl}`)
       : dataUrl;
 
-    // 3. If in Capacitor native app, attempt native file write and share
+    // 3. Native Capacitor APK check
     if (typeof (window as any).Capacitor !== 'undefined' && (window as any).Capacitor.isNativePlatform?.()) {
       try {
         const { Filesystem, Directory } = await import('@capacitor/filesystem');
@@ -238,7 +365,7 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
             });
             return blob;
           } catch (shareErr) {
-            console.log('Native Capacitor Share skipped or cancelled, showing receipt viewer:', shareErr);
+            console.log('Native Capacitor Share skipped or cancelled:', shareErr);
           }
         }
       } catch (nativeErr) {
@@ -246,14 +373,14 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
       }
     }
 
-    // 4. Try native Web Share API with file (works on Android Chrome and Safari mobile)
+    // 4. Web Share API with File (Supported in Android Chrome & Safari mobile)
     const file = new File([blob], fileName, { type: 'image/png' });
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
           files: [file],
           title: `Waybilla Receipt #${trackingCode}`,
-          text: `Waybill Receipt #${trackingCode}`,
+          text: `Official Waybilla Digital Receipt #${trackingCode}`,
         });
         return blob;
       } catch (shareErr) {
@@ -264,38 +391,33 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
       }
     }
 
-    // 5. Standard desktop/browser download trigger via real download link
+    // 5. Standard Download Trigger
+    // Important: Do NOT use target="_blank" so Chrome Custom Tabs (TWA) does not trigger popup blocking!
     try {
       const link = document.createElement('a');
       link.href = fullDownloadUrl;
-      link.setAttribute('download', fileName);
-      link.rel = 'noopener';
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
-      setTimeout(() => link.remove(), 500);
+      setTimeout(() => link.remove(), 400);
     } catch (clickErr) {
       console.warn('Download link click error:', clickErr);
     }
 
-    // 6. In mobile / app environments, also present the in-app receipt dialog
-    // This guarantees the user has immediate access to "Save Image", "Share on WhatsApp", and "Close"
+    // 6. If in mobile / TWA app environment, also present the dialog
     if (isApp) {
-      showInAppReceiptDialog(dataUrl, serverDownloadUrl || fullDownloadUrl, fileName, trackingCode);
+      showInAppReceiptDialog(dataUrl, fullDownloadUrl, fileName, trackingCode, elementId);
     }
 
     return blob;
   } catch (error) {
-    console.error('Error rendering receipt image:', error);
+    console.error('Error in downloadReceiptImage:', error);
     return null;
   }
 }
 
 /**
  * Shares the receipt image directly via Web Share API if supported, or downloads it and opens WhatsApp.
- * @param elementId - The ID of the HTML element to share.
- * @param trackingCode - The waybill tracking code.
- * @param recipientPhone - Optional phone number to pre-fill on WhatsApp.
- * @returns A promise resolving to the status of the action.
  */
 export async function shareReceiptImage(
   elementId: string,
@@ -309,12 +431,7 @@ export async function shareReceiptImage(
   }
 
   try {
-    const dataUrl = await htmlToImage.toPng(element, {
-      backgroundColor: '#ffffff',
-      pixelRatio: 2,
-      cacheBust: true,
-    });
-
+    const dataUrl = await generateReceiptDataUrl(element);
     if (!dataUrl) {
       return { success: false, method: 'failed' };
     }
@@ -325,7 +442,7 @@ export async function shareReceiptImage(
     const fileName = `waybilla_receipt_${safeCode}.png`;
     const file = new File([blob], fileName, { type: 'image/png' });
 
-    // Check if Web Share API with files is supported
+    // Try Web Share API
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
       try {
         await navigator.share({
@@ -339,7 +456,7 @@ export async function shareReceiptImage(
       }
     }
 
-    // Register on server for real download
+    // Register on server for download
     const serverDownloadUrl = await registerServerDownload(dataUrl, fileName, trackingCode);
     const fullDownloadUrl = serverDownloadUrl
       ? (serverDownloadUrl.startsWith('http') ? serverDownloadUrl : `${window.location.origin}${serverDownloadUrl}`)
@@ -348,10 +465,10 @@ export async function shareReceiptImage(
     // Trigger download
     const link = document.createElement('a');
     link.href = fullDownloadUrl;
-    link.setAttribute('download', fileName);
+    link.download = fileName;
     document.body.appendChild(link);
     link.click();
-    setTimeout(() => link.remove(), 500);
+    setTimeout(() => link.remove(), 400);
 
     // Open WhatsApp link
     const cleanPhone = recipientPhone ? recipientPhone.replace(/\D/g, '') : '';
