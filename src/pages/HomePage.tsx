@@ -174,21 +174,6 @@ export const HomePage: React.FC = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
             <LanguageSwitcher />
-
-            {activeToken && (
-              <button
-                onClick={() => {
-                  if (activeRole === 'customer') navigate('/customer/dashboard');
-                  else if (activeRole === 'staff') navigate('/staff/dashboard');
-                  else if (activeRole === 'company') navigate('/company/dashboard');
-                  else navigate('/manager/dashboard');
-                }}
-                className="bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black text-xs px-3.5 py-2 rounded-xl transition-all shadow-xs cursor-pointer flex items-center gap-1.5"
-              >
-                <span>Dashboard</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            )}
           </div>
         </div>
       </header>
