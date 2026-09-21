@@ -18,7 +18,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
   onLogout,
 }) => {
   return (
-    <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col justify-between selection:bg-amber-500 selection:text-slate-950 font-sans">
+    <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col justify-between selection:bg-orange-500 selection:text-slate-950 font-sans">
       
       {/* Top Bar Header */}
       <header className="border-b border-blue-950/80/80 bg-[#091026]/60 backdrop-blur-md sticky top-0 z-50">
@@ -38,7 +38,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
                   {companyName || userName}
                 </p>
                 {userRole && (
-                  <p className="text-[11px] text-amber-400 font-semibold uppercase tracking-wider">
+                  <p className="text-[11px] text-orange-400 font-semibold uppercase tracking-wider">
                     {userRole} Account
                   </p>
                 )}
@@ -62,8 +62,8 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
         
         {/* Title Header */}
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-12 sm:mb-16">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-extrabold uppercase tracking-widest">
-            <ShieldCheck className="w-4 h-4 text-amber-400" />
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-orange-500/10 border border-orange-500/20 text-orange-400 text-xs font-extrabold uppercase tracking-widest">
+            <ShieldCheck className="w-4 h-4 text-orange-400" />
             <span>Select Workspace Module</span>
           </div>
           
@@ -83,27 +83,27 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
           {/* Card 1: Fleet Tracking */}
           <div
             onClick={() => onSelectModule('fleet')}
-            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-blue-950/80 hover:border-amber-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-amber-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
+            className="group relative bg-gradient-to-b from-slate-900 to-slate-900/90 border-2 border-blue-950/80 hover:border-orange-500/70 rounded-3xl p-8 sm:p-10 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-orange-500/10 hover:-translate-y-1 cursor-pointer overflow-hidden"
             id="select-module-fleet-card"
           >
             {/* Top Accent Light Beam */}
-            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 opacity-80 group-hover:opacity-100 transition-opacity" />
+            <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-orange-500 via-orange-500 to-orange-600 opacity-80 group-hover:opacity-100 transition-opacity" />
             
             <div className="space-y-6">
               
               {/* Module Header & Icon */}
               <div className="flex items-center justify-between">
-                <div className="w-16 h-16 bg-gradient-to-br from-amber-500/20 to-orange-500/10 border border-amber-500/30 rounded-2xl flex items-center justify-center text-amber-400 group-hover:scale-110 group-hover:bg-amber-500 group-hover:text-slate-950 transition-all duration-300 shadow-lg shadow-amber-500/10">
+                <div className="w-16 h-16 bg-gradient-to-br from-orange-500/20 to-orange-500/10 border border-orange-500/30 rounded-2xl flex items-center justify-center text-orange-400 group-hover:scale-110 group-hover:bg-orange-500 group-hover:text-slate-950 transition-all duration-300 shadow-lg shadow-orange-500/10">
                   <span className="text-3xl">🚛</span>
                 </div>
-                <span className="text-xs font-extrabold uppercase tracking-widest bg-amber-500/10 border border-amber-500/20 text-amber-400 px-3 py-1 rounded-full group-hover:bg-amber-500/20">
+                <span className="text-xs font-extrabold uppercase tracking-widest bg-orange-500/10 border border-orange-500/20 text-orange-400 px-3 py-1 rounded-full group-hover:bg-orange-500/20">
                   Logistics & Trips
                 </span>
               </div>
 
               {/* Title & Subtitle */}
               <div>
-                <h2 className="text-2xl sm:text-3xl font-black text-white group-hover:text-amber-400 transition-colors">
+                <h2 className="text-2xl sm:text-3xl font-black text-white group-hover:text-orange-400 transition-colors">
                   Fleet Tracking
                 </h2>
                 <p className="text-sm sm:text-base text-slate-300 font-medium mt-2 leading-relaxed">
@@ -114,15 +114,15 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
               {/* Feature Highlights */}
               <div className="pt-4 border-t border-blue-950/80/80 space-y-3">
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />
                   <span>Garage Origin & Geofenced Locations</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />
                   <span>Supplier & Customer Destination Tracking</span>
                 </div>
                 <div className="flex items-center gap-3 text-xs font-semibold text-slate-300">
-                  <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />
                   <span>Real-Time Driver Trips & Delivery Verification</span>
                 </div>
               </div>
@@ -133,7 +133,7 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
             <div className="mt-8 pt-4">
               <button
                 type="button"
-                className="w-full bg-amber-500 group-hover:bg-amber-400 text-slate-950 font-black py-4 px-6 rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer border-0"
+                className="w-full bg-orange-500 group-hover:bg-orange-400 text-slate-950 font-black py-4 px-6 rounded-2xl text-sm transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer border-0"
                 id="btn-launch-fleet"
               >
                 <span>Launch Fleet Tracking</span>

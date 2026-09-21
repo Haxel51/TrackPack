@@ -32,7 +32,7 @@ export const LanguageSwitcher: React.FC<{ className?: string }> = ({ className =
         aria-haspopup="true"
         title="Change language"
       >
-        <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F2A93B] shrink-0" />
+        <Globe className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#F7941D] shrink-0" />
         <span className="truncate max-w-[60px] xs:max-w-[85px] sm:max-w-[120px] text-xs">
           {currentLanguage.flag} <span className="hidden xs:inline">{currentLanguage.name}</span>
         </span>
@@ -40,8 +40,8 @@ export const LanguageSwitcher: React.FC<{ className?: string }> = ({ className =
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#08152B] border border-amber-400/30 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-          <div className="px-3 py-2 bg-[#0A1F44] border-b border-amber-400/20 text-[11px] font-bold tracking-wider text-amber-300 uppercase">
+        <div className="absolute right-0 mt-2 w-48 rounded-xl bg-[#08152B] border border-orange-400/30 shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+          <div className="px-3 py-2 bg-[#0A1F44] border-b border-orange-400/20 text-[11px] font-bold tracking-wider text-orange-300 uppercase">
             Select Language
           </div>
           <div className="py-1">
@@ -53,7 +53,7 @@ export const LanguageSwitcher: React.FC<{ className?: string }> = ({ className =
                   onClick={() => handleSelect(lang.code)}
                   className={`w-full text-left px-3.5 py-2.5 text-xs sm:text-sm flex items-center justify-between transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-amber-400/20 text-amber-300 font-bold'
+                      ? 'bg-orange-400/20 text-orange-300 font-bold'
                       : 'text-slate-200 hover:bg-white/10'
                   }`}
                 >
@@ -64,7 +64,7 @@ export const LanguageSwitcher: React.FC<{ className?: string }> = ({ className =
                       <span className="text-[10px] text-slate-400 font-normal">{lang.nativeName}</span>
                     </div>
                   </div>
-                  {isSelected && <Check className="w-4 h-4 text-amber-400 shrink-0" />}
+                  {isSelected && <Check className="w-4 h-4 text-orange-400 shrink-0" />}
                 </button>
               );
             })}

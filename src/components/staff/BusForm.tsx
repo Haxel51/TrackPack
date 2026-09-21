@@ -97,7 +97,7 @@ export const BusForm: React.FC<BusFormProps> = ({ token, originPark, onSuccess, 
         </button>
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
-            <Truck className="text-[#F2A93B] w-5 h-5" />
+            <Truck className="text-[#F7941D] w-5 h-5" />
             Create New Vehicle Loading List
           </h2>
           <p className="text-xs text-slate-500">Register a new vehicle loading list at this park</p>

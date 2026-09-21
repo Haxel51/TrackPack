@@ -1010,7 +1010,7 @@ export const CompanyDashboard: React.FC = () => {
   if (moduleLoading) {
     return (
       <div className="min-h-screen bg-[#050914] flex flex-col items-center justify-center space-y-4 text-white font-sans">
-        <div className="w-10 h-10 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+        <div className="w-10 h-10 border-4 border-orange-500/20 border-t-orange-500 rounded-full animate-spin" />
         <p className="text-sm font-bold text-slate-400">Loading workspace configuration...</p>
       </div>
     );
@@ -1042,7 +1042,7 @@ export const CompanyDashboard: React.FC = () => {
             <Logo size="sm" showText={false} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="font-extrabold text-[9px] sm:text-[10px] text-amber-300 uppercase tracking-widest block leading-none">
+                <span className="font-extrabold text-[9px] sm:text-[10px] text-orange-300 uppercase tracking-widest block leading-none">
                   {t('companyPortalTitle')}
                 </span>
                 <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold">
@@ -1059,18 +1059,18 @@ export const CompanyDashboard: React.FC = () => {
           <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <button
               onClick={handleSwitchModule}
-              className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
+              className="flex items-center gap-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
               id="header-switch-module-btn"
               title="Switch Module"
             >
-              <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
+              <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400 shrink-0" />
               <span className="hidden xs:inline">Switch</span>
               <span className="hidden md:inline">Module</span>
             </button>
             <LanguageSwitcher />
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer border-0 shrink-0"
+              className="flex items-center gap-1.5 bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-black px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer border-0 shrink-0"
               id="header-logout-btn"
               title="Sign Out"
             >
@@ -1099,7 +1099,7 @@ export const CompanyDashboard: React.FC = () => {
                     : 'bg-slate-100/70 text-slate-700 hover:bg-slate-200/80'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-orange-400' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -1123,7 +1123,7 @@ export const CompanyDashboard: React.FC = () => {
                 }`}
                 id={`tab-btn-${tab.id}`}
               >
-                <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
+                <Icon className={`w-4.5 h-4.5 ${isActive ? 'text-orange-400' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -1174,21 +1174,21 @@ export const CompanyDashboard: React.FC = () => {
               </button>
             </div>
           ) : (remittanceStatus?.pending_debt || 0) > 0 ? (
-            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" id="remittance-grace-banner">
+            <div className="bg-gradient-to-r from-orange-50 to-orange-50 border border-orange-300 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" id="remittance-grace-banner">
               <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0">
                   <Wallet className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-orange-200 text-orange-900 px-2 py-0.5 rounded-full">
                       Daily Cash Remittance Active
                     </span>
-                    <span className="text-xs text-amber-800 font-bold">
+                    <span className="text-xs text-orange-800 font-bold">
                       ₦{(remittanceStatus?.pending_debt || 0).toLocaleString()} Platform Due (70%)
                     </span>
                   </div>
-                  <p className="text-xs text-amber-900 font-medium mt-1">
+                  <p className="text-xs text-orange-900 font-medium mt-1">
                     Your park has retained <strong>₦{(remittanceStatus?.company_profit_retained || 0).toLocaleString()}</strong> in profit today from cash waybills. Remit before the 24-hour cutoff to keep your terminals in good standing.
                   </p>
                 </div>
@@ -1261,7 +1261,7 @@ export const CompanyDashboard: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider">SHIPMENTS (7 DAYS)</p>
                       <p className="text-3xl font-black text-[#0A1F44] mt-2">{overviewState.stats?.total_shipments_week ?? 0}</p>
-                      <span className="text-[11px] font-extrabold text-[#F2A93B] block mt-1.5 uppercase">Last 7 Days</span>
+                      <span className="text-[11px] font-extrabold text-[#F7941D] block mt-1.5 uppercase">Last 7 Days</span>
                     </div>
                   )}
                 </div>
@@ -1396,7 +1396,7 @@ export const CompanyDashboard: React.FC = () => {
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide border ${
                             wb.status === 'collected' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                             wb.status === 'arrived' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                            wb.status === 'departed' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                            wb.status === 'departed' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                             'bg-slate-50 text-slate-700 border-slate-200'
                           }`}>
                             {wb.status}
@@ -1540,7 +1540,7 @@ export const CompanyDashboard: React.FC = () => {
                                           {mgr.active !== false ? 'Active' : 'Deactivated'}
                                         </span>
                                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                                          isFleetMgr ? 'bg-amber-100 text-amber-900' : isWaybillMgr ? 'bg-blue-100 text-blue-900' : 'bg-purple-100 text-purple-900'
+                                          isFleetMgr ? 'bg-orange-100 text-orange-900' : isWaybillMgr ? 'bg-blue-100 text-blue-900' : 'bg-purple-100 text-purple-900'
                                         }`}>
                                           {isFleetMgr ? '🚛 Fleet' : isWaybillMgr ? '📦 Waybill' : '⚡ Dual'}
                                         </span>
@@ -1808,7 +1808,7 @@ export const CompanyDashboard: React.FC = () => {
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase border ${
                                 wb.status === 'collected' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' :
                                 wb.status === 'arrived' ? 'bg-blue-50 text-blue-700 border-blue-200' :
-                                wb.status === 'departed' ? 'bg-amber-50 text-amber-700 border-amber-200' :
+                                wb.status === 'departed' ? 'bg-orange-50 text-orange-700 border-orange-200' :
                                 'bg-slate-50 text-slate-700 border-slate-200'
                               }`}>
                                 {wb.status}
@@ -1915,10 +1915,10 @@ export const CompanyDashboard: React.FC = () => {
                     <div className="bg-white border border-slate-100 rounded-2xl p-6 shadow-sm flex flex-col justify-between" id="earnings-card-pending">
                       <div className="space-y-1.5">
                         <div className="flex items-center justify-between">
-                          <p className="text-[10px] font-extrabold text-amber-600 uppercase tracking-wider">Pending Settlement</p>
-                          <span className="bg-amber-50 text-amber-700 text-[10px] font-black px-2 py-0.5 rounded-full">Awaiting Next Day</span>
+                          <p className="text-[10px] font-extrabold text-orange-600 uppercase tracking-wider">Pending Settlement</p>
+                          <span className="bg-orange-50 text-orange-700 text-[10px] font-black px-2 py-0.5 rounded-full">Awaiting Next Day</span>
                         </div>
-                        <p className="text-3xl font-black text-amber-600">₦{earningsState.stats?.pending_earnings_month ?? 0}</p>
+                        <p className="text-3xl font-black text-orange-600">₦{earningsState.stats?.pending_earnings_month ?? 0}</p>
                       </div>
                       <span className="text-[11px] font-extrabold text-slate-400 block mt-4 uppercase">In Paystack T+1 Queue</span>
                     </div>
@@ -2136,7 +2136,7 @@ export const CompanyDashboard: React.FC = () => {
                                         </span>
                                       ) : (
                                         <div className="space-y-1">
-                                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-700 font-bold px-2 py-0.5 rounded-full text-[10px]">
+                                          <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-700 font-bold px-2 py-0.5 rounded-full text-[10px]">
                                             Pending T+1 Payout
                                           </span>
                                           <button
@@ -2152,7 +2152,7 @@ export const CompanyDashboard: React.FC = () => {
                                     <td className="p-3 text-right font-semibold text-slate-600">
                                       ₦{item.amount}
                                     </td>
-                                    <td className={`p-3 text-right font-black text-sm ${isSettled ? 'text-emerald-600' : 'text-amber-600'}`}>
+                                    <td className={`p-3 text-right font-black text-sm ${isSettled ? 'text-emerald-600' : 'text-orange-600'}`}>
                                       {isSettled ? `+₦${item.company_share}` : `₦${item.company_share} (Pending)`}
                                     </td>
                                   </tr>
@@ -2317,8 +2317,8 @@ export const CompanyDashboard: React.FC = () => {
             </button>
 
             <div className="text-center space-y-4">
-              <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100">
-                <AlertCircle className="w-6 h-6 text-amber-600" />
+              <div className="mx-auto w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100">
+                <AlertCircle className="w-6 h-6 text-orange-600" />
               </div>
               <div>
                 <h3 className="text-lg font-extrabold text-[#0A1F44]">Reset Staff PIN?</h3>
@@ -2410,7 +2410,7 @@ export const CompanyDashboard: React.FC = () => {
             </button>
 
             <div className="text-center space-y-3">
-              <div className="mx-auto w-12 h-12 bg-amber-50 rounded-full flex items-center justify-center border border-amber-100 text-amber-600">
+              <div className="mx-auto w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center border border-orange-100 text-orange-600">
                 <KeyRound className="w-6 h-6" />
               </div>
               <div>
@@ -2421,7 +2421,7 @@ export const CompanyDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3 bg-amber-50/70 border border-amber-100 rounded-xl text-[11px] text-amber-900 space-y-1">
+            <div className="p-3 bg-orange-50/70 border border-orange-100 rounded-xl text-[11px] text-orange-900 space-y-1">
               <p className="font-bold">What happens next:</p>
               <p>• Their current PIN will be erased and any lockout cleared.</p>
               <p>• The manager can visit the <strong>Manager Portal</strong>, enter their phone number, and immediately create a new 6-digit PIN.</p>
@@ -2445,7 +2445,7 @@ export const CompanyDashboard: React.FC = () => {
                 type="button"
                 onClick={handleConfirmManagerResetPin}
                 disabled={managerResetModal.submitting}
-                className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0 disabled:opacity-50"
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all shadow-sm cursor-pointer border-0 disabled:opacity-50"
               >
                 {managerResetModal.submitting ? 'Resetting...' : 'Yes, Reset PIN'}
               </button>
@@ -2631,7 +2631,7 @@ export const CompanyDashboard: React.FC = () => {
                     onClick={() => setNewManagerModal(prev => ({ ...prev, service_mode: 'haulage' }))}
                     className={`p-2.5 rounded-xl border text-left cursor-pointer transition-all ${
                       newManagerModal.service_mode === 'haulage'
-                        ? 'bg-amber-50 border-amber-400 text-amber-900 ring-2 ring-amber-400/20'
+                        ? 'bg-orange-50 border-orange-400 text-orange-900 ring-2 ring-orange-400/20'
                         : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
                     }`}
                   >
@@ -2810,8 +2810,8 @@ export const CompanyDashboard: React.FC = () => {
               </div>
 
               {/* Info advice box */}
-              <div className="bg-amber-50/50 border border-amber-100/80 p-4 rounded-xl text-xs text-amber-900 font-medium space-y-1.5">
-                <p className="font-black text-amber-950 flex items-center gap-1.5">
+              <div className="bg-orange-50/50 border border-orange-100/80 p-4 rounded-xl text-xs text-orange-900 font-medium space-y-1.5">
+                <p className="font-black text-orange-950 flex items-center gap-1.5">
                   💡 Security Note:
                 </p>
                 <p className="text-slate-600 text-[11px] leading-relaxed">
@@ -2829,7 +2829,7 @@ export const CompanyDashboard: React.FC = () => {
               {/* Reset PIN Button */}
               <button
                 onClick={() => handleInitiateManagerResetPin(selectedManagerProfile.id, selectedManagerProfile.name, selectedManagerProfile.phone)}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border-0 shadow-sm"
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border-0 shadow-sm"
                 id="panel-reset-manager-pin-btn"
               >
                 <KeyRound className="w-4 h-4" /> Reset 6-Digit Manager PIN

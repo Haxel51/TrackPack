@@ -181,7 +181,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer shrink-0"
+            className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer shrink-0"
             id="create-trip-btn"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -199,11 +199,11 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               className={`p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
                 alert.tier === 'critical' || alert.tier === 'urgent'
                   ? 'bg-rose-950/80 border-rose-500/50 text-rose-200 animate-pulse'
-                  : 'bg-amber-950/80 border-amber-500/50 text-amber-200'
+                  : 'bg-orange-950/80 border-orange-500/50 text-orange-200'
               }`}
             >
               <div className="flex items-center gap-3">
-                <AlertCircle className={`w-5 h-5 shrink-0 ${alert.tier === 'critical' || alert.tier === 'urgent' ? 'text-rose-400' : 'text-amber-400'}`} />
+                <AlertCircle className={`w-5 h-5 shrink-0 ${alert.tier === 'critical' || alert.tier === 'urgent' ? 'text-rose-400' : 'text-orange-400'}`} />
                 <div>
                   <div className="font-extrabold text-white text-xs">{alert.title}</div>
                   <div className="text-[11px] opacity-90">{alert.message}</div>
@@ -246,7 +246,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plate number, driver, destination..."
-            className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+            className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
             id="trips-search-input"
           />
         </div>
@@ -264,7 +264,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               onClick={() => setStatusFilter(f.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
                 statusFilter === f.id
-                  ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
                   : 'text-slate-400 hover:text-white bg-[#070b19]/60 border border-transparent'
               }`}
             >
@@ -277,7 +277,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
       {/* Trips Content Grid / List */}
       {isLoading ? (
         <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+          <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
           <p className="text-xs font-bold">Loading fleet haulage trips...</p>
         </div>
       ) : error ? (
@@ -286,7 +286,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           <p>{error}</p>
           <button
             onClick={loadTrips}
-            className="mt-2 text-amber-400 underline cursor-pointer text-xs"
+            className="mt-2 text-orange-400 underline cursor-pointer text-xs"
           >
             Retry Loading Trips
           </button>
@@ -303,7 +303,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           {canCreateTrip && trips.length === 0 && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs cursor-pointer inline-flex items-center gap-2"
+              className="mt-2 bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs cursor-pointer inline-flex items-center gap-2"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Dispatch First Trip</span>
@@ -321,26 +321,26 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               <div
                 key={trip.id}
                 onClick={() => setSelectedTrip(trip)}
-                className="bg-[#0b1329] border border-blue-950/60 hover:border-amber-500/50 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all cursor-pointer group"
+                className="bg-[#0b1329] border border-blue-950/60 hover:border-orange-500/50 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all cursor-pointer group"
                 id={`trip-card-${trip.id}`}
               >
                 
                 {/* Card Top Header */}
                 <div className="flex items-start justify-between gap-3 pb-3 border-b border-blue-950/60">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 font-black shrink-0 group-hover:bg-amber-500/20 group-hover:scale-105 transition-all">
+                    <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 font-black shrink-0 group-hover:bg-orange-500/20 group-hover:scale-105 transition-all">
                       <Truck className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-base text-white tracking-wide group-hover:text-amber-400 transition-colors">{trip.plate_number}</span>
+                        <span className="font-black text-base text-white tracking-wide group-hover:text-orange-400 transition-colors">{trip.plate_number}</span>
                       </div>
                       <div className="text-xs text-slate-300 font-medium flex items-center gap-1 mt-0.5">
                         <span>Driver: {trip.driver_name}</span>
                         <a
                           href={`tel:${trip.driver_phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-amber-400 hover:underline flex items-center gap-0.5 ml-1 text-[11px]"
+                          className="text-orange-400 hover:underline flex items-center gap-0.5 ml-1 text-[11px]"
                           title="Call Driver"
                         >
                           <Phone className="w-3 h-3" />
@@ -404,8 +404,8 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                 {/* Card Footer Info & Actions */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-blue-950/60/80">
                   <div className="text-slate-400 font-medium flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-amber-400" />
-                    <span className="text-amber-400 font-bold group-hover:underline">Tap to view map & live tracking</span>
+                    <Eye className="w-3.5 h-3.5 text-orange-400" />
+                    <span className="text-orange-400 font-bold group-hover:underline">Tap to view map & live tracking</span>
                   </div>
 
                   <div className="flex items-center gap-2">

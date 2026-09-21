@@ -33,17 +33,17 @@ export const IosInstallBanner: React.FC = () => {
 
   return (
     <div className="fixed bottom-4 left-4 right-4 z-50 max-w-md mx-auto animate-slideUp">
-      <div className="bg-[#0A1F44] border-2 border-[#F2A93B]/60 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-3 text-xs">
+      <div className="bg-[#0A1F44] border-2 border-[#F7941D]/60 text-white rounded-2xl p-4 shadow-2xl flex items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl bg-[#F2A93B] text-[#0A1F44] flex items-center justify-center shrink-0 font-bold">
+          <div className="w-9 h-9 rounded-xl bg-[#F7941D] text-[#0A1F44] flex items-center justify-center shrink-0 font-bold">
             📱
           </div>
           <div className="space-y-0.5">
-            <p className="font-extrabold text-[#F2A93B] text-xs">Install Waybilla</p>
+            <p className="font-extrabold text-[#F7941D] text-xs">Install Waybilla</p>
             <p className="text-slate-200 font-medium leading-tight">
               Tap the <Share className="w-3.5 h-3.5 inline mx-0.5 text-blue-300" /> Share icon below, then{' '}
               <strong className="text-white font-extrabold">'Add to Home Screen'</strong>{' '}
-              <PlusSquare className="w-3.5 h-3.5 inline mx-0.5 text-amber-300" />
+              <PlusSquare className="w-3.5 h-3.5 inline mx-0.5 text-orange-300" />
             </p>
           </div>
         </div>

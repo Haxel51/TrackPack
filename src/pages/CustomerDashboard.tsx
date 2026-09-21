@@ -303,7 +303,7 @@ export const CustomerDashboard: React.FC = () => {
   };
 
   const getStatusColorClass = (status: string) => {
-    if (status === 'booked') return 'bg-amber-50 text-amber-700 border-amber-200';
+    if (status === 'booked') return 'bg-orange-50 text-orange-700 border-orange-200';
     if (status === 'departed' || status === 'in_transit') return 'bg-blue-50 text-blue-700 border-blue-200';
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
   };
@@ -355,14 +355,14 @@ export const CustomerDashboard: React.FC = () => {
               onClick={handleToggleNotifications}
               className={`flex items-center gap-1.5 text-xs font-bold px-3.5 py-2 rounded-xl border transition-all cursor-pointer ${
                 notificationsEnabled 
-                  ? 'bg-amber-50 text-amber-800 border-amber-200 hover:bg-amber-100' 
+                  ? 'bg-orange-50 text-orange-800 border-orange-200 hover:bg-orange-100' 
                   : 'bg-slate-50 text-slate-500 border-slate-200 hover:bg-slate-100'
               }`}
               title="Toggle Push Notifications"
             >
               {notificationsEnabled ? (
                 <>
-                  <Bell className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <Bell className="w-3.5 h-3.5 text-orange-600 fill-orange-500" />
                   <span>Push Alerts: ON</span>
                 </>
               ) : (
@@ -414,7 +414,7 @@ export const CustomerDashboard: React.FC = () => {
 
         {/* Push Notification Banner / Prompt */}
         {!notificationsEnabled && !notificationDismissed && (
-          <div className="bg-gradient-to-r from-amber-500 to-[#F2A93B] text-[#0A1F44] rounded-3xl p-5 sm:p-6 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4" id="notification-prompt-banner">
+          <div className="bg-gradient-to-r from-orange-500 to-[#F7941D] text-[#0A1F44] rounded-3xl p-5 sm:p-6 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4" id="notification-prompt-banner">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center shrink-0">
                 <Bell className="w-6 h-6 text-[#0A1F44]" />
@@ -430,7 +430,7 @@ export const CustomerDashboard: React.FC = () => {
                 disabled={isRequestingNotif}
                 className="bg-[#0A1F44] hover:bg-[#091026] text-white font-extrabold px-6 py-3 rounded-2xl text-xs transition-all shadow-md cursor-pointer whitespace-nowrap flex items-center gap-2"
               >
-                {isRequestingNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4 text-[#F2A93B]" />}
+                {isRequestingNotif ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bell className="w-4 h-4 text-[#F7941D]" />}
                 Enable Notifications
               </button>
               <button
@@ -447,9 +447,9 @@ export const CustomerDashboard: React.FC = () => {
           <div className="text-center py-1">
             <button
               onClick={() => { setNotificationDismissed(false); handleEnableNotifications(); }}
-              className="text-xs font-bold text-amber-700 hover:text-amber-900 underline cursor-pointer bg-transparent border-0 inline-flex items-center gap-1.5 py-1 px-3 bg-amber-50 rounded-xl border border-amber-200"
+              className="text-xs font-bold text-orange-700 hover:text-orange-900 underline cursor-pointer bg-transparent border-0 inline-flex items-center gap-1.5 py-1 px-3 bg-orange-50 rounded-xl border border-orange-200"
             >
-              <BellOff className="w-3.5 h-3.5 text-amber-600" />
+              <BellOff className="w-3.5 h-3.5 text-orange-600" />
               Notifications off — tap to enable
             </button>
           </div>
@@ -504,12 +504,12 @@ export const CustomerDashboard: React.FC = () => {
               <p className="text-sm font-bold text-slate-600 max-w-xs mx-auto">
                 No active shipments found for {user?.phone_number || 'your account'}.
               </p>
-              <div className="bg-amber-50 border border-amber-200/80 rounded-2xl p-4 text-left flex items-start gap-3 max-w-md mx-auto">
-                <div className="p-1.5 bg-amber-100 rounded-xl text-amber-800 shrink-0 mt-0.5">
+              <div className="bg-orange-50 border border-orange-200/80 rounded-2xl p-4 text-left flex items-start gap-3 max-w-md mx-auto">
+                <div className="p-1.5 bg-orange-100 rounded-xl text-orange-800 shrink-0 mt-0.5">
                   <Info className="w-4 h-4" />
                 </div>
-                <div className="text-xs text-amber-950 leading-relaxed font-medium">
-                  <strong className="font-extrabold text-amber-900 block mb-0.5">Looking for a waybill?</strong>
+                <div className="text-xs text-orange-950 leading-relaxed font-medium">
+                  <strong className="font-extrabold text-orange-900 block mb-0.5">Looking for a waybill?</strong>
                   Make sure the park staff registered your waybill using this exact phone number (<strong>{user?.phone_number}</strong>) as either the <strong>Sender</strong> or the <strong>Receiver</strong>.
                 </div>
               </div>
@@ -533,7 +533,7 @@ export const CustomerDashboard: React.FC = () => {
                         </span>
                         <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full tracking-widest border
                           ${isUserSender 
-                            ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                            ? 'bg-orange-50 text-orange-700 border-orange-200' 
                             : 'bg-indigo-50 text-indigo-700 border-indigo-200'}
                         `}>
                           {isUserSender ? 'SENDER' : 'RECEIVER'}
@@ -570,7 +570,7 @@ export const CustomerDashboard: React.FC = () => {
                       </div>
                     </div>
 
-                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#F2A93B] group-hover:translate-x-1 transition-all flex-shrink-0" />
+                    <ChevronRight className="w-5 h-5 text-slate-300 group-hover:text-[#F7941D] group-hover:translate-x-1 transition-all flex-shrink-0" />
                   </div>
                 );
               })}

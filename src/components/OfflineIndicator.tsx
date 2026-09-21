@@ -37,7 +37,7 @@ export const OfflineIndicator: React.FC = () => {
     <div
       className={`fixed top-3 left-1/2 -translate-x-1/2 z-[9999] px-4 py-2.5 rounded-full shadow-lg border text-xs sm:text-sm font-semibold flex items-center gap-2.5 transition-all duration-300 ease-in-out ${
         isOffline
-          ? 'bg-amber-500 text-slate-950 border-amber-400 shadow-amber-500/20 animate-bounce-short'
+          ? 'bg-orange-500 text-slate-950 border-orange-400 shadow-orange-500/20 animate-bounce-short'
           : 'bg-emerald-600 text-white border-emerald-500 shadow-emerald-600/20'
       }`}
       role="status"

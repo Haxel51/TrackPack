@@ -328,7 +328,7 @@ export const DeveloperPortal: React.FC = () => {
           >
             <Logo size="sm" showText={false} />
             <div className="flex items-center gap-1.5">
-              <span className="font-black text-base sm:text-lg tracking-tight">Way<span className="text-[#F2A93B]">billa</span></span>
+              <span className="font-black text-base sm:text-lg tracking-tight">Way<span className="text-[#F7941D]">billa</span></span>
               <span className="hidden md:inline-block text-[10px] font-extrabold bg-blue-500/20 text-blue-200 border border-blue-400/30 px-2 py-0.5 rounded-full uppercase tracking-wider">
                 Dev Hub
               </span>
@@ -370,7 +370,7 @@ export const DeveloperPortal: React.FC = () => {
                     setAuthMode('register');
                     setShowAuthModal(true);
                   }}
-                  className="text-[11px] sm:text-xs font-black bg-[#F2A93B] text-[#0A1F44] hover:bg-amber-400 px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 shadow-xs whitespace-nowrap shrink-0"
+                  className="text-[11px] sm:text-xs font-black bg-[#F7941D] text-[#0A1F44] hover:bg-orange-400 px-2.5 sm:px-3.5 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1 shadow-xs whitespace-nowrap shrink-0"
                 >
                   <UserPlus className="w-3.5 h-3.5" />
                   <span className="hidden xs:inline sm:inline">Sign Up</span>
@@ -394,8 +394,8 @@ export const DeveloperPortal: React.FC = () => {
       {/* Hero Banner with Clean Responsive Tab Selector */}
       <div className="bg-[#0A1F44] text-white border-b border-blue-900/50 pt-6 sm:pt-10 pb-6 sm:pb-8 px-3 sm:px-8">
         <div className="max-w-6xl mx-auto space-y-4">
-          <div className="inline-flex items-center gap-2 bg-white/10 text-amber-300 text-[11px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-xl border border-white/10">
-            <Cpu className="w-3.5 h-3.5 text-[#F2A93B] shrink-0" />
+          <div className="inline-flex items-center gap-2 bg-white/10 text-orange-300 text-[11px] sm:text-xs font-black px-2.5 sm:px-3 py-1 rounded-xl border border-white/10">
+            <Cpu className="w-3.5 h-3.5 text-[#F7941D] shrink-0" />
             <span>Waybilla Interstate Dispatch &amp; Tracking API</span>
           </div>
           
@@ -415,7 +415,7 @@ export const DeveloperPortal: React.FC = () => {
                 onClick={() => setActiveTab('sandbox')}
                 className={`py-2 px-2 sm:px-4 rounded-xl text-[11px] sm:text-xs font-black transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap ${
                   activeTab === 'sandbox'
-                    ? 'bg-[#F2A93B] text-[#0A1F44] shadow-xs'
+                    ? 'bg-[#F7941D] text-[#0A1F44] shadow-xs'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
               >
@@ -466,7 +466,7 @@ export const DeveloperPortal: React.FC = () => {
             <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div className="space-y-1.5 flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-400"></span>
+                  <span className="w-2.5 h-2.5 rounded-full bg-orange-400"></span>
                   <span className="text-xs font-black uppercase text-slate-400 tracking-wider">Your Sandbox Secret Key</span>
                 </div>
                 <div className="flex items-center gap-2">
@@ -624,7 +624,7 @@ export const DeveloperPortal: React.FC = () => {
                       </>
                     ) : (
                       <>
-                        <Send className="w-4 h-4 text-[#F2A93B]" />
+                        <Send className="w-4 h-4 text-[#F7941D]" />
                         <span>Execute API Call</span>
                       </>
                     )}
@@ -669,7 +669,7 @@ export const DeveloperPortal: React.FC = () => {
 
                     <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                       <p className="text-[10px] font-bold text-slate-400 uppercase">Initial Status</p>
-                      <p className="text-sm font-black text-amber-600 mt-0.5">pre_booked (Awaiting Park)</p>
+                      <p className="text-sm font-black text-orange-600 mt-0.5">pre_booked (Awaiting Park)</p>
                     </div>
                   </div>
 
@@ -784,7 +784,7 @@ const data = await response.json();`}
                     </pre>
                   )}
                   {codeLang === 'python' && (
-                    <pre className="text-amber-300">
+                    <pre className="text-orange-300">
 {`import requests
 
 res = requests.post(

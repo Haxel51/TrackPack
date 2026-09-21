@@ -34,7 +34,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         </button>
 
         <div className="text-center space-y-3 pt-2">
-          <div className="w-16 h-16 bg-amber-50 text-[#F2A93B] rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-amber-100">
+          <div className="w-16 h-16 bg-orange-50 text-[#F7941D] rounded-2xl flex items-center justify-center mx-auto shadow-sm border border-orange-100">
             <Bell className="w-8 h-8" />
           </div>
 
@@ -66,7 +66,7 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
             {loading ? (
               <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
             ) : (
-              <Bell className="w-4 h-4 text-[#F2A93B]" />
+              <Bell className="w-4 h-4 text-[#F7941D]" />
             )}
             Enable Notifications
           </button>

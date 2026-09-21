@@ -30,10 +30,10 @@ export const SessionExpiredBanner: React.FC<SessionExpiredBannerProps> = ({ show
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, y: -16 }}
         transition={{ duration: 0.3, ease: 'easeOut' }}
-        className="w-full max-w-md mx-auto mb-5 p-4 rounded-2xl bg-amber-50 border border-amber-200 text-amber-950 shadow-sm flex items-start gap-3.5 z-30"
+        className="w-full max-w-md mx-auto mb-5 p-4 rounded-2xl bg-orange-50 border border-orange-200 text-orange-950 shadow-sm flex items-start gap-3.5 z-30"
         id="session-expired-banner"
       >
-        <div className="p-2 rounded-xl bg-amber-100 text-amber-700 shrink-0 mt-0.5">
+        <div className="p-2 rounded-xl bg-orange-100 text-orange-700 shrink-0 mt-0.5">
           <Clock className="w-5 h-5" />
         </div>
         <div className="flex-1 text-xs sm:text-sm leading-relaxed font-semibold">

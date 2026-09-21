@@ -210,7 +210,7 @@ function showInAppReceiptDialog(
     <div style="max-width: 440px; width: 100%; margin: auto; display: flex; flex-direction: column; align-items: center; gap: 12px;">
       <!-- Header bar with title and close button -->
       <div style="width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
-        <span style="color: #F2A93B; font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">
+        <span style="color: #F7941D; font-weight: 900; font-size: 15px; letter-spacing: 0.5px;">
           RECEIPT #${trackingCode}
         </span>
         <button id="btn-close-receipt-overlay" style="background: rgba(255,255,255,0.15); border: none; color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center;">
@@ -226,12 +226,12 @@ function showInAppReceiptDialog(
       <!-- Action Buttons -->
       <div style="width: 100%; display: flex; flex-direction: column; gap: 9px; margin-top: 4px;">
         <!-- Print / Save as PDF button -->
-        <button id="btn-print-receipt-action" style="background: #0A1F44; color: #ffffff; border: 1.5px solid #F2A93B; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <button id="btn-print-receipt-action" style="background: #0A1F44; color: #ffffff; border: 1.5px solid #F7941D; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
           🖨️ Print Receipt / Save as PDF
         </button>
 
         <!-- Save Image (PNG) directly to device -->
-        <button id="btn-download-receipt-device" style="background: #F2A93B; color: #0A1F44; border: none; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(242,169,59,0.4);">
+        <button id="btn-download-receipt-device" style="background: #F7941D; color: #0A1F44; border: none; border-radius: 14px; padding: 13px 18px; font-size: 14px; font-weight: 900; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; box-shadow: 0 4px 14px rgba(247, 148, 29,0.4);">
           ⬇️ Save Image (PNG) to Downloads
         </button>
 

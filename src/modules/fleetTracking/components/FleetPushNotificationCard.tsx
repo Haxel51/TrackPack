@@ -80,7 +80,7 @@ export const FleetPushNotificationCard: React.FC = () => {
     <div className={`rounded-3xl p-5 border transition-all shadow-lg ${
       isGranted
         ? 'bg-[#0A1F44] border-emerald-500/40 text-white'
-        : 'bg-[#0F172A] border-amber-500/50 text-white'
+        : 'bg-[#0F172A] border-orange-500/50 text-white'
     }`} id="fleet-push-notification-card">
       
       {/* Toast Banner */}
@@ -96,12 +96,12 @@ export const FleetPushNotificationCard: React.FC = () => {
         {/* Left Side: Status & Explanation */}
         <div className="flex items-start gap-3.5 min-w-0">
           <div className={`p-3 rounded-2xl shrink-0 ${
-            isGranted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+            isGranted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
           }`}>
             {isGranted ? (
               <CheckCircle className="w-5 h-5 text-emerald-400" />
             ) : (
-              <Bell className="w-5 h-5 text-amber-400 animate-bounce" />
+              <Bell className="w-5 h-5 text-orange-400 animate-bounce" />
             )}
           </div>
 
@@ -113,7 +113,7 @@ export const FleetPushNotificationCard: React.FC = () => {
               <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
                 isGranted
                   ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
-                  : 'bg-amber-500/20 border-amber-400/50 text-amber-300'
+                  : 'bg-orange-500/20 border-orange-400/50 text-orange-300'
               }`}>
                 {isGranted ? '✓ Push Alerts: Active' : '🔔 Alerts: Off'}
               </span>
@@ -133,7 +133,7 @@ export const FleetPushNotificationCard: React.FC = () => {
             <button
               onClick={handleEnableNotifications}
               disabled={loading}
-              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
               id="enable-fleet-push-card-btn"
             >
               <Bell className="w-4 h-4 fill-slate-950 shrink-0" />

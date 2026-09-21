@@ -667,7 +667,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
               className="w-full bg-[#0A1F44] hover:bg-[#131e3d] text-white font-black py-4 rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 no-underline shadow-md"
               id="paystack-checkout-link"
             >
-              <ExternalLink className="w-4 h-4 text-[#F2A93B]" />
+              <ExternalLink className="w-4 h-4 text-[#F7941D]" />
               <span>Open Paystack Live Checkout Portal</span>
             </a>
           )}
@@ -685,7 +685,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             <button
               onClick={handleRetryPayment}
               disabled={activePayment.verifying}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all border-0 cursor-pointer"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-white font-black py-3.5 rounded-xl text-xs uppercase tracking-wider transition-all border-0 cursor-pointer"
               id="retry-payment-btn"
             >
               {activePayment.verifying ? "Regenerating..." : "Regenerate Checkout Details"}
@@ -718,7 +718,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         </button>
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
-            <FileText className="text-[#F2A93B] w-5 h-5" />
+            <FileText className="text-[#F7941D] w-5 h-5" />
             Create New Waybill
           </h2>
           <p className="text-xs text-slate-500">Record outgoing waybill shipment details and dispatch route</p>
@@ -791,7 +791,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           <div className="bg-blue-50/60 border border-blue-200 rounded-2xl p-5" id="bus-assignment-card">
             <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-3">
               <label className="text-xs font-bold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#F2A93B]" />
+                <Sparkles className="w-3.5 h-3.5 text-[#F7941D]" />
                 Assign to Active Vehicle / Driver <span className="text-red-500">*</span>
               </label>
               <button
@@ -1156,7 +1156,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
       {showShippingFeeWarningModal && (
         <div className="fixed inset-0 z-50 bg-[#091026]/70 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in" id="shipping-fee-warning-modal">
           <div className="relative w-full max-w-md bg-white rounded-2xl p-6 shadow-2xl border border-slate-100 text-center space-y-4">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 border border-amber-200 text-amber-600 flex items-center justify-center mx-auto shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-200 text-orange-600 flex items-center justify-center mx-auto shadow-xs">
               <AlertCircle className="w-6 h-6" />
             </div>
 

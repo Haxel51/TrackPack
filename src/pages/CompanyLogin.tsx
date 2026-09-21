@@ -249,11 +249,11 @@ export const CompanyLogin: React.FC = () => {
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
+          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
-            <Building2 className="text-[#F2A93B] w-7 h-7" />
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
+            <Building2 className="text-[#F7941D] w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">
             {mode === 'login'
@@ -366,7 +366,7 @@ export const CompanyLogin: React.FC = () => {
                     setError(null);
                     setSuccessMsg(null);
                   }}
-                  className="text-xs font-bold text-[#F2A93B] hover:underline cursor-pointer"
+                  className="text-xs font-bold text-[#F7941D] hover:underline cursor-pointer"
                 >
                   Forgot Password?
                 </button>
@@ -396,12 +396,12 @@ export const CompanyLogin: React.FC = () => {
             {/* Alerts */}
             {error && (
               error.toLowerCase().includes("suspended") ? (
-                <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-3 shadow-sm animate-fade-in">
+                <div className="bg-orange-50 border border-orange-200 text-orange-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-3 shadow-sm animate-fade-in">
                   <div className="flex items-start gap-2.5">
-                    <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                    <span className="text-orange-500 text-sm mt-0.5">⚠️</span>
                     <div>
-                      <p className="font-extrabold text-amber-950 text-sm">Account Suspended</p>
-                      <p className="mt-0.5 text-amber-800 text-xs font-semibold leading-relaxed">
+                      <p className="font-extrabold text-orange-950 text-sm">Account Suspended</p>
+                      <p className="mt-0.5 text-orange-800 text-xs font-semibold leading-relaxed">
                         {error}
                       </p>
                     </div>
@@ -440,7 +440,7 @@ export const CompanyLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Signing In...
                 </>
               ) : (
@@ -455,7 +455,7 @@ export const CompanyLogin: React.FC = () => {
                   setMode('register');
                   setError(null);
                 }}
-                className="text-xs font-bold text-[#0A1F44] hover:text-[#F2A93B] transition-colors bg-transparent border-0 cursor-pointer"
+                className="text-xs font-bold text-[#0A1F44] hover:text-[#F7941D] transition-colors bg-transparent border-0 cursor-pointer"
               >
                 New company? Apply to partner with us
               </button>
@@ -575,7 +575,7 @@ export const CompanyLogin: React.FC = () => {
                       For passenger transport & parcel tracking
                     </div>
                   </div>
-                  {serviceMode === 'parcel' && <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />}
+                  {serviceMode === 'parcel' && <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />}
                 </button>
 
                 <button
@@ -583,13 +583,13 @@ export const CompanyLogin: React.FC = () => {
                   onClick={() => setServiceMode('fleet')}
                   className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                     serviceMode === 'fleet'
-                      ? 'bg-amber-600 text-slate-950 border-amber-600 shadow-sm font-black'
-                      : 'bg-amber-50 text-amber-950 border-amber-200 hover:bg-amber-100'
+                      ? 'bg-orange-600 text-slate-950 border-orange-600 shadow-sm font-black'
+                      : 'bg-orange-50 text-orange-950 border-orange-200 hover:bg-orange-100'
                   }`}
                 >
                   <div>
                     <div className="font-extrabold">🚛 Fleet Trip Tracking Only</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'fleet' ? 'text-slate-900' : 'text-amber-800'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'fleet' ? 'text-slate-900' : 'text-orange-800'}`}>
                       For heavy trucks, round-trips & 3-checkpoint verification
                     </div>
                   </div>
@@ -601,17 +601,17 @@ export const CompanyLogin: React.FC = () => {
                   onClick={() => setServiceMode('both')}
                   className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                     serviceMode === 'both'
-                      ? 'bg-[#0A1F44] text-amber-300 border-[#0A1F44] shadow-sm'
+                      ? 'bg-[#0A1F44] text-orange-300 border-[#0A1F44] shadow-sm'
                       : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
                   }`}
                 >
                   <div>
                     <div className="font-extrabold">⚡ Both (Parcel & Fleet Tracking)</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'both' ? 'text-amber-200/80' : 'text-slate-500'}`}>
+                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'both' ? 'text-orange-200/80' : 'text-slate-500'}`}>
                       Full access to both passenger waybills & truck fleet trips
                     </div>
                   </div>
-                  {serviceMode === 'both' && <CheckCircle2 className="w-4 h-4 text-amber-300 shrink-0" />}
+                  {serviceMode === 'both' && <CheckCircle2 className="w-4 h-4 text-orange-300 shrink-0" />}
                 </button>
               </div>
             </div>
@@ -679,7 +679,7 @@ export const CompanyLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Submitting Application...
                 </>
               ) : (
@@ -734,7 +734,7 @@ export const CompanyLogin: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/reset-password')}
-                  className="text-[#F2A93B] hover:underline cursor-pointer font-black"
+                  className="text-[#F7941D] hover:underline cursor-pointer font-black"
                 >
                   Tap here
                 </button>

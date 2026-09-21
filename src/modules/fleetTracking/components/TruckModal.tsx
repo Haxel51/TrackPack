@@ -99,7 +99,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
         {/* Header */}
         <div className="bg-[#070b19] px-6 py-5 border-b border-blue-950/60 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+            <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400">
               <Truck className="w-5 h-5" />
             </div>
             <div>
@@ -135,7 +135,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           {/* Plate Number */}
           <div className="space-y-1.5">
             <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Truck className="w-3.5 h-3.5 text-amber-400" />
+              <Truck className="w-3.5 h-3.5 text-orange-400" />
               <span>Plate Number <span className="text-rose-400">*</span></span>
             </label>
             <input
@@ -143,7 +143,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={plateNumber}
               onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
               placeholder="e.g. KAN 482 XA"
-              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors uppercase tracking-wider"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-bold text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 transition-colors uppercase tracking-wider"
               id="truck-plate-input"
             />
           </div>
@@ -151,7 +151,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           {/* Driver Name */}
           <div className="space-y-1.5">
             <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <User className="w-3.5 h-3.5 text-amber-400" />
+              <User className="w-3.5 h-3.5 text-orange-400" />
               <span>Driver Name <span className="text-rose-400">*</span></span>
             </label>
             <input
@@ -159,7 +159,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={driverName}
               onChange={(e) => setDriverName(e.target.value)}
               placeholder="e.g. Ibrahim Bello"
-              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 transition-colors"
               id="truck-driver-name-input"
             />
           </div>
@@ -167,7 +167,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           {/* Driver Phone Number */}
           <div className="space-y-1.5">
             <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <Phone className="w-3.5 h-3.5 text-amber-400" />
+              <Phone className="w-3.5 h-3.5 text-orange-400" />
               <span>Driver Phone Number <span className="text-rose-400">*</span></span>
             </label>
             <input
@@ -175,7 +175,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
               value={driverPhone}
               onChange={(e) => setDriverPhone(e.target.value)}
               placeholder="e.g. 08012345678 or +2348012345678"
-              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-amber-500 transition-colors"
+              className="w-full bg-[#070b19] border border-blue-950/60 rounded-2xl px-4 py-3 text-sm font-semibold text-white placeholder-slate-600 focus:outline-none focus:border-orange-500 transition-colors"
               id="truck-driver-phone-input"
             />
           </div>
@@ -183,7 +183,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
           {/* Payment Plan Selector */}
           <div className="space-y-2 pt-2 border-t border-blue-950/60/80">
             <label className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-              <CreditCard className="w-3.5 h-3.5 text-amber-400" />
+              <CreditCard className="w-3.5 h-3.5 text-orange-400" />
               <span>Payment Plan Option</span>
             </label>
 
@@ -249,8 +249,8 @@ export const TruckModal: React.FC<TruckModalProps> = ({
 
             {/* Note when Monthly is selected */}
             {paymentPlan === 'monthly' && (
-              <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-300 text-xs flex items-center gap-2 animate-fadeIn mt-2 font-medium">
-                <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0" />
+              <div className="p-3 bg-orange-500/10 border border-orange-500/30 rounded-2xl text-orange-300 text-xs flex items-center gap-2 animate-fadeIn mt-2 font-medium">
+                <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />
                 <span>Subscription will be activated when payment is made at trip creation</span>
               </div>
             )}
@@ -269,7 +269,7 @@ export const TruckModal: React.FC<TruckModalProps> = ({
             <button
               type="submit"
               disabled={isSaving}
-              className="flex-1 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black py-3 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+              className="flex-1 bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-slate-950 font-black py-3 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer"
               id="save-truck-modal-btn"
             >
               {isSaving ? (

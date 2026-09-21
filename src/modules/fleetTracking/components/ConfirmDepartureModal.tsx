@@ -57,7 +57,7 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
               <span className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider">
                 Truck Plate Number
               </span>
-              <div className="text-sm font-black text-amber-400" id="departure-plate-number">
+              <div className="text-sm font-black text-orange-400" id="departure-plate-number">
                 {trip.plate_number}
               </div>
             </div>
@@ -92,8 +92,8 @@ export const ConfirmDepartureModal: React.FC<ConfirmDepartureModalProps> = ({
 
           {/* Payment Status Notice */}
           {!isPaymentConfirmed && (
-            <div className="bg-amber-500/10 border border-amber-500/30 p-2.5 rounded-xl flex items-start gap-2 text-amber-300 text-xs">
-              <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+            <div className="bg-orange-500/10 border border-orange-500/30 p-2.5 rounded-xl flex items-start gap-2 text-orange-300 text-xs">
+              <AlertCircle className="w-4 h-4 text-orange-400 shrink-0 mt-0.5" />
               <span>
                 Payment of ₦{trip.payment_amount.toLocaleString()} is pending. Confirming departure will request payment verification.
               </span>

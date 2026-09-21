@@ -343,7 +343,7 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
     return (
       <div className="space-y-6 animate-fadeIn">
         <div className="bg-white border border-slate-100 rounded-3xl p-8 sm:p-10 shadow-sm text-center max-w-xl mx-auto space-y-5">
-          <div className="w-14 h-14 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center mx-auto text-amber-600">
+          <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-200 flex items-center justify-center mx-auto text-orange-600">
             <Shield className="w-7 h-7" />
           </div>
           <div className="space-y-2">
@@ -373,7 +373,7 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
       <div className="bg-white border border-slate-100 rounded-3xl p-5 sm:p-7 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div>
-            <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 bg-amber-50 px-2.5 py-1 rounded-full border border-amber-200">
+            <span className="text-[10px] font-black uppercase tracking-wider text-orange-600 bg-orange-50 px-2.5 py-1 rounded-full border border-orange-200">
               Production Gateway &bull; Step B
             </span>
             <h2 className="text-xl sm:text-2xl font-black text-[#0A1F44] mt-1.5">
@@ -386,8 +386,8 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
               Verified Enterprise
             </span>
           ) : isUnderReview ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-200">
-              <Clock className="w-4 h-4 text-amber-600 animate-spin" />
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-orange-100 text-orange-800 border border-orange-200">
+              <Clock className="w-4 h-4 text-orange-600 animate-spin" />
               Under Review
             </span>
           ) : isActionRequired ? (
@@ -421,17 +421,17 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
             isApproved 
               ? 'bg-emerald-50/90 border-emerald-200' 
               : isUnderReview
-                ? 'bg-amber-50 border-amber-300 ring-2 ring-amber-400/20'
-                : 'bg-amber-50/70 border-amber-200'
+                ? 'bg-orange-50 border-orange-300 ring-2 ring-orange-400/20'
+                : 'bg-orange-50/70 border-orange-200'
           }`}>
             <div className={`w-6 h-6 rounded-full font-black text-xs flex items-center justify-center shrink-0 ${
-              isApproved ? 'bg-emerald-600 text-white' : 'bg-amber-500 text-white'
+              isApproved ? 'bg-emerald-600 text-white' : 'bg-orange-500 text-white'
             }`}>
               {isApproved ? '✓' : 'B'}
             </div>
             <div className="min-w-0">
-              <p className="text-[11px] font-black text-amber-950 truncate">Step B: Business KYC</p>
-              <p className="text-[10px] text-amber-800 truncate">
+              <p className="text-[11px] font-black text-orange-950 truncate">Step B: Business KYC</p>
+              <p className="text-[10px] text-orange-800 truncate">
                 {isApproved ? 'Verified & Approved' : isUnderReview ? 'Review in Progress' : 'Active Step'}
               </p>
             </div>
@@ -564,20 +564,20 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
       {/* UNDER REVIEW NOTIFICATION & SIMULATION TOOL */}
       {isUnderReview && !isApproved && (
         <div className="space-y-6">
-          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-6 sm:p-7 space-y-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-3xl p-6 sm:p-7 space-y-4">
             <div className="flex items-start gap-3.5">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500 text-white flex items-center justify-center shrink-0">
                 <Clock className="w-5 h-5 animate-spin" />
               </div>
               <div className="space-y-1">
-                <h3 className="text-sm sm:text-base font-black text-amber-950">
+                <h3 className="text-sm sm:text-base font-black text-orange-950">
                   Compliance Application Under Review
                 </h3>
-                <p className="text-xs text-amber-800 leading-relaxed">
+                <p className="text-xs text-orange-800 leading-relaxed">
                   Your CAC documents and Director ID have been received. Our compliance desk cross-matches documents with the Corporate Affairs Commission (CAC) registry. Standard SLA is 24 to 48 hours.
                 </p>
                 {complianceData?.submitted_at && (
-                  <p className="text-[11px] text-amber-700 pt-1">
+                  <p className="text-[11px] text-orange-700 pt-1">
                     Submitted: <strong>{new Date(complianceData.submitted_at).toLocaleString()}</strong>
                   </p>
                 )}
@@ -586,27 +586,27 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
 
             {/* Submitted Summary Details */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <span className="text-[10px] text-amber-800 block font-bold uppercase">Business Name</span>
+              <div className="bg-white/80 p-3 rounded-xl border border-orange-200/60">
+                <span className="text-[10px] text-orange-800 block font-bold uppercase">Business Name</span>
                 <span className="font-black text-slate-900 truncate block">{complianceData?.business_legal_name}</span>
                 <span className="text-[10px] text-slate-500">CAC: {complianceData?.cac_rc_number}</span>
               </div>
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <span className="text-[10px] text-amber-800 block font-bold uppercase">Director Name</span>
+              <div className="bg-white/80 p-3 rounded-xl border border-orange-200/60">
+                <span className="text-[10px] text-orange-800 block font-bold uppercase">Director Name</span>
                 <span className="font-black text-slate-900 truncate block">{complianceData?.director_name}</span>
                 <span className="text-[10px] text-slate-500">{complianceData?.director_role}</span>
               </div>
-              <div className="bg-white/80 p-3 rounded-xl border border-amber-200/60">
-                <span className="text-[10px] text-amber-800 block font-bold uppercase">Dispatch Hub</span>
+              <div className="bg-white/80 p-3 rounded-xl border border-orange-200/60">
+                <span className="text-[10px] text-orange-800 block font-bold uppercase">Dispatch Hub</span>
                 <span className="font-black text-slate-900 truncate block">{complianceData?.city || complianceData?.state}</span>
                 <span className="text-[10px] text-slate-500">{complianceData?.state}</span>
               </div>
             </div>
 
             {/* SANDBOX REVIEW SIMULATOR (Instant Testing Tool) */}
-            <div className="bg-white border border-amber-300/80 rounded-2xl p-4 mt-4 space-y-2.5">
-              <div className="flex items-center gap-2 text-amber-900">
-                <Sparkles className="w-4 h-4 text-amber-600" />
+            <div className="bg-white border border-orange-300/80 rounded-2xl p-4 mt-4 space-y-2.5">
+              <div className="flex items-center gap-2 text-orange-900">
+                <Sparkles className="w-4 h-4 text-orange-600" />
                 <span className="text-xs font-black">AI Studio Preview Simulation: Test Review Workflows</span>
               </div>
               <p className="text-[11px] text-slate-600 leading-relaxed">
@@ -791,7 +791,7 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
           {/* SECTION 2: Legal Director / Executive Identification */}
           <div className="bg-white border border-slate-100 rounded-3xl p-6 sm:p-8 shadow-sm space-y-6">
             <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-              <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 text-amber-700 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-2xl bg-orange-50 border border-orange-200 text-orange-700 flex items-center justify-center">
                 <UserCheck className="w-5 h-5" />
               </div>
               <div>
@@ -1075,7 +1075,7 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
                   </>
                 ) : (
                   <>
-                    <Shield className="w-4 h-4 text-amber-400" />
+                    <Shield className="w-4 h-4 text-orange-400" />
                     Submit Compliance Application (Step B)
                   </>
                 )}

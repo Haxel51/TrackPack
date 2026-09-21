@@ -194,7 +194,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
                           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 ${
                             acc.type === 'customer' ? 'bg-indigo-50 text-indigo-600' :
                             acc.type === 'company' ? 'bg-emerald-50 text-emerald-600' :
-                            acc.type === 'manager' ? 'bg-amber-50 text-amber-600' :
+                            acc.type === 'manager' ? 'bg-orange-50 text-orange-600' :
                             'bg-blue-50 text-blue-600'
                           }`}>
                             {acc.type === 'customer' ? <User className="w-4 h-4" /> :
@@ -215,7 +215,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
                         <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 ${
                           acc.type === 'customer' ? 'bg-indigo-100 text-indigo-800' :
                           acc.type === 'company' ? 'bg-emerald-100 text-emerald-800' :
-                          acc.type === 'manager' ? 'bg-amber-100 text-amber-800' :
+                          acc.type === 'manager' ? 'bg-orange-100 text-orange-800' :
                           'bg-blue-100 text-blue-800'
                         }`}>
                           {acc.type === 'customer' ? 'Customer' :
@@ -280,7 +280,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
 
                   {!generatedCode ? (
                     <div className="space-y-3 w-full">
-                      <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto text-[#F2A93B]">
+                      <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto text-[#F7941D]">
                         <Phone className="w-6 h-6" />
                       </div>
                       <div>
@@ -294,7 +294,7 @@ export const RecoveryTabContent: React.FC<RecoveryTabContentProps> = ({ token })
                       <button
                         onClick={handleGenerateCode}
                         disabled={generating}
-                        className="w-full max-w-xs bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-extrabold py-3 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 mx-auto cursor-pointer disabled:opacity-50"
+                        className="w-full max-w-xs bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-extrabold py-3 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 mx-auto cursor-pointer disabled:opacity-50"
                       >
                         {generating ? (
                           <Loader2 className="w-4 h-4 animate-spin" />

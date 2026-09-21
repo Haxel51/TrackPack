@@ -17,12 +17,12 @@ export const FleetLocationsView: React.FC<FleetLocationsViewProps> = ({ token, u
       <div className="bg-[#0A1F44] text-white rounded-3xl p-6 shadow-md flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 bg-white/10 rounded-2xl flex items-center justify-center shrink-0">
-            <Navigation className="w-6 h-6 text-[#F2A93B]" />
+            <Navigation className="w-6 h-6 text-[#F7941D]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
               <h2 className="text-xl font-black">Fleet Locations & Geofences</h2>
-              <span className="bg-[#F2A93B] text-[#0A1F44] text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
+              <span className="bg-[#F7941D] text-[#0A1F44] text-[10px] font-black uppercase px-2 py-0.5 rounded-full">
                 Step 1: Locations
               </span>
             </div>
@@ -42,7 +42,7 @@ export const FleetLocationsView: React.FC<FleetLocationsViewProps> = ({ token, u
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Warehouse className="w-4 h-4 text-[#F2A93B]" />
+            <Warehouse className="w-4 h-4 text-[#F7941D]" />
             <span>1. Garage Origin</span>
           </button>
           <button
@@ -53,7 +53,7 @@ export const FleetLocationsView: React.FC<FleetLocationsViewProps> = ({ token, u
                 : 'text-slate-300 hover:text-white hover:bg-white/5'
             }`}
           >
-            <Building className="w-4 h-4 text-[#F2A93B]" />
+            <Building className="w-4 h-4 text-[#F7941D]" />
             <span>2. Supplier Locations</span>
           </button>
         </div>

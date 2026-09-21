@@ -96,7 +96,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   };
 
   const getNotifIcon = (type?: string) => {
-    if (!type) return <Bell className="w-4 h-4 text-amber-400" />;
+    if (!type) return <Bell className="w-4 h-4 text-orange-400" />;
     if (type.includes('stopped') || type.includes('warning') || type.includes('alert')) {
       return <AlertTriangle className="w-4 h-4 text-rose-400" />;
     }
@@ -106,7 +106,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
     if (type.includes('departed') || type.includes('arrived') || type.includes('loaded')) {
       return <Navigation className="w-4 h-4 text-blue-400" />;
     }
-    return <Truck className="w-4 h-4 text-amber-400" />;
+    return <Truck className="w-4 h-4 text-orange-400" />;
   };
 
   return (
@@ -116,7 +116,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         {/* Header */}
         <div className="p-4 bg-[#070b19] border-b border-blue-950/60 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
               <Bell className="w-4 h-4" />
             </div>
             <div>
@@ -128,7 +128,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
           <div className="flex items-center gap-2">
             <button
               onClick={markAllAsRead}
-              className="text-[11px] font-bold text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-[#131e3d] cursor-pointer"
+              className="text-[11px] font-bold text-slate-400 hover:text-orange-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-[#131e3d] cursor-pointer"
               title="Mark all as read"
             >
               <CheckCheck className="w-3.5 h-3.5" />
@@ -149,7 +149,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             onClick={() => setFilter('all')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'all'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                ? 'bg-orange-500 text-slate-950 shadow-xs'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
             }`}
           >
@@ -159,7 +159,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             onClick={() => setFilter('unread')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'unread'
-                ? 'bg-amber-500 text-slate-950 shadow-xs'
+                ? 'bg-orange-500 text-slate-950 shadow-xs'
                 : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
             }`}
           >
@@ -192,7 +192,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
                     notif.read
                       ? 'bg-[#0b1329]/60 border-blue-950/60/80 hover:border-blue-900/65 text-slate-300'
-                      : 'bg-[#131e3d]/80 border-amber-500/40 hover:border-amber-500 text-slate-100 shadow-sm'
+                      : 'bg-[#131e3d]/80 border-orange-500/40 hover:border-orange-500 text-slate-100 shadow-sm'
                   }`}
                 >
                   <div className="flex items-start gap-3">
@@ -204,7 +204,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       <div className="flex items-center justify-between gap-2 mb-1">
                         <h4 className="font-bold text-xs text-slate-100 truncate flex items-center gap-1.5">
                           {!notif.read && (
-                            <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 animate-pulse" />
+                            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 animate-pulse" />
                           )}
                           <span>{notif.title}</span>
                         </h4>
@@ -219,7 +219,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                       </p>
 
                       {(notif.tripId || notif.trip_id || notif.truckId || notif.truck_id) && (
-                        <div className="mt-2 flex items-center text-[10px] font-extrabold text-amber-400 group-hover:underline">
+                        <div className="mt-2 flex items-center text-[10px] font-extrabold text-orange-400 group-hover:underline">
                           Tap to view details &rarr;
                         </div>
                       )}

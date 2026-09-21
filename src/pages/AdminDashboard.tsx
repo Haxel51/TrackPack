@@ -564,7 +564,7 @@ export const AdminDashboard: React.FC = () => {
             <Logo size="sm" showText={false} />
             <div>
               <span className="font-extrabold text-base tracking-wide block">Waybilla Admin</span>
-              <span className="text-[10px] text-amber-400 font-black tracking-widest uppercase block">Internal Control Room</span>
+              <span className="text-[10px] text-orange-400 font-black tracking-widest uppercase block">Internal Control Room</span>
             </div>
           </div>
 
@@ -579,7 +579,7 @@ export const AdminDashboard: React.FC = () => {
                 }}
                 className={`py-2 px-3.5 rounded-xl text-xs font-extrabold tracking-wide capitalize cursor-pointer transition-all flex items-center gap-1.5 ${
                   activeTab === tab
-                    ? 'bg-[#F2A93B] text-[#0A1F44] shadow-md scale-105'
+                    ? 'bg-[#F7941D] text-[#0A1F44] shadow-md scale-105'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
                 id={`tab-btn-${tab}`}
@@ -602,7 +602,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-extrabold px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer"
+              className="flex items-center gap-1.5 bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-extrabold px-3 py-2 rounded-xl text-xs transition-colors cursor-pointer"
               id="admin-logout-btn"
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -666,7 +666,7 @@ export const AdminDashboard: React.FC = () => {
                   <>
                     <div className="flex items-center justify-between text-slate-500">
                       <span className="text-xs font-extrabold tracking-wider uppercase">Pending Applications</span>
-                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <AlertCircle className="w-4 h-4 text-orange-500" />
                     </div>
                     <div>
                       <h2 className="text-3xl font-black text-[#0A1F44]">{overviewData?.stats?.pendingApplications ?? 0}</h2>
@@ -802,7 +802,7 @@ export const AdminDashboard: React.FC = () => {
                 ) : (
                   <>
                     <div className="space-y-2">
-                      <span className="bg-amber-100 text-[#0A1F44] text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider inline-block">
+                      <span className="bg-orange-100 text-[#0A1F44] text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider inline-block">
                         Weekly Period
                       </span>
                       <h3 className="text-xs font-extrabold text-slate-500 uppercase tracking-wider block pt-2">This Week's Income</h3>
@@ -881,7 +881,7 @@ export const AdminDashboard: React.FC = () => {
             {/* Recent Activity Feed */}
             <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm relative" id="activity-feed-container">
               <h3 className="text-sm font-extrabold text-[#0A1F44] uppercase tracking-wider mb-4 flex items-center gap-1.5">
-                <RefreshCw className="w-4 h-4 text-[#F2A93B] animate-spin" />
+                <RefreshCw className="w-4 h-4 text-[#F7941D] animate-spin" />
                 <span>Centralized Platform Activity Feed</span>
               </h3>
 
@@ -905,7 +905,7 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-start gap-3">
                         <span className={`w-2.5 h-2.5 rounded-full mt-1.5 shrink-0 ${
                           activity.type === 'company_approved' ? 'bg-emerald-500' :
-                          activity.type === 'company_applied' ? 'bg-amber-500' :
+                          activity.type === 'company_applied' ? 'bg-orange-500' :
                           activity.type === 'waybill_created' ? 'bg-blue-500' :
                           activity.type === 'package_collected' ? 'bg-indigo-500' :
                           activity.type === 'bus_departed' ? 'bg-[#0A1F44]' :
@@ -954,10 +954,10 @@ export const AdminDashboard: React.FC = () => {
                   <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-4">
                     <div className="flex justify-between items-center border-b border-slate-50 pb-3">
                       <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4 text-amber-500" />
+                        <AlertCircle className="w-4 h-4 text-orange-500" />
                         <span>Pending Company Registrations</span>
                       </h3>
-                      <span className="text-[10px] font-extrabold bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full">
+                      <span className="text-[10px] font-extrabold bg-orange-50 text-orange-700 px-2 py-0.5 rounded-full">
                         {companies.filter(c => c.approved === false && c.rejected !== true).length} waiting review
                       </span>
                     </div>
@@ -974,7 +974,7 @@ export const AdminDashboard: React.FC = () => {
                               <div className="flex items-center gap-2">
                                 <h4 className="text-sm font-extrabold text-[#0A1F44]">{comp.company_name}</h4>
                                 <span className={`text-[9px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider ${
-                                  comp.service_mode === 'fleet' ? 'bg-amber-100 text-amber-900 border border-amber-300' :
+                                  comp.service_mode === 'fleet' ? 'bg-orange-100 text-orange-900 border border-orange-300' :
                                   comp.service_mode === 'both' ? 'bg-blue-100 text-blue-900 border border-blue-300' :
                                   'bg-slate-100 text-slate-700'
                                 }`}>
@@ -982,7 +982,7 @@ export const AdminDashboard: React.FC = () => {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F2A93B]" /> Owner: {comp.owner_phone}</span>
+                                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F7941D]" /> Owner: {comp.owner_phone}</span>
                                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || comp.park_name || 'N/A'}</span>
                                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-indigo-500" /> Applied: {comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'N/A'}</span>
                               </div>
@@ -1117,7 +1117,7 @@ export const AdminDashboard: React.FC = () => {
                                 </span>
                               </div>
                               <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
-                                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F2A93B]" /> Owner: {comp.owner_phone}</span>
+                                <span className="flex items-center gap-1"><Mail className="w-3.5 h-3.5 text-[#F7941D]" /> Owner: {comp.owner_phone}</span>
                                 <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5 text-blue-500" /> Park: {comp.park_location || comp.park_name || 'N/A'}</span>
                                 <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-indigo-500" /> Date: {comp.rejected_at ? new Date(comp.rejected_at).toLocaleDateString() : (comp.created_at ? new Date(comp.created_at).toLocaleDateString() : 'N/A')}</span>
                               </div>
@@ -1147,7 +1147,7 @@ export const AdminDashboard: React.FC = () => {
                 <div className="lg:col-span-4" id="company-detail-panel">
                   <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-5 sticky top-6">
                     <h3 className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider border-b border-slate-50 pb-3 flex items-center gap-1.5">
-                      <Building2 className="w-4 h-4 text-[#F2A93B]" />
+                      <Building2 className="w-4 h-4 text-[#F7941D]" />
                       <span>Company Profile Details</span>
                     </h3>
 
@@ -1468,7 +1468,7 @@ export const AdminDashboard: React.FC = () => {
                               <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider inline-block ${
                                 wb.status === 'collected' ? 'bg-indigo-50 text-indigo-700' :
                                 wb.status === 'arrived' ? 'bg-emerald-50 text-emerald-700' :
-                                wb.status === 'departed' || wb.status === 'in_transit' ? 'bg-amber-50 text-amber-700' :
+                                wb.status === 'departed' || wb.status === 'in_transit' ? 'bg-orange-50 text-orange-700' :
                                 'bg-slate-100 text-slate-600'
                               }`}>
                                 {wb.status}
@@ -1915,7 +1915,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
                 <div>
                   <h3 className="text-base font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-amber-500" />
+                    <Truck className="w-5 h-5 text-orange-500" />
                     <span>God-Tier Fleet Tracking, Trucks, Teams & Revenue Control</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1">
@@ -1948,10 +1948,10 @@ export const AdminDashboard: React.FC = () => {
                   <span className="text-lg font-black text-[#0A1F44]">{fleetTripsData?.stats?.totalTrips ?? 0}</span>
                   <span className="text-[8px] text-slate-400 font-semibold block truncate">Dispatches</span>
                 </div>
-                <div className="bg-amber-50/50 border border-amber-100 p-3 rounded-2xl space-y-1">
-                  <span className="text-[9px] text-amber-800 font-extrabold uppercase block truncate">Active Transit</span>
-                  <span className="text-lg font-black text-amber-900">{fleetTripsData?.stats?.activeTrips ?? 0}</span>
-                  <span className="text-[8px] text-amber-700 font-semibold block truncate">On Route</span>
+                <div className="bg-orange-50/50 border border-orange-100 p-3 rounded-2xl space-y-1">
+                  <span className="text-[9px] text-orange-800 font-extrabold uppercase block truncate">Active Transit</span>
+                  <span className="text-lg font-black text-orange-900">{fleetTripsData?.stats?.activeTrips ?? 0}</span>
+                  <span className="text-[8px] text-orange-700 font-semibold block truncate">On Route</span>
                 </div>
                 <div className="bg-blue-50/50 border border-blue-100 p-3 rounded-2xl space-y-1">
                   <span className="text-[9px] text-blue-800 font-extrabold uppercase block truncate">Fleet Revenue</span>
@@ -1970,7 +1970,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setFleetSubTab('companies')}
                   className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
-                    fleetSubTab === 'companies' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                    fleetSubTab === 'companies' ? 'bg-[#0A1F44] text-white border-orange-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
                   }`}
                 >
                   Companies ({fleetTripsData?.companies?.length ?? 0})
@@ -1978,7 +1978,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setFleetSubTab('trucks')}
                   className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
-                    fleetSubTab === 'trucks' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                    fleetSubTab === 'trucks' ? 'bg-[#0A1F44] text-white border-orange-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
                   }`}
                 >
                   Trucks ({fleetTripsData?.trucks?.length ?? 0})
@@ -1986,7 +1986,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setFleetSubTab('trips')}
                   className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
-                    fleetSubTab === 'trips' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                    fleetSubTab === 'trips' ? 'bg-[#0A1F44] text-white border-orange-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
                   }`}
                 >
                   Dispatches ({fleetTripsData?.trips?.length ?? 0})
@@ -1994,7 +1994,7 @@ export const AdminDashboard: React.FC = () => {
                 <button
                   onClick={() => setFleetSubTab('team')}
                   className={`px-3 py-2 text-[11px] font-extrabold rounded-t-xl transition-all cursor-pointer border-b-2 ${
-                    fleetSubTab === 'team' ? 'bg-[#0A1F44] text-white border-amber-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
+                    fleetSubTab === 'team' ? 'bg-[#0A1F44] text-white border-orange-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 border-transparent bg-slate-50'
                   }`}
                 >
                   Team ({((fleetTripsData?.managers?.length ?? 0) + (fleetTripsData?.staff?.length ?? 0))})
@@ -2030,7 +2030,7 @@ export const AdminDashboard: React.FC = () => {
                                   <h5 className="text-sm font-black text-[#0A1F44]">{c.company_name}</h5>
                                   <p className="text-[11px] text-slate-500">Owner: {c.owner_name} ({c.owner_phone})</p>
                                 </div>
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${c.approved ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${c.approved ? 'bg-emerald-100 text-emerald-800' : 'bg-orange-100 text-orange-800'}`}>
                                   {c.approved ? 'Approved' : 'Pending'}
                                 </span>
                               </div>
@@ -2133,7 +2133,7 @@ export const AdminDashboard: React.FC = () => {
                                   <td className="py-3 px-4 text-slate-600">{t.origin} → {t.destination}</td>
                                   <td className="py-3 px-4 text-center">
                                     <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                                      t.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
+                                      t.status === 'in_transit' ? 'bg-orange-100 text-orange-800' :
                                       t.status === 'arrived' || t.status === 'completed' || t.status === 'delivered' ? 'bg-emerald-100 text-emerald-800' :
                                       'bg-slate-100 text-slate-800'
                                     }`}>
@@ -2184,7 +2184,7 @@ export const AdminDashboard: React.FC = () => {
                             {fleetTripsData.staff.map((s: any, idx: number) => (
                               <div key={`adm-staff-${s.id || idx}`} className="bg-slate-50 border border-slate-100 p-4 rounded-2xl space-y-1">
                                 <span className="text-sm font-black text-[#0A1F44]">{s.name || s.full_name || 'Staff'}</span>
-                                <p className="text-xs text-slate-600">Role: <span className="capitalize font-bold text-amber-600">{s.role}</span></p>
+                                <p className="text-xs text-slate-600">Role: <span className="capitalize font-bold text-orange-600">{s.role}</span></p>
                                 <p className="text-xs text-slate-600">Phone: {s.phone || 'N/A'}</p>
                               </div>
                             ))}
@@ -2243,9 +2243,9 @@ export const AdminDashboard: React.FC = () => {
                   <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Applications</span>
                   <span className="text-xl font-black text-[#0A1F44] mt-0.5 block">{devSubmissions.length}</span>
                 </div>
-                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
-                  <span className="text-[10px] font-bold text-amber-600 uppercase block">Pending Verification</span>
-                  <span className="text-xl font-black text-amber-700 mt-0.5 block">
+                <div className="p-4 bg-orange-50 rounded-2xl border border-orange-100">
+                  <span className="text-[10px] font-bold text-orange-600 uppercase block">Pending Verification</span>
+                  <span className="text-xl font-black text-orange-700 mt-0.5 block">
                     {devSubmissions.filter(s => s.status === 'under_review' || s.status === 'pending_verification').length}
                   </span>
                 </div>
@@ -2364,7 +2364,7 @@ export const AdminDashboard: React.FC = () => {
                                   Approved
                                 </span>
                               ) : isPending ? (
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-black">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-[10px] font-black">
                                   <AlertCircle className="w-3 h-3" />
                                   Pending Review
                                 </span>
@@ -2603,7 +2603,7 @@ export const AdminDashboard: React.FC = () => {
                 Waybill Details
               </span>
               <h4 className="text-lg font-black text-[#0A1F44] mt-2 tracking-wider flex items-center gap-1.5">
-                <FileText className="w-5 h-5 text-[#F2A93B]" />
+                <FileText className="w-5 h-5 text-[#F7941D]" />
                 <span>Tracking: {selectedWaybill.tracking_code}</span>
               </h4>
             </div>
@@ -2646,7 +2646,7 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500 font-bold">Current Status</span>
-                <span className="font-extrabold uppercase tracking-widest text-[#F2A93B]">{selectedWaybill.status}</span>
+                <span className="font-extrabold uppercase tracking-widest text-[#F7941D]">{selectedWaybill.status}</span>
               </div>
 
             </div>
@@ -2675,7 +2675,7 @@ export const AdminDashboard: React.FC = () => {
                   <p className="text-xs font-extrabold text-slate-700">Bus Departed Motor Park</p>
                   <p className="text-[10px] text-slate-400 font-bold">{selectedWaybill.departed_at ? new Date(selectedWaybill.departed_at).toLocaleString() : 'Not Departed'}</p>
                   {selectedWaybill.departed_by_staff_name && (
-                    <p className="text-[10px] text-amber-600 font-bold mt-0.5">
+                    <p className="text-[10px] text-orange-600 font-bold mt-0.5">
                       Departed by Staff: {selectedWaybill.departed_by_staff_name} {selectedWaybill.departed_by_staff_phone ? `(${selectedWaybill.departed_by_staff_phone})` : ''}
                     </p>
                   )}

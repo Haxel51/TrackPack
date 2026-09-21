@@ -305,7 +305,7 @@ export const ManagerDashboard: React.FC = () => {
                 </span>
               </div>
               <p className="text-[11px] sm:text-xs text-slate-300 flex items-center gap-1.5 mt-0.5 truncate">
-                <MapPin className="w-3.5 h-3.5 text-[#F2A93B] shrink-0" />
+                <MapPin className="w-3.5 h-3.5 text-[#F7941D] shrink-0" />
                 <span className="font-bold text-white truncate">{user?.park_location || overview?.park_location || 'Assigned Park'}</span>
                 <span>•</span>
                 <span className="truncate">{user?.name || 'Park Manager'}</span>
@@ -354,12 +354,12 @@ export const ManagerDashboard: React.FC = () => {
                 }}
                 className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                   isActive
-                    ? 'bg-white text-[#0A1F44] border-[#F2A93B] shadow-xs'
+                    ? 'bg-white text-[#0A1F44] border-[#F7941D] shadow-xs'
                     : 'text-slate-300 hover:text-white border-transparent'
                 }`}
                 id={`manager-tab-${tab.id}`}
               >
-                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-[#F2A93B]' : 'text-slate-400'}`} />
+                <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${isActive ? 'text-[#F7941D]' : 'text-slate-400'}`} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -415,10 +415,10 @@ export const ManagerDashboard: React.FC = () => {
                   {/* Gross Tracking Fees */}
                   <div className="bg-white border border-slate-200/80 rounded-3xl p-5 sm:p-6 shadow-sm space-y-3">
                     <div className="flex items-center justify-between">
-                      <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
-                        <DollarSign className="w-5 h-5 text-amber-600" />
+                      <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center">
+                        <DollarSign className="w-5 h-5 text-orange-600" />
                       </div>
-                      <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full uppercase">Tracking Fee</span>
+                      <span className="text-[10px] font-extrabold text-orange-700 bg-orange-50 px-2.5 py-1 rounded-full uppercase">Tracking Fee</span>
                     </div>
                     <div>
                       <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Gross Tracking Fee Total</p>
@@ -465,7 +465,7 @@ export const ManagerDashboard: React.FC = () => {
                 <div className="bg-gradient-to-br from-[#0A1F44] to-[#122b5c] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                   <div className="space-y-1">
                     <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
-                      <MapPin className="text-[#F2A93B] w-5 h-5" />
+                      <MapPin className="text-[#F7941D] w-5 h-5" />
                       Park Location: {overview.park_location}
                     </h2>
                     <p className="text-xs text-slate-300">
@@ -515,7 +515,7 @@ export const ManagerDashboard: React.FC = () => {
                               <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
                                 wb.status === 'collected' ? 'bg-emerald-100 text-emerald-800' :
                                 wb.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
-                                wb.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
+                                wb.status === 'in_transit' ? 'bg-orange-100 text-orange-800' :
                                 'bg-slate-100 text-slate-700'
                               }`}>
                                 {wb.status.replace('_', ' ')}
@@ -562,7 +562,7 @@ export const ManagerDashboard: React.FC = () => {
                     className="w-full sm:w-auto bg-[#0A1F44] hover:bg-[#07152e] text-white font-extrabold px-4 py-2.5 rounded-xl text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
                     id="manager-add-staff-btn"
                   >
-                    <Plus className="w-4 h-4 text-[#F2A93B]" /> Add New Staff
+                    <Plus className="w-4 h-4 text-[#F7941D]" /> Add New Staff
                   </button>
                 </div>
 
@@ -611,7 +611,7 @@ export const ManagerDashboard: React.FC = () => {
                       <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                         <button
                           onClick={() => handleResetPin(staff.id, staff.name)}
-                          className="flex-1 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 py-2 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                          className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 py-2 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                           title="Reset PIN"
                         >
                           <Key className="w-3.5 h-3.5" /> Reset PIN
@@ -648,7 +648,7 @@ export const ManagerDashboard: React.FC = () => {
                         onClick={() => setShowCreateStaffModal(true)}
                         className="bg-[#0A1F44] text-white font-extrabold px-4 py-2.5 rounded-xl text-xs inline-flex items-center gap-2 cursor-pointer mt-2"
                       >
-                        <Plus className="w-4 h-4 text-[#F2A93B]" /> Add First Staff
+                        <Plus className="w-4 h-4 text-[#F7941D]" /> Add First Staff
                       </button>
                     </div>
                   )}
@@ -720,7 +720,7 @@ export const ManagerDashboard: React.FC = () => {
                               <span className={`px-2.5 py-1 rounded-full font-extrabold text-[10px] uppercase ${
                                 wb.status === 'collected' ? 'bg-emerald-100 text-emerald-800' :
                                 wb.status === 'arrived' ? 'bg-blue-100 text-blue-800' :
-                                wb.status === 'in_transit' ? 'bg-amber-100 text-amber-800' :
+                                wb.status === 'in_transit' ? 'bg-orange-100 text-orange-800' :
                                 'bg-slate-100 text-slate-700'
                               }`}>
                                 {wb.status.replace('_', ' ')}
@@ -818,8 +818,8 @@ export const ManagerDashboard: React.FC = () => {
       {pinModal && (
         <div className="fixed inset-0 bg-[#091026]/60 backdrop-blur-xs flex justify-center items-center p-4 z-50">
           <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl text-center space-y-4">
-            <div className="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto">
-              <Key className="w-6 h-6 text-amber-600" />
+            <div className="w-12 h-12 bg-orange-50 rounded-2xl flex items-center justify-center mx-auto">
+              <Key className="w-6 h-6 text-orange-600" />
             </div>
             <h3 className="font-extrabold text-[#0A1F44] text-lg">{pinModal.title}</h3>
             <p className="text-xs text-slate-500">

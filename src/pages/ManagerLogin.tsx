@@ -91,7 +91,7 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
   if (currentToken && isAuthorizedRole) {
     return (
       <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center p-4">
-        <div className="w-10 h-10 border-4 border-[#0A1F44] border-t-[#F2A93B] rounded-full animate-spin"></div>
+        <div className="w-10 h-10 border-4 border-[#0A1F44] border-t-[#F7941D] rounded-full animate-spin"></div>
         <p className="mt-3 text-xs font-bold text-slate-600">Restoring your verified session...</p>
       </div>
     );
@@ -282,16 +282,16 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
+          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
             {isDriverRoute ? (
-              <Truck className="text-[#F2A93B] w-7 h-7" />
+              <Truck className="text-[#F7941D] w-7 h-7" />
             ) : isTripMonitorRoute ? (
-              <Eye className="text-[#F2A93B] w-7 h-7" />
+              <Eye className="text-[#F7941D] w-7 h-7" />
             ) : (
-              <UserCheck className="text-[#F2A93B] w-7 h-7" />
+              <UserCheck className="text-[#F7941D] w-7 h-7" />
             )}
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">
@@ -515,7 +515,7 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
                   setStep('forgot_pin');
                   setError(null);
                 }}
-                className="text-xs font-bold text-[#F2A93B] hover:underline cursor-pointer border-0 bg-transparent"
+                className="text-xs font-bold text-[#F7941D] hover:underline cursor-pointer border-0 bg-transparent"
               >
                 Forgot Passcode?
               </button>
@@ -565,9 +565,9 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
             {/* If manager HAS NOT set a PIN yet */}
             {!managerInfo.has_pin ? (
               <div className="space-y-4">
-                <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-2xl text-xs text-amber-800 space-y-1">
-                  <p className="font-extrabold flex items-center gap-1.5 text-amber-900">
-                    <KeyRound className="w-4 h-4 text-amber-600" /> First Time Setup: Create Your PIN
+                <div className="p-3 bg-orange-50 border border-orange-200/80 rounded-2xl text-xs text-orange-800 space-y-1">
+                  <p className="font-extrabold flex items-center gap-1.5 text-orange-900">
+                    <KeyRound className="w-4 h-4 text-orange-600" /> First Time Setup: Create Your PIN
                   </p>
                   <p>
                     {isDriver 
@@ -738,7 +738,7 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
                 <button
                   type="button"
                   onClick={() => navigate('/reset-password')}
-                  className="text-[#F2A93B] hover:underline cursor-pointer font-black border-0 bg-transparent"
+                  className="text-[#F7941D] hover:underline cursor-pointer font-black border-0 bg-transparent"
                 >
                   Tap here
                 </button>

@@ -141,7 +141,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
   if (!hasAccess) {
     return (
       <div className="p-12 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-4 my-8">
-        <ShieldAlert className="w-12 h-12 text-amber-400 mx-auto" />
+        <ShieldAlert className="w-12 h-12 text-orange-400 mx-auto" />
         <h3 className="text-lg font-black text-white">Access Restricted</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto">
           Fleet Analytics and Reports are restricted to CEO/Owner and Manager roles only.
@@ -700,7 +700,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-[#091026] via-[#091026] to-[#050914] border border-blue-950/80 p-6 sm:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
             <BarChart3 className="w-7 h-7" />
           </div>
           <div>
@@ -716,7 +716,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
           <select
             value={dateRangePreset}
             onChange={(e) => setDateRangePreset(e.target.value)}
-            className="bg-[#050914] border border-blue-950/80 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none focus:border-amber-500"
+            className="bg-[#050914] border border-blue-950/80 text-slate-200 text-xs font-bold rounded-xl px-4 py-2.5 outline-none focus:border-orange-500"
           >
             <option value="today">Today</option>
             <option value="this_week">This Week</option>
@@ -750,7 +750,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
             onClick={() => loadAnalyticsData()}
             className="bg-[#131e3d] hover:bg-slate-700 text-slate-200 font-bold px-4 py-2.5 rounded-xl text-xs transition-all flex items-center gap-2 cursor-pointer border border-blue-900/60"
           >
-            <Zap className="w-3.5 h-3.5 text-amber-400" />
+            <Zap className="w-3.5 h-3.5 text-orange-400" />
             <span>Refresh Data</span>
           </button>
         </div>
@@ -773,7 +773,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               onClick={() => setActiveSubTab(tab.id as any)}
               className={`px-5 py-3 rounded-2xl text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap cursor-pointer ${
                 isActive
-                  ? 'bg-amber-500 text-[#050914] shadow-lg shadow-amber-500/20 font-black'
+                  ? 'bg-orange-500 text-[#050914] shadow-lg shadow-orange-500/20 font-black'
                   : 'bg-[#091026] text-slate-400 hover:text-white border border-blue-950/80'
               }`}
             >
@@ -814,7 +814,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               {/* Trip Statistics */}
               <div>
                 <h3 className="text-sm font-black text-slate-300 uppercase tracking-wider mb-4 flex items-center gap-2">
-                  <Navigation className="w-4 h-4 text-amber-400" />
+                  <Navigation className="w-4 h-4 text-orange-400" />
                   <span>Trip Statistics</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
@@ -836,7 +836,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div className="bg-[#091026] border border-blue-950/80 p-6 rounded-3xl shadow-xl space-y-4">
                   <div className="flex items-center gap-3">
-                    <Truck className="w-5 h-5 text-amber-400" />
+                    <Truck className="w-5 h-5 text-orange-400" />
                     <h3 className="text-sm font-black text-white">Fleet Statistics</h3>
                   </div>
                   <div className="grid grid-cols-2 gap-4 pt-2">
@@ -854,7 +854,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     </div>
                     <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80">
                       <span className="text-[11px] text-slate-400 font-bold">Per Trip Plan</span>
-                      <span className="text-xl font-black text-amber-400 block mt-1">{stats.perTripTrucks}</span>
+                      <span className="text-xl font-black text-orange-400 block mt-1">{stats.perTripTrucks}</span>
                     </div>
                   </div>
                 </div>
@@ -871,7 +871,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     </div>
                     <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80">
                       <span className="text-[11px] text-slate-400 font-bold">On Active Trip</span>
-                      <span className="text-xl font-black text-amber-400 block mt-1">{stats.activeDrivers}</span>
+                      <span className="text-xl font-black text-orange-400 block mt-1">{stats.activeDrivers}</span>
                     </div>
                     <div className="bg-[#050914] p-4 rounded-2xl border border-blue-950/80">
                       <span className="text-[11px] text-slate-400 font-bold">Online / Ready</span>
@@ -928,7 +928,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
 
                   <button
                     onClick={() => handleExportPDF('trips')}
-                    className="bg-amber-500 hover:bg-amber-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
+                    className="bg-orange-500 hover:bg-orange-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
                   >
                     <Download className="w-4 h-4" />
                     <span>PDF</span>
@@ -967,7 +967,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                               {trip.created_at ? format(new Date(trip.created_at), 'dd MMM yyyy, HH:mm') : 'N/A'}
                             </div>
                           </td>
-                          <td className="p-4 font-black text-amber-400">{trip.truck_plate || 'N/A'}</td>
+                          <td className="p-4 font-black text-orange-400">{trip.truck_plate || 'N/A'}</td>
                           <td className="p-4 text-slate-200 font-medium">
                             <div>{trip.driver_name || 'Unassigned'}</div>
                             <div className="text-[11px] text-slate-400">{trip.driver_phone}</div>
@@ -990,7 +990,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                           <td className="p-4 text-center">
                             <button
                               onClick={() => setSelectedTripDetails(trip)}
-                              className="px-3 py-1.5 bg-[#131e3d] hover:bg-slate-700 text-amber-400 font-bold rounded-xl text-[11px] flex items-center gap-1.5 mx-auto border border-blue-900/60 cursor-pointer"
+                              className="px-3 py-1.5 bg-[#131e3d] hover:bg-slate-700 text-orange-400 font-bold rounded-xl text-[11px] flex items-center gap-1.5 mx-auto border border-blue-900/60 cursor-pointer"
                             >
                               <Eye className="w-3.5 h-3.5" />
                               <span>Timeline</span>
@@ -1006,7 +1006,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                   <div className="p-4 text-center bg-[#050914] border-t border-blue-950/80">
                     <button
                       onClick={() => setTripDisplayLimit(prev => prev + 20)}
-                      className="px-6 py-2.5 bg-[#131e3d] hover:bg-slate-700 text-amber-400 font-bold text-xs rounded-xl cursor-pointer border border-blue-900/60"
+                      className="px-6 py-2.5 bg-[#131e3d] hover:bg-slate-700 text-orange-400 font-bold text-xs rounded-xl cursor-pointer border border-blue-900/60"
                     >
                       Load More Trips ({filteredTrips.length - tripDisplayLimit} remaining)
                     </button>
@@ -1040,7 +1040,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
 
                   <button
                     onClick={() => handleExportPDF('drivers')}
-                    className="bg-amber-500 hover:bg-amber-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
+                    className="bg-orange-500 hover:bg-orange-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
                   >
                     <Download className="w-4 h-4" />
                     <span>PDF</span>
@@ -1077,16 +1077,16 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                           <td className="p-4">
                             <div className="font-bold text-white flex items-center gap-2">
                               <span>{d.name}</span>
-                              {idx === 0 && <Award className="w-4 h-4 text-amber-400" />}
+                              {idx === 0 && <Award className="w-4 h-4 text-orange-400" />}
                             </div>
                             <div className="text-[11px] text-slate-400">{d.phone}</div>
                           </td>
-                          <td className="p-4 font-bold text-amber-400">{d.truck}</td>
+                          <td className="p-4 font-bold text-orange-400">{d.truck}</td>
                           <td className="p-4 text-center font-bold text-emerald-400">{d.tripsCompleted}</td>
                           <td className="p-4 text-center font-bold text-blue-400">{d.tripsActive}</td>
                           <td className="p-4 text-center font-bold text-slate-200">{d.avgDurationStr}</td>
                           <td className="p-4 text-center font-bold text-emerald-300">{d.onTimeRateStr}</td>
-                          <td className="p-4 text-center font-bold text-amber-300">{d.stops}</td>
+                          <td className="p-4 text-center font-bold text-orange-300">{d.stops}</td>
                           <td className="p-4 text-center font-bold text-rose-400">{d.offRoutes}</td>
                         </tr>
                       ))}
@@ -1102,7 +1102,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
             <div className="space-y-6 animate-fadeIn">
               <div className="bg-[#091026] border border-blue-950/80 p-5 rounded-3xl flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
-                  <Truck className="w-5 h-5 text-amber-400" />
+                  <Truck className="w-5 h-5 text-orange-400" />
                   <h3 className="text-sm font-black text-white">Truck Utilization & Haulage Metrics</h3>
                 </div>
 
@@ -1119,7 +1119,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
 
                   <button
                     onClick={() => handleExportPDF('trucks')}
-                    className="bg-amber-500 hover:bg-amber-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
+                    className="bg-orange-500 hover:bg-orange-400 text-[#050914] font-black px-4 py-2.5 rounded-xl text-xs flex items-center gap-2 cursor-pointer shadow-md"
                   >
                     <Download className="w-4 h-4" />
                     <span>PDF</span>
@@ -1152,7 +1152,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     <tbody className="divide-y divide-slate-800 text-xs">
                       {truckUtilizationList.map((tr, idx) => (
                         <tr key={idx} className="hover:bg-[#131e3d]/40">
-                          <td className="p-4 font-black text-amber-400">{tr.plate}</td>
+                          <td className="p-4 font-black text-orange-400">{tr.plate}</td>
                           <td className="p-4 text-slate-200">{tr.driver}</td>
                           <td className="p-4">
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider ${
@@ -1164,7 +1164,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                           <td className="p-4 text-center font-bold text-white">{tr.tripsCompleted}</td>
                           <td className="p-4 text-center font-bold text-emerald-300">{tr.tripsMonth}</td>
                           <td className="p-4 text-center font-bold text-slate-200">{tr.avgTripsPerWeekStr}</td>
-                          <td className="p-4 text-center font-bold text-amber-300">{tr.utilizationRateStr}</td>
+                          <td className="p-4 text-center font-bold text-orange-300">{tr.utilizationRateStr}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1198,7 +1198,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
                     activityLog.map(act => (
                       <div key={act.id} className="bg-[#050914] border border-blue-950/80 p-4 rounded-2xl flex items-center justify-between gap-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-xl bg-[#091026] border border-blue-950/80 flex items-center justify-center text-amber-400 shrink-0">
+                          <div className="w-8 h-8 rounded-xl bg-[#091026] border border-blue-950/80 flex items-center justify-center text-orange-400 shrink-0">
                             <Navigation className="w-4 h-4" />
                           </div>
                           <span className="text-xs text-slate-200 font-medium">{act.message}</span>
@@ -1222,7 +1222,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               <div>
                 <h3 className="text-base font-black text-white flex items-center gap-2">
                   <span>Trip Timeline & Granular Timestamps</span>
-                  <span className="text-amber-400 text-xs font-mono">({selectedTripDetails.truck_plate})</span>
+                  <span className="text-orange-400 text-xs font-mono">({selectedTripDetails.truck_plate})</span>
                 </h3>
                 <p className="text-xs text-slate-400">ID: {selectedTripDetails.id}</p>
               </div>
@@ -1251,7 +1251,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
               <div className="space-y-3 font-mono text-xs">
                 <div className="p-3 bg-[#050914] border border-blue-950/80 rounded-xl flex items-center justify-between">
                   <span className="text-slate-300">✅ Created at</span>
-                  <span className="text-amber-400">{selectedTripDetails.created_at ? format(new Date(selectedTripDetails.created_at), 'dd MMM yyyy, HH:mm:ss') : 'N/A'}</span>
+                  <span className="text-orange-400">{selectedTripDetails.created_at ? format(new Date(selectedTripDetails.created_at), 'dd MMM yyyy, HH:mm:ss') : 'N/A'}</span>
                 </div>
                 <div className="p-3 bg-[#050914] border border-blue-950/80 rounded-xl flex items-center justify-between">
                   <span className="text-slate-300">✅ Payment confirmed at</span>
@@ -1279,7 +1279,7 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
             <div className="flex justify-end pt-4 border-t border-blue-950/80">
               <button
                 onClick={() => setSelectedTripDetails(null)}
-                className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-[#050914] font-black text-xs rounded-xl cursor-pointer"
+                className="px-6 py-2.5 bg-orange-500 hover:bg-orange-400 text-[#050914] font-black text-xs rounded-xl cursor-pointer"
               >
                 Close Timeline
               </button>

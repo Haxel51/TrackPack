@@ -1113,9 +1113,9 @@ export const DriverScreen: React.FC = () => {
   if (showLocationGuide || !showDriverWelcome) {
     return (
       <div className="fixed inset-0 bg-[#050914] z-50 flex items-center justify-center p-4 text-center font-sans select-none">
-        <div className="w-full max-w-sm bg-[#091026] border border-amber-500/30 rounded-3xl p-6 shadow-2xl space-y-4 animate-scaleIn">
+        <div className="w-full max-w-sm bg-[#091026] border border-orange-500/30 rounded-3xl p-6 shadow-2xl space-y-4 animate-scaleIn">
           {/* Official Fleet Shield Icon */}
-          <div className="w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 mx-auto text-2xl shadow-inner">
+          <div className="w-14 h-14 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 mx-auto text-2xl shadow-inner">
             🛡️
           </div>
 
@@ -1124,13 +1124,13 @@ export const DriverScreen: React.FC = () => {
               One-Time Road Setup
             </h2>
             <p className="text-xs text-slate-300 leading-relaxed px-1">
-              Select <span className="text-amber-400 font-extrabold">'Allow all the time'</span> in settings to keep your fuel allowance and emergency assistance active while driving.
+              Select <span className="text-orange-400 font-extrabold">'Allow all the time'</span> in settings to keep your fuel allowance and emergency assistance active while driving.
             </p>
           </div>
 
           {/* Core 3-Step Setup */}
-          <div className="bg-[#050914] border border-amber-500/20 p-3.5 rounded-2xl text-left space-y-2 text-xs">
-            <div className="text-[10px] font-black uppercase text-amber-400 tracking-wider">
+          <div className="bg-[#050914] border border-orange-500/20 p-3.5 rounded-2xl text-left space-y-2 text-xs">
+            <div className="text-[10px] font-black uppercase text-orange-400 tracking-wider">
               Quick Setup (10 Seconds):
             </div>
             <div className="space-y-2 text-slate-200 text-xs font-medium">
@@ -1150,8 +1150,8 @@ export const DriverScreen: React.FC = () => {
           </div>
 
           {errorMessage && (
-            <div className="p-3 bg-amber-500/15 border border-amber-500/40 text-amber-200 text-xs font-semibold rounded-2xl text-left space-y-1">
-              <div className="flex items-center gap-1.5 text-amber-400 font-extrabold uppercase text-[10px] tracking-wider">
+            <div className="p-3 bg-orange-500/15 border border-orange-500/40 text-orange-200 text-xs font-semibold rounded-2xl text-left space-y-1">
+              <div className="flex items-center gap-1.5 text-orange-400 font-extrabold uppercase text-[10px] tracking-wider">
                 <span>⚠️ Road Clearance Blocked</span>
               </div>
               <p className="text-[11px] leading-snug text-slate-200">
@@ -1228,7 +1228,7 @@ export const DriverScreen: React.FC = () => {
         <div className="bg-[#050914] border border-blue-950 p-4 rounded-2xl text-left space-y-2 text-xs">
           <div className="flex justify-between items-center text-slate-400 text-[11px]">
             <span>Assigned Plate:</span>
-            <span className="font-mono text-amber-400 font-bold">
+            <span className="font-mono text-orange-400 font-bold">
               {dynamicPlateNumber || (plateNumber && !plateNumber.toLowerCase().includes('truck') ? plateNumber : 'Assigned Fleet Vehicle')}
             </span>
           </div>
@@ -1267,7 +1267,7 @@ export const DriverScreen: React.FC = () => {
           className="text-xs text-slate-300 hover:text-white transition-colors font-semibold cursor-pointer flex items-center gap-2 py-2.5 px-4 rounded-2xl bg-[#091026] hover:bg-[#131e3d] border border-blue-950/80 shadow-md active:scale-95"
           aria-label="Return to Home"
         >
-          <ArrowLeft className="w-4 h-4 text-amber-400" />
+          <ArrowLeft className="w-4 h-4 text-orange-400" />
           <span>Return to Home</span>
         </button>
 

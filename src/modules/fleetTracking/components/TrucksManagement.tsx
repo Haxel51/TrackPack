@@ -234,8 +234,8 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
     });
     return {
       label: 'Monthly Expired',
-      bg: 'bg-amber-500/10 text-amber-400 border-amber-500/30 hover:border-amber-400',
-      dot: 'bg-amber-400',
+      bg: 'bg-orange-500/10 text-orange-400 border-orange-500/30 hover:border-orange-400',
+      dot: 'bg-orange-400',
       subtitle: `Expired on ${expDate}`,
     };
   };
@@ -247,7 +247,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
       <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 shadow-xl relative overflow-hidden">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
           <div>
-            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-amber-400 mb-1">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-orange-400 mb-1">
               <Truck className="w-4 h-4" />
               <span>Fleet Truck Profiles</span>
             </div>
@@ -273,7 +273,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             {canCreateTruck && (
               <button
                 onClick={handleOpenAddModal}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all flex items-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer"
                 id="add-truck-btn"
               >
                 <Plus className="w-4 h-4 stroke-[3]" />
@@ -316,7 +316,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search plate number, driver..."
-            className="w-full bg-[#0b1329] border border-blue-950/60 rounded-2xl pl-11 pr-4 py-3 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-amber-500 transition-colors"
+            className="w-full bg-[#0b1329] border border-blue-950/60 rounded-2xl pl-11 pr-4 py-3 text-xs font-semibold text-white placeholder-slate-500 focus:outline-none focus:border-orange-500 transition-colors"
             id="truck-search-input"
           />
         </div>
@@ -330,7 +330,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
       {/* Trucks List Grid */}
       {loading ? (
         <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 text-amber-500 animate-spin" />
+          <Loader2 className="w-8 h-8 text-orange-500 animate-spin" />
           <p className="text-xs font-bold text-slate-400">Loading fleet truck profiles...</p>
         </div>
       ) : filteredTrucks.length === 0 ? (
@@ -349,7 +349,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
           {canCreateTruck && !searchQuery && (
             <button
               onClick={handleOpenAddModal}
-              className="mt-2 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer"
+              className="mt-2 bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-2xl text-xs transition-colors cursor-pointer"
             >
               Add First Truck
             </button>
@@ -372,11 +372,11 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                   <div className="flex items-start justify-between gap-3">
                     {/* Plate Number */}
                     <div className="flex items-center gap-2.5">
-                      <div className="w-10 h-10 rounded-2xl bg-[#131e3d] border border-blue-900/65 flex items-center justify-center text-amber-400 shrink-0">
+                      <div className="w-10 h-10 rounded-2xl bg-[#131e3d] border border-blue-900/65 flex items-center justify-center text-orange-400 shrink-0">
                         <Truck className="w-5 h-5" />
                       </div>
                       <div>
-                        <span className="text-xs font-black uppercase text-amber-400 tracking-wider">Plate Number</span>
+                        <span className="text-xs font-black uppercase text-orange-400 tracking-wider">Plate Number</span>
                         <h4 className="text-base font-black text-white uppercase tracking-wider">
                           {truck.plate_number}
                         </h4>
@@ -392,7 +392,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                           <button
                             type="button"
                             onClick={() => handleOpenPlanSelector(truck)}
-                            className="p-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 transition-all cursor-pointer hover:scale-105 active:scale-95"
+                            className="p-1.5 rounded-xl bg-orange-500/10 hover:bg-orange-500/20 text-orange-400 border border-orange-500/30 transition-all cursor-pointer hover:scale-105 active:scale-95"
                             title="Edit Payment Plan"
                             id={`edit-plan-pencil-${truck.id}`}
                           >
@@ -407,14 +407,14 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                           disabled={!canChangePaymentPlan || isChangingThisPlan}
                           className={`px-3 py-1.5 rounded-2xl border text-xs font-extrabold flex items-center gap-2 transition-all shadow-sm ${badge.bg} ${
                             canChangePaymentPlan
-                              ? 'hover:scale-105 cursor-pointer active:scale-95 ring-1 ring-amber-500/20 hover:ring-amber-500/40'
+                              ? 'hover:scale-105 cursor-pointer active:scale-95 ring-1 ring-orange-500/20 hover:ring-orange-500/40'
                               : 'cursor-default'
                           }`}
                           title={canChangePaymentPlan ? 'Tap to change payment plan' : 'Payment Plan'}
                           id={`plan-badge-${truck.id}`}
                         >
                           {isChangingThisPlan ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-400" />
+                            <Loader2 className="w-3.5 h-3.5 animate-spin text-orange-400" />
                           ) : (
                             <span className={`w-2 h-2 rounded-full ${badge.dot}`} />
                           )}
@@ -422,7 +422,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
 
                           {/* Chevron Arrow indicating dropdown interactivity */}
                           {canChangePaymentPlan && (
-                            <ChevronDown className="w-3.5 h-3.5 opacity-80 shrink-0 text-slate-300 group-hover:text-amber-400 transition-colors" />
+                            <ChevronDown className="w-3.5 h-3.5 opacity-80 shrink-0 text-slate-300 group-hover:text-orange-400 transition-colors" />
                           )}
                         </button>
 
@@ -433,7 +433,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                         {canChangePaymentPlan ? (
                           <span
                             onClick={() => handleOpenPlanSelector(truck)}
-                            className="text-[10px] font-bold text-amber-400/90 hover:underline cursor-pointer flex items-center justify-end gap-1"
+                            className="text-[10px] font-bold text-orange-400/90 hover:underline cursor-pointer flex items-center justify-end gap-1"
                           >
                             <span>Tap to change plan</span>
                           </span>
@@ -462,7 +462,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                       </span>
                       <a
                         href={`tel:${truck.driver_phone}`}
-                        className="font-extrabold text-amber-400 hover:underline flex items-center gap-1"
+                        className="font-extrabold text-orange-400 hover:underline flex items-center gap-1"
                       >
                         {truck.driver_phone}
                       </a>
@@ -531,12 +531,12 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
             {/* Header */}
             <div className="bg-[#070b19] px-6 py-4 border-b border-blue-950/60 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+                <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400">
                   <CreditCard className="w-5 h-5" />
                 </div>
                 <div>
                   <h3 className="text-base font-black text-white">Select Payment Plan</h3>
-                  <p className="text-xs text-amber-400 font-bold uppercase tracking-wider">
+                  <p className="text-xs text-orange-400 font-bold uppercase tracking-wider">
                     {selectedTruckForPlan.plate_number} • {selectedTruckForPlan.driver_name}
                   </p>
                 </div>
@@ -647,7 +647,7 @@ export const TrucksManagement: React.FC<TrucksManagementProps> = ({ token, role,
                 type="button"
                 onClick={handleConfirmPlanChange}
                 disabled={!!planChangingTruckId}
-                className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black py-3 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer"
+                className="w-full bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-slate-950 font-black py-3 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer"
                 id="confirm-plan-change-btn"
               >
                 {planChangingTruckId ? (

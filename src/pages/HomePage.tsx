@@ -160,7 +160,7 @@ export const HomePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between">
       {/* Top Navigation Bar */}
-      <header className="bg-[#0A1F44] text-white border-b-2 border-[#F2A93B]/40 sticky top-0 z-40 shadow-sm">
+      <header className="bg-[#0A1F44] text-white border-b-2 border-[#F7941D]/40 sticky top-0 z-40 shadow-sm">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <div
             onClick={handleSecretTap}
@@ -169,7 +169,7 @@ export const HomePage: React.FC = () => {
           >
             <Logo size="md" showText={false} />
             <div className="flex items-center gap-1 font-black text-xl tracking-tight">
-              <span>Way<span className="text-[#F2A93B]">billa</span></span>
+              <span>Way<span className="text-[#F7941D]">billa</span></span>
             </div>
           </div>
 
@@ -183,7 +183,7 @@ export const HomePage: React.FC = () => {
       <main className="max-w-4xl w-full mx-auto flex-grow px-4 sm:px-6 py-8 sm:py-12 space-y-10">
         {/* Title & Subtitle */}
         <div className="text-center space-y-3.5 max-w-2xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-50 border border-amber-200/80 text-[#0A1F44] text-xs font-black shadow-xs">
+          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-[#0A1F44] text-xs font-black shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
             <span>Nigeria’s Waybill Tracking Network</span>
           </div>
@@ -221,7 +221,7 @@ export const HomePage: React.FC = () => {
             <button
               type="submit"
               disabled={isTracking || !trackingCode.trim()}
-              className="bg-[#F2A93B] hover:bg-[#d9922b] disabled:opacity-50 text-[#0A1F44] font-black px-7 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0 min-h-[48px]"
+              className="bg-[#F7941D] hover:bg-[#e07d0f] disabled:opacity-50 text-[#0A1F44] font-black px-7 py-3.5 sm:py-4 rounded-2xl text-sm sm:text-base transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2 shrink-0 min-h-[48px]"
             >
               {isTracking ? (
                 <>
@@ -320,7 +320,7 @@ export const HomePage: React.FC = () => {
 
               {/* Step 2 */}
               <div className="bg-slate-50 border border-slate-100 p-3.5 rounded-2xl space-y-1.5 relative">
-                <div className="w-7 h-7 rounded-xl bg-amber-100 text-amber-900 font-black text-xs flex items-center justify-center">
+                <div className="w-7 h-7 rounded-xl bg-orange-100 text-orange-900 font-black text-xs flex items-center justify-center">
                   2
                 </div>
                 <div className="font-extrabold text-xs text-[#0A1F44]">Bus Dispatched</div>
@@ -360,10 +360,10 @@ export const HomePage: React.FC = () => {
           <div className="bg-gradient-to-br from-[#0A1F44] to-[#122e60] rounded-3xl p-6 text-white shadow-lg space-y-4 flex flex-col justify-between border border-blue-900/30">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-[#F2A93B] text-[#0A1F44] flex items-center justify-center font-black text-xl shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-[#F7941D] text-[#0A1F44] flex items-center justify-center font-black text-xl shadow-xs">
                   📱
                 </div>
-                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/10 text-amber-300 border border-white/10">
+                <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/10 text-orange-300 border border-white/10">
                   Senders &amp; Receivers
                 </span>
               </div>
@@ -379,7 +379,7 @@ export const HomePage: React.FC = () => {
             <button
               type="button"
               onClick={() => navigate('/login/customer')}
-              className="w-full bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
+              className="w-full bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <span>Open Customer Portal</span>
               <ArrowRight className="w-4 h-4" />
@@ -390,7 +390,7 @@ export const HomePage: React.FC = () => {
           <div className="bg-white border-2 border-slate-200/90 rounded-3xl p-6 text-slate-900 shadow-md space-y-4 flex flex-col justify-between hover:border-[#0A1F44]/40 transition-all">
             <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#F2A93B] flex items-center justify-center font-black text-xl shadow-xs">
+                <div className="w-12 h-12 rounded-2xl bg-slate-900 text-[#F7941D] flex items-center justify-center font-black text-xl shadow-xs">
                   🏢
                 </div>
                 <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
@@ -411,7 +411,7 @@ export const HomePage: React.FC = () => {
               onClick={() => setShowStaffPortalsModal(true)}
               className="w-full bg-[#0A1F44] hover:bg-blue-950 text-white font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <Building2 className="w-4 h-4 text-[#F2A93B]" />
+              <Building2 className="w-4 h-4 text-[#F7941D]" />
               <span>Staff &amp; Company Login</span>
             </button>
           </div>
@@ -423,7 +423,7 @@ export const HomePage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="bg-white border border-slate-100 rounded-2xl p-4 space-y-1 shadow-xs">
               <div className="flex items-center gap-2 font-black text-xs text-[#0A1F44]">
-                <Lock className="w-4 h-4 text-[#F2A93B]" />
+                <Lock className="w-4 h-4 text-[#F7941D]" />
                 <span>Secret Pickup PIN</span>
               </div>
               <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
@@ -496,7 +496,7 @@ export const HomePage: React.FC = () => {
                 className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 font-bold">
+                  <div className="w-10 h-10 rounded-xl bg-orange-100 text-orange-800 flex items-center justify-center shrink-0 font-bold">
                     <Receipt className="w-5 h-5" />
                   </div>
                   <div>
@@ -547,7 +547,7 @@ export const HomePage: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shrink-0 font-bold">
-                    <Building2 className="w-5 h-5 text-[#F2A93B]" />
+                    <Building2 className="w-5 h-5 text-[#F7941D]" />
                   </div>
                   <div>
                     <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Transport Company Owner</div>
@@ -621,7 +621,7 @@ export const HomePage: React.FC = () => {
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 text-[#0A1F44] flex items-center justify-center font-extrabold text-sm">
+                <div className="w-9 h-9 rounded-xl bg-orange-100 text-[#0A1F44] flex items-center justify-center font-extrabold text-sm">
                   💡
                 </div>
                 <div>
@@ -640,7 +640,7 @@ export const HomePage: React.FC = () => {
             <div className="space-y-3 text-xs text-slate-700">
               <div className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3.5 space-y-2">
                 <div className="font-extrabold text-[#0A1F44] text-xs flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-[#F2A93B]" />
+                  <User className="w-3.5 h-3.5 text-[#F7941D]" />
                   <span>For Senders &amp; Receivers:</span>
                 </div>
                 <ul className="space-y-1.5 text-[11px] leading-relaxed pl-1">
@@ -650,9 +650,9 @@ export const HomePage: React.FC = () => {
                 </ul>
               </div>
 
-              <div className="bg-amber-50/60 border border-amber-100 rounded-2xl p-3.5 space-y-2">
-                <div className="font-extrabold text-amber-950 text-xs flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-amber-600" />
+              <div className="bg-orange-50/60 border border-orange-100 rounded-2xl p-3.5 space-y-2">
+                <div className="font-extrabold text-orange-950 text-xs flex items-center gap-1.5">
+                  <Building2 className="w-3.5 h-3.5 text-orange-600" />
                   <span>For Transport Companies:</span>
                 </div>
                 <ul className="space-y-1.5 text-[11px] leading-relaxed pl-1">
@@ -698,10 +698,10 @@ export const HomePage: React.FC = () => {
 
             <button
               onClick={() => setShowHowItWorksModal(true)}
-              className="text-xs font-bold text-[#0A1F44] hover:text-amber-600 flex items-center gap-1.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+              className="text-xs font-bold text-[#0A1F44] hover:text-orange-600 flex items-center gap-1.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
             >
-              <HelpCircle className="w-4 h-4 text-[#F2A93B]" />
-              <span className="underline decoration-amber-400 underline-offset-4 font-bold">How it Works</span>
+              <HelpCircle className="w-4 h-4 text-[#F7941D]" />
+              <span className="underline decoration-orange-400 underline-offset-4 font-bold">How it Works</span>
             </button>
           </div>
         </div>

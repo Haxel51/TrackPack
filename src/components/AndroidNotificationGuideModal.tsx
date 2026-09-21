@@ -150,7 +150,7 @@ export const AndroidNotificationGuideModal: React.FC = () => {
         </div>
 
         {feedbackMsg && (
-          <div className="p-2.5 bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] rounded-xl text-center">
+          <div className="p-2.5 bg-orange-500/10 border border-orange-500/30 text-orange-300 text-[11px] rounded-xl text-center">
             {feedbackMsg}
           </div>
         )}

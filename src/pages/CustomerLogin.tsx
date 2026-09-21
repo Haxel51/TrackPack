@@ -205,11 +205,11 @@ export const CustomerLogin: React.FC = () => {
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
+          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
-            <Package className="text-[#F2A93B] w-7 h-7" />
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
+            <Package className="text-[#F7941D] w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">
             {mode === 'login' ? 'Customer Sign In' : mode === 'signup' ? 'Create Customer Account' : 'Reset Forgotten PIN'}
@@ -258,16 +258,16 @@ export const CustomerLogin: React.FC = () => {
             </div>
 
             {/* Waybill Matching Explanation Notice */}
-            <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
-              <div className="p-2 bg-amber-100 rounded-xl text-amber-900 shrink-0 mt-0.5 font-bold text-lg">
+            <div className="bg-orange-50 border-2 border-orange-300 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+              <div className="p-2 bg-orange-100 rounded-xl text-orange-900 shrink-0 mt-0.5 font-bold text-lg">
                 📱
               </div>
-              <div className="text-xs text-amber-950 leading-relaxed font-medium space-y-1">
-                <strong className="font-black text-amber-900 text-sm block">⚠️ CRITICAL: Use Park Phone Number!</strong>
+              <div className="text-xs text-orange-950 leading-relaxed font-medium space-y-1">
+                <strong className="font-black text-orange-900 text-sm block">⚠️ CRITICAL: Use Park Phone Number!</strong>
                 <p>
                   You <strong>MUST</strong> log in or sign up using the <strong>EXACT 11-digit phone number</strong> registered at the park — whether you are the <strong>Sender</strong> or the <strong>Receiver</strong>!
                 </p>
-                <p className="text-[11px] text-amber-800 bg-white/70 p-2 rounded-xl border border-amber-200 font-semibold">
+                <p className="text-[11px] text-orange-800 bg-white/70 p-2 rounded-xl border border-orange-200 font-semibold">
                   🔑 That phone number automatically unlocks your digital waybill receipts 🧾, live bus updates, receiver verification, and full delivery history!
                 </p>
               </div>
@@ -320,7 +320,7 @@ export const CustomerLogin: React.FC = () => {
                     setError(null);
                     setSuccessMsg(null);
                   }}
-                  className="text-xs font-bold text-[#F2A93B] hover:underline cursor-pointer"
+                  className="text-xs font-bold text-[#F7941D] hover:underline cursor-pointer"
                 >
                   Forgot PIN?
                 </button>
@@ -371,7 +371,7 @@ export const CustomerLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Signing In...
                 </>
               ) : (
@@ -386,7 +386,7 @@ export const CustomerLogin: React.FC = () => {
                   setMode('signup');
                   setError(null);
                 }}
-                className="text-xs font-bold text-[#0A1F44] hover:text-[#F2A93B] transition-colors bg-transparent border-0 cursor-pointer"
+                className="text-xs font-bold text-[#0A1F44] hover:text-[#F7941D] transition-colors bg-transparent border-0 cursor-pointer"
               >
                 New here? Create an account
               </button>
@@ -482,7 +482,7 @@ export const CustomerLogin: React.FC = () => {
                       setError(null);
                       setIsExisting(false);
                     }}
-                    className="text-xs font-extrabold text-[#0A1F44] underline hover:text-[#F2A93B] block cursor-pointer"
+                    className="text-xs font-extrabold text-[#0A1F44] underline hover:text-[#F7941D] block cursor-pointer"
                   >
                     Click here to Log In
                   </button>
@@ -498,7 +498,7 @@ export const CustomerLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Creating Account...
                 </>
               ) : (
@@ -553,7 +553,7 @@ export const CustomerLogin: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigate('/reset-password')}
-                  className="text-[#F2A93B] hover:underline cursor-pointer font-black"
+                  className="text-[#F7941D] hover:underline cursor-pointer font-black"
                 >
                   Tap here
                 </button>

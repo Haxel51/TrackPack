@@ -165,13 +165,13 @@ export const ResetPassword: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#0A1F44] flex flex-col justify-center items-center p-4 relative overflow-hidden" id="reset-password-page">
       {/* Visual background details */}
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(242,169,59,0.12),rgba(255,255,255,0))]" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(247, 148, 29,0.12),rgba(255,255,255,0))]" />
 
       <div className="w-full max-w-md bg-white rounded-[32px] border border-slate-100 shadow-2xl p-8 relative z-10 space-y-6">
         
         {/* Logo and Headings */}
         <div className="text-center space-y-1.5">
-          <div className="inline-flex items-center justify-center w-12 h-12 bg-amber-50 rounded-2xl text-[#F2A93B] mb-2">
+          <div className="inline-flex items-center justify-center w-12 h-12 bg-orange-50 rounded-2xl text-[#F7941D] mb-2">
             <Key className="w-6 h-6" />
           </div>
           <h2 className="text-xl font-black text-[#0A1F44] tracking-wide">
@@ -276,7 +276,7 @@ export const ResetPassword: React.FC = () => {
               <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-xs flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
                   accountType === 'customer' ? 'bg-indigo-100 text-indigo-700' :
-                  accountType === 'manager' ? 'bg-amber-100 text-amber-700' :
+                  accountType === 'manager' ? 'bg-orange-100 text-orange-700' :
                   accountType === 'staff' ? 'bg-blue-100 text-blue-700' :
                   'bg-emerald-100 text-emerald-700'
                 }`}>

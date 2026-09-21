@@ -191,8 +191,8 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
                   <CheckCircle2 className="w-3 h-3 text-emerald-600" /> Ready to Activate
                 </span>
               ) : (
-                <span className="text-[10px] font-extrabold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-600" /> Prerequisites Required
+                <span className="text-[10px] font-extrabold bg-orange-100 text-orange-800 px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-orange-600" /> Prerequisites Required
                 </span>
               )}
             </div>
@@ -242,14 +242,14 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
               isKycApproved
                 ? 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
                 : devUser?.live_status === 'pending_verification'
-                ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                ? 'bg-orange-50/70 border-orange-200 text-orange-950'
                 : 'bg-slate-50 border-slate-200 text-slate-800'
             }`}>
               <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-black text-xs shrink-0 ${
                 isKycApproved
                   ? 'bg-emerald-200 text-emerald-900'
                   : devUser?.live_status === 'pending_verification'
-                  ? 'bg-amber-200 text-amber-900'
+                  ? 'bg-orange-200 text-orange-900'
                   : 'bg-slate-200 text-slate-600'
               }`}>
                 {isKycApproved ? <Check className="w-4 h-4 text-emerald-800" /> : 'B'}
@@ -258,7 +258,7 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-black">Step B: Business KYC</h4>
                   <span className={`text-[10px] font-black uppercase ${
-                    isKycApproved ? 'text-emerald-700' : devUser?.live_status === 'pending_verification' ? 'text-amber-700' : 'text-slate-500'
+                    isKycApproved ? 'text-emerald-700' : devUser?.live_status === 'pending_verification' ? 'text-orange-700' : 'text-slate-500'
                   }`}>
                     {isKycApproved ? 'Approved' : devUser?.live_status === 'pending_verification' ? 'Under Review' : 'Pending'}
                   </span>
@@ -334,8 +334,8 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
                   <Unlock className="w-3 h-3 text-blue-400" /> Unlocked &bull; Ready to Generate
                 </span>
               ) : (
-                <span className="text-[10px] font-extrabold bg-amber-500/20 text-amber-300 border border-amber-400/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
-                  <Lock className="w-3 h-3 text-amber-400" /> Locked (Complete Steps B &amp; C)
+                <span className="text-[10px] font-extrabold bg-orange-500/20 text-orange-300 border border-orange-400/30 px-2.5 py-0.5 rounded-full uppercase tracking-wider flex items-center gap-1">
+                  <Lock className="w-3 h-3 text-orange-400" /> Locked (Complete Steps B &amp; C)
                 </span>
               )}
             </div>
@@ -379,7 +379,7 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
             ) : !isKycApproved ? (
               <button
                 onClick={() => onSwitchTab('compliance')}
-                className="bg-[#F2A93B] hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                className="bg-[#F7941D] hover:bg-orange-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Shield className="w-3.5 h-3.5" />
                 Complete Step B KYC
@@ -387,7 +387,7 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
             ) : (
               <button
                 onClick={() => onSwitchTab('wallet')}
-                className="bg-[#F2A93B] hover:bg-amber-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
+                className="bg-[#F7941D] hover:bg-orange-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 cursor-pointer shadow-sm"
               >
                 <Wallet className="w-3.5 h-3.5" />
                 Fund Step C Cargo Wallet (Min ₦1,000)
@@ -470,7 +470,7 @@ export const DeveloperLiveKeyTab: React.FC<DeveloperLiveKeyTabProps> = ({
 
         {/* Security & Integration Best Practices */}
         <div className="bg-slate-900/60 p-4 rounded-2xl border border-slate-800 text-xs text-slate-300 space-y-2 leading-relaxed">
-          <div className="flex items-center gap-2 text-amber-400 font-bold">
+          <div className="flex items-center gap-2 text-orange-400 font-bold">
             <ShieldAlert className="w-4 h-4" />
             <span>Production Security Standards</span>
           </div>
@@ -580,8 +580,8 @@ console.log("Recipient Pickup PIN:", waybill.data.pickup_pin);`}
               </button>
             </div>
 
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-200 flex items-start gap-2.5 leading-relaxed">
-              <AlertCircle className="w-4 h-4 shrink-0 text-amber-400 mt-0.5" />
+            <div className="p-4 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-xs text-orange-200 flex items-start gap-2.5 leading-relaxed">
+              <AlertCircle className="w-4 h-4 shrink-0 text-orange-400 mt-0.5" />
               <span>
                 <strong>Important Security Notice:</strong> Please copy and store this API key safely in your backend environment (e.g., <code>.env</code>). For security purposes, this secret key will not be displayed again in full.
               </span>
@@ -613,7 +613,7 @@ console.log("Recipient Pickup PIN:", waybill.data.pickup_pin);`}
             <div className="pt-2">
               <button
                 onClick={() => setShowSecretModal(false)}
-                className="w-full py-3 bg-[#F2A93B] hover:bg-amber-400 text-slate-950 font-black text-sm rounded-2xl transition-colors shadow-sm cursor-pointer text-center"
+                className="w-full py-3 bg-[#F7941D] hover:bg-orange-400 text-slate-950 font-black text-sm rounded-2xl transition-colors shadow-sm cursor-pointer text-center"
               >
                 I Have Safely Saved My Secret Key
               </button>

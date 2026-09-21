@@ -669,7 +669,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
                 </button>
               )}
               {isSearching && (
-                <Loader2 className="w-4 h-4 text-[#F2A93B] animate-spin absolute right-2 top-1/2 -translate-y-1/2" />
+                <Loader2 className="w-4 h-4 text-[#F7941D] animate-spin absolute right-2 top-1/2 -translate-y-1/2" />
               )}
             </div>
 
@@ -679,7 +679,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
               aria-label="Search"
               className="bg-[#0A1F44] hover:bg-blue-900 disabled:opacity-50 text-white font-bold p-2.5 sm:px-4 sm:py-2 rounded-xl sm:rounded-2xl text-xs flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-xs"
             >
-              <Search className="w-4 h-4 text-[#F2A93B]" />
+              <Search className="w-4 h-4 text-[#F7941D]" />
               <span className="hidden sm:inline">Search</span>
             </button>
           </form>
@@ -687,8 +687,8 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
 
         {/* 1. Friendly "No Results" Message directly below search box */}
         {searchNotFound && (
-          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-amber-200/90 rounded-2xl p-3 shadow-xl flex items-start gap-2.5 text-xs text-slate-700 animate-fadeIn">
-            <div className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center shrink-0 mt-0.5 text-amber-700 font-bold">
+          <div className="pointer-events-auto bg-white/95 backdrop-blur-md border border-orange-200/90 rounded-2xl p-3 shadow-xl flex items-start gap-2.5 text-xs text-slate-700 animate-fadeIn">
+            <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center shrink-0 mt-0.5 text-orange-700 font-bold">
               📍
             </div>
             <div className="flex-1 leading-relaxed">
@@ -739,7 +739,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
         <div className="pointer-events-auto flex items-center justify-between gap-2 px-1">
           <div className="flex items-center gap-1.5 max-w-[95%] min-w-0">
             <div className="bg-[#0b1329]/85 backdrop-blur-md text-white px-3 py-1.5 rounded-full text-[11px] sm:text-xs font-bold flex items-center gap-2 shadow-lg truncate">
-              <MapPin className="w-3.5 h-3.5 text-[#F2A93B] shrink-0" />
+              <MapPin className="w-3.5 h-3.5 text-[#F7941D] shrink-0" />
               <span className="truncate">{locationName || title}</span>
             </div>
           </div>
@@ -753,9 +753,9 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
                 key={item.id}
                 type="button"
                 onClick={() => handleSelectSuggestion(item)}
-                className="w-full text-left p-3 hover:bg-amber-50/70 transition-colors flex items-start gap-2.5 text-xs cursor-pointer group"
+                className="w-full text-left p-3 hover:bg-orange-50/70 transition-colors flex items-start gap-2.5 text-xs cursor-pointer group"
               >
-                <div className="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center shrink-0 mt-0.5 text-slate-600 group-hover:text-[#F2A93B]">
+                <div className="w-7 h-7 rounded-full bg-slate-100 group-hover:bg-orange-100 flex items-center justify-center shrink-0 mt-0.5 text-slate-600 group-hover:text-[#F7941D]">
                   <Building2 className="w-4 h-4" />
                 </div>
                 <div className="flex-grow min-w-0">
@@ -782,7 +782,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
           title="Center on device location"
           className="pointer-events-auto w-12 h-12 rounded-2xl bg-white/95 backdrop-blur-md shadow-xl border border-slate-200 hover:bg-white text-slate-700 hover:text-[#0A1F44] flex items-center justify-center transition-transform hover:scale-105 active:scale-95 cursor-pointer"
         >
-          <Navigation className="w-5 h-5 text-[#F2A93B]" />
+          <Navigation className="w-5 h-5 text-[#F7941D]" />
         </button>
 
         {selectedCoords && googleMapRef.current && (
@@ -868,7 +868,7 @@ export const LocationConfirmModal: React.FC<LocationConfirmModalProps> = ({
       {isInitializing && (
         <div className="absolute inset-0 z-40 bg-[#0b1329]/40 backdrop-blur-xs flex flex-col items-center justify-center p-6 text-center gap-3 pointer-events-none">
           <div className="bg-white rounded-3xl p-6 shadow-2xl flex flex-col items-center gap-3 max-w-xs border border-slate-100 pointer-events-auto">
-            <Loader2 className="w-10 h-10 animate-spin text-[#F2A93B]" />
+            <Loader2 className="w-10 h-10 animate-spin text-[#F7941D]" />
             <div className="space-y-1">
               <span className="text-sm font-black text-[#0A1F44] block">Loading Map View</span>
               <span className="text-xs text-slate-500">Preparing location interface...</span>

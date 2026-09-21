@@ -218,7 +218,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
           </button>
           <div>
             <h1 className="text-xl font-black text-[#0A1F44] flex items-center gap-2">
-              <Receipt className="w-6 h-6 text-[#F2A93B]" />
+              <Receipt className="w-6 h-6 text-[#F7941D]" />
               Waybill History & Receipts 🧾
             </h1>
             <p className="text-xs text-slate-500 font-semibold mt-0.5">
@@ -342,7 +342,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                 {/* Left side: Route & Tracking Code */}
                 <div className="space-y-2 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="bg-[#0A1F44] text-[#F2A93B] font-black text-xs px-3 py-1 rounded-xl tracking-wider uppercase shadow-2xs">
+                    <span className="bg-[#0A1F44] text-[#F7941D] font-black text-xs px-3 py-1 rounded-xl tracking-wider uppercase shadow-2xs">
                       {waybill.tracking_code || waybill.id.slice(0, 8)}
                     </span>
 
@@ -353,8 +353,8 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                         Handed Over / Collected ✓
                       </span>
                     ) : isArrived ? (
-                      <span className="bg-amber-100 text-amber-900 border border-amber-200 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                        <Truck className="w-3.5 h-3.5 text-amber-600" />
+                      <span className="bg-orange-100 text-orange-900 border border-orange-200 font-extrabold text-[11px] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                        <Truck className="w-3.5 h-3.5 text-orange-600" />
                         Arrived Destination Park
                       </span>
                     ) : isDeparted ? (
@@ -418,7 +418,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                     onClick={() => setSelectedReceipt(waybill)}
                     className="w-full md:w-auto bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold text-xs px-4 py-3 rounded-2xl flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
                   >
-                    <Receipt className="w-4 h-4 text-[#F2A93B]" />
+                    <Receipt className="w-4 h-4 text-[#F7941D]" />
                     Print Receipt 🧾
                   </button>
                 </div>
@@ -447,7 +447,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
             >
               {/* Receipt Header */}
               <div className="text-center border-b border-slate-100 pb-5 space-y-2">
-                <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
+                <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F7941D] shadow-md">
                   <Receipt className="w-6 h-6" />
                 </div>
                 <h2 className="text-xl font-black text-[#0A1F44]">Waybilla Logistics</h2>
@@ -530,16 +530,16 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
               </div>
 
               {/* Receiver & Pickup Code Footer Box */}
-              <div className="border border-amber-200 bg-amber-50/70 p-4 rounded-2xl text-xs space-y-2">
-                <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">Collection Details</span>
+              <div className="border border-orange-200 bg-orange-50/70 p-4 rounded-2xl text-xs space-y-2">
+                <span className="text-[10px] font-black text-orange-900 uppercase tracking-wider block">Collection Details</span>
                 <div className="flex justify-between items-center">
-                  <span className="text-amber-900 font-bold">Receiver Phone:</span>
-                  <span className="font-black text-amber-950">{selectedReceipt.receiver_phone}</span>
+                  <span className="text-orange-900 font-bold">Receiver Phone:</span>
+                  <span className="font-black text-orange-950">{selectedReceipt.receiver_phone}</span>
                 </div>
                 {selectedReceipt.pickup_pin && (
                   <div className="flex justify-between items-center">
-                    <span className="text-amber-900 font-bold">Pickup Code / PIN:</span>
-                    <span className="font-black text-amber-950 bg-amber-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{selectedReceipt.pickup_pin}</span>
+                    <span className="text-orange-900 font-bold">Pickup Code / PIN:</span>
+                    <span className="font-black text-orange-950 bg-orange-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{selectedReceipt.pickup_pin}</span>
                   </div>
                 )}
               </div>
@@ -580,7 +580,7 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                   onClick={handleNativePrint}
                   className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold px-3.5 py-3 rounded-2xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
                 >
-                  <Printer className="w-4 h-4 text-[#F2A93B]" />
+                  <Printer className="w-4 h-4 text-[#F7941D]" />
                   Print Receipt
                 </button>
 
@@ -589,16 +589,16 @@ export const WaybillHistory: React.FC<WaybillHistoryProps> = ({ token, originPar
                   type="button"
                   onClick={handlePrintReceipt}
                   disabled={isDownloading}
-                  className="bg-amber-50 hover:bg-amber-100 border border-amber-300 disabled:opacity-50 text-amber-950 font-extrabold px-3.5 py-3 rounded-2xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                  className="bg-orange-50 hover:bg-orange-100 border border-orange-300 disabled:opacity-50 text-orange-950 font-extrabold px-3.5 py-3 rounded-2xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
                 >
                   {isDownloading ? (
                     <>
-                      <div className="w-3.5 h-3.5 border-2 border-amber-900 border-t-transparent rounded-full animate-spin"></div>
+                      <div className="w-3.5 h-3.5 border-2 border-orange-900 border-t-transparent rounded-full animate-spin"></div>
                       Saving...
                     </>
                   ) : (
                     <>
-                      <Download className="w-4 h-4 text-amber-700" />
+                      <Download className="w-4 h-4 text-orange-700" />
                       Save Image (PNG)
                     </>
                   )}

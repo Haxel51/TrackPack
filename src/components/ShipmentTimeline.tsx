@@ -337,12 +337,12 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
         <div className="flex flex-col items-start sm:items-end">
           <span className="text-xs font-extrabold text-slate-400 uppercase tracking-wider">STATUS</span>
           <div className={`mt-1 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider
-            ${currentColor === 'amber' ? 'bg-amber-50 text-amber-700 border border-amber-200' : ''}
+            ${currentColor === 'amber' ? 'bg-orange-50 text-orange-700 border border-orange-200' : ''}
             ${currentColor === 'blue' ? 'bg-blue-50 text-blue-700 border border-blue-200' : ''}
             ${currentColor === 'emerald' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : ''}
           `}>
             <span className={`w-2 h-2 rounded-full 
-              ${currentColor === 'amber' ? 'bg-amber-500 animate-pulse' : ''}
+              ${currentColor === 'amber' ? 'bg-orange-500 animate-pulse' : ''}
               ${currentColor === 'blue' ? 'bg-blue-500 animate-pulse' : ''}
               ${currentColor === 'emerald' ? 'bg-emerald-500' : ''}
             `} />
@@ -353,7 +353,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
       {/* Feature 2: Prominent Warm Status Banner */}
       <div className={`rounded-2xl p-4.5 border transition-all ${
-        currentColor === 'amber' ? 'bg-amber-50/80 border-amber-200 text-amber-900' :
+        currentColor === 'amber' ? 'bg-orange-50/80 border-orange-200 text-orange-900' :
         currentColor === 'blue' ? 'bg-blue-50/80 border-blue-200 text-blue-900' :
         'bg-emerald-50/80 border-emerald-200 text-emerald-900'
       }`}>
@@ -399,7 +399,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             <p className="text-[10px] text-slate-400 font-bold uppercase tracking-wider leading-none">DESTINATION PARK</p>
             <p className="text-slate-800 mt-0.5">{destination_park}</p>
           </div>
-          <MapPin className="w-4 h-4 text-[#F2A93B]" />
+          <MapPin className="w-4 h-4 text-[#F7941D]" />
         </div>
       </div>
 
@@ -425,7 +425,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
           <div className="h-3 bg-slate-200/90 rounded-full w-full absolute top-1/2 -translate-y-1/2 left-0 z-0 shadow-inner overflow-hidden">
             <div 
               className={`h-full transition-all duration-700 ease-out rounded-full ${
-                currentColor === 'amber' ? 'bg-amber-500' :
+                currentColor === 'amber' ? 'bg-orange-500' :
                 currentColor === 'blue' ? 'bg-blue-600' : 'bg-emerald-500'
               }`}
               style={{ width: `${progressPercent}%` }}
@@ -438,7 +438,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             style={{ left: `calc(${progressPercent}% - 18px)` }}
           >
             <div className={`w-9 h-9 rounded-full flex items-center justify-center shadow-md border-2 text-white transition-colors duration-500
-              ${currentColor === 'amber' ? 'bg-amber-500 border-white' : ''}
+              ${currentColor === 'amber' ? 'bg-orange-500 border-white' : ''}
               ${currentColor === 'blue' ? 'bg-blue-600 border-white animate-pulse' : ''}
               ${currentColor === 'emerald' ? 'bg-emerald-600 border-white' : ''}
             `}>
@@ -470,7 +470,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               <span className="text-[11px] sm:text-xs font-black text-[#0A1F44] truncate max-w-[130px] sm:max-w-[200px]" title={destination_park}>
                 {destination_park}
               </span>
-              <span className="w-2 h-2 rounded-full bg-[#F2A93B] shrink-0"></span>
+              <span className="w-2 h-2 rounded-full bg-[#F7941D] shrink-0"></span>
             </div>
           </div>
         </div>
@@ -488,7 +488,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
           <div className="relative">
             {/* Timeline node */}
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${booked_at ? 'border-amber-500 text-amber-500' : 'border-slate-200 text-slate-300'}
+              ${booked_at ? 'border-orange-500 text-orange-500' : 'border-slate-200 text-slate-300'}
             `}>
               <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
             </span>
@@ -659,12 +659,12 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
       {/* Collection Status Guidance */}
       {status === 'arrived' && (
-        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs space-y-1 shadow-xs">
-          <p className="font-extrabold flex items-center gap-1.5 text-amber-800">
-            <ShieldCheck className="w-4 h-4 text-amber-600" />
+        <div className="bg-orange-50 border border-orange-200 text-orange-900 p-4 rounded-2xl text-xs space-y-1 shadow-xs">
+          <p className="font-extrabold flex items-center gap-1.5 text-orange-800">
+            <ShieldCheck className="w-4 h-4 text-orange-600" />
             Ready for Pickup at Motor Park
           </p>
-          <p className="text-amber-700">
+          <p className="text-orange-700">
             Your shipment has safely arrived at <strong>{waybill.destination_park || 'the destination motor park'}</strong>. Please present your secret Pickup PIN to the park counter staff to collect your package.
           </p>
         </div>
@@ -685,7 +685,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
               onClick={() => setShowReceiptModal(true)}
               className="w-full bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold py-3.5 px-6 rounded-2xl transition-all cursor-pointer flex items-center justify-center gap-2 text-xs shadow-xs"
             >
-              <Receipt className="w-4 h-4 text-[#F2A93B]" />
+              <Receipt className="w-4 h-4 text-[#F7941D]" />
               View Digital Waybill History Receipt 🧾
             </button>
           </div>
@@ -708,7 +708,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 >
                   {/* Receipt Header */}
                   <div className="text-center border-b border-slate-100 pb-5 space-y-2">
-                    <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F2A93B] shadow-md">
+                    <div className="w-12 h-12 bg-[#0A1F44] rounded-2xl mx-auto flex items-center justify-center text-[#F7941D] shadow-md">
                       <Receipt className="w-6 h-6" />
                     </div>
                     <h2 className="text-xl font-black text-[#0A1F44]">Waybilla</h2>
@@ -801,16 +801,16 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                   </div>
 
                   {/* Receiver & Pickup Code Footer Box */}
-                  <div className="border border-amber-200 bg-amber-50/70 p-4 rounded-2xl text-xs space-y-2">
-                    <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider block">Collection Details</span>
+                  <div className="border border-orange-200 bg-orange-50/70 p-4 rounded-2xl text-xs space-y-2">
+                    <span className="text-[10px] font-black text-orange-900 uppercase tracking-wider block">Collection Details</span>
                     <div className="flex justify-between items-center">
-                      <span className="text-amber-900 font-bold">Receiver Phone:</span>
-                      <span className="font-black text-amber-950">{waybill.receiver_phone}</span>
+                      <span className="text-orange-900 font-bold">Receiver Phone:</span>
+                      <span className="font-black text-orange-950">{waybill.receiver_phone}</span>
                     </div>
                     {waybill.pickup_pin && (
                       <div className="flex justify-between items-center">
-                        <span className="text-amber-900 font-bold">Pickup Code / PIN:</span>
-                        <span className="font-black text-amber-950 bg-amber-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{waybill.pickup_pin}</span>
+                        <span className="text-orange-900 font-bold">Pickup Code / PIN:</span>
+                        <span className="font-black text-orange-950 bg-orange-100/90 px-2.5 py-0.5 rounded-lg text-xs tracking-widest">{waybill.pickup_pin}</span>
                       </div>
                     )}
                   </div>
@@ -851,7 +851,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                       onClick={handlePrint}
                       className="bg-slate-900 hover:bg-slate-800 text-white font-extrabold px-3.5 py-3 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
                     >
-                      <Printer className="w-4 h-4 text-[#F2A93B]" />
+                      <Printer className="w-4 h-4 text-[#F7941D]" />
                       Print Receipt
                     </button>
 
@@ -860,16 +860,16 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                       type="button"
                       onClick={handleDownloadReceipt}
                       disabled={isDownloading}
-                      className="bg-amber-50 hover:bg-amber-100 border border-amber-300 disabled:opacity-50 text-amber-950 font-extrabold px-3.5 py-3 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
+                      className="bg-orange-50 hover:bg-orange-100 border border-orange-300 disabled:opacity-50 text-orange-950 font-extrabold px-3.5 py-3 rounded-xl text-xs transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm active:scale-95"
                     >
                       {isDownloading ? (
                         <>
-                          <div className="w-3.5 h-3.5 border-2 border-amber-900 border-t-transparent rounded-full animate-spin"></div>
+                          <div className="w-3.5 h-3.5 border-2 border-orange-900 border-t-transparent rounded-full animate-spin"></div>
                           Saving...
                         </>
                       ) : (
                         <>
-                          <Download className="w-4 h-4 text-amber-700" />
+                          <Download className="w-4 h-4 text-orange-700" />
                           Save Image (PNG)
                         </>
                       )}

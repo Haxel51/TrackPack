@@ -291,16 +291,16 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
       {/* PERSISTENT NON-OVERFLOWING CLEAN TOP BANNER */}
       {showBanner && !isDismissedSession && permission !== 'granted' && !showOverlay && (
         <div
-          className="w-full max-w-full overflow-hidden bg-[#0c142b] border-b border-amber-500/30 text-amber-200 shadow-md relative z-40 px-3 sm:px-4 py-2"
+          className="w-full max-w-full overflow-hidden bg-[#0c142b] border-b border-orange-500/30 text-orange-200 shadow-md relative z-40 px-3 sm:px-4 py-2"
           id="global-notification-banner"
         >
           <div className="max-w-7xl mx-auto flex items-center justify-between gap-2.5">
             {/* Left: Icon & Text */}
             <div className="flex items-center gap-2 min-w-0 flex-1">
-              <div className="w-5 h-5 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0 text-amber-400">
+              <div className="w-5 h-5 rounded-full bg-orange-500/20 flex items-center justify-center shrink-0 text-orange-400">
                 <Bell className="w-3 h-3" />
               </div>
-              <p className="text-[11px] sm:text-xs text-amber-100 font-medium leading-tight truncate">
+              <p className="text-[11px] sm:text-xs text-orange-100 font-medium leading-tight truncate">
                 {permission === 'denied'
                   ? 'Push notifications are turned off. Enable to get instant alerts.'
                   : 'Enable notifications for real-time waybill & fleet tracking phone alerts.'}
@@ -312,7 +312,7 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
               {isInIframe && (
                 <button
                   onClick={() => window.open(window.location.href, '_blank')}
-                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
+                  className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-bold px-2.5 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 flex items-center gap-1"
                 >
                   <span>Open Tab</span>
                   <ExternalLink className="w-3 h-3" />
@@ -321,14 +321,14 @@ export const FleetNotificationPromptOverlay: React.FC = () => {
               <button
                 onClick={handleEnableNowClick}
                 disabled={loading}
-                className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 whitespace-nowrap flex items-center gap-1 disabled:opacity-50"
+                className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-3 py-1 rounded-lg text-[11px] transition-all cursor-pointer shadow-sm active:scale-95 whitespace-nowrap flex items-center gap-1 disabled:opacity-50"
                 id="enable-now-banner-btn"
               >
                 {loading ? '...' : 'Enable'}
               </button>
               <button
                 onClick={handleDismissBanner}
-                className="p-1 text-amber-300/70 hover:text-amber-100 hover:bg-amber-500/20 rounded-lg transition-colors cursor-pointer"
+                className="p-1 text-orange-300/70 hover:text-orange-100 hover:bg-orange-500/20 rounded-lg transition-colors cursor-pointer"
                 title="Dismiss"
                 aria-label="Dismiss notification prompt"
                 id="dismiss-notif-banner-btn"

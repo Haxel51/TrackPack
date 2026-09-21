@@ -67,11 +67,11 @@ export const StaffLogin: React.FC = () => {
       <div className="w-full max-w-md bg-white border border-slate-100 rounded-3xl p-8 shadow-xl space-y-6">
         {/* Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
+          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-amber-400/30 shadow-md">
-            <Lock className="text-[#F2A93B] w-7 h-7" />
+          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
+            <Lock className="text-[#F7941D] w-7 h-7" />
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">Staff Sign In</h1>
           <p className="text-sm text-slate-500 max-w-xs">
@@ -113,12 +113,12 @@ export const StaffLogin: React.FC = () => {
           {/* Alerts */}
           {error && (
             error.toLowerCase().includes("suspended") ? (
-              <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-3 shadow-sm animate-fade-in">
+              <div className="bg-orange-50 border border-orange-200 text-orange-900 p-4 rounded-2xl text-xs font-bold leading-relaxed space-y-3 shadow-sm animate-fade-in">
                 <div className="flex items-start gap-2.5">
-                  <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                  <span className="text-orange-500 text-sm mt-0.5">⚠️</span>
                   <div>
-                    <p className="font-extrabold text-amber-950 text-sm">Company Account Suspended</p>
-                    <p className="mt-0.5 text-amber-800 text-xs font-semibold leading-relaxed">
+                    <p className="font-extrabold text-orange-950 text-sm">Company Account Suspended</p>
+                    <p className="mt-0.5 text-orange-800 text-xs font-semibold leading-relaxed">
                       {error}
                     </p>
                   </div>

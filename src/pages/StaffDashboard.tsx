@@ -143,7 +143,7 @@ export const StaffDashboard: React.FC = () => {
                     Hello, {user?.name || 'Staff Member'}
                   </h2>
                   <div className="flex items-center gap-1.5 text-slate-500 text-xs mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-[#F2A93B]" />
+                    <MapPin className="w-3.5 h-3.5 text-[#F7941D]" />
                     <span>Your Assigned Motor Park: <strong>{originPark}</strong></span>
                   </div>
                 </div>
@@ -152,9 +152,9 @@ export const StaffDashboard: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-center gap-3 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
                 <button
                   onClick={() => setShowStaffGuideModal(true)}
-                  className="bg-amber-100 hover:bg-amber-200 text-[#0A1F44] border border-amber-300 font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                  className="bg-orange-100 hover:bg-orange-200 text-[#0A1F44] border border-orange-300 font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
                 >
-                  <HelpCircle className="w-4 h-4 text-[#F2A93B]" />
+                  <HelpCircle className="w-4 h-4 text-[#F7941D]" />
                   <span>📖 Staff Operating Guide</span>
                 </button>
               </div>
@@ -230,12 +230,12 @@ export const StaffDashboard: React.FC = () => {
                 className="bg-[#0A1F44] text-white rounded-3xl p-6 hover:bg-blue-900 transition-all text-left space-y-4 group cursor-pointer shadow-md hover:shadow-lg flex flex-col justify-between min-h-[190px]"
               >
                 <div className="w-10 h-10 bg-white/10 rounded-2xl flex items-center justify-center">
-                  <FileText className="w-5 h-5 text-[#F2A93B]" />
+                  <FileText className="w-5 h-5 text-[#F7941D]" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base flex items-center gap-1.5">
                     Create New Waybill
-                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <span className="text-[#F7941D] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 font-medium">
                     Register walk-in sender, receiver, and load waybills onto an active loading list.
@@ -251,16 +251,16 @@ export const StaffDashboard: React.FC = () => {
               >
                 <div className="flex items-center justify-between w-full">
                   <div className="w-10 h-10 bg-white/15 rounded-2xl flex items-center justify-center">
-                    <Scan className="w-5 h-5 text-[#F2A93B]" />
+                    <Scan className="w-5 h-5 text-[#F7941D]" />
                   </div>
-                  <span className="bg-[#F2A93B] text-[#0A1F44] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+                  <span className="bg-[#F7941D] text-[#0A1F44] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
                     Fast Intake
                   </span>
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base flex items-center gap-1.5">
                     Scan Pre-Booked (API)
-                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <span className="text-[#F7941D] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-blue-100 mt-1 font-medium">
                     Scan or type tracking codes for parcels booked via API (e-commerce stores, merchants).
@@ -289,7 +289,7 @@ export const StaffDashboard: React.FC = () => {
                 <div>
                   <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
                     Outgoing Vehicles
-                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <span className="text-[#F7941D] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
                     Manage active loading lists at this park and mark them as departed.
@@ -318,7 +318,7 @@ export const StaffDashboard: React.FC = () => {
                 <div>
                   <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
                     Incoming Vehicles
-                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <span className="text-[#F7941D] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
                     Track inbound dispatches, mark arrivals, and manage customer collections.
@@ -332,13 +332,13 @@ export const StaffDashboard: React.FC = () => {
                 onClick={() => setScreen('history')}
                 className="bg-white border border-slate-100 rounded-3xl p-6 hover:bg-slate-50 transition-all text-left space-y-4 group cursor-pointer shadow-sm hover:shadow-md flex flex-col justify-between min-h-[190px]"
               >
-                <div className="w-10 h-10 bg-amber-50 rounded-2xl flex items-center justify-center">
-                  <Receipt className="w-5 h-5 text-[#F2A93B]" />
+                <div className="w-10 h-10 bg-orange-50 rounded-2xl flex items-center justify-center">
+                  <Receipt className="w-5 h-5 text-[#F7941D]" />
                 </div>
                 <div>
                   <h3 className="font-extrabold text-base text-[#0A1F44] flex items-center gap-1.5">
                     Waybill History 🧾
-                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                    <span className="text-[#F7941D] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-500 mt-1 font-medium">
                     View, search, or print receipts for every successful waybill sent or received.
@@ -382,7 +382,7 @@ export const StaffDashboard: React.FC = () => {
             )}
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 sm:gap-2 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-colors cursor-pointer shrink-0"
+              className="flex items-center gap-1.5 sm:gap-2 bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-bold px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-colors cursor-pointer shrink-0"
             >
               <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
               <span className="hidden xs:inline sm:inline">{t('signOut')}</span>
@@ -408,7 +408,7 @@ export const StaffDashboard: React.FC = () => {
           <div className="bg-white rounded-3xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
             <div className="flex justify-between items-center border-b border-slate-100 pb-4">
               <div className="flex items-center gap-2.5">
-                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-[#0A1F44] flex items-center justify-center font-black text-lg">
+                <div className="w-10 h-10 rounded-2xl bg-orange-100 text-[#0A1F44] flex items-center justify-center font-black text-lg">
                   📖
                 </div>
                 <div>

@@ -224,7 +224,7 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                 onClick={handleOpenAddModal}
                 className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-md hover:shadow-lg"
               >
-                <Plus className="w-4 h-4 text-[#F2A93B]" />
+                <Plus className="w-4 h-4 text-[#F7941D]" />
                 <span>Add Supplier Location</span>
               </button>
             )}
@@ -282,7 +282,7 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
             <button
               onClick={() => setFilterStatus('unconfirmed')}
               className={`flex-1 sm:flex-none px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                filterStatus === 'unconfirmed' ? 'bg-white text-amber-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                filterStatus === 'unconfirmed' ? 'bg-white text-orange-700 shadow-xs' : 'text-slate-500 hover:text-slate-800'
               }`}
             >
               🟡 Unconfirmed ({unconfirmedCount})
@@ -312,7 +312,7 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                 onClick={handleOpenAddModal}
                 className="bg-[#0A1F44] text-white font-extrabold px-4 py-2 rounded-xl text-xs inline-flex items-center gap-1.5 hover:bg-blue-900 transition-all cursor-pointer shadow-xs mt-2"
               >
-                <Plus className="w-3.5 h-3.5 text-[#F2A93B]" />
+                <Plus className="w-3.5 h-3.5 text-[#F7941D]" />
                 <span>Add First Supplier</span>
               </button>
             )}
@@ -325,7 +325,7 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                 <div
                   key={sup.id}
                   className={`bg-white border rounded-3xl p-5 transition-all shadow-xs hover:shadow-md flex flex-col justify-between space-y-4 ${
-                    isConfirmed ? 'border-slate-200/80 hover:border-slate-300' : 'border-amber-200 bg-amber-50/10'
+                    isConfirmed ? 'border-slate-200/80 hover:border-slate-300' : 'border-orange-200 bg-orange-50/10'
                   }`}
                 >
                   <div className="space-y-3">
@@ -348,8 +348,8 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                             🟢 Confirmed
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
-                            <AlertTriangle className="w-3 h-3 text-amber-600" />
+                          <span className="inline-flex items-center gap-1 bg-orange-50 text-orange-800 border border-orange-200 text-[10px] font-black px-2.5 py-0.5 rounded-full">
+                            <AlertTriangle className="w-3 h-3 text-orange-600" />
                             🟡 Not confirmed
                           </span>
                         )}
@@ -406,7 +406,7 @@ export const SuppliersManagement: React.FC<SuppliersManagementProps> = ({ token,
                       className={`px-3.5 py-1.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
                         isConfirmed
                           ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          : 'bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44]'
+                          : 'bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44]'
                       }`}
                     >
                       <MapPin className="w-3 h-3" />

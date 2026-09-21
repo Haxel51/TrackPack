@@ -281,7 +281,7 @@ export const PreBookedIntake: React.FC<PreBookedIntakeProps> = ({
               id="prebooked-camera-scan-btn"
               onClick={isScannerOpen ? stopScanner : startScanner}
               type="button"
-              className="bg-[#F2A93B] text-[#0A1F44] px-5 py-3.5 rounded-2xl font-black hover:bg-amber-400 transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-sm"
+              className="bg-[#F7941D] text-[#0A1F44] px-5 py-3.5 rounded-2xl font-black hover:bg-orange-400 transition-colors cursor-pointer flex items-center justify-center gap-2 shrink-0 shadow-sm"
             >
               {isScannerOpen ? (
                 <>
@@ -301,7 +301,7 @@ export const PreBookedIntake: React.FC<PreBookedIntakeProps> = ({
           {isScannerOpen && (
             <div className="p-4 bg-slate-900 rounded-3xl border-2 border-dashed border-blue-400 text-center space-y-3 animate-fadeIn">
               <p className="text-xs font-bold text-white flex items-center justify-center gap-2">
-                <Scan className="w-4 h-4 text-[#F2A93B] animate-pulse" />
+                <Scan className="w-4 h-4 text-[#F7941D] animate-pulse" />
                 Point camera directly at the barcode or QR on the parcel or waybill slip
               </p>
               <div 
@@ -390,7 +390,7 @@ export const PreBookedIntake: React.FC<PreBookedIntakeProps> = ({
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="bg-white p-3.5 rounded-2xl border border-slate-200 space-y-1">
                   <p className="text-[10px] font-extrabold text-slate-400 uppercase flex items-center gap-1">
-                    <MapPin className="w-3.5 h-3.5 text-amber-500" /> Origin Drop-Off
+                    <MapPin className="w-3.5 h-3.5 text-orange-500" /> Origin Drop-Off
                   </p>
                   <p className="text-xs font-bold text-slate-800">{originPark} (This Park)</p>
                 </div>

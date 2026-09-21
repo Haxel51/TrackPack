@@ -48,7 +48,7 @@ export const PaymentHistoryView: React.FC<PaymentHistoryViewProps> = ({ token, i
   if (!isCEO) {
     return (
       <div className="p-8 text-center bg-[#0b1329] border border-blue-950/60 rounded-3xl space-y-3 my-6">
-        <ShieldAlert className="w-10 h-10 text-amber-400 mx-auto" />
+        <ShieldAlert className="w-10 h-10 text-orange-400 mx-auto" />
         <h3 className="text-base font-black text-white">Access Restricted</h3>
         <p className="text-xs text-slate-400 max-w-md mx-auto">
           Payment History and financial records are restricted exclusively to CEO/Owner roles.

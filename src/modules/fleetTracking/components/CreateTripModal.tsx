@@ -277,7 +277,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           {/* Header */}
           <div className="bg-[#070b19] px-6 py-5 border-b border-blue-950/60 flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
+              <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400">
                 <Navigation className="w-5 h-5" />
               </div>
               <div>
@@ -299,10 +299,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           <div className="bg-[#070b19]/60 px-6 py-3 border-b border-blue-950/60/80 flex items-center justify-between gap-2">
             
             <div className={`flex items-center gap-2 text-xs font-extrabold ${
-              step === 1 ? 'text-amber-400' : step > 1 ? 'text-emerald-400' : 'text-slate-500'
+              step === 1 ? 'text-orange-400' : step > 1 ? 'text-emerald-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 1 ? 'bg-amber-500 text-slate-950 font-black' : step > 1 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
+                step === 1 ? 'bg-orange-500 text-slate-950 font-black' : step > 1 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 {step > 1 ? <CheckCircle2 className="w-4 h-4 stroke-[3]" /> : '1'}
               </div>
@@ -312,10 +312,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
             <ChevronRight className="w-4 h-4 text-slate-700 shrink-0" />
 
             <div className={`flex items-center gap-2 text-xs font-extrabold ${
-              step === 2 ? 'text-amber-400' : step > 2 ? 'text-emerald-400' : 'text-slate-500'
+              step === 2 ? 'text-orange-400' : step > 2 ? 'text-emerald-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 2 ? 'bg-amber-500 text-slate-950 font-black' : step > 2 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
+                step === 2 ? 'bg-orange-500 text-slate-950 font-black' : step > 2 ? 'bg-emerald-500 text-slate-950' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 {step > 2 ? <CheckCircle2 className="w-4 h-4 stroke-[3]" /> : '2'}
               </div>
@@ -325,10 +325,10 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
             <ChevronRight className="w-4 h-4 text-slate-700 shrink-0" />
 
             <div className={`flex items-center gap-2 text-xs font-extrabold ${
-              step === 3 ? 'text-amber-400' : 'text-slate-500'
+              step === 3 ? 'text-orange-400' : 'text-slate-500'
             }`}>
               <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] ${
-                step === 3 ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
+                step === 3 ? 'bg-orange-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
               }`}>
                 3
               </div>
@@ -351,7 +351,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
           <div className="p-6 overflow-y-auto max-h-[60vh]">
             {isLoading ? (
               <div className="py-12 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-                <Loader2 className="w-8 h-8 animate-spin text-amber-400" />
+                <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
                 <p className="text-xs font-bold">Loading available fleet trucks and suppliers...</p>
               </div>
             ) : (
@@ -365,9 +365,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                     </div>
 
                     {trucks.length === 0 ? (
-                      <div className="p-8 text-center bg-[#070b19]/60 border border-amber-500/30 rounded-2xl space-y-3">
-                        <ShieldAlert className="w-8 h-8 text-amber-400 mx-auto" />
-                        <p className="text-sm font-bold text-amber-300">No registered trucks found</p>
+                      <div className="p-8 text-center bg-[#070b19]/60 border border-orange-500/30 rounded-2xl space-y-3">
+                        <ShieldAlert className="w-8 h-8 text-orange-400 mx-auto" />
+                        <p className="text-sm font-bold text-orange-300">No registered trucks found</p>
                         <p className="text-xs text-slate-400 max-w-md mx-auto">
                           Please add at least one truck profile under the "Truck Profiles & Payment Plans" tab before dispatching a trip.
                         </p>
@@ -387,7 +387,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               }}
                               className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex flex-col justify-between gap-3 ${
                                 isSelected
-                                  ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
+                                  ? 'bg-orange-500/10 border-orange-500 shadow-lg shadow-orange-500/10'
                                   : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                               }`}
                               id={`select-truck-card-${truck.id}`}
@@ -395,7 +395,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex items-center gap-2.5">
                                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                                    isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
+                                    isSelected ? 'bg-orange-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
                                   }`}>
                                     <Truck className="w-5 h-5" />
                                   </div>
@@ -406,7 +406,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                                 </div>
 
                                 <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                  isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-blue-900/65'
+                                  isSelected ? 'border-orange-500 bg-orange-500 text-slate-950' : 'border-blue-900/65'
                                 }`}>
                                   {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
                                 </div>
@@ -460,9 +460,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
 
                     {/* Pre-Trip Gate Warning: Driver Mobile Data is OFF */}
                     {selectedTruck && !selectedTruck.is_driver_online && (
-                      <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-amber-500/15 via-rose-500/10 to-amber-500/15 border-2 border-amber-500/40 text-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
+                      <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-orange-500/15 via-rose-500/10 to-orange-500/15 border-2 border-orange-500/40 text-orange-200 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-lg">
                         <div className="flex items-start gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0 mt-0.5">
+                          <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
                             <WifiOff className="w-5 h-5" />
                           </div>
                           <div>
@@ -482,7 +482,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                           type="button"
                           onClick={() => handleSendSmsReminder(selectedTruck)}
                           disabled={isSendingSms}
-                          className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer shadow-md self-start sm:self-center"
+                          className="px-3.5 py-2 rounded-xl bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-slate-950 font-black text-xs flex items-center gap-1.5 shrink-0 transition-transform active:scale-95 cursor-pointer shadow-md self-start sm:self-center"
                           id="send-driver-gate-sms-btn"
                         >
                           {isSendingSms ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
@@ -512,9 +512,9 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                     </div>
 
                     {confirmedSuppliers.length === 0 ? (
-                      <div className="p-8 text-center bg-[#070b19]/60 border border-amber-500/30 rounded-2xl space-y-3">
-                        <ShieldAlert className="w-8 h-8 text-amber-400 mx-auto" />
-                        <p className="text-sm font-bold text-amber-300">No confirmed suppliers available</p>
+                      <div className="p-8 text-center bg-[#070b19]/60 border border-orange-500/30 rounded-2xl space-y-3">
+                        <ShieldAlert className="w-8 h-8 text-orange-400 mx-auto" />
+                        <p className="text-sm font-bold text-orange-300">No confirmed suppliers available</p>
                         <p className="text-xs text-slate-400 max-w-md mx-auto">
                           Please confirm at least one supplier location first before creating a trip.
                         </p>
@@ -533,14 +533,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               }}
                               className={`p-4 rounded-2xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
                                 isSelected
-                                  ? 'bg-amber-500/10 border-amber-500 shadow-lg shadow-amber-500/10'
+                                  ? 'bg-orange-500/10 border-orange-500 shadow-lg shadow-orange-500/10'
                                   : 'bg-[#070b19] border-blue-950/60 hover:border-blue-900/65'
                               }`}
                               id={`select-supplier-card-${supplier.id}`}
                             >
                               <div className="flex items-start gap-3.5">
                                 <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shrink-0 ${
-                                  isSelected ? 'bg-amber-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
+                                  isSelected ? 'bg-orange-500 text-slate-950 font-black' : 'bg-[#131e3d] text-slate-400'
                                 }`}>
                                   <Building2 className="w-5 h-5" />
                                 </div>
@@ -560,7 +560,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                               </div>
 
                               <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${
-                                isSelected ? 'border-amber-500 bg-amber-500 text-slate-950' : 'border-blue-900/65'
+                                isSelected ? 'border-orange-500 bg-orange-500 text-slate-950' : 'border-blue-900/65'
                               }`}>
                                 {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
                               </div>
@@ -583,7 +583,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                                     <p className="text-[11px] text-slate-500 truncate">{supplier.address_text}</p>
                                   </div>
                                 </div>
-                                <span className="text-[10px] font-bold text-amber-500/80 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 whitespace-nowrap">
+                                <span className="text-[10px] font-bold text-orange-500/80 bg-orange-500/10 px-2.5 py-1 rounded-full border border-orange-500/20 whitespace-nowrap">
                                   🟡 Location Pending
                                 </span>
                               </div>
@@ -604,11 +604,11 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                       
                       {/* Truck Details */}
                       <div className="flex items-start gap-4 pb-4 border-b border-blue-950/60">
-                        <div className="w-10 h-10 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400 shrink-0">
+                        <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
                           <Truck className="w-5 h-5" />
                         </div>
                         <div className="flex-1">
-                          <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Assigned Truck & Driver</span>
+                          <span className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Assigned Truck & Driver</span>
                           <div className="font-black text-base text-white mt-0.5">{selectedTruck.plate_number}</div>
                           <p className="text-xs text-slate-300 font-medium">Driver: {selectedTruck.driver_name} ({selectedTruck.driver_phone})</p>
                         </div>
@@ -679,7 +679,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                             )}
                           </div>
                           {!selectedTruck.is_driver_online && (
-                            <p className="text-xs text-amber-300/90 mt-1">
+                            <p className="text-xs text-orange-300/90 mt-1">
                               ⚠️ Warning: Since mobile data is off, the app will store coordinates locally (offline black box) until data is restored. Confirm driver turns on data before leaving the gate.
                             </p>
                           )}
@@ -721,7 +721,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                 type="button"
                 onClick={step === 1 ? handleNextStep1 : handleNextStep2}
                 disabled={isLoading || (step === 1 && !selectedTruckId) || (step === 2 && !selectedSupplierId)}
-                className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-lg shadow-amber-500/20 cursor-pointer"
+                className="bg-orange-500 hover:bg-orange-400 disabled:opacity-50 text-slate-950 font-black px-6 py-2.5 rounded-xl text-xs transition-colors flex items-center gap-1.5 shadow-lg shadow-orange-500/20 cursor-pointer"
               >
                 <span>Next Step</span>
                 <ChevronRight className="w-4 h-4" />
@@ -829,14 +829,14 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
       {/* Gate Offline Confirmation Modal */}
       {showGateOfflineConfirm && selectedTruck && (
         <div className="fixed inset-0 z-[60] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#0f172a] border-2 border-amber-500/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
+          <div className="bg-[#0f172a] border-2 border-orange-500/60 rounded-3xl max-w-md w-full p-6 shadow-2xl space-y-4">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+              <div className="w-12 h-12 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400 shrink-0">
                 <WifiOff className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-base font-black text-white">Gate Warning: Driver Data is OFF</h3>
-                <p className="text-xs text-amber-400/90 font-medium">Verify before truck departs garage gate</p>
+                <p className="text-xs text-orange-400/90 font-medium">Verify before truck departs garage gate</p>
               </div>
             </div>
 
@@ -871,7 +871,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
               type="button"
               onClick={() => handleSendSmsReminder(selectedTruck)}
               disabled={isSendingSms}
-              className="w-full py-2.5 px-4 rounded-xl bg-amber-500/15 border border-amber-500/40 hover:bg-amber-500/25 text-amber-300 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
+              className="w-full py-2.5 px-4 rounded-xl bg-orange-500/15 border border-orange-500/40 hover:bg-orange-500/25 text-orange-300 font-bold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
             >
               {isSendingSms ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
               <span>{isSendingSms ? 'Sending SMS Reminder...' : 'Send "Turn ON Data" SMS to Driver'}</span>
@@ -893,7 +893,7 @@ export const CreateTripModal: React.FC<CreateTripModalProps> = ({
                   setError(null);
                   setStep(2);
                 }}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 cursor-pointer transition-colors"
+                className="w-full bg-orange-500 hover:bg-orange-400 text-slate-950 font-black py-3 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer transition-colors"
                 id="gate-confirm-proceed-btn"
               >
                 <span>Proceed (Driver Instructed at Gate)</span>

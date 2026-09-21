@@ -127,7 +127,7 @@ export const AdminLogin: React.FC = () => {
         
         {/* Back Link & Header */}
         <div className="flex flex-col items-center text-center space-y-2">
-          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
+          <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
 
@@ -135,7 +135,7 @@ export const AdminLogin: React.FC = () => {
             {step === 'credentials' ? (
               <ShieldAlert className="text-[#0A1F44] w-6 h-6" />
             ) : (
-              <KeyRound className="text-[#F2A93B] w-6 h-6" />
+              <KeyRound className="text-[#F7941D] w-6 h-6" />
             )}
           </div>
           
@@ -223,7 +223,7 @@ export const AdminLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Verifying Password...
                 </>
               ) : (
@@ -270,7 +270,7 @@ export const AdminLogin: React.FC = () => {
             >
               {loading ? (
                 <>
-                  <div className="w-5 h-5 border-2 border-white border-t-[#F2A93B] rounded-full animate-spin"></div>
+                  <div className="w-5 h-5 border-2 border-white border-t-[#F7941D] rounded-full animate-spin"></div>
                   Authenticating...
                 </>
               ) : (
@@ -284,7 +284,7 @@ export const AdminLogin: React.FC = () => {
                 type="button"
                 onClick={handleResendOtp}
                 disabled={loading}
-                className="text-xs font-bold text-[#0A1F44] hover:text-[#F2A93B] flex items-center gap-1 bg-transparent border-0 cursor-pointer disabled:opacity-50"
+                className="text-xs font-bold text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 bg-transparent border-0 cursor-pointer disabled:opacity-50"
               >
                 <RefreshCw className="w-3.5 h-3.5" /> Resend Code
               </button>

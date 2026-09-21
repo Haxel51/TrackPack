@@ -193,7 +193,7 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
       return {
         label: `DUE IN ${diffHrs} HOURS`,
         desc: `Grace period active. Remit before cutoff to prevent terminal pauses.`,
-        color: 'bg-amber-500 text-white border-amber-600'
+        color: 'bg-orange-500 text-white border-orange-600'
       };
     }
     return {
@@ -307,12 +307,12 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
               isSuspended
                 ? 'bg-red-50 border-red-300 ring-2 ring-red-400'
                 : pendingDebt > 0
-                  ? 'bg-amber-50 border-amber-300'
+                  ? 'bg-orange-50 border-orange-300'
                   : 'bg-blue-50 border-blue-200'
             }`}>
               <div className="flex items-center justify-between">
                 <span className={`text-[11px] font-bold uppercase tracking-wider ${
-                  isSuspended ? 'text-red-800' : pendingDebt > 0 ? 'text-amber-800' : 'text-blue-800'
+                  isSuspended ? 'text-red-800' : pendingDebt > 0 ? 'text-orange-800' : 'text-blue-800'
                 }`}>
                   Remittance Due (70%)
                 </span>
@@ -323,7 +323,7 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
                 )}
               </div>
               <div className={`text-xl font-black mt-1 ${
-                isSuspended ? 'text-red-700' : pendingDebt > 0 ? 'text-amber-800' : 'text-blue-900'
+                isSuspended ? 'text-red-700' : pendingDebt > 0 ? 'text-orange-800' : 'text-blue-900'
               }`}>
                 ₦{pendingDebt.toLocaleString()}
               </div>
@@ -527,10 +527,10 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
           {/* TAB 2: PART B - MANUAL BANK TRANSFER (FALLBACK) */}
           {activeTab === 'manual_transfer' && (
             <div className="space-y-5 animate-in fade-in">
-              <div className="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-2xl flex items-start gap-3 text-xs">
-                <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded-2xl flex items-start gap-3 text-xs">
+                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
                 <div className="leading-relaxed">
-                  <span className="font-extrabold block text-amber-900">Important Note on Manual Transfers</span>
+                  <span className="font-extrabold block text-orange-900">Important Note on Manual Transfers</span>
                   Part B requires manual verification by Waybilla Super Admin before your terminal is unlocked. If you need immediate 10-second unlocking, please use <strong>Part A (Online Remit)</strong> above.
                 </div>
               </div>
@@ -704,12 +704,12 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
                           </td>
                           <td className="p-3 font-bold">₦{item.amount || 200}</td>
                           <td className="p-3 text-emerald-700 font-extrabold">+₦{item.company_share || 60}</td>
-                          <td className="p-3 text-amber-800 font-extrabold">₦{item.platform_share || 140}</td>
+                          <td className="p-3 text-orange-800 font-extrabold">₦{item.platform_share || 140}</td>
                           <td className="p-3">
                             <span className={`text-[10px] font-black px-2 py-0.5 rounded-full uppercase ${
                               item.status === 'remitted'
                                 ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-amber-100 text-amber-800'
+                                : 'bg-orange-100 text-orange-800'
                             }`}>
                               {item.status === 'remitted' ? 'Settled' : 'Pending'}
                             </span>

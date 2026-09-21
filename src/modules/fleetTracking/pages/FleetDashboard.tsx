@@ -179,7 +179,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
           <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-start">
             <div className="flex items-center gap-3">
               <Logo className="h-8 w-auto text-white" />
-              <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5">
+              <span className="bg-orange-500/10 text-orange-400 border border-orange-500/30 text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full flex items-center gap-1.5">
                 <Truck className="w-3 h-3" />
                 {t('fleetModuleBadge')}
               </span>
@@ -190,7 +190,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <div className="md:hidden">
                 <button
                   onClick={onSwitchModule}
-                  className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 border border-orange-500/40 px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer"
                   id="mobile-switch-module-btn-fleet"
                 >
                   <ArrowRightLeft className="w-3.5 h-3.5" />
@@ -208,10 +208,10 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <>
                 <button
                   onClick={onSwitchModule}
-                  className="hidden md:flex items-center gap-2 bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 text-amber-300 border border-amber-500/40 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
+                  className="hidden md:flex items-center gap-2 bg-gradient-to-r from-orange-500/20 to-orange-500/20 hover:from-orange-500/30 hover:to-orange-500/30 text-orange-300 border border-orange-500/40 px-4 py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-sm active:scale-95"
                   id="desktop-switch-module-btn-fleet"
                 >
-                  <ArrowRightLeft className="w-4 h-4 text-amber-400" />
+                  <ArrowRightLeft className="w-4 h-4 text-orange-400" />
                   <span>{t('switchModule')}</span>
                 </button>
                 <div className="h-6 w-[1px] bg-[#131e3d] hidden md:block" />
@@ -226,7 +226,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               title="Fleet Notifications"
               id="fleet-notification-bell-btn"
             >
-              <Bell className="w-4 h-4 text-amber-400" />
+              <Bell className="w-4 h-4 text-orange-400" />
               {unreadCount > 0 && (
                 <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white font-black text-[10px] min-w-[18px] h-[18px] px-1 rounded-full flex items-center justify-center animate-bounce shadow-md border border-slate-950">
                   {unreadCount > 9 ? '9+' : unreadCount}
@@ -252,12 +252,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             onClick={() => setActiveTab('overview')}
             className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
               activeTab === 'overview'
-                ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
             id="fleet-tab-overview"
           >
-            <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-amber-400' : 'text-slate-500'}`} />
+            <BarChart3 className={`w-4 h-4 ${activeTab === 'overview' ? 'text-orange-400' : 'text-slate-500'}`} />
             <span>{t('fleetOverviewTab')}</span>
           </button>
 
@@ -266,12 +266,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('trucks')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'trucks'
-                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-trucks"
             >
-              <Truck className={`w-4 h-4 ${activeTab === 'trucks' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <Truck className={`w-4 h-4 ${activeTab === 'trucks' ? 'text-orange-400' : 'text-slate-500'}`} />
               <span>{t('fleetTrucksTab')}</span>
             </button>
           )}
@@ -281,12 +281,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('locations')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'locations'
-                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-locations"
             >
-              <MapPin className={`w-4 h-4 ${activeTab === 'locations' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <MapPin className={`w-4 h-4 ${activeTab === 'locations' ? 'text-orange-400' : 'text-slate-500'}`} />
               <span>{t('fleetLocationsTab')}</span>
             </button>
           )}
@@ -295,12 +295,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             onClick={() => setActiveTab('trips')}
             className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
               activeTab === 'trips'
-                ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                 : 'text-slate-400 hover:text-slate-200 border-transparent'
             }`}
             id="fleet-tab-trips"
           >
-            <Navigation className={`w-4 h-4 ${activeTab === 'trips' ? 'text-amber-400' : 'text-slate-500'}`} />
+            <Navigation className={`w-4 h-4 ${activeTab === 'trips' ? 'text-orange-400' : 'text-slate-500'}`} />
             <span>{t('fleetTripsTab')}</span>
           </button>
 
@@ -309,12 +309,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('team')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'team'
-                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-team"
             >
-              <Users className={`w-4 h-4 ${activeTab === 'team' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <Users className={`w-4 h-4 ${activeTab === 'team' ? 'text-orange-400' : 'text-slate-500'}`} />
               <span>{t('fleetTeamTab')}</span>
             </button>
           )}
@@ -326,12 +326,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               onClick={() => setActiveTab('analytics')}
               className={`px-4 py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                 activeTab === 'analytics'
-                  ? 'bg-[#0b1329] text-amber-400 border-amber-500 shadow-sm'
+                  ? 'bg-[#0b1329] text-orange-400 border-orange-500 shadow-sm'
                   : 'text-slate-400 hover:text-slate-200 border-transparent'
               }`}
               id="fleet-tab-analytics"
             >
-              <BarChart3 className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-amber-400' : 'text-slate-500'}`} />
+              <BarChart3 className={`w-4 h-4 ${activeTab === 'analytics' ? 'text-orange-400' : 'text-slate-500'}`} />
               <span>Analytics & Reports</span>
             </button>
           )}
@@ -340,12 +340,12 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
 
       {/* Foreground Toast Notification Banner */}
       {foregroundToast && (
-        <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-[#070b19]/95 border border-amber-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
-          <div className="p-2.5 bg-amber-500/20 text-amber-400 rounded-xl shrink-0 mt-0.5">
+        <div className="fixed top-20 right-4 z-50 max-w-sm w-full bg-[#070b19]/95 border border-orange-500/50 shadow-2xl rounded-2xl p-4 text-white backdrop-blur-md animate-fade-in flex items-start gap-3">
+          <div className="p-2.5 bg-orange-500/20 text-orange-400 rounded-xl shrink-0 mt-0.5">
             <Bell className="w-5 h-5 animate-pulse" />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-bold text-xs text-amber-300">{foregroundToast.title}</h4>
+            <h4 className="font-bold text-xs text-orange-300">{foregroundToast.title}</h4>
             <p className="text-xs text-slate-300 mt-0.5 leading-relaxed">{foregroundToast.body}</p>
           </div>
           <button
@@ -414,15 +414,15 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
               <div className="bg-[#070b19] border border-blue-950/60 rounded-2xl p-6 space-y-2">
                 <div className="flex items-center justify-between text-slate-400 text-xs font-extrabold uppercase tracking-wider">
                   <span>Active Drivers & Trucks</span>
-                  <UserCheck className="w-4 h-4 text-amber-400" />
+                  <UserCheck className="w-4 h-4 text-orange-400" />
                 </div>
                 <p className="text-3xl font-black text-white">Ready for Dispatch</p>
-                <p className="text-xs text-amber-400 font-semibold">🚚 Haulage Operational</p>
+                <p className="text-xs text-orange-400 font-semibold">🚚 Haulage Operational</p>
               </div>
             </div>
 
             <div className="bg-[#070b19] border border-blue-950/60 rounded-3xl p-8 space-y-4 text-center">
-              <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/30 rounded-full flex items-center justify-center mx-auto text-amber-400">
+              <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/30 rounded-full flex items-center justify-center mx-auto text-orange-400">
                 <ShieldCheck className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-extrabold text-white">Fleet Tracking Module Active</h3>
@@ -461,7 +461,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
           <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl max-w-md w-full p-6 text-white space-y-4 shadow-2xl">
             <div className="flex justify-between items-center pb-2 border-b border-blue-950/60">
               <div className="flex items-center gap-2">
-                <BellOff className="w-5 h-5 text-amber-400" />
+                <BellOff className="w-5 h-5 text-orange-400" />
                 <h3 className="font-extrabold text-sm">How to Enable Fleet Alerts</h3>
               </div>
               <button
@@ -487,7 +487,7 @@ export const FleetDashboard: React.FC<FleetDashboardProps> = ({ onSwitchModule, 
             <div className="pt-2 flex justify-end">
               <button
                 onClick={() => setShowSettingsModal(false)}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md"
+                className="w-full bg-orange-500 hover:bg-orange-400 text-slate-950 font-black py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md"
               >
                 Understood / Close
               </button>

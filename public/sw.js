@@ -1,4 +1,4 @@
-const CACHE_NAME = 'waybilla-cache-v2';
+const CACHE_NAME = 'waybilla-cache-v10';
 const URLS_TO_CACHE = [
   '/',
   '/index.html',

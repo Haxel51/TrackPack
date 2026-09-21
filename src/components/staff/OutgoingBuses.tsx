@@ -101,7 +101,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
         </button>
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
-            <Truck className="text-[#F2A93B] w-5 h-5" />
+            <Truck className="text-[#F7941D] w-5 h-5" />
             Outgoing Vehicle Loading Lists
           </h2>
           <p className="text-xs text-slate-500">Manage pending dispatches leaving from your park</p>
@@ -148,7 +148,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
         >
           Unassigned Waybills ({unassignedWaybills.length})
           {unassignedWaybills.length > 0 && (
-            <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full">
+            <span className="bg-orange-100 text-orange-800 text-[10px] font-black px-2 py-0.5 rounded-full">
               {unassignedWaybills.length}
             </span>
           )}
@@ -184,12 +184,12 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-lg font-black text-[#0A1F44]">{bus.bus_number}</span>
-                        <span className="bg-amber-100 text-amber-800 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
+                        <span className="bg-orange-100 text-orange-800 text-[10px] font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider">
                           {bus.status}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 text-slate-500 text-sm">
-                        <Navigation className="w-4 h-4 text-[#F2A93B]" />
+                        <Navigation className="w-4 h-4 text-[#F7941D]" />
                         <span>To: <strong>{bus.destination_park}</strong></span>
                       </div>
                     </div>
@@ -244,7 +244,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                   <div className="mt-6 pt-5 border-t border-slate-100 space-y-4">
                     <div className="flex items-center justify-between">
                       <h4 className="text-xs font-black text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-[#F2A93B]" />
+                        <Sparkles className="w-3.5 h-3.5 text-[#F7941D]" />
                         Unassigned Waybills bound for {bus.destination_park} ({destinationUnassigned.length})
                       </h4>
                     </div>
@@ -358,7 +358,7 @@ export const OutgoingBuses: React.FC<OutgoingBusesProps> = ({ token, onBackToMen
                       Load onto Active Vehicle:
                     </div>
                     {validBuses.length === 0 ? (
-                      <div className="text-xs text-amber-800 bg-amber-50 rounded-xl p-3 font-medium">
+                      <div className="text-xs text-orange-800 bg-orange-50 rounded-xl p-3 font-medium">
                         ⚠️ No active vehicles loading for <strong className="font-extrabold text-[#0A1F44]">{wb.destination_park}</strong>.
                       </div>
                     ) : (

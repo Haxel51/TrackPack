@@ -321,7 +321,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
     }
     if (r.includes('trip')) {
       return (
-        <span className="bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1">
+        <span className="bg-orange-500/10 text-orange-400 border border-orange-500/30 text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full flex items-center gap-1">
           <Eye className="w-3 h-3" /> Trip Monitor
         </span>
       );
@@ -341,9 +341,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <h2 className="text-xl font-extrabold text-white flex items-center gap-2">
-              <Users className="w-6 h-6 text-amber-400" /> Team & Roles Management
+              <Users className="w-6 h-6 text-orange-400" /> Team & Roles Management
             </h2>
-            <span className="bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
+            <span className="bg-orange-500/20 text-orange-300 border border-orange-500/30 text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full">
               {team.length} Members
             </span>
           </div>
@@ -357,7 +357,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             setSelectedRole(isCEO ? 'manager' : 'trip_monitor');
             setShowAddModal(true);
           }}
-          className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg hover:shadow-amber-500/20 active:scale-95"
+          className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-lg hover:shadow-orange-500/20 active:scale-95"
           id="add-team-member-btn"
         >
           <Plus className="w-4 h-4" />
@@ -384,9 +384,9 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
           <div className="space-y-1">
             <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block">👁️ Trip Monitors</span>
             <p className="text-2xl font-black text-white">{tripMonitors.length}</p>
-            <p className="text-[11px] text-amber-400 font-semibold">{tripMonitors.filter(m => m.active).length} Active Monitors</p>
+            <p className="text-[11px] text-orange-400 font-semibold">{tripMonitors.filter(m => m.active).length} Active Monitors</p>
           </div>
-          <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-2xl flex items-center justify-center text-amber-400">
+          <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-2xl flex items-center justify-center text-orange-400">
             <Eye className="w-6 h-6" />
           </div>
         </div>
@@ -413,7 +413,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             placeholder="Search member by name or phone..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-[#0b1329] border border-blue-950/60 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-white placeholder-slate-500 outline-none focus:border-amber-500"
+            className="w-full bg-[#0b1329] border border-blue-950/60 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-white placeholder-slate-500 outline-none focus:border-orange-500"
           />
         </div>
 
@@ -422,7 +422,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             onClick={() => setRoleFilter('all')}
             className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               roleFilter === 'all'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-orange-500 text-slate-950 shadow-sm'
                 : 'bg-[#0b1329] text-slate-400 hover:text-white border border-blue-950/60'
             }`}
           >
@@ -432,7 +432,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             onClick={() => setRoleFilter('manager')}
             className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               roleFilter === 'manager'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-orange-500 text-slate-950 shadow-sm'
                 : 'bg-[#0b1329] text-slate-400 hover:text-white border border-blue-950/60'
             }`}
           >
@@ -442,7 +442,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             onClick={() => setRoleFilter('trip_monitor')}
             className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               roleFilter === 'trip_monitor'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-orange-500 text-slate-950 shadow-sm'
                 : 'bg-[#0b1329] text-slate-400 hover:text-white border border-blue-950/60'
             }`}
           >
@@ -452,7 +452,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             onClick={() => setRoleFilter('driver')}
             className={`px-3 py-1.5 rounded-xl text-xs font-extrabold transition-all cursor-pointer whitespace-nowrap ${
               roleFilter === 'driver'
-                ? 'bg-amber-500 text-slate-950 shadow-sm'
+                ? 'bg-orange-500 text-slate-950 shadow-sm'
                 : 'bg-[#0b1329] text-slate-400 hover:text-white border border-blue-950/60'
             }`}
           >
@@ -464,7 +464,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
       {/* Team Cards Grid */}
       {loading ? (
         <div className="py-16 text-center space-y-3">
-          <div className="w-8 h-8 border-3 border-amber-500/20 border-t-amber-500 rounded-full animate-spin mx-auto" />
+          <div className="w-8 h-8 border-3 border-orange-500/20 border-t-orange-500 rounded-full animate-spin mx-auto" />
           <p className="text-xs font-bold text-slate-500">Loading team roster...</p>
         </div>
       ) : filteredTeam.length === 0 ? (
@@ -509,7 +509,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                     <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md flex items-center gap-1 ${
                       (m.account_created || m.lastLoginAt || m.last_login_at || m.firstLoginAt)
                         ? 'bg-blue-500/10 text-blue-400 border border-blue-500/20'
-                        : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                        : 'bg-orange-500/10 text-orange-400 border border-orange-500/20'
                     }`}>
                       {(m.account_created || m.lastLoginAt || m.last_login_at || m.firstLoginAt) ? (
                         <>
@@ -518,7 +518,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                         </>
                       ) : (
                         <>
-                          <Clock className="w-2.5 h-2.5 text-amber-400" />
+                          <Clock className="w-2.5 h-2.5 text-orange-400" />
                           <span>Pending Sign-Up</span>
                         </>
                       )}
@@ -535,7 +535,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   {m.truck_plate && (
                     <div className="flex justify-between items-center text-xs">
                       <span className="flex items-center gap-1"><Truck className="w-3 h-3 text-emerald-400" /> Assigned Truck:</span>
-                      <span className="font-bold text-amber-300 font-mono">{m.truck_plate}</span>
+                      <span className="font-bold text-orange-300 font-mono">{m.truck_plate}</span>
                     </div>
                   )}
                   {m.created_at && (
@@ -601,8 +601,8 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   return (
                     <div className="bg-[#050a18] border border-blue-900/50 rounded-xl p-3 text-xs space-y-2 text-slate-300">
                       <div className="flex items-center justify-between pb-1 border-b border-blue-950/60">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                          <Smartphone className="w-3.5 h-3.5 text-amber-400" /> Driver Security & App Status
+                        <span className="text-[10px] font-black uppercase tracking-wider text-orange-400 flex items-center gap-1.5">
+                          <Smartphone className="w-3.5 h-3.5 text-orange-400" /> Driver Security & App Status
                         </span>
                         {hasRecentSignal ? (
                           <span className="flex items-center gap-1 text-[10px] font-bold text-emerald-400">
@@ -643,7 +643,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                               ✅ Enabled
                             </span>
                           ) : (
-                            <span className="text-amber-300 bg-amber-500/10 border border-amber-500/30 px-2 py-0.5 rounded text-[10px]">
+                            <span className="text-orange-300 bg-orange-500/10 border border-orange-500/30 px-2 py-0.5 rounded text-[10px]">
                               ⏳ Prompt / Pending
                             </span>
                           )}
@@ -692,10 +692,10 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   <button
                     onClick={() => handleResetPin(m)}
                     disabled={!canManageThisMember}
-                    className="flex-1 bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
+                    className="flex-1 bg-orange-500/10 hover:bg-orange-500/20 text-orange-300 border border-orange-500/30 py-2 rounded-xl text-xs font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer disabled:opacity-40"
                     title="Reset PIN"
                   >
-                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    <KeyRound className="w-3.5 h-3.5 text-orange-400" />
                     <span>Reset PIN</span>
                   </button>
 
@@ -734,7 +734,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
           <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 max-w-md w-full shadow-2xl space-y-5 text-slate-100">
             <div className="flex justify-between items-center pb-3 border-b border-blue-950/60">
               <h3 className="font-extrabold text-white text-base flex items-center gap-2">
-                <UserCheck className="w-5 h-5 text-amber-400" />
+                <UserCheck className="w-5 h-5 text-orange-400" />
                 Add New Team Member
               </h3>
               <button
@@ -753,7 +753,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   placeholder="e.g. Ibrahim Abubakar"
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-semibold text-white outline-none"
+                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-2xl py-3 px-4 text-xs font-semibold text-white outline-none"
                   autoFocus
                 />
               </div>
@@ -765,7 +765,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   placeholder="08012345678"
                   value={newPhone}
                   onChange={(e) => setNewPhone(e.target.value)}
-                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-bold text-white font-mono outline-none"
+                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-2xl py-3 px-4 text-xs font-bold text-white font-mono outline-none"
                 />
               </div>
 
@@ -774,7 +774,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                 <select
                   value={selectedRole}
                   onChange={(e) => setSelectedRole(e.target.value as any)}
-                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-bold text-white outline-none cursor-pointer"
+                  className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-2xl py-3 px-4 text-xs font-bold text-white outline-none cursor-pointer"
                 >
                   {isCEO && <option value="manager">👔 Manager (Full Park/Fleet Control)</option>}
                   <option value="trip_monitor">👁️ Trip Monitor (View trips, mark loaded, redirect)</option>
@@ -788,7 +788,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   <select
                     value={selectedTruckId}
                     onChange={(e) => setSelectedTruckId(e.target.value)}
-                    className="w-full bg-[#070b19] border border-blue-950/60 focus:border-amber-500 rounded-2xl py-3 px-4 text-xs font-bold text-white outline-none cursor-pointer"
+                    className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-2xl py-3 px-4 text-xs font-bold text-white outline-none cursor-pointer"
                   >
                     <option value="">-- Select Fleet Truck --</option>
                     {truckList.map((t) => (
@@ -800,7 +800,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                 </div>
               )}
 
-              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl text-xs text-amber-300 space-y-1">
+              <div className="p-3 bg-orange-500/10 border border-orange-500/20 rounded-2xl text-xs text-orange-300 space-y-1">
                 <p className="font-extrabold">📱 Registration Flow:</p>
                 <p className="text-[11px] text-slate-300">
                   Once registered, the team member can open the app, enter their phone number ({newPhone || '080...'}), and set up their secret 6-digit PIN on first sign-in.
@@ -824,7 +824,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                 <button
                   type="submit"
                   disabled={addLoading}
-                  className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-slate-950 font-black text-xs cursor-pointer disabled:opacity-50 flex items-center gap-2"
                 >
                   {addLoading ? (
                     <span className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />
@@ -851,14 +851,14 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
             </p>
 
             {pinNoticeModal.pin && (
-              <div className="bg-[#070b19] border border-blue-950/60 p-4 rounded-2xl font-mono text-2xl font-black text-amber-400 tracking-widest">
+              <div className="bg-[#070b19] border border-blue-950/60 p-4 rounded-2xl font-mono text-2xl font-black text-orange-400 tracking-widest">
                 {pinNoticeModal.pin}
               </div>
             )}
 
             <button
               onClick={() => setPinNoticeModal(null)}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-slate-950 font-black py-3 rounded-2xl text-xs cursor-pointer transition-all"
+              className="w-full bg-orange-500 hover:bg-orange-600 text-slate-950 font-black py-3 rounded-2xl text-xs cursor-pointer transition-all"
             >
               Done
             </button>
@@ -870,7 +870,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
       {confirmModal.open && (
         <div className="fixed inset-0 bg-[#070b19]/80 backdrop-blur-xs flex justify-center items-center p-4 z-60 animate-fade-in">
           <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 max-w-sm w-full shadow-2xl space-y-5 text-slate-100 text-center">
-            <div className="w-12 h-12 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mx-auto text-amber-400">
+            <div className="w-12 h-12 bg-orange-500/10 border border-orange-500/20 rounded-full flex items-center justify-center mx-auto text-orange-400">
               <AlertCircle className="w-6 h-6" />
             </div>
             <div className="space-y-1">
@@ -906,7 +906,7 @@ export const TeamManagement: React.FC<TeamManagementProps> = ({ token, role, use
                   }
                 }}
                 disabled={confirmModal.submitting}
-                className="flex-1 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
+                className="flex-1 py-2.5 rounded-xl bg-orange-500 hover:bg-orange-600 text-slate-950 font-black text-xs cursor-pointer disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {confirmModal.submitting ? (
                   <span className="w-4 h-4 border-2 border-slate-950/30 border-t-slate-950 rounded-full animate-spin" />

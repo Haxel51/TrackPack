@@ -179,7 +179,7 @@ export const RemittanceTabContent: React.FC<RemittanceTabContentProps> = ({ toke
         <div className="bg-white border border-slate-100 rounded-3xl p-5 shadow-sm space-y-2">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-black uppercase tracking-wider">Pending Bank Proofs</span>
-            <FileText className={`w-4 h-4 ${totalPendingProofs > 0 ? 'text-amber-500 animate-pulse' : 'text-slate-400'}`} />
+            <FileText className={`w-4 h-4 ${totalPendingProofs > 0 ? 'text-orange-500 animate-pulse' : 'text-slate-400'}`} />
           </div>
           <div className="text-3xl font-black text-[#0A1F44]">
             {totalPendingProofs}
@@ -243,7 +243,7 @@ export const RemittanceTabContent: React.FC<RemittanceTabContentProps> = ({ toke
               Review transfer references against corporate Zenith/Moniepoint statements before approving.
             </p>
           </div>
-          <span className="text-xs font-extrabold bg-amber-100 text-amber-900 px-3 py-1 rounded-full">
+          <span className="text-xs font-extrabold bg-orange-100 text-orange-900 px-3 py-1 rounded-full">
             {totalPendingProofs} Pending
           </span>
         </div>
@@ -406,7 +406,7 @@ export const RemittanceTabContent: React.FC<RemittanceTabContentProps> = ({ toke
                       <span className="text-[11px] text-slate-400">{c.park_location || 'Branch'} • {c.owner_phone || ''}</span>
                     </td>
                     <td className="p-3 font-black text-sm">
-                      <span className={debt > 0 ? 'text-amber-800' : 'text-slate-500'}>
+                      <span className={debt > 0 ? 'text-orange-800' : 'text-slate-500'}>
                         ₦{debt.toLocaleString()}
                       </span>
                     </td>

@@ -149,7 +149,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
         </button>
         <div>
           <h2 className="text-xl font-extrabold text-[#0A1F44] flex items-center gap-2">
-            <Truck className="text-[#F2A93B] w-5 h-5" />
+            <Truck className="text-[#F7941D] w-5 h-5" />
             Incoming Vehicle Loading Lists
           </h2>
           <p className="text-xs text-slate-500">Track vehicles coming to your park, mark arrivals, and hand over packages</p>
@@ -202,7 +202,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                     </span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-500 text-sm">
-                    <Navigation className="w-4 h-4 text-[#F2A93B]" />
+                    <Navigation className="w-4 h-4 text-[#F7941D]" />
                     <span>From: <strong>{bus.origin_park}</strong></span>
                   </div>
                 </div>
@@ -244,7 +244,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                               </span>
                               <span className={`text-[9px] font-bold px-2 py-0.2 rounded uppercase ${
                                 wb.status === 'collected' ? 'bg-emerald-50 text-emerald-700' :
-                                wb.status === 'arrived' ? 'bg-amber-50 text-amber-700' : 'bg-blue-50 text-blue-700'
+                                wb.status === 'arrived' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'
                               }`}>
                                 {wb.status}
                               </span>
@@ -269,7 +269,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                               <button
                                 onClick={() => setVerifyingWaybill({ id: wb.id, tracking_code: wb.tracking_code, receiver_name: wb.receiver_name })}
                                 disabled={collectLoading !== null}
-                                className="w-full sm:w-auto bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
+                                className="w-full sm:w-auto bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-bold px-4 py-2.5 rounded-xl text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm disabled:opacity-50"
                               >
                                 <PackageCheck className="w-3.5 h-3.5" />
                                 Mark as Collected
@@ -324,7 +324,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
               /* Phase 1: PIN or Phone Code Entry */
               <>
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-amber-50 flex items-center justify-center text-[#F2A93B]">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 flex items-center justify-center text-[#F7941D]">
                     <Shield className="w-6 h-6" />
                   </div>
                   <div>
@@ -333,12 +333,12 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                   </div>
                 </div>
 
-                <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 space-y-1">
-                  <p className="font-extrabold flex items-center gap-1.5 text-amber-800">
-                    <Shield className="w-4 h-4 text-amber-600 shrink-0" />
+                <div className="bg-orange-50/80 border border-orange-200 rounded-2xl p-4 text-xs text-orange-900 space-y-1">
+                  <p className="font-extrabold flex items-center gap-1.5 text-orange-800">
+                    <Shield className="w-4 h-4 text-orange-600 shrink-0" />
                     Customer Pickup Verification:
                   </p>
-                  <p className="text-amber-800 leading-relaxed">
+                  <p className="text-orange-800 leading-relaxed">
                     Ask <span className="font-black">{verifyingWaybill.receiver_name}</span> for their <strong>6-digit Pickup PIN</strong> (or registered Phone Number). Enter it below to view package details.
                   </p>
                 </div>
@@ -364,7 +364,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                         placeholder="Enter 6-digit PIN or Phone"
                         value={inputPhone}
                         onChange={(e) => setInputPhone(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0A1F44] focus:outline-none focus:border-[#F2A93B]"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-[#0A1F44] focus:outline-none focus:border-[#F7941D]"
                         autoFocus
                       />
                     </div>
@@ -390,7 +390,7 @@ export const IncomingBuses: React.FC<IncomingBusesProps> = ({ token, onBackToMen
                         </>
                       ) : (
                         <>
-                          <Shield className="w-4 h-4 text-[#F2A93B]" />
+                          <Shield className="w-4 h-4 text-[#F7941D]" />
                           Verify Code & View Details &rarr;
                         </>
                       )}
