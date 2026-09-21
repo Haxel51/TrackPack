@@ -1,18 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
-import { LogOut, Briefcase, MapPin, Plus, Truck, FileText, AlertTriangle, ArrowRight, HelpCircle, X, CheckCircle2, Receipt, Package } from 'lucide-react';
+import { LogOut, Briefcase, MapPin, Plus, Truck, FileText, AlertTriangle, ArrowRight, HelpCircle, X, CheckCircle2, Receipt, Package, Scan } from 'lucide-react';
 import { WaybillForm } from '../components/staff/WaybillForm';
 import { BusForm } from '../components/staff/BusForm';
 import { OutgoingBuses } from '../components/staff/OutgoingBuses';
 import { IncomingBuses } from '../components/staff/IncomingBuses';
 import { WaybillHistory } from '../components/staff/WaybillHistory';
+import { PreBookedIntake } from '../components/staff/PreBookedIntake';
 import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
-import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
-type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history';
+type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history' | 'prebooked_intake';
 
 export const StaffDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -120,6 +120,14 @@ export const StaffDashboard: React.FC = () => {
             onBackToMenu={() => setScreen('menu')}
           />
         );
+      case 'prebooked_intake':
+        return (
+          <PreBookedIntake
+            token={token}
+            originPark={originPark}
+            onBackToMenu={() => setScreen('menu')}
+          />
+        );
       case 'menu':
       default:
         return (
@@ -151,9 +159,6 @@ export const StaffDashboard: React.FC = () => {
                 </button>
               </div>
             </div>
-
-            {/* Push Notifications Card */}
-            <FleetPushNotificationCard />
 
             {/* Blinking Red Alert Panel if there is any pending job to do */}
             {hasWaybillJobs && (
@@ -217,7 +222,7 @@ export const StaffDashboard: React.FC = () => {
             )}
 
             {/* Quick Action Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {/* Card 1: Create Waybill */}
               <button
                 id="staff-create-waybill-btn"
@@ -233,12 +238,37 @@ export const StaffDashboard: React.FC = () => {
                     <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 font-medium">
-                    Register sender, receiver, and load waybills onto an active loading list.
+                    Register walk-in sender, receiver, and load waybills onto an active loading list.
                   </p>
                 </div>
               </button>
 
-              {/* Card 2: Outgoing Buses */}
+              {/* Card 2: Pre-Booked & API Intake */}
+              <button
+                id="staff-prebooked-intake-btn"
+                onClick={() => setScreen('prebooked_intake')}
+                className="bg-linear-to-br from-blue-700 to-indigo-900 text-white rounded-3xl p-6 hover:from-blue-800 hover:to-indigo-950 transition-all text-left space-y-4 group cursor-pointer shadow-md hover:shadow-lg flex flex-col justify-between min-h-[190px] border border-blue-400/30"
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className="w-10 h-10 bg-white/15 rounded-2xl flex items-center justify-center">
+                    <Scan className="w-5 h-5 text-[#F2A93B]" />
+                  </div>
+                  <span className="bg-[#F2A93B] text-[#0A1F44] text-[9px] font-black px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Fast Intake
+                  </span>
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base flex items-center gap-1.5">
+                    Scan Pre-Booked (API)
+                    <span className="text-[#F2A93B] group-hover:translate-x-1 transition-transform">&rarr;</span>
+                  </h3>
+                  <p className="text-xs text-blue-100 mt-1 font-medium">
+                    Scan or type tracking codes for parcels booked via API (e-commerce stores, merchants).
+                  </p>
+                </div>
+              </button>
+
+              {/* Card 3: Outgoing Buses */}
               <button
                 id="staff-outgoing-buses-tab"
                 onClick={() => setScreen('outgoing')}

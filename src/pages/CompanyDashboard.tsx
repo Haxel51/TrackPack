@@ -27,19 +27,22 @@ import {
   Bus,
   Truck,
   AlertCircle,
+  AlertTriangle,
+  ArrowRight,
   UserCheck,
   Trash2,
   Activity,
   KeyRound,
-  ArrowRightLeft
+  ArrowRightLeft,
+  Wallet
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
-import { resetCompanyManagerPin } from '../lib/api';
+import { resetCompanyManagerPin, getCompanyRemittanceStatus } from '../lib/api';
+import { DailyRemittanceModal } from '../components/company/DailyRemittanceModal';
 import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocationsView';
 import { ModuleSelectionScreen } from '../components/ModuleSelectionScreen';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { getSavedModulePreference, saveModulePreference, clearModulePreference, ModuleType } from '../lib/userPreferences';
-import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
 // Inline Skeleton Component for Progressive Loading
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -95,13 +98,29 @@ export const CompanyDashboard: React.FC = () => {
     setSelectedModule(null);
   };
 
-  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'parks' | 'shipments' | 'earnings' | 'remittance'>('overview');
+  const [showRemittanceModal, setShowRemittanceModal] = useState(false);
+  const [remittanceStatus, setRemittanceStatus] = useState<any>(null);
+
+  const fetchRemittanceStatus = async () => {
+    const activeToken = token || localStorage.getItem('auth_token');
+    if (!activeToken) return;
+    try {
+      const res = await getCompanyRemittanceStatus(activeToken);
+      if (res && res.success) {
+        setRemittanceStatus(res);
+      }
+    } catch (err) {
+      console.error('Failed to load remittance status:', err);
+    }
+  };
 
   const navTabs = [
     { id: 'overview', label: t('overview'), icon: TrendingUp },
     { id: 'parks', label: `${t('myBranches')} & ${t('staffMembers')}`, icon: Building2 },
     { id: 'shipments', label: t('waybillHistory'), icon: Package },
-    { id: 'earnings', label: t('analytics'), icon: DollarSign }
+    { id: 'earnings', label: t('analytics'), icon: DollarSign },
+    { id: 'remittance', label: 'Cash Remittance', icon: Wallet, isSpecial: true }
   ];
 
   // --- TAB 1: OVERVIEW STATE ---
@@ -586,6 +605,7 @@ export const CompanyDashboard: React.FC = () => {
   // Trigger loads on tab changes or active state
   useEffect(() => {
     if (!token) return;
+    fetchRemittanceStatus();
     if (activeTab === 'overview') {
       fetchOverview();
     } else if (activeTab === 'parks') {
@@ -595,6 +615,8 @@ export const CompanyDashboard: React.FC = () => {
     } else if (activeTab === 'earnings') {
       fetchEarningsData();
       fetchBanksList();
+    } else if (activeTab === 'remittance') {
+      setShowRemittanceModal(true);
     }
   }, [activeTab, token]);
 
@@ -1014,43 +1036,46 @@ export const CompanyDashboard: React.FC = () => {
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-between text-slate-800 font-sans">
       
       {/* HEADER NAVBAR (Scrolls up naturally, Navy Blue) */}
-      <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-3 sm:py-4 shadow-md sticky top-0 z-30 w-full">
+      <header className="bg-[#0A1F44] text-white px-3 sm:px-6 py-2.5 sm:py-3.5 shadow-md sticky top-0 z-30 w-full">
         <div className="max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-4">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
             <Logo size="sm" showText={false} />
             <div className="min-w-0 flex-1">
-              <span className="font-extrabold text-[9px] sm:text-[10px] text-amber-300 uppercase tracking-widest block leading-none truncate">
-                {t('companyPortalTitle')}
-              </span>
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mt-1">
-                <span className="font-black text-sm sm:text-base text-white tracking-wide truncate max-w-[130px] xs:max-w-[180px] sm:max-w-[280px] md:max-w-none">
-                  {user?.company_name || 'Waybilla Partner'}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="font-extrabold text-[9px] sm:text-[10px] text-amber-300 uppercase tracking-widest block leading-none">
+                  {t('companyPortalTitle')}
                 </span>
-                <div className="inline-flex items-center gap-1.5 bg-[#131e3d]/90 text-slate-200 border border-blue-900/60/80 px-2.5 py-1 rounded-lg text-[10px] sm:text-[11px] font-extrabold shrink-0">
-                  <Package className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-blue-400 shrink-0" />
-                  <span className="text-blue-300">📦 Waybill Module</span>
-                </div>
+                <span className="inline-flex items-center gap-1 bg-blue-500/20 text-blue-300 border border-blue-400/30 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-bold">
+                  <Package className="w-2.5 h-2.5 text-blue-400" />
+                  Waybill HQ
+                </span>
               </div>
+              <h1 className="font-black text-xs sm:text-base text-white tracking-wide truncate mt-0.5" title={user?.company_name}>
+                {user?.company_name || 'Waybilla Partner'}
+              </h1>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <button
               onClick={handleSwitchModule}
-              className="flex items-center gap-1.5 sm:gap-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-3 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
+              className="flex items-center gap-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs font-black transition-all cursor-pointer shadow-xs shrink-0"
               id="header-switch-module-btn"
+              title="Switch Module"
             >
               <ArrowRightLeft className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400 shrink-0" />
-              <span>Switch Module</span>
+              <span className="hidden xs:inline">Switch</span>
+              <span className="hidden md:inline">Module</span>
             </button>
             <LanguageSwitcher />
             <button
               onClick={logout}
-              className="flex items-center gap-1.5 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-2.5 py-1.5 sm:px-4 sm:py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer border-0 shrink-0"
+              className="flex items-center gap-1.5 bg-[#F2A93B] hover:bg-[#d9922b] text-[#0A1F44] font-black px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-xl text-xs transition-all shadow-xs cursor-pointer border-0 shrink-0"
               id="header-logout-btn"
+              title="Sign Out"
             >
               <LogOut className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
-              <span className="hidden xs:inline sm:inline">{t('signOut')}</span>
+              <span className="hidden sm:inline">{t('signOut')}</span>
             </button>
           </div>
         </div>
@@ -1060,7 +1085,7 @@ export const CompanyDashboard: React.FC = () => {
       <div className="max-w-7xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-8 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-8 min-w-0 overflow-x-hidden">
         
         {/* MOBILE NAVIGATION BAR (Horizontal Scrollable Pills) */}
-        <div className="block lg:hidden col-span-1 bg-white border border-slate-200 rounded-2xl p-2 sm:p-2.5 shadow-xs overflow-x-auto flex items-center gap-1.5 w-full">
+        <div className="block lg:hidden col-span-1 bg-white border border-slate-200/80 rounded-2xl p-1.5 sm:p-2 shadow-xs overflow-x-auto flex items-center gap-1.5 w-full scrollbar-none [&::-webkit-scrollbar]:hidden">
           {navTabs.map((tab, index) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -1068,10 +1093,10 @@ export const CompanyDashboard: React.FC = () => {
               <button
                 key={`mob-tab-${tab.id}-${index}`}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer border-0 shrink-0 ${
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-black whitespace-nowrap transition-all cursor-pointer border-0 shrink-0 ${
                   isActive
-                    ? 'bg-[#091026] text-white shadow-sm'
-                    : 'bg-slate-50 text-slate-600 hover:bg-slate-100'
+                    ? 'bg-[#0A1F44] text-white shadow-xs'
+                    : 'bg-slate-100/70 text-slate-700 hover:bg-slate-200/80'
                 }`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-amber-400' : 'text-slate-400'}`} />
@@ -1118,11 +1143,69 @@ export const CompanyDashboard: React.FC = () => {
 
         {/* WORKSPACE AREA */}
         <main className="lg:col-span-9 space-y-6" id="dashboard-tab-content">
+
+          {/* REMITTANCE ALERT & TERMINAL HEALTH BANNER */}
+          {remittanceStatus?.is_suspended ? (
+            <div className="bg-red-500 text-white rounded-3xl p-5 shadow-lg flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border border-red-600 animate-in fade-in" id="terminal-suspended-banner">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/20 flex items-center justify-center text-white shrink-0 mt-0.5">
+                  <AlertTriangle className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-black uppercase tracking-wider bg-white text-red-700 px-2.5 py-0.5 rounded-full">
+                      PARK TERMINALS SUSPENDED
+                    </span>
+                    <span className="text-xs text-red-100 font-bold">Action Required</span>
+                  </div>
+                  <p className="text-sm font-extrabold text-white mt-1">
+                    Waybill registration paused due to unremitted cash tracking fees (₦{(remittanceStatus?.pending_debt || 0).toLocaleString()}).
+                  </p>
+                  <p className="text-xs text-red-100 font-normal">
+                    Settle online via Paystack to unlock all your park terminals automatically in under 10 seconds.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRemittanceModal(true)}
+                className="w-full sm:w-auto bg-white hover:bg-red-50 text-red-700 font-black px-5 py-3 rounded-2xl text-xs transition-all shadow-md cursor-pointer shrink-0"
+              >
+                ⚡ Pay ₦{(remittanceStatus?.pending_debt || 0).toLocaleString()} & Unlock Instantly
+              </button>
+            </div>
+          ) : (remittanceStatus?.pending_debt || 0) > 0 ? (
+            <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-300 rounded-3xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4" id="remittance-grace-banner">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+                      Daily Cash Remittance Active
+                    </span>
+                    <span className="text-xs text-amber-800 font-bold">
+                      ₦{(remittanceStatus?.pending_debt || 0).toLocaleString()} Platform Due (70%)
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-900 font-medium mt-1">
+                    Your park has retained <strong>₦{(remittanceStatus?.company_profit_retained || 0).toLocaleString()}</strong> in profit today from cash waybills. Remit before the 24-hour cutoff to keep your terminals in good standing.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowRemittanceModal(true)}
+                className="w-full sm:w-auto bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold px-5 py-2.5 rounded-xl text-xs transition-all shadow-xs cursor-pointer shrink-0 flex items-center justify-center gap-2"
+              >
+                <span>Review & Settle (Part A Recommended)</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : null}
+
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && (
             <div className="space-y-6" id="overview-tab">
-              <FleetPushNotificationCard />
-
               {/* WAYBILL OPERATIONS BANNER */}
               <div 
                 className="bg-gradient-to-br from-[#0A1F44] via-[#0E2756] to-[#15346A] text-white rounded-3xl p-5 sm:p-6 shadow-md flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-indigo-950/40" 
@@ -2840,6 +2923,17 @@ export const CompanyDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Daily Cash Remittance Modal */}
+      <DailyRemittanceModal
+        token={token || ''}
+        isOpen={showRemittanceModal}
+        onClose={() => setShowRemittanceModal(false)}
+        onRemittanceSuccess={() => {
+          fetchRemittanceStatus();
+          fetchOverview();
+        }}
+      />
 
     </div>
   );

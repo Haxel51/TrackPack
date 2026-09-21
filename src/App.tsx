@@ -24,6 +24,7 @@ import { StaffDashboard } from './pages/StaffDashboard';
 import { ManagerDashboard } from './pages/ManagerDashboard';
 import { CompanyDashboard } from './pages/CompanyDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
+import { DeveloperPortal } from './pages/DeveloperPortal';
 
 export default function App() {
   const [splashFinished, setSplashFinished] = useState(false);
@@ -55,6 +56,8 @@ export default function App() {
             <Route path="/login/admin" element={<AdminLogin />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
+            <Route path="/developer" element={<DeveloperPortal />} />
+            <Route path="/developers" element={<DeveloperPortal />} />
 
             {/* Protected Routes */}
             <Route

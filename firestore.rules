@@ -118,6 +118,22 @@ service cloud.firestore {
       allow read, write: if true;
     }
 
+    match /developer_accounts/{docId} {
+      allow read, write: if true;
+    }
+
+    match /developer_compliance/{docId} {
+      allow read, write: if true;
+    }
+
+    match /developer_wallet_transactions/{docId} {
+      allow read, write: if true;
+    }
+
+    match /developer_sessions/{docId} {
+      allow read, write: if true;
+    }
+
     // Fallback collection rule
     match /{document=**} {
       allow read, write: if true;

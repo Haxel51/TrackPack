@@ -242,7 +242,18 @@ export async function createBus(token: string, data: { bus_number: string; desti
   });
 }
 
-export async function createWaybill(token: string, data: { sender_name: string; sender_phone: string; receiver_name: string; receiver_phone: string; item_description: string; bus_id: string; destination_park: string; waybill_fee?: number; shipping_fee?: number }) {
+export async function createWaybill(token: string, data: { 
+  sender_name: string; 
+  sender_phone: string; 
+  receiver_name: string; 
+  receiver_phone: string; 
+  item_description: string; 
+  bus_id?: string; 
+  destination_park: string; 
+  waybill_fee?: number; 
+  shipping_fee?: number;
+  payment_method?: 'cash' | 'paystack';
+}) {
   return safeFetch(`${API_BASE}/staff/waybills`, {
     method: 'POST',
     headers: {
@@ -567,6 +578,85 @@ export async function getTrucks(token: string) {
     }
   });
 }
+
+// Daily Cash Remittance & Terminal Auto-Suspension APIs
+export async function getCompanyRemittanceStatus(token: string) {
+  return safeFetch(`${API_BASE}/company/remittance-status`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function initPaystackRemittance(token: string) {
+  return safeFetch(`${API_BASE}/company/remittance/paystack-checkout`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function verifyPaystackRemittance(token: string, reference: string) {
+  return safeFetch(`${API_BASE}/company/remittance/verify-paystack`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ reference })
+  });
+}
+
+export async function submitTransferProof(token: string, data: {
+  amount?: number;
+  bank_name: string;
+  sender_account_name: string;
+  transfer_reference: string;
+  notes?: string;
+}) {
+  return safeFetch(`${API_BASE}/company/remittance/submit-transfer-proof`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify(data)
+  });
+}
+
+export async function getAdminPendingRemittances(token: string) {
+  return safeFetch(`${API_BASE}/admin/remittances/pending`, {
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function approveAdminRemittance(token: string, id: string) {
+  return safeFetch(`${API_BASE}/admin/remittances/${id}/approve`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    }
+  });
+}
+
+export async function rejectAdminRemittance(token: string, id: string, reason?: string) {
+  return safeFetch(`${API_BASE}/admin/remittances/${id}/reject`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`
+    },
+    body: JSON.stringify({ reason })
+  });
+}
+
 
 
 

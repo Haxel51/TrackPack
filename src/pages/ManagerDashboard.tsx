@@ -15,12 +15,12 @@ import {
 import {
   Building2, MapPin, Users, Package, DollarSign, Plus, RefreshCw, Key,
   CheckCircle, XCircle, LogOut, Search, Filter, ShieldCheck, UserCheck, AlertCircle, Eye, Trash2, Power,
-  ChevronRight, ArrowRight, Navigation, ArrowRightLeft
+  ChevronRight, ArrowRight, Navigation, ArrowRightLeft, Wallet
 } from 'lucide-react';
+import { DailyRemittanceModal } from '../components/company/DailyRemittanceModal';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { DriverScreen } from './DriverScreen';
 import { initializeFCM } from '../modules/fleetTracking/fcm';
-import { FleetPushNotificationCard } from '../modules/fleetTracking/components/FleetPushNotificationCard';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
@@ -34,7 +34,8 @@ export const ManagerDashboard: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // Active Tab
-  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'staff' | 'waybills' | 'remittance'>('overview');
+  const [showRemittanceModal, setShowRemittanceModal] = useState(false);
 
   // Search & Filter for waybills
   const [searchTerm, setSearchTerm] = useState('');
@@ -266,6 +267,7 @@ export const ManagerDashboard: React.FC = () => {
     { id: 'overview' as const, label: t('overview') || 'Overview', icon: Building2 },
     { id: 'staff' as const, label: `${t('staffMembers') || 'Staff'} (${staffList.length})`, icon: Users },
     { id: 'waybills' as const, label: `${t('waybillHistory') || 'Waybills'} (${waybills.length})`, icon: Package },
+    { id: 'remittance' as const, label: 'Daily Remittance (70/30)', icon: Wallet },
   ];
 
   const isDriver = user?.role === 'driver' || user?.manager_type === 'Driver';
@@ -343,7 +345,13 @@ export const ManagerDashboard: React.FC = () => {
             return (
               <button
                 key={`tab-${tab.id}`}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => {
+                  if (tab.id === 'remittance') {
+                    setShowRemittanceModal(true);
+                  } else {
+                    setActiveTab(tab.id as any);
+                  }
+                }}
                 className={`px-3 sm:px-4 py-2 sm:py-2.5 text-xs font-extrabold rounded-t-xl transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 border-b-2 whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'bg-white text-[#0A1F44] border-[#F2A93B] shadow-xs'
@@ -378,8 +386,6 @@ export const ManagerDashboard: React.FC = () => {
             {/* TAB: OVERVIEW */}
             {activeTab === 'overview' && overview && (
               <div className="space-y-6">
-                <FleetPushNotificationCard />
-
                 {/* Metrics Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
                   {/* Waybill Volume */}
@@ -885,6 +891,14 @@ export const ManagerDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Daily Cash Remittance Modal */}
+      <DailyRemittanceModal
+        token={token || ''}
+        isOpen={showRemittanceModal}
+        onClose={() => setShowRemittanceModal(false)}
+        onRemittanceSuccess={handleRefresh}
+      />
     </div>
   );
 };

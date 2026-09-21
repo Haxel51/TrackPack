@@ -96,6 +96,87 @@
         "company_id": { "type": "string" }
       },
       "required": ["name", "address_text", "company_id"]
+    },
+    "DeveloperAccount": {
+      "title": "DeveloperAccount",
+      "description": "Registered developer profile with isolated sandbox credentials and locked production status",
+      "type": "object",
+      "properties": {
+        "merchant_name": { "type": "string" },
+        "contact_email": { "type": "string" },
+        "contact_phone": { "type": "string" },
+        "test_key": { "type": "string" },
+        "test_key_hash": { "type": "string" },
+        "sandbox_balance": { "type": "number" },
+        "live_status": { "type": "string", "enum": ["locked", "pending_verification", "approved", "rejected"] },
+        "live_key": { "type": ["string", "null"] },
+        "live_key_masked": { "type": ["string", "null"] },
+        "live_key_hash": { "type": ["string", "null"] },
+        "cargo_wallet_balance": { "type": "number" },
+        "cargo_wallet_status": { "type": "string", "enum": ["active", "low_balance", "depleted", "inactive"] },
+        "virtual_account_bank": { "type": "string" },
+        "virtual_account_number": { "type": "string" },
+        "virtual_account_name": { "type": "string" },
+        "total_manifests_billed": { "type": "number" },
+        "total_cargo_wallet_spent": { "type": "number" },
+        "auto_topup_threshold": { "type": "number" },
+        "created_at": { "type": "string" },
+        "updated_at": { "type": "string" }
+      },
+      "required": ["merchant_name", "contact_email", "test_key", "live_status"]
+    },
+    "DeveloperWalletTransaction": {
+      "title": "DeveloperWalletTransaction",
+      "description": "Immutable ledger entry for developer cargo wallet credits (top-ups) and automated per-waybill manifest debits (Step C)",
+      "type": "object",
+      "properties": {
+        "developer_id": { "type": "string" },
+        "type": { "type": "string", "enum": ["credit", "debit", "refund"] },
+        "amount": { "type": "number" },
+        "balance_before": { "type": "number" },
+        "balance_after": { "type": "number" },
+        "currency": { "type": "string" },
+        "reference": { "type": "string" },
+        "channel": { "type": "string" },
+        "description": { "type": "string" },
+        "waybill_id": { "type": ["string", "null"] },
+        "tracking_code": { "type": ["string", "null"] },
+        "created_at": { "type": "string" }
+      },
+      "required": ["developer_id", "type", "amount", "balance_before", "balance_after", "reference", "created_at"]
+    },
+    "DeveloperCompliance": {
+      "title": "DeveloperCompliance",
+      "description": "Business KYC & compliance submission record for production live key access (Step B)",
+      "type": "object",
+      "properties": {
+        "developer_id": { "type": "string" },
+        "business_legal_name": { "type": "string" },
+        "cac_rc_number": { "type": "string" },
+        "cac_registration_type": { "type": "string", "enum": ["RC", "BN", "IT"] },
+        "cac_document_name": { "type": "string" },
+        "cac_document_data": { "type": "string" },
+        "tin": { "type": "string" },
+        "director_name": { "type": "string" },
+        "director_role": { "type": "string" },
+        "director_id_type": { "type": "string", "enum": ["NIN", "DRIVERS_LICENSE", "INTERNATIONAL_PASSPORT", "VOTERS_CARD"] },
+        "director_id_number": { "type": "string" },
+        "director_id_document_name": { "type": "string" },
+        "director_id_document_data": { "type": "string" },
+        "street_address": { "type": "string" },
+        "city": { "type": "string" },
+        "state": { "type": "string" },
+        "lga": { "type": "string" },
+        "warehouse_location": { "type": "string" },
+        "store_website_url": { "type": "string" },
+        "monthly_parcel_volume": { "type": "string" },
+        "status": { "type": "string", "enum": ["under_review", "approved", "action_required"] },
+        "rejection_reason": { "type": ["string", "null"] },
+        "submitted_at": { "type": "string" },
+        "reviewed_at": { "type": ["string", "null"] },
+        "reviewed_by": { "type": ["string", "null"] }
+      },
+      "required": ["developer_id", "business_legal_name", "cac_rc_number", "director_name", "director_id_number", "street_address", "state", "status", "submitted_at"]
     }
   },
   "firestore": {
@@ -118,6 +199,18 @@
     "/fleetTracking_customers/{customerId}": {
       "schema": { "$ref": "#/entities/FleetCustomer" },
       "description": "Saved customer redirect destinations"
+    },
+    "/developer_accounts/{developerId}": {
+      "schema": { "$ref": "#/entities/DeveloperAccount" },
+      "description": "Developer merchant credentials, sandbox test keys, and live key approval states"
+    },
+    "/developer_compliance/{complianceId}": {
+      "schema": { "$ref": "#/entities/DeveloperCompliance" },
+      "description": "Business KYC documentation, CAC verification records, and physical warehouse reviews"
+    },
+    "/developer_wallet_transactions/{transactionId}": {
+      "schema": { "$ref": "#/entities/DeveloperWalletTransaction" },
+      "description": "Ledger entries for developer cargo wallet top-ups and live manifest fee deductions"
     }
   }
 }

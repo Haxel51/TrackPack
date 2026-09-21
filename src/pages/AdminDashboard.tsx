@@ -4,6 +4,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
 import { RecoveryTabContent } from '../components/admin/RecoveryTabContent';
+import { RemittanceTabContent } from '../components/admin/RemittanceTabContent';
 import {
   Shield,
   LogOut,
@@ -28,7 +29,13 @@ import {
   Building2,
   ChevronLeft,
   Truck,
-  XCircle
+  XCircle,
+  Code2,
+  Key,
+  ShieldCheck,
+  CheckCircle2,
+  BadgeAlert,
+  PhoneCall
 } from 'lucide-react';
 
 // Gray pulsing Skeleton placeholder
@@ -39,7 +46,103 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers' | 'fleetTrips'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers' | 'fleetTrips' | 'remittances' | 'developers'>('overview');
+
+  // Developer Compliance & Go-Live State (Super Admin)
+  const [devSubmissions, setDevSubmissions] = useState<any[]>([]);
+  const [devLoading, setDevLoading] = useState(false);
+  const [devError, setDevError] = useState(false);
+  const [devPendingCount, setDevPendingCount] = useState(0);
+  const [reviewingDevId, setReviewingDevId] = useState<string | null>(null);
+  const [rejectModalSub, setRejectModalSub] = useState<any | null>(null);
+  const [rejectionReasonText, setRejectionReasonText] = useState('');
+  const [devActionSuccess, setDevActionSuccess] = useState<string | null>(null);
+
+  const loadDevCompliance = async () => {
+    setDevLoading(true);
+    setDevError(false);
+    try {
+      const res = await fetchWithTimeout('/api/v1/admin/developer/compliance');
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.status) {
+        setDevSubmissions(data.data || []);
+        setDevPendingCount(data.pending_count ?? (data.data || []).filter((d: any) => d.status === 'under_review' || d.status === 'pending_verification').length);
+      } else {
+        setDevError(true);
+      }
+    } catch {
+      setDevError(true);
+    } finally {
+      setDevLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Initial fetch to get badge counts
+    loadDevCompliance();
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'developers') {
+      loadDevCompliance();
+    }
+  }, [activeTab]);
+
+  const handleReviewDeveloper = async (sub: any, decision: 'approve' | 'reject', reason = '') => {
+    setReviewingDevId(sub.id);
+    setDevActionSuccess(null);
+    try {
+      const res = await fetch('/api/v1/admin/developer/compliance/review', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token || ''}`
+        },
+        body: JSON.stringify({
+          compliance_id: sub.id,
+          developer_id: sub.developer_id,
+          decision,
+          rejection_reason: reason
+        })
+      });
+      const data = await res.json();
+      if (data.status) {
+        setDevActionSuccess(
+          decision === 'approve'
+            ? `Successfully approved ${sub.business_legal_name}! The developer can now generate their Live Production API Key.`
+            : `Compliance for ${sub.business_legal_name} marked as Action Required.`
+        );
+        setRejectModalSub(null);
+        setRejectionReasonText('');
+        loadDevCompliance();
+      } else {
+        alert(data.error || 'Failed to complete compliance review.');
+      }
+    } catch (e: any) {
+      alert(e.message || 'Error processing compliance review.');
+    } finally {
+      setReviewingDevId(null);
+    }
+  };
+
+  const getWhatsAppNotificationUrl = (sub: any, type: 'approval' | 'correction', reason?: string) => {
+    const rawPhone = (sub.contact_phone || sub.director_phone || sub.phone || '').replace(/[^0-9]/g, '');
+    let phone = rawPhone;
+    if (phone.startsWith('0')) {
+      phone = '234' + phone.slice(1);
+    } else if (!phone.startsWith('234') && phone.length === 10) {
+      phone = '234' + phone;
+    }
+
+    let text = '';
+    if (type === 'approval') {
+      text = `Hello ${sub.business_legal_name || 'Developer'},\n\n🎉 Great news! Your Waybilla Developer KYC dossier has been APPROVED by the Super Admin team.\n\nYou can now log in to the Waybilla Developer Portal, fund your Cargo Wallet, and issue your Production Live Secret API Key:\nhttps://waybilla.ng/developer\n\nWelcome to Waybilla Live Fleet Network!\n- Waybilla Compliance Team`;
+    } else {
+      text = `Hello ${sub.business_legal_name || 'Developer'},\n\nRegarding your Waybilla Developer KYC submission for ${sub.business_legal_name}:\n\nAction Required: ${reason || 'Please provide updated identification documents.'}\n\nPlease update your details on the Developer Portal: https://waybilla.ng/developer\n\nThank you,\n- Waybilla Compliance Team`;
+    }
+
+    return `https://wa.me/${phone || '2348000000000'}?text=${encodeURIComponent(text)}`;
+  };
 
   // Managers Read-Only View State (Super Admin)
   const [managers, setManagers] = useState<any[]>([]);
@@ -467,21 +570,26 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'revenue', 'disputes', 'recovery'] as const).map(tab => (
+            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'remittances', 'revenue', 'disputes', 'developers', 'recovery'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
                   setActiveTab(tab);
                   setSelectedCompanyId(null);
                 }}
-                className={`py-2 px-4 rounded-xl text-xs font-extrabold tracking-wide capitalize cursor-pointer transition-all ${
+                className={`py-2 px-3.5 rounded-xl text-xs font-extrabold tracking-wide capitalize cursor-pointer transition-all flex items-center gap-1.5 ${
                   activeTab === tab
                     ? 'bg-[#F2A93B] text-[#0A1F44] shadow-md scale-105'
                     : 'text-slate-300 hover:text-white hover:bg-white/5'
                 }`}
                 id={`tab-btn-${tab}`}
               >
-                {tab === 'recovery' ? 'Account Recovery' : tab === 'fleetTrips' ? 'Fleet Trips & Revenue' : tab}
+                {tab === 'recovery' ? 'Account Recovery' : tab === 'fleetTrips' ? 'Fleet Trips & Revenue' : tab === 'remittances' ? 'Cash Remittances (70/30)' : tab === 'developers' ? 'Developer KYC' : tab}
+                {tab === 'developers' && devPendingCount > 0 && (
+                  <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
+                    {devPendingCount}
+                  </span>
+                )}
               </button>
             ))}
           </nav>
@@ -1568,10 +1676,10 @@ export const AdminDashboard: React.FC = () => {
                             revenueData.breakdown.map((row: any, idx: number) => (
                               <tr key={`adm-rev-${row.company_id || idx}-${idx}`} className="border-b border-slate-100 hover:bg-slate-50/40 text-[#0A1F44] font-semibold">
                                 <td className="py-3 px-4 font-extrabold">{row.company_name}</td>
-                                <td className="py-3 px-4 text-center">{row.transactions_count}</td>
-                                <td className="py-3 px-4 text-right font-black">₦{row.total_transactions_value.toLocaleString()}</td>
-                                <td className="py-3 px-4 text-right text-blue-600">₦{row.company_share_total.toLocaleString()}</td>
-                                <td className="py-3 px-4 text-right text-emerald-600">₦{row.platform_share_total.toLocaleString()}</td>
+                                <td className="py-3 px-4 text-center">{row.transactions_count ?? 0}</td>
+                                <td className="py-3 px-4 text-right font-black">₦{Number(row.total_transactions_value || 0).toLocaleString()}</td>
+                                <td className="py-3 px-4 text-right text-blue-600">₦{Number(row.company_share_total || 0).toLocaleString()}</td>
+                                <td className="py-3 px-4 text-right text-emerald-600">₦{Number(row.platform_share_total || 0).toLocaleString()}</td>
                               </tr>
                             ))
                           )}
@@ -1708,6 +1816,13 @@ export const AdminDashboard: React.FC = () => {
 
         {activeTab === 'recovery' && (
           <RecoveryTabContent token={token} />
+        )}
+
+        {/* ==========================================
+            TAB: DAILY CASH REMITTANCE & 70/30 SPLIT
+            ========================================== */}
+        {activeTab === 'remittances' && (
+          <RemittanceTabContent token={token} />
         )}
 
         {/* ==========================================
@@ -1931,7 +2046,7 @@ export const AdminDashboard: React.FC = () => {
                                 </div>
                                 <div>
                                   <span className="text-[9px] text-slate-400 uppercase block font-bold">Revenue</span>
-                                  <span className="text-sm font-black text-emerald-600">₦{c.totalRevenue.toLocaleString()}</span>
+                                  <span className="text-sm font-black text-emerald-600">₦{Number(c.totalRevenue || 0).toLocaleString()}</span>
                                 </div>
                               </div>
 
@@ -2084,7 +2199,328 @@ export const AdminDashboard: React.FC = () => {
           </div>
         )}
 
+        {/* ==========================================
+            TAB: DEVELOPER KYC & GO-LIVE APPROVALS (SUPER ADMIN)
+            ========================================== */}
+        {activeTab === 'developers' && (
+          <div className="space-y-6" id="developers-tab-content">
+            <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-sm space-y-6">
+              <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 border-b border-slate-100 pb-4">
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0A1F44] uppercase tracking-wider flex items-center gap-2">
+                    <Code2 className="w-5 h-5 text-indigo-600" />
+                    <span>Developer KYC Verification & Go-Live Approvals</span>
+                  </h3>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Review and verify developer CAC registrations, Director NIN/ID credentials, and authorize production API key access.
+                  </p>
+                </div>
+                <button
+                  onClick={loadDevCompliance}
+                  className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors cursor-pointer border-0 self-start sm:self-auto"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${devLoading ? 'animate-spin' : ''}`} />
+                  <span>Refresh Applications</span>
+                </button>
+              </div>
+
+              {/* Status Alert */}
+              {devActionSuccess && (
+                <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between text-xs font-bold text-emerald-800">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{devActionSuccess}</span>
+                  </div>
+                  <button onClick={() => setDevActionSuccess(null)} className="text-emerald-700 hover:text-emerald-900 cursor-pointer">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Metric Highlights */}
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Applications</span>
+                  <span className="text-xl font-black text-[#0A1F44] mt-0.5 block">{devSubmissions.length}</span>
+                </div>
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+                  <span className="text-[10px] font-bold text-amber-600 uppercase block">Pending Verification</span>
+                  <span className="text-xl font-black text-amber-700 mt-0.5 block">
+                    {devSubmissions.filter(s => s.status === 'under_review' || s.status === 'pending_verification').length}
+                  </span>
+                </div>
+                <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase block">Live Verified</span>
+                  <span className="text-xl font-black text-emerald-700 mt-0.5 block">
+                    {devSubmissions.filter(s => s.status === 'approved').length}
+                  </span>
+                </div>
+                <div className="p-4 bg-rose-50 rounded-2xl border border-rose-100">
+                  <span className="text-[10px] font-bold text-rose-600 uppercase block">Action Required</span>
+                  <span className="text-xl font-black text-rose-700 mt-0.5 block">
+                    {devSubmissions.filter(s => s.status === 'action_required' || s.status === 'rejected').length}
+                  </span>
+                </div>
+              </div>
+
+              {/* Submissions Table */}
+              {devLoading ? (
+                <div className="space-y-3">
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                  <Skeleton className="h-12 w-full" />
+                </div>
+              ) : devError ? (
+                <div className="text-center py-8 text-rose-600 text-xs font-bold">
+                  Failed to load developer compliance records. Please try refreshing.
+                </div>
+              ) : devSubmissions.length === 0 ? (
+                <div className="text-center py-12 bg-slate-50 rounded-3xl border border-dashed border-slate-200">
+                  <Code2 className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+                  <p className="text-sm font-black text-slate-700">No Developer Compliance Submissions Yet</p>
+                  <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
+                    When merchants or logistics software developers submit their business KYC and Director identification from the Developer Portal, their dossiers will appear here for verification.
+                  </p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 font-extrabold uppercase text-[10px] tracking-wider">
+                        <th className="py-3 px-3">Business & Merchant</th>
+                        <th className="py-3 px-3">CAC Registration</th>
+                        <th className="py-3 px-3">Director & ID</th>
+                        <th className="py-3 px-3">Cargo Wallet</th>
+                        <th className="py-3 px-3">Status</th>
+                        <th className="py-3 px-3 text-right">Verification Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {devSubmissions.map((sub) => {
+                        const isPending = sub.status === 'under_review' || sub.status === 'pending_verification';
+                        const isApproved = sub.status === 'approved';
+                        const isProcessing = reviewingDevId === sub.id;
+                        const isStartupTier = sub.kyc_tier === 'startup' || sub.cac_rc_number === 'STARTUP-TIER-1';
+
+                        return (
+                          <tr key={sub.id} className="hover:bg-slate-50/60 transition-colors">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center gap-1.5">
+                                <div className="font-extrabold text-[#0A1F44]">{sub.business_legal_name}</div>
+                                {isStartupTier ? (
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-md">
+                                    Startup / Indie
+                                  </span>
+                                ) : (
+                                  <span className="text-[9px] font-black px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-md">
+                                    Enterprise CAC
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-[11px] text-slate-500 font-medium">{sub.merchant_email}</div>
+                              <div className="text-[10px] text-slate-600 mt-1 flex items-center gap-1.5 font-bold">
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                  💬 WA: {sub.contact_phone || 'Not provided'}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-bold text-slate-800 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded-md inline-block">
+                                {isStartupTier ? 'National ID Verification' : sub.cac_rc_number}
+                              </div>
+                              <div className="text-[10px] text-indigo-600 font-bold mt-1 flex items-center gap-1">
+                                <FileText className="w-3 h-3" />
+                                <span>{isStartupTier ? (sub.id_document_name || 'national_id_slip.pdf') : (sub.cac_document_name || 'CAC_Certificate.pdf')}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-bold text-slate-800">{sub.director_name}</div>
+                              <div className="text-[10px] text-slate-500">
+                                <span className="font-semibold text-slate-700">{sub.director_id_type || sub.id_type || 'NIN Slip'}:</span> {sub.director_id_number || sub.id_number}
+                              </div>
+                              <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
+                                <ShieldCheck className="w-3 h-3 text-slate-400" />
+                                <span>{sub.director_id_document_name || sub.id_document_name || 'ID_Doc.pdf'}</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-extrabold text-slate-900">
+                                ₦{Number(sub.cargo_wallet_balance || 0).toLocaleString()}
+                              </div>
+                              <div className="text-[10px] text-slate-400">
+                                {sub.has_live_key ? (
+                                  <span className="text-emerald-600 font-bold flex items-center gap-0.5">
+                                    <Key className="w-2.5 h-2.5" /> Live Key Active
+                                  </span>
+                                ) : (
+                                  <span>No Live Key Yet</span>
+                                )}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              {isApproved ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[10px] font-black">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Approved
+                                </span>
+                              ) : isPending ? (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[10px] font-black">
+                                  <AlertCircle className="w-3 h-3" />
+                                  Pending Review
+                                </span>
+                              ) : (
+                                <div>
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[10px] font-black">
+                                    <AlertTriangle className="w-3 h-3" />
+                                    Action Required
+                                  </span>
+                                  {sub.rejection_reason && (
+                                    <p className="text-[10px] text-rose-600 font-semibold mt-1 max-w-[160px] truncate" title={sub.rejection_reason}>
+                                      {sub.rejection_reason}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              <div className="text-[9px] text-slate-400 mt-1">
+                                {sub.submitted_at ? new Date(sub.submitted_at).toLocaleDateString() : ''}
+                              </div>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {/* 1-Click WhatsApp Direct Notification Button */}
+                                <a
+                                  href={getWhatsAppNotificationUrl(sub, isApproved ? 'approval' : 'correction', sub.rejection_reason)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  title="Send WhatsApp Notification to Developer"
+                                  className="px-2.5 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 shadow-xs"
+                                >
+                                  <PhoneCall className="w-3 h-3" />
+                                  <span className="hidden sm:inline">WhatsApp</span>
+                                </a>
+
+                                {isPending ? (
+                                  <>
+                                    <button
+                                      onClick={() => handleReviewDeveloper(sub, 'approve')}
+                                      disabled={isProcessing}
+                                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                      {isProcessing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                                      <span>Approve</span>
+                                    </button>
+                                    <button
+                                      onClick={() => {
+                                        setRejectModalSub(sub);
+                                        setRejectionReasonText('');
+                                      }}
+                                      disabled={isProcessing}
+                                      className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                    >
+                                      <X className="w-3 h-3" />
+                                      <span>Reject</span>
+                                    </button>
+                                  </>
+                                ) : isApproved ? (
+                                  <button
+                                    onClick={() => {
+                                      setRejectModalSub(sub);
+                                      setRejectionReasonText('Re-verification required: ');
+                                    }}
+                                    className="px-2.5 py-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg text-[10px] font-bold transition-all cursor-pointer"
+                                  >
+                                    Re-evaluate
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleReviewDeveloper(sub, 'approve')}
+                                    disabled={isProcessing}
+                                    className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-[11px] font-black transition-all cursor-pointer flex items-center gap-1 disabled:opacity-50"
+                                  >
+                                    <Check className="w-3 h-3" />
+                                    <span>Re-Approve</span>
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
       </main>
+
+      {/* Developer KYC Rejection / Feedback Modal */}
+      {rejectModalSub && (
+        <div className="fixed inset-0 z-50 bg-[#0A1F44]/40 backdrop-blur-sm flex justify-center items-center p-4">
+          <div className="bg-white rounded-3xl border border-slate-100 p-6 max-w-md w-full shadow-2xl space-y-4">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 bg-rose-50 rounded-2xl flex items-center justify-center shrink-0">
+                <AlertTriangle className="text-rose-600 w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-sm font-black text-[#0A1F44]">
+                  Reject / Request Correction
+                </h4>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Business: <strong className="text-slate-800">{rejectModalSub.business_legal_name}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">
+                Feedback / Reason for Developer
+              </label>
+              <textarea
+                value={rejectionReasonText}
+                onChange={(e) => setRejectionReasonText(e.target.value)}
+                placeholder="e.g. Identification slip is blurry. Please upload a clear photo of your National ID or Driver's License."
+                className="w-full h-28 bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs font-bold text-[#0A1F44] placeholder-slate-400 focus:border-rose-500 focus:ring-1 focus:ring-rose-500 outline-none transition-all resize-none"
+                required
+              />
+            </div>
+
+            <div className="flex flex-wrap gap-2 justify-between items-center">
+              <a
+                href={getWhatsAppNotificationUrl(rejectModalSub, 'correction', rejectionReasonText)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="bg-emerald-500 hover:bg-emerald-600 text-white font-extrabold text-xs px-3 py-2 rounded-xl transition-colors cursor-pointer flex items-center gap-1.5"
+              >
+                <PhoneCall className="w-3.5 h-3.5" />
+                <span>Notify via WhatsApp</span>
+              </a>
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    setRejectModalSub(null);
+                    setRejectionReasonText('');
+                  }}
+                  className="bg-slate-100 hover:bg-slate-200 text-[#0A1F44] font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleReviewDeveloper(rejectModalSub, 'reject', rejectionReasonText)}
+                  disabled={!rejectionReasonText.trim() || reviewingDevId === rejectModalSub.id}
+                  className="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
+                >
+                  {reviewingDevId === rejectModalSub.id && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+                  <span>Save Status</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirmation Overlay Modal */}
       {confirmAction && (

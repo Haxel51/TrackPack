@@ -18,7 +18,8 @@ import {
   Clock,
   ChevronRight,
   Lock,
-  Sparkles
+  Sparkles,
+  Code2
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
@@ -416,6 +417,7 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
 
+
         {/* The 3 Trust Pillars */}
         <div className="max-w-2xl mx-auto pt-2">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -575,6 +577,31 @@ export const HomePage: React.FC = () => {
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
               </button>
+
+              {/* Option 5: Developer API */}
+              <button
+                type="button"
+                id="modal-developer-api-btn"
+                onClick={() => {
+                  setShowStaffPortalsModal(false);
+                  navigate('/developer');
+                }}
+                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-indigo-200 hover:border-indigo-600 bg-indigo-50/50 hover:bg-indigo-50 text-left transition-all active:scale-[0.99] cursor-pointer group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0 font-bold shadow-xs">
+                    <Code2 className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-indigo-950 group-hover:text-indigo-900 flex items-center gap-2">
+                      Developer API &amp; Sandbox
+                      <span className="text-[9px] font-bold bg-indigo-200/80 text-indigo-900 px-1.5 py-0.2 rounded">v1</span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium">REST API keys, webhooks &amp; live tester</div>
+                  </div>
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
+              </button>
             </div>
 
             <button
@@ -658,7 +685,17 @@ export const HomePage: React.FC = () => {
             </p>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-5">
+            <button
+              type="button"
+              id="footer-developer-api-btn"
+              onClick={() => navigate('/developer')}
+              className="text-xs font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1.5 transition-colors cursor-pointer bg-transparent border-0 p-0"
+            >
+              <Code2 className="w-3.5 h-3.5 text-blue-600" />
+              <span>Developer API</span>
+            </button>
+
             <button
               onClick={() => setShowHowItWorksModal(true)}
               className="text-xs font-bold text-[#0A1F44] hover:text-amber-600 flex items-center gap-1.5 transition-colors cursor-pointer bg-transparent border-0 p-0"

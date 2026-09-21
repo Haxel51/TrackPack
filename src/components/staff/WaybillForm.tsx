@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
-import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check, User, Phone, Truck, X } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check, User, Phone, Truck, X, Package } from 'lucide-react';
 import { BusForm } from './BusForm';
 
 interface WaybillFormProps {
@@ -34,6 +34,9 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const [waybillFee, setWaybillFee] = useState('');
   const [busId, setBusId] = useState(initialDraft?.busId || '');
   const [destinationPark, setDestinationPark] = useState(initialDraft?.destinationPark || '');
+
+  // Hybrid Payment Method for ₦200 Tracking Fee ('cash' = instant 10s booking, 'paystack' = virtual account/card)
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'paystack'>('cash');
 
   // Quick Pop-up Modal state for registering a new vehicle without losing draft
   const [showRegisterBusModal, setShowRegisterBusModal] = useState(false);
@@ -310,13 +313,32 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         receiver_name: receiverName.trim(),
         receiver_phone: receiverPhone.trim(),
         item_description: itemDescription.trim(),
-        bus_id: busId,
+        bus_id: busId || "unassigned",
         destination_park: destinationPark.trim(),
         waybill_fee: waybillFee ? parseFloat(waybillFee) : 0,
-        shipping_fee: waybillFee ? parseFloat(waybillFee) : 0
+        shipping_fee: waybillFee ? parseFloat(waybillFee) : 0,
+        payment_method: paymentMethod
       });
 
-      if (res.success && res.waybill && res.payment) {
+      if (res.success && res.payment_method === 'cash') {
+        // Direct instant receipt for Cash at Counter!
+        setActivePayment({
+          paymentId: res.waybill?.id || 'cash-wb',
+          waybillId: res.waybill?.id || 'cash-wb',
+          accountNumber: '',
+          bankName: 'Cash at Counter',
+          expiresAt: '',
+          amount: 200,
+          checkoutUrl: null,
+          verifying: false,
+          success: true,
+          trackingCode: res.tracking_code
+        });
+        setCreatedTrackingCode(res.tracking_code);
+        try {
+          sessionStorage.removeItem(WAYBILL_DRAFT_KEY);
+        } catch (e) {}
+      } else if (res.success && res.waybill && res.payment) {
         // Switch to the Paystack transfer details screen
         setActivePayment({
           paymentId: res.payment.id,
@@ -344,12 +366,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!senderName.trim() || !senderPhone.trim() || !receiverName.trim() || !receiverPhone.trim() || !itemDescription.trim() || !destinationPark.trim()) {
-      setError('Please fill in all required fields.');
-      return;
-    }
-
-    if (!busId || busId === 'Unassigned') {
-      setError(`Assigning an active loading vehicle for ${destinationPark || 'the selected destination'} is required before taking payment. Please select a vehicle or click "Register New Vehicle".`);
+      setError('Please fill in all recipient, sender, package, and destination fields.');
       return;
     }
 
@@ -503,6 +520,21 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             <div className="text-3xl font-black text-[#0A1F44] tracking-wider mt-1">
               {activePayment.trackingCode}
             </div>
+            {activePayment.bankName === 'Cash at Counter' ? (
+              <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 font-medium">
+                <span>💵 ₦200 Cash Collected</span>
+                <span className="font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">
+                  +₦60 Park Retained Profit
+                </span>
+              </div>
+            ) : (
+              <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 font-medium">
+                <span>💳 Paystack Online Transfer</span>
+                <span className="font-extrabold text-blue-700 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded">
+                  70/30 Auto-Split
+                </span>
+              </div>
+            )}
           </div>
 
           {activePayment.trackingCode && (
@@ -781,10 +813,10 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 <select
                   value={busId}
                   onChange={handleBusChange}
-                  required
                   className="w-full bg-white border border-slate-300 focus:border-[#0A1F44] rounded-xl px-4 py-3 text-sm focus:outline-none transition-colors font-semibold text-slate-800"
                 >
-                  <option value="" disabled>-- Select Driver / Active Vehicle --</option>
+                  <option value="">-- Select Driver / Active Vehicle --</option>
+                  <option value="unassigned">📦 Assign Vehicle Later (Awaiting Loading)</option>
                   {availableBuses
                     .filter(b => isSamePark(b.destination_park, destinationPark))
                     .map((bus, index) => {
@@ -797,8 +829,27 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                     })}
                 </select>
 
-                {/* Selected Active Driver Badge */}
-                {(() => {
+                {/* Selected Active Driver Badge or Unassigned Indicator */}
+                {busId === 'unassigned' ? (
+                  <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-8 h-8 rounded-lg bg-blue-100 flex items-center justify-center text-blue-800 font-bold shrink-0">
+                        <Package className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="font-extrabold text-[#0A1F44] text-sm">
+                          Assign Vehicle Later
+                        </p>
+                        <p className="text-[11px] text-slate-500 font-medium">
+                          Waybill will be stored in your Outgoing Loading list ready for 1-click dispatch.
+                        </p>
+                      </div>
+                    </div>
+                    <span className="bg-blue-100 text-blue-800 font-extrabold text-[10px] uppercase px-2.5 py-1 rounded-md">
+                      Awaiting Loading
+                    </span>
+                  </div>
+                ) : (() => {
                   const selectedBus = availableBuses.find(b => b.id === busId);
                   if (!selectedBus) return null;
                   return (
@@ -826,62 +877,69 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
                 })()}
               </div>
             ) : availableBuses.length > 0 ? (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 space-y-3">
-                <div>
-                  <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
-                    <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                    No Active Vehicle Currently Loading for {destinationPark || 'Selected Destination'}
-                  </p>
-                  <p className="text-[11px] text-amber-700 leading-relaxed">
-                    You have active loading vehicles for other routes. Select an active vehicle below or register a new one:
-                  </p>
-                </div>
-
-                <div className="space-y-1.5">
-                  <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-900 block">Available Active Vehicles Loading:</span>
-                  <div className="flex flex-wrap gap-2">
-                    {availableBuses.map((bus) => (
-                      <button
-                        key={`quick-bus-${bus.id}`}
-                        type="button"
-                        onClick={() => {
-                          setDestinationPark(bus.destination_park);
-                          setBusId(bus.id);
-                        }}
-                        className="bg-white hover:bg-amber-100 text-amber-900 border border-amber-300 font-extrabold text-xs px-3 py-2 rounded-xl flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                      >
-                        ⚡ Driver {bus.driver_name || 'Unassigned'} ({bus.bus_number} &rarr; {bus.destination_park})
-                      </button>
-                    ))}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-blue-900 space-y-3">
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold flex items-center gap-1.5 text-blue-950">
+                      <Package className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                      No active vehicle loading for {destinationPark || 'Selected Destination'} yet
+                    </p>
+                    <p className="text-[11px] text-blue-800 leading-relaxed mt-1">
+                      You can book this waybill immediately and attach it to a vehicle when loading begins, or register a new vehicle right now:
+                    </p>
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setShowRegisterBusModal(true)}
-                  className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer mt-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  Register & Launch New Vehicle for {destinationPark}
-                </button>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setBusId('unassigned')}
+                    className={`text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all cursor-pointer border ${
+                      busId === 'unassigned'
+                        ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-xs'
+                        : 'bg-white text-[#0A1F44] border-blue-300 hover:bg-blue-100'
+                    }`}
+                  >
+                    ✓ Book Now & Assign Vehicle Later
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterBusModal(true)}
+                    className="bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    + Register Vehicle for {destinationPark}
+                  </button>
+                </div>
               </div>
             ) : (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800">
-                <p className="text-xs font-bold flex items-center gap-1.5 mb-1 text-amber-900">
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  No Active Vehicle Loading for {destinationPark || 'Destination'}
+              <div className="bg-blue-50/70 border border-blue-200 rounded-xl p-4 text-blue-900 space-y-2.5">
+                <p className="text-xs font-bold flex items-center gap-1.5 text-blue-950">
+                  <Package className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                  No Active Vehicle Currently Loaded
                 </p>
-                <p className="text-[11px] text-amber-700 mb-3 leading-relaxed">
-                  You cannot issue a waybill without a vehicle assignment. Please register an active vehicle/driver for this route first.
+                <p className="text-[11px] text-blue-800 leading-relaxed">
+                  No problem! You can book this waybill now under <strong>Assign Vehicle Later</strong>, or launch a new vehicle.
                 </p>
-                <button
-                  type="button"
-                  onClick={() => setShowRegisterBusModal(true)}
-                  className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-2.5 px-4 rounded-xl text-xs flex items-center justify-center gap-2 shadow-sm transition-all cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  Register & Launch New Vehicle for {destinationPark}
-                </button>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setBusId('unassigned')}
+                    className={`text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all cursor-pointer border ${
+                      busId === 'unassigned'
+                        ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-xs'
+                        : 'bg-white text-[#0A1F44] border-blue-300 hover:bg-blue-100'
+                    }`}
+                  >
+                    ✓ Book Now & Assign Vehicle Later
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowRegisterBusModal(true)}
+                    className="bg-white hover:bg-slate-100 text-slate-800 border border-slate-300 text-xs font-bold px-3 py-2 rounded-xl transition-all cursor-pointer"
+                  >
+                    + Register & Launch New Vehicle
+                  </button>
+                </div>
               </div>
             )}
           </div>
@@ -992,6 +1050,76 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </div>
           </div>
 
+          {/* Waybilla Tracking Fee & Hybrid Payment Selector */}
+          <div className="border-t border-slate-100 pt-5 space-y-3" id="tracking-fee-payment-selector">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <span className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  Waybilla Live Tracking Fee: <span className="text-emerald-700 font-extrabold text-sm">₦200</span>
+                </span>
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Split automatically: <span className="font-bold text-emerald-800">₦60 (30%) retained by your park</span> • ₦140 (70%) Waybilla platform share.
+                </p>
+              </div>
+              <span className="bg-emerald-50 text-emerald-800 border border-emerald-200 text-[10px] font-black px-2.5 py-1 rounded-full uppercase">
+                70/30 Hybrid Split
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+              <button
+                type="button"
+                id="payment-method-cash-btn"
+                onClick={() => setPaymentMethod('cash')}
+                className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                  paymentMethod === 'cash'
+                    ? 'bg-emerald-50/90 border-emerald-500 ring-2 ring-emerald-500/20 shadow-xs'
+                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                  paymentMethod === 'cash' ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300'
+                }`}>
+                  {paymentMethod === 'cash' && <span className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-900">💵 Cash at Counter (₦200)</span>
+                    <span className="text-[9px] font-black bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded">RECOMMENDED</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                    Customer hands ₦200 cash to clerk. Instant receipt issued in 10 seconds. Park remits once daily.
+                  </p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                id="payment-method-paystack-btn"
+                onClick={() => setPaymentMethod('paystack')}
+                className={`p-3.5 rounded-2xl border text-left flex items-start gap-3 transition-all cursor-pointer ${
+                  paymentMethod === 'paystack'
+                    ? 'bg-blue-50/90 border-[#0A1F44] ring-2 ring-blue-500/20 shadow-xs'
+                    : 'bg-white border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <div className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                  paymentMethod === 'paystack' ? 'border-[#0A1F44] bg-[#0A1F44] text-white' : 'border-slate-300'
+                }`}>
+                  {paymentMethod === 'paystack' && <span className="w-2 h-2 bg-white rounded-full" />}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-xs font-black text-slate-900">💳 Paystack Transfer / Card</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600 mt-1 leading-relaxed">
+                    Customer makes direct transfer to dedicated dynamic virtual account or card.
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           <div className="pt-4 flex gap-3">
             <button
               type="button"
@@ -1002,18 +1130,22 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             </button>
             <button
               type="submit"
-              disabled={submitLoading || !busId}
-              className="flex-1 bg-[#0A1F44] hover:bg-blue-900 text-white font-bold py-3.5 rounded-xl text-sm transition-colors cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={submitLoading}
+              className={`flex-2 text-white font-extrabold py-3.5 rounded-xl text-sm transition-all cursor-pointer flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed ${
+                paymentMethod === 'cash'
+                  ? 'bg-emerald-600 hover:bg-emerald-700'
+                  : 'bg-[#0A1F44] hover:bg-blue-900'
+              }`}
             >
               {submitLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Registering...
+                  Generating Receipt...
                 </>
-              ) : !busId ? (
-                'Select Active Vehicle First'
+              ) : paymentMethod === 'cash' ? (
+                '✓ Confirm & Print Receipt (₦200 Cash Received)'
               ) : (
-                'Create Waybill & Pay'
+                'Generate Paystack Account (₦200)'
               )}
             </button>
           </div>

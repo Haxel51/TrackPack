@@ -40,7 +40,7 @@ interface Waybill {
   destination_park: string;
   company_id: string;
   company_name?: string;
-  status: 'booked' | 'departed' | 'in_transit' | 'arrived' | 'collected';
+  status: 'pre_booked' | 'booked' | 'departed' | 'in_transit' | 'arrived' | 'collected';
   tracking_active: boolean;
   booked_at: string;
   departed_at: string | null;
@@ -206,6 +206,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   // Status mapping to progress bar percentages
   const percentMap = {
+    pre_booked: 5,
     booked: 15,
     departed: 40,
     in_transit: 65,
@@ -268,6 +269,8 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
   // Feature 2: Warm Status Language
   const getWarmStatusText = () => {
     switch (status) {
+      case 'pre_booked':
+        return `Waybill pre-booked online via API. Awaiting parcel handover at ${origin_park}.`;
       case 'booked':
         return `We've got your waybill! ${origin_park} is taking care of it.`;
       case 'departed':
@@ -287,6 +290,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   // Status color helpers
   const getStatusColorClass = (itemStatus: typeof status) => {
+    if (itemStatus === 'pre_booked') return 'indigo';
     if (itemStatus === 'booked') return 'amber';
     if (itemStatus === 'departed' || itemStatus === 'in_transit') return 'blue';
     return 'emerald';
@@ -448,9 +452,26 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             </div>
           </div>
 
-          <div className="flex justify-between relative z-0 text-[11px] font-bold text-slate-500 pt-1">
-            <span>{origin_park}</span>
-            <span>{destination_park}</span>
+          {/* Origin -> Destination Park Directional Indicator */}
+          <div className="flex items-center justify-between relative z-0 pt-3 gap-2">
+            <div className="flex items-center gap-1.5 min-w-0 text-left">
+              <span className="w-2 h-2 rounded-full bg-slate-400 shrink-0"></span>
+              <span className="text-[11px] sm:text-xs font-black text-slate-700 truncate max-w-[130px] sm:max-w-[200px]" title={origin_park}>
+                {origin_park}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-1 shrink-0 px-2 py-0.5 bg-white border border-slate-200 rounded-full shadow-2xs text-[10px] font-extrabold text-blue-600">
+              <span>Interstate</span>
+              <ArrowRight className="w-3 h-3 text-blue-600 animate-pulse" />
+            </div>
+
+            <div className="flex items-center gap-1.5 min-w-0 text-right justify-end">
+              <span className="text-[11px] sm:text-xs font-black text-[#0A1F44] truncate max-w-[130px] sm:max-w-[200px]" title={destination_park}>
+                {destination_park}
+              </span>
+              <span className="w-2 h-2 rounded-full bg-[#F2A93B] shrink-0"></span>
+            </div>
           </div>
         </div>
       </div>

@@ -77,75 +77,75 @@ export const FleetPushNotificationCard: React.FC = () => {
   const isGranted = permission === 'granted';
 
   return (
-    <div className={`rounded-3xl p-6 border transition-all shadow-xl ${
+    <div className={`rounded-3xl p-5 border transition-all shadow-lg ${
       isGranted
-        ? 'bg-emerald-950/20 border-emerald-500/40 text-emerald-100'
-        : 'bg-amber-950/20 border-amber-500/40 text-amber-100'
+        ? 'bg-[#0A1F44] border-emerald-500/40 text-white'
+        : 'bg-[#0F172A] border-amber-500/50 text-white'
     }`} id="fleet-push-notification-card">
       
       {/* Toast Banner */}
       {toastMessage && (
-        <div className="mb-4 bg-[#070b19] border border-emerald-500/60 text-emerald-300 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-lg">
-          <CheckCircle className="w-4 h-4 text-emerald-400 shrink-0" />
+        <div className="mb-3 bg-emerald-900/90 border border-emerald-400 text-emerald-100 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-md">
+          <CheckCircle className="w-4 h-4 text-emerald-300 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
 
-      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+      <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         
         {/* Left Side: Status & Explanation */}
-        <div className="flex items-start gap-4 min-w-0">
-          <div className={`p-3.5 rounded-2xl shrink-0 ${
-            isGranted ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+        <div className="flex items-start gap-3.5 min-w-0">
+          <div className={`p-3 rounded-2xl shrink-0 ${
+            isGranted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
           }`}>
             {isGranted ? (
-              <CheckCircle className="w-6 h-6 animate-pulse" />
+              <CheckCircle className="w-5 h-5 text-emerald-400" />
             ) : (
-              <Bell className="w-6 h-6 animate-bounce" />
+              <Bell className="w-5 h-5 text-amber-400 animate-bounce" />
             )}
           </div>
 
           <div className="space-y-1 min-w-0">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h3 className="text-base font-black tracking-tight text-white">
-                Fleet Push Notifications
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-white">
+                Fleet Tracking Push Alerts
               </h3>
-              <span className={`text-[11px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
                 isGranted
-                  ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
-                  : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
+                  : 'bg-amber-500/20 border-amber-400/50 text-amber-300'
               }`}>
-                {isGranted ? '✅ Push Alerts: ON' : '🔔 Push Alerts: OFF'}
+                {isGranted ? '✓ Push Alerts: Active' : '🔔 Alerts: Off'}
               </span>
             </div>
             
-            <p className="text-xs text-slate-300 leading-relaxed font-normal max-w-2xl">
+            <p className="text-xs text-slate-200 leading-relaxed font-medium max-w-2xl">
               {isGranted
-                ? 'Instant real-time phone push alerts are active. You will receive notifications for truck dispatches, trip delays, speed violations, and geofence arrivals even when the app is closed.'
-                : 'Enable notifications to receive instant phone alerts whenever trucks depart, arrive, enter geofences, or encounter delays.'}
+                ? 'Real-time phone notifications are active for truck dispatches, trip delays, speed warnings, and geofence arrivals.'
+                : 'Turn on notifications to receive instant phone alerts whenever trucks depart, arrive, enter geofences, or encounter delays.'}
             </p>
           </div>
         </div>
 
         {/* Right Side: Action Button */}
-        <div className="flex items-center gap-3 shrink-0 w-full md:w-auto">
+        <div className="flex items-center gap-2 shrink-0 w-full md:w-auto">
           {!isGranted ? (
             <button
               onClick={handleEnableNotifications}
               disabled={loading}
-              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-lg active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
               id="enable-fleet-push-card-btn"
             >
               <Bell className="w-4 h-4 fill-slate-950 shrink-0" />
-              <span>{loading ? 'Requesting...' : 'Turn On Notifications'}</span>
+              <span>{loading ? 'Requesting...' : 'Turn On Alerts'}</span>
             </button>
           ) : (
             <button
               onClick={handleDisableNotifications}
-              className="w-full sm:w-auto bg-[#131e3d] hover:bg-slate-700 text-slate-200 border border-blue-900/65 font-bold px-5 py-2.5 rounded-2xl text-xs transition-all cursor-pointer shadow-sm active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
               id="disable-fleet-push-card-btn"
             >
-              <span>Turn Off</span>
+              <span>Turn Off Alerts</span>
             </button>
           )}
         </div>
