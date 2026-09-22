@@ -19,7 +19,8 @@ import {
   ChevronRight,
   Lock,
   Sparkles,
-  Code2
+  Code2,
+  QrCode
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
@@ -161,14 +162,14 @@ export const HomePage: React.FC = () => {
     <div className="min-h-screen bg-[#F8FAFC] text-slate-900 flex flex-col justify-between">
       {/* Top Navigation Bar */}
       <header className="bg-[#0A1F44] text-white border-b-2 border-[#F7941D]/40 sticky top-0 z-40 shadow-sm">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between">
           <div
             onClick={handleSecretTap}
             className="flex items-center gap-2.5 cursor-pointer select-none"
             title="Waybilla"
           >
-            <Logo size="md" showText={false} />
-            <div className="flex items-center gap-1 font-black text-xl tracking-tight">
+            <Logo size="sm" showText={false} />
+            <div className="flex items-center gap-0.5 font-black text-xl tracking-tight">
               <span>Way<span className="text-[#F7941D]">billa</span></span>
             </div>
           </div>
@@ -266,6 +267,39 @@ export const HomePage: React.FC = () => {
           )}
         </div>
 
+        {/* Compact Pre-Book Banner */}
+        {!trackedWaybill && (
+          <div className="max-w-2xl mx-auto bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 hover:border-orange-300 transition-all">
+            <div className="flex items-start sm:items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-[#F7941D] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
+                <QrCode className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-[#0A1F44]">
+                    Send a Parcel? Pre-Book Online
+                  </h3>
+                  <span className="bg-orange-100 text-orange-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">
+                    New
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 font-medium leading-snug mt-0.5">
+                  Fill parcel details at home, get a QR pass, and drop off in 2 seconds at the park counter.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => navigate('/book')}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#0A1F44] hover:bg-[#143265] active:scale-95 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
+            >
+              <span>Book Online</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#F7941D]" />
+            </button>
+          </div>
+        )}
+
         {/* Tracked Shipment Result Card */}
         {trackedWaybill && (
           <div className="max-w-2xl mx-auto space-y-3 animate-fadeIn">
@@ -312,9 +346,9 @@ export const HomePage: React.FC = () => {
                 <div className="w-7 h-7 rounded-xl bg-blue-100 text-blue-900 font-black text-xs flex items-center justify-center">
                   1
                 </div>
-                <div className="font-extrabold text-xs text-[#0A1F44]">Received at Park</div>
+                <div className="font-extrabold text-xs text-[#0A1F44]">Drop-off / Intake</div>
                 <p className="text-[11px] text-slate-500 font-medium leading-snug">
-                  Sender drops carton at counter; staff issues official receipt.
+                  Pre-book online or walk in; staff registers parcel &amp; receipt.
                 </p>
               </div>
 
@@ -557,28 +591,7 @@ export const HomePage: React.FC = () => {
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
               </button>
 
-              {/* Option 4: Driver */}
-              <button
-                type="button"
-                onClick={() => {
-                  setShowStaffPortalsModal(false);
-                  navigate('/login/driver');
-                }}
-                className="w-full flex items-center justify-between p-3.5 rounded-2xl border border-slate-200 hover:border-[#0A1F44] bg-slate-50/70 hover:bg-blue-50/40 text-left transition-all active:scale-[0.99] cursor-pointer group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-800 flex items-center justify-center shrink-0 font-bold">
-                    <Truck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Driver Portal</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Trip waybill manifest &amp; emergency road pass</div>
-                  </div>
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
-              </button>
-
-              {/* Option 5: Developer API */}
+              {/* Option 4: Developer API */}
               <button
                 type="button"
                 id="modal-developer-api-btn"

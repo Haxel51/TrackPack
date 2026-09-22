@@ -32,15 +32,12 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, allowe
     else if (allowedRole === 'admin') targetLogin = '/admin/login';
     else if (allowedRole === 'manager') {
       const lastPortal = typeof localStorage !== 'undefined' ? localStorage.getItem('last_portal_role') : null;
-      if (lastPortal === 'driver' || role === 'driver') {
-        targetLogin = '/login/driver';
-      } else if (lastPortal === 'trip_monitor' || role === 'trip_monitor') {
+      if (lastPortal === 'trip_monitor' || role === 'trip_monitor') {
         targetLogin = '/login/manager?role=trip_monitor';
       } else {
         targetLogin = '/login/manager';
       }
     }
-    else if (allowedRole === 'driver') targetLogin = '/login/driver';
     else if (allowedRole === 'supplier_staff') targetLogin = '/login/supplier-staff';
 
     return <Navigate to={targetLogin} replace />;

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
@@ -18,7 +19,9 @@ import {
   Bell,
   BellOff,
   Loader2,
-  Info
+  Info,
+  QrCode,
+  Plus
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
@@ -27,6 +30,7 @@ import { requestNotificationPermission, checkRealNotificationStatus } from '../m
 import { getCustomerWaybills, confirmCustomerWaybillReceived } from '../lib/api';
 
 export const CustomerDashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
   const [waybills, setWaybills] = useState<any[]>([]);
@@ -303,6 +307,7 @@ export const CustomerDashboard: React.FC = () => {
   };
 
   const getStatusColorClass = (status: string) => {
+    if (status === 'pre_booked') return 'bg-amber-50 text-amber-800 border-amber-300';
     if (status === 'booked') return 'bg-orange-50 text-orange-700 border-orange-200';
     if (status === 'departed' || status === 'in_transit') return 'bg-blue-50 text-blue-700 border-blue-200';
     return 'bg-emerald-50 text-emerald-700 border-emerald-200';
@@ -350,6 +355,15 @@ export const CustomerDashboard: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2.5 flex-wrap">
+            {/* Pre-Book Waybill Button */}
+            <button
+              onClick={() => navigate('/book')}
+              className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] shadow-xs transition-all cursor-pointer"
+            >
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>Send Parcel (Pre-Book)</span>
+            </button>
+
             {/* Push Notifications Toggle */}
             <button
               onClick={handleToggleNotifications}

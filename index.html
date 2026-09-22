@@ -5,11 +5,11 @@
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src * 'self' 'unsafe-inline'; img-src * 'self' data: blob: https:; connect-src * 'self' ws: wss: https: http: blob: https://trackpack.onrender.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://maps.googleapis.com wss://*.firebaseio.com; media-src * 'self' blob:; font-src * 'self' data: https:; frame-src * 'self' https:;" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Waybilla — Unified Waybill & Fleet Tracking</title>
+    <title>Waybilla — Official Real-Time Waybill & Motor Park Tracking Platform</title>
     
     <!-- SEO Meta Tags -->
-    <meta name="description" content="Waybilla is the unified waybill management and real-time fleet tracking platform for motor parks, commercial transport companies, logistics operators, senders, and receivers." />
-    <meta name="keywords" content="Waybilla, Waybilla app, Waybilla tracking, Unified Waybill & Fleet Tracking, waybill tracking, fleet tracking, live GPS tracking, motor park tracking, digital waybill, Waybilla Nigeria, interstate parcel delivery, truck fleet tracking" />
+    <meta name="description" content="Waybilla (waybilla.com.ng) is Nigeria's unified digital waybill tracking and commercial motor park logistics platform for senders, drivers, transport companies, and receivers." />
+    <meta name="keywords" content="Waybilla, waybilla.com.ng, Waybilla tracking, Waybilla app, Waybilla Nigeria, digital waybill, track waybill, motor park waybill tracking, interstate parcel tracking, fleet tracking Nigeria" />
     <meta name="author" content="Waybilla" />
     <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
     <link rel="canonical" href="https://waybilla.com.ng" />
@@ -20,34 +20,48 @@
     <!-- Open Graph / Facebook Meta Tags -->
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://waybilla.com.ng" />
-    <meta property="og:title" content="Waybilla — Unified Waybill & Fleet Tracking" />
-    <meta property="og:description" content="Waybilla — Unified Waybill & Fleet Tracking platform for motor parks, transport companies, and commercial fleets." />
+    <meta property="og:title" content="Waybilla — Official Real-Time Waybill & Motor Park Tracking Platform" />
+    <meta property="og:description" content="Waybilla is Nigeria's unified digital waybill management and real-time fleet tracking platform for motor parks, commercial transport companies, and interstate travelers." />
     <meta property="og:image" content="https://waybilla.com.ng/icon-512.png" />
     <meta property="og:site_name" content="Waybilla" />
 
     <!-- Twitter Meta Tags -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:url" content="https://waybilla.com.ng" />
-    <meta name="twitter:title" content="Waybilla — Unified Waybill & Fleet Tracking" />
-    <meta name="twitter:description" content="Waybilla — Unified Waybill & Fleet Tracking platform for motor parks, transport companies, and commercial fleets." />
+    <meta name="twitter:title" content="Waybilla — Official Real-Time Waybill & Motor Park Tracking Platform" />
+    <meta name="twitter:description" content="Waybilla is Nigeria's unified digital waybill management and real-time fleet tracking platform for motor parks, commercial transport companies, and interstate travelers." />
     <meta name="twitter:image" content="https://waybilla.com.ng/icon-512.png" />
 
-    <!-- Structured Data (JSON-LD) for Search Engines & Brand Entity Recognition -->
+    <!-- Structured Data (JSON-LD) for Google Brand Entity & Favicon Indexing -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
+      "name": "Waybilla",
+      "legalName": "Waybilla",
+      "brand": {
+        "@type": "Brand",
+        "name": "Waybilla",
+        "logo": "https://waybilla.com.ng/icon-512.png"
+      },
+      "alternateName": ["Waybilla", "Waybilla Nigeria", "Waybilla App", "Waybilla Tracking", "waybilla.com.ng"],
+      "url": "https://waybilla.com.ng",
+      "logo": "https://waybilla.com.ng/icon-512.png",
+      "image": "https://waybilla.com.ng/icon-512.png",
+      "description": "Waybilla is Nigeria's unified digital waybill tracking and commercial motor park logistics network.",
+      "contactPoint": {
+        "@type": "ContactPoint",
+        "contactType": "customer service",
+        "availableLanguage": ["en"]
+      }
+    }
+    </script>
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "WebSite",
       "name": "Waybilla",
-      "headline": "Waybilla — Unified Waybill & Fleet Tracking",
-      "alternateName": [
-        "Waybilla",
-        "Waybilla Unified Waybill & Fleet Tracking",
-        "Waybilla App",
-        "Waybilla Tracking",
-        "Waybilla Nigeria",
-        "Waybilla NG",
-        "waybilla.com.ng"
-      ],
+      "alternateName": ["Waybilla", "Waybilla Tracking", "waybilla.com.ng"],
       "url": "https://waybilla.com.ng",
       "potentialAction": {
         "@type": "SearchAction",
@@ -56,23 +70,6 @@
           "urlTemplate": "https://waybilla.com.ng/?track={search_term_string}"
         },
         "query-input": "required name=search_term_string"
-      }
-    }
-    </script>
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "Organization",
-      "name": "Waybilla",
-      "legalName": "Waybilla",
-      "alternateName": ["Waybilla", "Waybilla Nigeria", "Waybilla NG", "Waybilla App"],
-      "url": "https://waybilla.com.ng",
-      "logo": "https://waybilla.com.ng/icon-512.png",
-      "description": "Waybilla is the unified digital waybill live tracking and commercial motor park fleet management platform.",
-      "contactPoint": {
-        "@type": "ContactPoint",
-        "contactType": "customer service",
-        "availableLanguage": ["en"]
       }
     }
     </script>
@@ -90,11 +87,14 @@
     }
     </script>
 
-    <link rel="icon" type="image/png" href="/logo.png" />
-    <link rel="preload" href="/logo.png" as="image" />
-    <link rel="preload" href="/icon-512.png" as="image" />
+    <!-- Favicons & Touch Icons with Cache Buster for Googlebot -->
+    <link rel="icon" type="image/png" sizes="32x32" href="/logo.png?v=3" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png?v=3" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png?v=3" />
+    <link rel="shortcut icon" href="/logo.png?v=3" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/icon-192.png?v=3" />
+    <link rel="preload" href="/logo.png?v=3" as="image" />
     <link rel="manifest" href="/manifest.json" />
-    <link rel="apple-touch-icon" href="/icon-192.png" />
     <meta name="theme-color" content="#0A1F44" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

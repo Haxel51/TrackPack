@@ -3,7 +3,7 @@
   <!-- Main Home Page (Waybill Live Tracking Search Console) -->
   <url>
     <loc>https://waybilla.com.ng/</loc>
-    <lastmod>2026-08-19</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.00</priority>
   </url>
@@ -11,15 +11,7 @@
   <!-- Customer Login Portal -->
   <url>
     <loc>https://waybilla.com.ng/login/customer</loc>
-    <lastmod>2026-08-19</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.80</priority>
-  </url>
-
-  <!-- Driver Portal -->
-  <url>
-    <loc>https://waybilla.com.ng/login/driver</loc>
-    <lastmod>2026-08-19</lastmod>
+    <lastmod>2026-09-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.80</priority>
   </url>
@@ -27,7 +19,7 @@
   <!-- Staff Terminal Portal -->
   <url>
     <loc>https://waybilla.com.ng/login/staff</loc>
-    <lastmod>2026-08-19</lastmod>
+    <lastmod>2026-09-22</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.70</priority>
   </url>
@@ -35,7 +27,7 @@
   <!-- Transport Company Admin Portal -->
   <url>
     <loc>https://waybilla.com.ng/login/company</loc>
-    <lastmod>2026-08-19</lastmod>
+    <lastmod>2026-09-21</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.60</priority>
   </url>

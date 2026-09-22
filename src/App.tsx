@@ -17,6 +17,7 @@ import { ManagerLogin } from './pages/ManagerLogin';
 import { CompanyLogin } from './pages/CompanyLogin';
 import { AdminLogin } from './pages/AdminLogin';
 import { ResetPassword } from './pages/ResetPassword';
+import { PreBookWaybillPage } from './pages/PreBookWaybillPage';
 
 // Dashboards (Protected)
 import { CustomerDashboard } from './pages/CustomerDashboard';
@@ -43,14 +44,15 @@ export default function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
+            <Route path="/book" element={<PreBookWaybillPage />} />
+            <Route path="/pre-book" element={<PreBookWaybillPage />} />
+            <Route path="/send-parcel" element={<PreBookWaybillPage />} />
             <Route path="/login/customer" element={<CustomerLogin />} />
             <Route path="/customer/login" element={<CustomerLogin />} />
             <Route path="/login/staff" element={<StaffLogin />} />
             <Route path="/staff/login" element={<StaffLogin />} />
             <Route path="/login/manager" element={<ManagerLogin />} />
             <Route path="/manager/login" element={<ManagerLogin />} />
-            <Route path="/login/driver" element={<ManagerLogin roleOverride="driver" />} />
-            <Route path="/driver/login" element={<ManagerLogin roleOverride="driver" />} />
             <Route path="/login/company" element={<CompanyLogin />} />
             <Route path="/company/login" element={<CompanyLogin />} />
             <Route path="/login/admin" element={<AdminLogin />} />

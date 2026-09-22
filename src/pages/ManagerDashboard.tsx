@@ -19,7 +19,6 @@ import {
 } from 'lucide-react';
 import { DailyRemittanceModal } from '../components/company/DailyRemittanceModal';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
-import { DriverScreen } from './DriverScreen';
 import { initializeFCM } from '../modules/fleetTracking/fcm';
 
 export const ManagerDashboard: React.FC = () => {
@@ -149,7 +148,18 @@ export const ManagerDashboard: React.FC = () => {
   const handleCreateStaff = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newStaffName.trim()) {
-      setCreateStaffError('Staff name is required');
+      setCreateStaffError('Staff full name is required');
+      return;
+    }
+
+    const cleanPhone = newStaffPhone.trim().replace(/[\s-]/g, '');
+    if (!cleanPhone) {
+      setCreateStaffError('Staff phone number is required. The staff member needs their registered 11-digit phone number to sign into the Staff Terminal and set their private PIN.');
+      return;
+    }
+
+    if (!/^[0-9]{11}$/.test(cleanPhone)) {
+      setCreateStaffError('Please enter a valid 11-digit Nigerian phone number (e.g., 08012345678).');
       return;
     }
 
@@ -162,18 +172,20 @@ export const ManagerDashboard: React.FC = () => {
 
       const res = await createManagerStaff(activeToken, {
         name: newStaffName.trim(),
-        phone: newStaffPhone.trim() || undefined
+        phone: cleanPhone
       });
 
       if (res.success) {
         setShowCreateStaffModal(false);
         setNewStaffName('');
         setNewStaffPhone('');
-        setPinModal({
-          title: 'Staff Created Successfully',
-          name: res.name || newStaffName.trim(),
-          pin: res.pin
-        });
+        if (res.pin) {
+          setPinModal({
+            title: 'Staff Created Successfully',
+            name: res.name || newStaffName.trim(),
+            pin: res.pin
+          });
+        }
         fetchData();
       } else {
         setCreateStaffError(res.error || 'Failed to create staff member.');
@@ -270,7 +282,6 @@ export const ManagerDashboard: React.FC = () => {
     { id: 'remittance' as const, label: 'Daily Remittance (70/30)', icon: Wallet },
   ];
 
-  const isDriver = user?.role === 'driver' || user?.manager_type === 'Driver';
   const isTripMonitor = user?.role === 'trip_monitor' || user?.manager_type === 'Trip Monitor';
   const isFleetManager =
     user?.is_fleet_only ||
@@ -279,10 +290,6 @@ export const ManagerDashboard: React.FC = () => {
     user?.service_mode === 'haulage' ||
     user?.service_type === 'haulage' ||
     user?.manager_type === 'Fleet Manager';
-
-  if (isDriver) {
-    return <DriverScreen />;
-  }
 
   if (isTripMonitor || isFleetManager) {
     return <FleetDashboard showSwitchModule={false} />;
@@ -775,18 +782,23 @@ export const ManagerDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">Phone Number (Optional)</label>
+                <label className="text-xs font-bold text-slate-600 uppercase block mb-1">Staff Phone Number *</label>
                 <input
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={newStaffPhone}
                   onChange={(e) => setNewStaffPhone(e.target.value)}
                   className="w-full bg-[#FAFAFA] border border-slate-200 rounded-2xl py-3 px-4 text-xs font-semibold outline-none focus:border-[#0A1F44]"
+                  required
                 />
+                <p className="text-[11px] text-slate-500 font-medium mt-1">
+                  Required: Staff will use this 11-digit phone number to sign in and set their secret 4-digit PIN.
+                </p>
               </div>
 
               <div className="p-3 bg-blue-50 border border-blue-200 rounded-2xl text-xs text-blue-800 font-semibold">
-                Staff will be assigned automatically to <strong>{user?.park_location}</strong>. A 4-digit PIN will be auto-generated.
+                Staff will be assigned automatically to <strong>{user?.park_location}</strong>.
               </div>
 
               {createStaffError && (

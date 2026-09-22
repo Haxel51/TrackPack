@@ -7,7 +7,7 @@ import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
 
 interface ManagerLoginProps {
-  roleOverride?: 'driver' | 'trip_monitor' | 'manager';
+  roleOverride?: 'trip_monitor' | 'manager';
 }
 
 export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
@@ -17,18 +17,21 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
   const [searchParams] = useSearchParams();
   const roleParam = searchParams.get('role') || searchParams.get('type') || '';
 
+  // Clear any legacy driver role from localStorage
+  if (typeof localStorage !== 'undefined' && localStorage.getItem('last_portal_role') === 'driver') {
+    localStorage.removeItem('last_portal_role');
+  }
+
   const lastPortalRole = typeof localStorage !== 'undefined' ? localStorage.getItem('last_portal_role') : null;
 
-  const isDriverRoute = roleOverride === 'driver' || location.pathname.includes('driver') || roleParam === 'driver' || lastPortalRole === 'driver';
   const isTripMonitorRoute = roleOverride === 'trip_monitor' || location.pathname.includes('trip_monitor') || roleParam === 'trip_monitor' || lastPortalRole === 'trip_monitor';
 
   useEffect(() => {
     if (typeof localStorage !== 'undefined') {
-      if (isDriverRoute) localStorage.setItem('last_portal_role', 'driver');
-      else if (isTripMonitorRoute) localStorage.setItem('last_portal_role', 'trip_monitor');
-      else if (roleParam === 'manager') localStorage.setItem('last_portal_role', 'manager');
+      if (isTripMonitorRoute) localStorage.setItem('last_portal_role', 'trip_monitor');
+      else localStorage.setItem('last_portal_role', 'manager');
     }
-  }, [isDriverRoute, isTripMonitorRoute, roleParam]);
+  }, [isTripMonitorRoute, roleParam]);
 
   const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
   const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
@@ -65,15 +68,15 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
   const [attemptsLeft, setAttemptsLeft] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Redirect if already logged in as manager, trip monitor, or driver
+  // Redirect if already logged in as manager or trip monitor
   useEffect(() => {
     const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
     const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
-    const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
+    const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
     const managerToken = typeof localStorage !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('manager_token')) : null;
     const currentToken = token || managerToken;
 
-    const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver';
+    const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor';
 
     if (currentToken && isAuthorizedRole) {
       navigate('/manager/dashboard', { replace: true });
@@ -82,11 +85,11 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
 
   const cachedRole = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_role') : null;
   const cachedUser = typeof localStorage !== 'undefined' && localStorage.getItem('auth_user') ? JSON.parse(localStorage.getItem('auth_user')!) : null;
-  const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Driver' ? 'driver' : cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
+  const currentRole = role || cachedRole || cachedUser?.role || (cachedUser?.manager_type === 'Trip Monitor' ? 'trip_monitor' : (cachedUser?.manager_type ? 'manager' : null));
   const managerToken = typeof localStorage !== 'undefined' ? (localStorage.getItem('auth_token') || localStorage.getItem('manager_token')) : null;
   const currentToken = token || managerToken;
 
-  const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor' || currentRole === 'driver';
+  const isAuthorizedRole = currentRole === 'manager' || currentRole === 'trip_monitor';
 
   if (currentToken && isAuthorizedRole) {
     return (
@@ -97,14 +100,11 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
     );
   }
 
-  const portalTitle = isDriverRoute 
-    ? 'Driver Portal' 
-    : isTripMonitorRoute 
-      ? 'Trip Monitor Portal' 
-      : 'Manager & Operational Staff Portal';
+  const portalTitle = isTripMonitorRoute 
+    ? 'Trip Monitor Portal' 
+    : 'Park Manager & Auditor Portal';
 
-  const detectedRole = isDriverRoute ? 'driver' : isTripMonitorRoute ? 'trip_monitor' : (managerInfo?.role || (managerInfo?.manager_type === 'Driver' ? 'driver' : managerInfo?.manager_type === 'Trip Monitor' ? 'trip_monitor' : 'manager'));
-  const isDriver = detectedRole === 'driver';
+  const detectedRole = isTripMonitorRoute ? 'trip_monitor' : (managerInfo?.role || (managerInfo?.manager_type === 'Trip Monitor' ? 'trip_monitor' : 'manager'));
   const isTripMonitor = detectedRole === 'trip_monitor';
 
   // Registration Submit (Part 1 Requirement)
@@ -286,9 +286,7 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
           <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
-            {isDriverRoute ? (
-              <Truck className="text-[#F7941D] w-7 h-7" />
-            ) : isTripMonitorRoute ? (
+            {isTripMonitorRoute ? (
               <Eye className="text-[#F7941D] w-7 h-7" />
             ) : (
               <UserCheck className="text-[#F7941D] w-7 h-7" />
@@ -303,11 +301,9 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
               : step === 'forgot_pin'
                 ? 'Recover access to your account by verifying your registered phone number.'
                 : step === 'phone' 
-                  ? isDriverRoute 
-                    ? 'Enter your phone number to sign in to your Driver Portal.'
-                    : isTripMonitorRoute
-                      ? 'Enter your phone number to sign in to your Trip Monitor Portal.'
-                      : 'Enter your phone number to match your registered transport company profile.' 
+                  ? isTripMonitorRoute
+                    ? 'Enter your phone number to sign in to your Trip Monitor Portal.'
+                    : 'Enter your phone number to match your registered transport company profile.' 
                   : managerInfo?.has_pin 
                     ? 'Enter your 6-digit PIN to access your portal dashboard.'
                     : 'Set up your secret 6-digit PIN for first-time access.'}
@@ -470,7 +466,7 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
           <form onSubmit={handleCheckPhone} className="space-y-5">
             <div className="space-y-1.5">
               <label htmlFor="manager-phone" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                {isDriverRoute ? 'Driver Phone Number' : isTripMonitorRoute ? 'Trip Monitor Phone Number' : 'Manager Phone Number'}
+                {isTripMonitorRoute ? 'Trip Monitor Phone Number' : 'Manager Phone Number'}
               </label>
               <div className="relative">
                 <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
@@ -531,11 +527,9 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-emerald-600 text-xs font-extrabold uppercase tracking-wider">
                   <CheckCircle2 className="w-4 h-4" /> {
-                    managerInfo.role === 'driver' || managerInfo.manager_type === 'Driver' 
-                      ? 'Driver Account Verified' 
-                      : managerInfo.role === 'trip_monitor' || managerInfo.manager_type === 'Trip Monitor' 
-                        ? 'Trip Monitor Account Verified' 
-                        : 'Company Manager Verified'
+                    managerInfo.role === 'trip_monitor' || managerInfo.manager_type === 'Trip Monitor' 
+                      ? 'Trip Monitor Account Verified' 
+                      : 'Park Manager / Auditor Verified'
                   }
                 </div>
                 <button
@@ -570,11 +564,9 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
                     <KeyRound className="w-4 h-4 text-orange-600" /> First Time Setup: Create Your PIN
                   </p>
                   <p>
-                    {isDriver 
-                      ? 'Create a secret 6-digit PIN to secure your driver account for future sign-ins.' 
-                      : isTripMonitor 
-                        ? 'Create a secret 6-digit PIN to secure your trip monitor account for future sign-ins.' 
-                        : 'Create a secret 6-digit PIN to secure your manager account for future sign-ins.'}
+                    {isTripMonitor 
+                      ? 'Create a secret 6-digit PIN to secure your trip monitor account for future sign-ins.' 
+                      : 'Create a secret 6-digit PIN to secure your manager account for future sign-ins.'}
                   </p>
                 </div>
 
@@ -695,12 +687,10 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
                 <span className="inline-block w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
               ) : !managerInfo.has_pin ? (
                 'Save PIN & Sign In'
-              ) : isDriver ? (
-                'Sign In as Driver'
               ) : isTripMonitor ? (
                 'Sign In as Trip Monitor'
               ) : (
-                'Sign In as Manager'
+                'Sign In as Park Manager'
               )}
             </button>
           </form>
@@ -760,11 +750,9 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
 
         <div className="text-center pt-2 text-xs text-slate-400">
           <p>
-            {isDriver 
-              ? 'Drivers secure their account with a private 6-digit PIN upon sign in.' 
-              : isTripMonitor 
-                ? 'Trip Monitors secure their account with a private 6-digit PIN upon sign in.' 
-                : 'Managers create and secure their own private 6-digit PIN upon sign in.'}
+            {isTripMonitor 
+              ? 'Trip Monitors secure their account with a private 6-digit PIN upon sign in.' 
+              : 'Park Managers create and secure their own private 6-digit PIN upon sign in.'}
           </p>
         </div>
       </div>

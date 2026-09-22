@@ -1043,6 +1043,45 @@ async function findManagerByPhone(phone: string): Promise<{ id: string; collecti
   return null;
 }
 
+async function findStaffByPhone(phone: string): Promise<{ id: string; data: any } | null> {
+  const normPhone = normalizeNigerianPhone(phone);
+  if (!normPhone) return null;
+
+  const possibleFormats = Array.from(new Set([
+    normPhone,
+    phone.trim(),
+    phone.replace(/\D/g, ""),
+    normPhone.startsWith("0") ? "234" + normPhone.substring(1) : normPhone,
+    normPhone.startsWith("0") ? "+234" + normPhone.substring(1) : normPhone,
+    normPhone.startsWith("0") ? normPhone.substring(1) : normPhone
+  ])).filter(Boolean);
+
+  for (const fmt of possibleFormats) {
+    const q = query(collection(db, "staff"), where("phone", "==", fmt), limit(5));
+    const snap = await getDocs(q);
+    if (!snap.empty) {
+      const activeDoc = snap.docs.find(d => d.data().active !== false) || snap.docs[0];
+      return { id: activeDoc.id, data: activeDoc.data() };
+    }
+  }
+
+  // Fallback memory scan across staff
+  try {
+    const allStaffSnap = await getDocs(collection(db, "staff"));
+    for (const sDoc of allStaffSnap.docs) {
+      const sData = sDoc.data();
+      const sPhone = sData.phone || sData.staff_phone;
+      if (sPhone && normalizeNigerianPhone(sPhone) === normPhone) {
+        return { id: sDoc.id, data: sData };
+      }
+    }
+  } catch (err) {
+    console.warn("Fallback staff phone scan warning:", err);
+  }
+
+  return null;
+}
+
 // Universal helper to dynamically resolve a driver's real vehicle registration plate number
 async function resolveDriverPlateNumber(
   companyId?: string | null,
@@ -1408,44 +1447,247 @@ app.post("/api/auth/customer/forgot-pin/reset", async (req, res) => {
   }
 });
 
-// 2. Staff Login Route
+// 2. Staff Check Phone Endpoint (verifies phone matches an active transport company staff profile)
+app.post("/api/auth/staff/check-phone", async (req, res) => {
+  const { phone_number } = req.body;
+  const rawPhone = String(phone_number || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
+
+  if (!rawPhone) {
+    return res.status(400).json({ error: "Phone number is required." });
+  }
+
+  if (!isValid11DigitPhone(rawPhone)) {
+    return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
+  }
+
+  try {
+    const staffResult = await findStaffByPhone(cleanPhone);
+
+    if (!staffResult) {
+      return res.status(404).json({ error: "This phone number is not registered as active staff for any transport company. Please ask your park manager or CEO to add your phone number." });
+    }
+
+    const staffData = staffResult.data;
+
+    if (staffData.active === false) {
+      return res.status(403).json({ error: "Your staff account has been deactivated. Please contact your company manager." });
+    }
+
+    // Check company status
+    const companyRef = doc(db, "companies", staffData.company_id);
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists()) {
+      return res.status(400).json({ error: "Your company was not found or has been removed." });
+    }
+    const companyData = companySnap.data();
+    if (companyData.suspended === true || companyData.suspended === "true") {
+      return res.status(400).json({ error: "Your company has been suspended. Please contact customer support." });
+    }
+    if (!companyData.approved) {
+      return res.status(400).json({ error: "Your company is pending approval." });
+    }
+
+    // Only treat as having PIN if it was explicitly set by user
+    const hasPin = Boolean(staffData.pin_set_by_user === true && staffData.pin_hash);
+
+    res.json({
+      success: true,
+      registered: true,
+      has_pin: hasPin,
+      staff_name: staffData.name,
+      company_name: companyData.company_name || "Transport Company",
+      park_location: staffData.park_location,
+      role: "staff"
+    });
+  } catch (err) {
+    console.error("Error checking staff phone:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 2b. Staff Set PIN Endpoint (First-time PIN setup or PIN reset)
+app.post("/api/auth/staff/set-pin", async (req, res) => {
+  const { phone_number, pin, confirm_pin } = req.body;
+  const rawPhone = String(phone_number || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
+  const cleanPin = String(pin || "").trim();
+  const cleanConfirm = String(confirm_pin || "").trim();
+
+  if (!rawPhone || !cleanPin) {
+    return res.status(400).json({ error: "Phone number and 4-digit PIN are required." });
+  }
+
+  if (!isValid11DigitPhone(rawPhone)) {
+    return res.status(400).json({ error: "Phone number must be a valid 11-digit number (e.g. 08012345678)." });
+  }
+
+  if (cleanPin.length !== 4 && cleanPin.length !== 6 || isNaN(Number(cleanPin))) {
+    return res.status(400).json({ error: "PIN must be a 4-digit (or 6-digit) number." });
+  }
+
+  if (cleanConfirm && cleanPin !== cleanConfirm) {
+    return res.status(400).json({ error: "PINs do not match. Please re-enter your PIN." });
+  }
+
+  try {
+    const staffResult = await findStaffByPhone(cleanPhone);
+
+    if (!staffResult) {
+      return res.status(404).json({ error: "This phone number is not registered for any transport company." });
+    }
+
+    const staffDocId = staffResult.id;
+    const staffData = staffResult.data;
+
+    if (staffData.active === false) {
+      return res.status(403).json({ error: "Your account has been deactivated. Please contact your company manager." });
+    }
+
+    const companyRef = doc(db, "companies", staffData.company_id);
+    const companySnap = await getDoc(companyRef);
+    if (!companySnap.exists()) {
+      return res.status(400).json({ error: "Your company was not found or has been removed." });
+    }
+    const companyData = companySnap.data();
+    if (companyData.suspended === true || companyData.suspended === "true") {
+      return res.status(400).json({ error: "Your company has been suspended. Please contact customer support." });
+    }
+    if (!companyData.approved) {
+      return res.status(400).json({ error: "Your company is pending approval." });
+    }
+
+    // Hash and store PIN with pin_set_by_user = true
+    const hashedPin = await bcrypt.hash(cleanPin, 10);
+    const staffRef = doc(db, "staff", staffDocId);
+    await updateDoc(staffRef, {
+      pin_hash: hashedPin,
+      pin_set_by_user: true,
+      failed_attempts: 0,
+      locked_until: null
+    });
+
+    // Create session token
+    const token = generateSessionToken();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    await setDoc(doc(db, "sessions", token), {
+      userId: staffDocId,
+      userRole: "staff",
+      userData: {
+        id: staffDocId,
+        staff_id: staffDocId,
+        name: staffData.name,
+        phone: cleanPhone,
+        company_id: staffData.company_id,
+        park_id: staffData.park_id,
+        park_location: staffData.park_location,
+        active: true
+      },
+      createdAt: new Date().toISOString(),
+      expiresAt
+    });
+
+    res.json({
+      success: true,
+      message: "PIN set successfully. You are now logged in.",
+      token,
+      role: "staff",
+      user: {
+        id: staffDocId,
+        name: staffData.name,
+        phone: cleanPhone,
+        company_id: staffData.company_id,
+        company_name: companyData.company_name,
+        park_location: staffData.park_location,
+        role: "staff"
+      }
+    });
+  } catch (err) {
+    console.error("Error setting staff PIN:", err);
+    res.status(500).json({ error: "Internal server error." });
+  }
+});
+
+// 2c. Staff Login Route (by Phone + PIN, or legacy PIN)
 app.post("/api/auth/staff/login", async (req, res) => {
-  const { pin } = req.body;
-  if (!pin) {
+  const { phone_number, phone, pin } = req.body;
+  const rawPhone = String(phone_number || phone || "").trim();
+  const cleanPhone = normalizeNigerianPhone(rawPhone);
+  const cleanPin = String(pin || "").trim();
+
+  if (!cleanPin) {
     return res.status(400).json({ error: "PIN is required." });
   }
 
   try {
-    // Check PIN lockouts first
-    const pinLock = await getPinLockout(pin);
-    if (pinLock.locked) {
-      return res.status(429).json({ error: `Too many attempts. Try again in ${pinLock.timeLeftMinutes} minutes.` });
-    }
-
-    // Since PIN is hashed via bcrypt and unique, fetch all active staff and verify bcrypt
-    const q = query(collection(db, "staff"), where("active", "==", true));
-    const snap = await getDocs(q);
-    
-    let matchedStaffDoc = null;
+    let matchedStaffDocId = null;
     let matchedStaffData = null;
 
-    for (const docObj of snap.docs) {
-      const staff = docObj.data();
-      const isMatch = await bcrypt.compare(pin, staff.pin_hash);
-      if (isMatch) {
-        matchedStaffDoc = docObj;
-        matchedStaffData = staff;
-        break;
+    if (cleanPhone) {
+      // Direct phone lookup
+      const staffRes = await findStaffByPhone(cleanPhone);
+      if (!staffRes) {
+        return res.status(404).json({ error: "This phone number is not registered for any transport company. Please ask your manager or CEO to add your phone number." });
       }
+      matchedStaffDocId = staffRes.id;
+      matchedStaffData = staffRes.data;
+
+      if (!matchedStaffData.pin_hash) {
+        return res.status(400).json({ error: "You have not set up your PIN yet. Please set your PIN first." });
+      }
+
+      // Check PIN lockouts
+      const pinLock = await getPinLockout(cleanPhone);
+      if (pinLock.locked) {
+        return res.status(429).json({ error: `Too many attempts. Try again in ${pinLock.timeLeftMinutes} minutes.` });
+      }
+
+      const isMatch = await bcrypt.compare(cleanPin, matchedStaffData.pin_hash);
+      if (!isMatch) {
+        const pinFail = await handlePinFailure(cleanPhone);
+        if (pinFail.locked) {
+          return res.status(429).json({ error: "Too many attempts. Try again in 30 minutes." });
+        }
+        return res.status(401).json({ error: "Incorrect PIN. Please try again.", attemptsLeft: pinFail.attemptsLeft });
+      }
+
+      await handlePinSuccess(cleanPhone);
+    } else {
+      // Legacy PIN-only scan
+      const pinLock = await getPinLockout(cleanPin);
+      if (pinLock.locked) {
+        return res.status(429).json({ error: `Too many attempts. Try again in ${pinLock.timeLeftMinutes} minutes.` });
+      }
+
+      const q = query(collection(db, "staff"), where("active", "==", true));
+      const snap = await getDocs(q);
+      
+      for (const docObj of snap.docs) {
+        const staff = docObj.data();
+        if (staff.pin_hash) {
+          const isMatch = await bcrypt.compare(cleanPin, staff.pin_hash);
+          if (isMatch) {
+            matchedStaffDocId = docObj.id;
+            matchedStaffData = staff;
+            break;
+          }
+        }
+      }
+
+      if (!matchedStaffDocId || !matchedStaffData) {
+        const pinFail = await handlePinFailure(cleanPin);
+        if (pinFail.locked) {
+          return res.status(429).json({ error: "Too many attempts. Try again in 30 minutes." });
+        }
+        return res.status(401).json({ error: "Invalid PIN.", attemptsLeft: pinFail.attemptsLeft });
+      }
+
+      await handlePinSuccess(cleanPin);
     }
 
-    if (!matchedStaffDoc || !matchedStaffData) {
-      // Record pin-specific lockout
-      const pinFail = await handlePinFailure(pin);
-      if (pinFail.locked) {
-        return res.status(429).json({ error: "Too many attempts. Try again in 30 minutes." });
-      }
-      return res.status(401).json({ error: "Invalid PIN.", attemptsLeft: pinFail.attemptsLeft });
+    if (matchedStaffData.active === false) {
+      return res.status(403).json({ error: "Your staff account has been deactivated. Please contact your company manager." });
     }
 
     // Check if company is suspended/pending
@@ -1462,20 +1704,21 @@ app.post("/api/auth/staff/login", async (req, res) => {
       return res.status(400).json({ error: "Your company is suspended or pending approval." });
     }
 
-    // Success! Clear any PIN lockouts
-    await handlePinSuccess(pin);
-
     // Create session token (durable for 30 days)
     const token = generateSessionToken();
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     await setDoc(doc(db, "sessions", token), {
-      userId: matchedStaffDoc.id,
+      userId: matchedStaffDocId,
       userRole: "staff",
       userData: {
+        id: matchedStaffDocId,
+        staff_id: matchedStaffDocId,
         name: matchedStaffData.name,
-        phone: matchedStaffData.phone || matchedStaffData.staff_phone || "",
+        phone: matchedStaffData.phone || matchedStaffData.staff_phone || cleanPhone || "",
         company_id: matchedStaffData.company_id,
+        company_name: companyData.company_name,
+        park_id: matchedStaffData.park_id,
         park_location: matchedStaffData.park_location,
         active: matchedStaffData.active
       },
@@ -1488,8 +1731,13 @@ app.post("/api/auth/staff/login", async (req, res) => {
       token,
       role: "staff",
       user: {
+        id: matchedStaffDocId,
         name: matchedStaffData.name,
-        park_location: matchedStaffData.park_location
+        phone: matchedStaffData.phone || cleanPhone || "",
+        company_id: matchedStaffData.company_id,
+        company_name: companyData.company_name,
+        park_location: matchedStaffData.park_location,
+        role: "staff"
       }
     });
   } catch (err) {
@@ -4560,7 +4808,7 @@ app.post("/api/company/parks", async (req, res) => {
   }
 });
 
-// 4. Add Staff to This Park
+// 4. Add Staff to This Park (Company CEO)
 app.post("/api/company/staff", async (req, res) => {
   try {
     const session = await validateCompanySessionFromHeader(req, res);
@@ -4569,12 +4817,35 @@ app.post("/api/company/staff", async (req, res) => {
 
     const { name, phone, park_id } = req.body;
     if (!name || !park_id) {
-      return res.status(400).json({ error: "Staff name and park selection are required." });
+      return res.status(400).json({ error: "Staff full name and park selection are required." });
     }
 
-    const cleanPhone = (phone || "").trim();
-    if (cleanPhone && !isValid11DigitPhone(cleanPhone)) {
-      return res.status(400).json({ error: "If provided, staff phone number must be a valid 11-digit phone number (e.g. 08012345678)." });
+    const cleanPhone = (phone || "").trim().replace(/[\s-]/g, "");
+    if (!cleanPhone) {
+      return res.status(400).json({ 
+        error: "Staff phone number is required so the worker can sign into the Staff Terminal and set their private 4-digit PIN." 
+      });
+    }
+
+    if (!isValid11DigitPhone(cleanPhone)) {
+      return res.status(400).json({ 
+        error: "Phone number must be a valid 11-digit Nigerian number (e.g. 08012345678). Registration cannot proceed without a valid phone number." 
+      });
+    }
+
+    // Check if phone number is already registered to an active staff or manager
+    const existingStaff = await findStaffByPhone(cleanPhone);
+    if (existingStaff && existingStaff.data.active !== false) {
+      return res.status(400).json({ 
+        error: `This phone number (${cleanPhone}) is already assigned to an active staff member (${existingStaff.data.name || 'Staff'}). The old account must be deleted first before re-registering under a new company.` 
+      });
+    }
+
+    const existingManager = await findManagerByPhone(cleanPhone);
+    if (existingManager && existingManager.data.active !== false) {
+      return res.status(400).json({ 
+        error: `This phone number (${cleanPhone}) is already assigned to an active manager profile.` 
+      });
     }
 
     // Get the park location first
@@ -4585,40 +4856,11 @@ app.post("/api/company/staff", async (req, res) => {
     }
     const parkLocation = parkSnap.data().park_location;
 
-    // Generate unique 4-digit PIN
-    let pin = "";
-    let pinUnique = false;
-    
-    // Fetch all active staff to verify bcrypt uniqueness
-    const allStaffSnap = await getDocs(collection(db, "staff"));
-    const staffDocs = allStaffSnap.docs.map(d => d.data());
-
-    let loopSafety = 0;
-    while (!pinUnique && loopSafety < 100) {
-      loopSafety++;
-      pin = Math.floor(1000 + Math.random() * 9000).toString();
-      if (isWeakPin(pin, 4).weak) continue;
-      let foundMatch = false;
-      for (const staff of staffDocs) {
-        if (staff.pin_hash) {
-          const isMatch = await bcrypt.compare(pin, staff.pin_hash);
-          if (isMatch) {
-            foundMatch = true;
-            break;
-          }
-        }
-      }
-      if (!foundMatch) {
-        pinUnique = true;
-      }
-    }
-
-    const hashedPin = await bcrypt.hash(pin, 10);
-
+    // Staff will choose their own PIN on first login (pin_hash = null)
     const newStaffDoc = await addDoc(collection(db, "staff"), {
       name: name.trim(),
-      phone: phone.trim(),
-      pin_hash: hashedPin,
+      phone: cleanPhone,
+      pin_hash: null, // Staff chooses own PIN on first sign-in
       company_id: companyId,
       park_id: park_id,
       park_location: parkLocation,
@@ -4630,16 +4872,16 @@ app.post("/api/company/staff", async (req, res) => {
 
     res.json({
       success: true,
+      message: "Staff member registered successfully. They can now sign in using their phone number and choose their private PIN.",
       staff: {
         id: newStaffDoc.id,
         name: name.trim(),
-        phone: phone.trim(),
+        phone: cleanPhone,
         park_id: park_id,
         park_location: parkLocation,
         active: true,
         created_at: new Date().toISOString()
-      },
-      pin // ONE-TIME clear-text PIN sent back in response
+      }
     });
   } catch (err) {
     console.error("Error creating staff:", err);
@@ -4729,38 +4971,9 @@ app.post("/api/company/staff/:id/reset-pin", async (req, res) => {
 
     const staffName = staffSnap.data().name;
 
-    // Generate unique 4-digit PIN
-    let pin = "";
-    let pinUnique = false;
-    
-    // Fetch all staff to verify bcrypt uniqueness
-    const allStaffSnap = await getDocs(collection(db, "staff"));
-    const staffDocs = allStaffSnap.docs.map(d => d.data());
-
-    let loopSafety = 0;
-    while (!pinUnique && loopSafety < 100) {
-      loopSafety++;
-      pin = Math.floor(1000 + Math.random() * 9000).toString();
-      if (isWeakPin(pin, 4).weak) continue;
-      let foundMatch = false;
-      for (const staff of staffDocs) {
-        if (staff.pin_hash) {
-          const isMatch = await bcrypt.compare(pin, staff.pin_hash);
-          if (isMatch) {
-            foundMatch = true;
-            break;
-          }
-        }
-      }
-      if (!foundMatch) {
-        pinUnique = true;
-      }
-    }
-
-    const hashedPin = await bcrypt.hash(pin, 10);
-
     await updateDoc(staffRef, {
-      pin_hash: hashedPin,
+      pin_hash: null,
+      pin_set_by_user: false,
       failed_attempts: 0,
       locked_until: null
     });
@@ -4768,7 +4981,7 @@ app.post("/api/company/staff/:id/reset-pin", async (req, res) => {
     res.json({
       success: true,
       name: staffName,
-      pin // ONE-TIME clear-text PIN sent back in response
+      message: "Staff PIN reset successfully. The staff member can now create their new PIN on their next login."
     });
   } catch (err) {
     console.error("Error resetting staff PIN:", err);
@@ -5730,44 +5943,42 @@ app.post("/api/manager/staff", async (req, res) => {
 
     const { name, phone } = req.body;
     if (!name) {
-      return res.status(400).json({ error: "Staff name is required." });
+      return res.status(400).json({ error: "Staff full name is required." });
     }
 
-    const cleanPhone = (phone || "").trim();
-    if (cleanPhone && !isValid11DigitPhone(cleanPhone)) {
-      return res.status(400).json({ error: "If provided, staff phone number must be a valid 11-digit phone number (e.g. 08012345678)." });
+    const cleanPhone = (phone || "").trim().replace(/[\s-]/g, "");
+    if (!cleanPhone) {
+      return res.status(400).json({ 
+        error: "Staff phone number is required so the worker can sign into the Staff Terminal and set their private 4-digit PIN." 
+      });
     }
 
-    // Generate unique 4-digit PIN
-    let pin = "";
-    let pinUnique = false;
-    const allStaffSnap = await getDocs(collection(db, "staff"));
-    const staffDocs = allStaffSnap.docs.map(d => d.data());
-
-    let loopSafety = 0;
-    while (!pinUnique && loopSafety < 100) {
-      loopSafety++;
-      pin = Math.floor(1000 + Math.random() * 9000).toString();
-      if (isWeakPin(pin, 4).weak) continue;
-      let foundMatch = false;
-      for (const s of staffDocs) {
-        if (s.pin_hash) {
-          const isMatch = await bcrypt.compare(pin, s.pin_hash);
-          if (isMatch) {
-            foundMatch = true;
-            break;
-          }
-        }
-      }
-      if (!foundMatch) pinUnique = true;
+    if (!isValid11DigitPhone(cleanPhone)) {
+      return res.status(400).json({ 
+        error: "Phone number must be a valid 11-digit Nigerian number (e.g. 08012345678). Registration cannot proceed without a valid phone number." 
+      });
     }
 
-    const hashedPin = await bcrypt.hash(pin, 10);
+    // Check if phone number is already registered to an active staff or manager
+    const existingStaff = await findStaffByPhone(cleanPhone);
+    if (existingStaff && existingStaff.data.active !== false) {
+      return res.status(400).json({ 
+        error: `This phone number (${cleanPhone}) is already assigned to an active staff member (${existingStaff.data.name || 'Staff'}). The old account must be deleted first before re-registering.` 
+      });
+    }
 
+    const existingManager = await findManagerByPhone(cleanPhone);
+    if (existingManager && existingManager.data.active !== false) {
+      return res.status(400).json({ 
+        error: `This phone number (${cleanPhone}) is already assigned to an active manager profile.` 
+      });
+    }
+
+    // Staff will choose their own PIN on first sign-in (pin_hash = null)
     const newStaffDoc = await addDoc(collection(db, "staff"), {
       name: name.trim(),
       phone: cleanPhone,
-      pin_hash: hashedPin,
+      pin_hash: null, // Staff chooses own PIN on first sign-in
       company_id,
       park_id: park_id || "park_assigned",
       park_location,
@@ -5779,6 +5990,7 @@ app.post("/api/manager/staff", async (req, res) => {
 
     res.json({
       success: true,
+      message: "Staff member registered successfully. They can now sign in using their phone number and choose their private PIN.",
       staff: {
         id: newStaffDoc.id,
         name: name.trim(),
@@ -5786,8 +5998,7 @@ app.post("/api/manager/staff", async (req, res) => {
         park_location,
         active: true,
         created_at: new Date().toISOString()
-      },
-      pin
+      }
     });
   } catch (err) {
     console.error("Error creating staff by manager:", err);
@@ -5870,33 +6081,18 @@ app.post("/api/manager/staff/:id/reset-pin", async (req, res) => {
 
     const staffName = staffSnap.data().name;
 
-    let pin = "";
-    let pinUnique = false;
-    const allStaffSnap = await getDocs(collection(db, "staff"));
-    const staffDocs = allStaffSnap.docs.map(d => d.data());
+    await updateDoc(staffRef, { 
+      pin_hash: null, 
+      pin_set_by_user: false, 
+      failed_attempts: 0, 
+      locked_until: null 
+    });
 
-    let loopSafety = 0;
-    while (!pinUnique && loopSafety < 100) {
-      loopSafety++;
-      pin = Math.floor(1000 + Math.random() * 9000).toString();
-      if (isWeakPin(pin, 4).weak) continue;
-      let foundMatch = false;
-      for (const s of staffDocs) {
-        if (s.pin_hash) {
-          const isMatch = await bcrypt.compare(pin, s.pin_hash);
-          if (isMatch) {
-            foundMatch = true;
-            break;
-          }
-        }
-      }
-      if (!foundMatch) pinUnique = true;
-    }
-
-    const hashedPin = await bcrypt.hash(pin, 10);
-    await updateDoc(staffRef, { pin_hash: hashedPin, failed_attempts: 0, locked_until: null });
-
-    res.json({ success: true, name: staffName, pin });
+    res.json({ 
+      success: true, 
+      name: staffName, 
+      message: "Staff PIN reset successfully. The staff member can now create their new PIN on their next login." 
+    });
   } catch (err) {
     console.error("Error resetting staff PIN by manager:", err);
     res.status(500).json({ error: "Internal server error." });
@@ -15027,6 +15223,233 @@ app.post("/api/v1/developer/wallet/charge-saved-card", async (req, res) => {
   } catch (err) {
     console.error("Error charging saved card:", err);
     res.status(500).json({ status: false, error: "Failed to charge saved card." });
+  }
+});
+
+// ==========================================
+// SELF-SERVICE PUBLIC & CUSTOMER PRE-BOOKING
+// ==========================================
+
+// Standard interstate transport hubs in Nigeria
+const POPULAR_NIGERIAN_PARKS = [
+  { city: "Lagos", state: "Lagos", park_name: "Lagos - Jibowu Central Park", code: "JBW" },
+  { city: "Lagos", state: "Lagos", park_name: "Lagos - Maza Maza Terminal", code: "MZM" },
+  { city: "Lagos", state: "Lagos", park_name: "Lagos - Ojota Motor Park", code: "OJT" },
+  { city: "Lagos", state: "Lagos", park_name: "Lagos - Ikorodu Terminal", code: "IKR" },
+  { city: "Abuja", state: "FCT", park_name: "Abuja - Utako Ultra Modern Park", code: "UTK" },
+  { city: "Abuja", state: "FCT", park_name: "Abuja - Mararaba / Nyanya Park", code: "NYA" },
+  { city: "Onitsha", state: "Anambra", park_name: "Onitsha - Upper Iweka Central Park", code: "ONW" },
+  { city: "Onitsha", state: "Anambra", park_name: "Onitsha - Main Market Relief Park", code: "ONM" },
+  { city: "Nnewi", state: "Anambra", park_name: "Nnewi - Nkwo Nnewi Central Terminal", code: "NNW" },
+  { city: "Awka", state: "Anambra", park_name: "Awka - UNIZIK Junction / Aroma Park", code: "AWK" },
+  { city: "Aba", state: "Abia", park_name: "Aba - Milverton Avenue Terminal", code: "ABA" },
+  { city: "Umuahia", state: "Abia", park_name: "Umuahia - Isi Gate Motor Park", code: "UMU" },
+  { city: "Enugu", state: "Enugu", park_name: "Enugu - Holy Ghost Central Park", code: "ENU" },
+  { city: "Enugu", state: "Enugu", park_name: "Enugu - Gariki Park", code: "GAR" },
+  { city: "Port Harcourt", state: "Rivers", park_name: "Port Harcourt - Waterlines Terminal", code: "PHC" },
+  { city: "Port Harcourt", state: "Rivers", park_name: "Port Harcourt - Mile 3 Park", code: "PH3" },
+  { city: "Owerri", state: "Imo", park_name: "Owerri - Control Post Central Park", code: "OWR" },
+  { city: "Asaba", state: "Delta", park_name: "Asaba - Summit Junction Terminal", code: "ASB" },
+  { city: "Warri", state: "Delta", park_name: "Warri - Enerhen Junction Park", code: "WRI" },
+  { city: "Benin City", state: "Edo", park_name: "Benin City - Ring Road / Mission Road Park", code: "BEN" },
+  { city: "Ibadan", state: "Oyo", park_name: "Ibadan - Iwo Road Interchange Park", code: "IBD" },
+  { city: "Kano", state: "Kano", park_name: "Kano - Sabon Gari Luxury Bus Park", code: "KNO" },
+  { city: "Kaduna", state: "Kaduna", park_name: "Kaduna - Command Junction Park", code: "KAD" },
+  { city: "Jos", state: "Plateau", park_name: "Jos - Bauchi Ring Road Park", code: "JOS" },
+  { city: "Calabar", state: "Cross River", park_name: "Calabar - Eta Agbo Motor Park", code: "CAL" },
+  { city: "Uyo", state: "Akwa Ibom", park_name: "Uyo - Itam Central Motor Park", code: "UYO" }
+];
+
+// 1. GET /api/public/parks-and-companies — Public list of transport companies and parks
+app.get("/api/public/parks-and-companies", async (req, res) => {
+  try {
+    // Fetch approved transport companies
+    const compSnap = await getDocs(query(collection(db, "companies"), where("approved", "==", true)));
+    const companies = compSnap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        company_name: data.company_name || "Transport Company",
+        city: data.city || "",
+        state: data.state || "",
+        phone: data.phone || "",
+        verified: data.approved === true
+      };
+    });
+
+    // Fetch company registered parks
+    const parksSnap = await getDocs(collection(db, "parks"));
+    const registeredParks = parksSnap.docs.map(docSnap => {
+      const data = docSnap.data();
+      return {
+        id: docSnap.id,
+        company_id: data.company_id,
+        park_name: data.park_name || data.park_location || "Park",
+        park_location: data.park_location || data.park_name || "Park",
+        state: data.state || "",
+        city: data.city || ""
+      };
+    });
+
+    res.json({
+      success: true,
+      companies,
+      registered_parks: registeredParks,
+      popular_parks: POPULAR_NIGERIAN_PARKS
+    });
+  } catch (err) {
+    console.error("Error fetching public parks & companies:", err);
+    res.status(500).json({ success: false, error: "Failed to load parks and companies." });
+  }
+});
+
+// 2. POST /api/waybills/pre-book — Public self-service booking from home/shop
+app.post("/api/waybills/pre-book", async (req, res) => {
+  try {
+    const {
+      sender_name,
+      sender_phone,
+      sender_email,
+      receiver_name,
+      receiver_phone,
+      receiver_address,
+      company_id,
+      company_name,
+      origin_park,
+      destination_park,
+      item_description,
+      item_category,
+      quantity,
+      declared_value,
+      weight_kg,
+      service_mode,
+      payment_method,
+      customer_id
+    } = req.body || {};
+
+    // Validate required fields
+    if (!sender_name || !sender_name.trim()) {
+      return res.status(400).json({ error: "Sender full name is required." });
+    }
+    if (!receiver_name || !receiver_name.trim()) {
+      return res.status(400).json({ error: "Receiver full name is required." });
+    }
+    if (!origin_park || !origin_park.trim()) {
+      return res.status(400).json({ error: "Please select the departure motor park where you will drop off the parcel." });
+    }
+    if (!destination_park || !destination_park.trim()) {
+      return res.status(400).json({ error: "Please select the destination motor park / city." });
+    }
+    if (origin_park.trim().toLowerCase() === destination_park.trim().toLowerCase()) {
+      return res.status(400).json({ error: "Departure park and Destination park cannot be the exact same location." });
+    }
+    if (!item_description || !item_description.trim()) {
+      return res.status(400).json({ error: "Please provide a description of the package/goods." });
+    }
+
+    // Phone validations
+    const cleanSenderPhone = String(sender_phone || "").trim().replace(/[\s-]/g, "");
+    const cleanReceiverPhone = String(receiver_phone || "").trim().replace(/[\s-]/g, "");
+
+    if (!cleanSenderPhone || !isValid11DigitPhone(cleanSenderPhone)) {
+      return res.status(400).json({ error: "Sender phone number must be a valid 11-digit Nigerian number (e.g. 08012345678)." });
+    }
+    if (!cleanReceiverPhone || !isValid11DigitPhone(cleanReceiverPhone)) {
+      return res.status(400).json({ error: "Receiver phone number must be a valid 11-digit Nigerian number (e.g. 08012345678)." });
+    }
+
+    // Generate standard unique location Tracking Code (e.g. NNW-4829, JBW-5912)
+    const trackingCode = await generateUniqueTrackingCode(origin_park || "Nnewi");
+
+    // Generate 4-digit pickup PIN for the receiver
+    const pickupPin = Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Calculate standard estimate
+    const qty = Math.max(1, parseInt(quantity, 10) || 1);
+    const estWeight = Math.max(1, parseFloat(weight_kg) || 2);
+    const estimatedBaseFare = 1500 + (qty > 1 ? (qty - 1) * 500 : 0) + (estWeight > 5 ? (estWeight - 5) * 200 : 0);
+    const manifestLevy = 100;
+    const totalEstimatedFee = estimatedBaseFare + manifestLevy;
+
+    const createdAt = new Date().toISOString();
+
+    const waybillRecord = {
+      tracking_code: trackingCode,
+      sender_name: sender_name.trim(),
+      sender_phone: cleanSenderPhone,
+      sender_email: (sender_email || "").trim(),
+      receiver_name: receiver_name.trim(),
+      receiver_phone: cleanReceiverPhone,
+      receiver_address: (receiver_address || "").trim(),
+      origin_park: origin_park.trim(),
+      destination_park: destination_park.trim(),
+      company_id: company_id || "all_companies",
+      company_name: company_name || "Waybilla Motor Park Partner",
+      item_description: item_description.trim(),
+      item_category: item_category || "General Goods",
+      quantity: qty,
+      weight_kg: estWeight,
+      declared_value: declared_value ? Number(declared_value) : 0,
+      service_mode: service_mode || "parcel",
+      payment_method: payment_method || "pay_at_counter",
+      paid: payment_method === "online_card" ? true : false,
+      waybill_fee: totalEstimatedFee,
+      shipping_fee: totalEstimatedFee,
+      manifest_fee: manifestLevy,
+      pickup_code: pickupPin,
+      status: "pre_booked", // Initial pre-booked status awaiting park counter scan
+      source: "self_service_prebook",
+      bus_number: "Awaiting Vehicle Assignment at Terminal",
+      customer_id: customer_id || null,
+      created_at: createdAt,
+      booked_at: createdAt,
+      departed_at: null,
+      arrived_at: null,
+      collected_at: null
+    };
+
+    const docRef = await addDoc(collection(db, "waybills"), waybillRecord);
+
+    // Add initial event audit record
+    await addDoc(collection(db, "waybill_events"), {
+      waybill_id: docRef.id,
+      tracking_code: trackingCode,
+      event_type: "pre_booked",
+      description: `Waybill pre-booked online by ${sender_name.trim()}. Awaiting drop-off and counter intake scan at ${origin_park.trim()}.`,
+      origin_park: origin_park.trim(),
+      destination_park: destination_park.trim(),
+      timestamp: createdAt,
+      created_at: createdAt
+    });
+
+    res.json({
+      success: true,
+      message: "Waybill pre-booked successfully! Bring this QR code or tracking code to the motor park counter.",
+      waybill: {
+        id: docRef.id,
+        ...waybillRecord
+      },
+      tracking_code: trackingCode,
+      pickup_pin: pickupPin,
+      pass: {
+        tracking_code: trackingCode,
+        sender_name: sender_name.trim(),
+        sender_phone: cleanSenderPhone,
+        receiver_name: receiver_name.trim(),
+        receiver_phone: cleanReceiverPhone,
+        origin_park: origin_park.trim(),
+        destination_park: destination_park.trim(),
+        item_description: item_description.trim(),
+        quantity: qty,
+        pickup_code: pickupPin,
+        estimated_fee: totalEstimatedFee,
+        payment_method: payment_method || "pay_at_counter",
+        created_at: createdAt
+      }
+    });
+  } catch (err) {
+    console.error("Error pre-booking waybill:", err);
+    res.status(500).json({ success: false, error: "Failed to pre-book waybill. Please try again." });
   }
 });
 

@@ -125,11 +125,30 @@ export async function resetCompanyPassword(data: {
   });
 }
 
-export async function loginStaff(pin: string) {
+export async function checkStaffPhone(phoneNumber: string) {
+  return safeFetch(`${API_BASE}/auth/staff/check-phone`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber }),
+  });
+}
+
+export async function setStaffPin(phoneNumber: string, pin: string, confirmPin?: string) {
+  return safeFetch(`${API_BASE}/auth/staff/set-pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone_number: phoneNumber, pin, confirm_pin: confirmPin }),
+  });
+}
+
+export async function loginStaff(phoneNumberOrPin: string, pin?: string) {
+  const body = pin !== undefined 
+    ? { phone_number: phoneNumberOrPin, pin }
+    : { pin: phoneNumberOrPin };
   return safeFetch(`${API_BASE}/auth/staff/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ pin }),
+    body: JSON.stringify(body),
   });
 }
 

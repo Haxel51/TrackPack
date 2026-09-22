@@ -678,8 +678,15 @@ export const CompanyDashboard: React.FC = () => {
       return;
     }
     const cleanPhone = (newStaffModal.phone || '').replace(/[\s-]/g, '');
-    if (cleanPhone && !/^[0-9]{11}$/.test(cleanPhone)) {
-      setNewStaffModal(prev => ({ ...prev, error: 'Please enter a valid 11-digit phone number (e.g., 08012345678).' }));
+    if (!cleanPhone) {
+      setNewStaffModal(prev => ({ 
+        ...prev, 
+        error: 'Staff phone number is required. The staff member needs their registered 11-digit phone number to sign into the Staff Terminal and set their private PIN.' 
+      }));
+      return;
+    }
+    if (!/^[0-9]{11}$/.test(cleanPhone)) {
+      setNewStaffModal(prev => ({ ...prev, error: 'Please enter a valid 11-digit Nigerian phone number (e.g., 08012345678).' }));
       return;
     }
     setNewStaffModal(prev => ({ ...prev, submitting: true, error: null }));
@@ -691,7 +698,7 @@ export const CompanyDashboard: React.FC = () => {
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
-          name: newStaffModal.name,
+          name: newStaffModal.name.trim(),
           phone: cleanPhone,
           park_id: newStaffModal.parkId
         })
@@ -701,12 +708,14 @@ export const CompanyDashboard: React.FC = () => {
         throw new Error(data.error || 'Failed to add staff member');
       }
 
-      // Store in success state for ONE-TIME clear-text PIN screen
-      setPinSuccessState({
-        open: true,
-        name: data.staff?.name || newStaffModal.name,
-        pin: data.pin
-      });
+      // If clear-text PIN was returned, open PIN modal
+      if (data.pin) {
+        setPinSuccessState({
+          open: true,
+          name: data.staff?.name || newStaffModal.name,
+          pin: data.pin
+        });
+      }
 
       // Close staff modal
       setNewStaffModal({
@@ -2274,14 +2283,19 @@ export const CompanyDashboard: React.FC = () => {
               </div>
 
               <div className="space-y-1.5">
-                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Staff Phone Number (Optional)</label>
+                <label className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">Staff Phone Number *</label>
                 <input
                   type="tel"
+                  maxLength={11}
                   placeholder="e.g. 08012345678"
                   value={newStaffModal.phone}
                   onChange={e => setNewStaffModal(prev => ({ ...prev, phone: e.target.value }))}
                   className="w-full bg-slate-50 border border-slate-100 rounded-xl py-3 px-4 text-xs font-semibold focus:outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
+                  required
                 />
+                <p className="text-[11px] text-slate-500 font-medium">
+                  Required: The staff member will use this 11-digit phone number to sign into the Staff Terminal and set their private 4-digit PIN.
+                </p>
               </div>
 
               {newStaffModal.error && (
