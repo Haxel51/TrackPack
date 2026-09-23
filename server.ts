@@ -12,14 +12,29 @@ import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase
 import { getMessaging } from "firebase-admin/messaging";
 import { ICON_192_BASE64, ICON_512_BASE64, SCREENSHOT_DESKTOP_BASE64, SCREENSHOT_MOBILE_BASE64 } from "./src/assets/images/icons-base64";
 
-// Read Firebase config from local environment file
+// Read Firebase config from local environment file or embedded fallback
 const configPath = path.join(process.cwd(), "firebase-applet-config.json");
-if (!fs.existsSync(configPath)) {
-  console.error("CRITICAL: firebase-applet-config.json is missing!");
-  process.exit(1);
+let config: any = {
+  projectId: process.env.FIREBASE_PROJECT_ID || "studio-4052460451-ae5db",
+  appId: process.env.FIREBASE_APP_ID || "1:615516479021:web:9d6a403297f382654de2a4",
+  apiKey: process.env.FIREBASE_API_KEY || "AIzaSyCF5BcPjc0tPqK3N-F0-xL-puN6a643z8k",
+  authDomain: process.env.FIREBASE_AUTH_DOMAIN || "studio-4052460451-ae5db.firebaseapp.com",
+  firestoreDatabaseId: process.env.FIREBASE_FIRESTORE_DATABASE_ID || "ai-studio-e8070696-e20a-452d-b72f-33b5cdae1d5c",
+  storageBucket: process.env.FIREBASE_STORAGE_BUCKET || "studio-4052460451-ae5db.firebasestorage.app",
+  messagingSenderId: process.env.FIREBASE_MESSAGING_SENDER_ID || "615516479021",
+  measurementId: "",
+  oAuthClientId: "615516479021-buqcp83rmtli1cugl7cdujq70qftju72.apps.googleusercontent.com",
+  recaptchaSiteKey: ""
+};
+
+if (fs.existsSync(configPath)) {
+  try {
+    config = { ...config, ...JSON.parse(fs.readFileSync(configPath, "utf8")) };
+  } catch (err) {
+    console.warn("Notice: Parsing firebase-applet-config.json fallback:", err);
+  }
 }
 
-const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 const firebaseApp = initializeApp(config);
 const db = initializeFirestore(firebaseApp, {
   experimentalAutoDetectLongPolling: true
