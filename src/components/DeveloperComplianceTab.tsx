@@ -18,8 +18,11 @@ import {
   X,
   UserCheck,
   Lock,
-  Sparkles
+  Sparkles,
+  Camera,
+  Image as ImageIcon
 } from 'lucide-react';
+import { LiveCameraCaptureModal } from './LiveCameraCaptureModal';
 
 export interface DeveloperSession {
   id: string;
@@ -102,6 +105,7 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
   const [directorIdNumber, setDirectorIdNumber] = useState('');
   const [directorIdDocName, setDirectorIdDocName] = useState('');
   const [directorIdDocData, setDirectorIdDocData] = useState('');
+  const [cameraModalType, setCameraModalType] = useState<'director_id' | 'cac' | null>(null);
   const [idDragActive, setIdDragActive] = useState(false);
 
   const [streetAddress, setStreetAddress] = useState('');
@@ -165,10 +169,56 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
     }
   }, [complianceData]);
 
+  // Image Compression Helper (converts photos/screenshots to optimized JPEG Data URLs)
+  const compressImageFile = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      if (file.type === 'application/pdf') {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.readAsDataURL(file);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const MAX_WIDTH = 1200;
+          const MAX_HEIGHT = 1200;
+          let width = img.width;
+          let height = img.height;
+          if (width > height) {
+            if (width > MAX_WIDTH) {
+              height *= MAX_WIDTH / width;
+              width = MAX_WIDTH;
+            }
+          } else {
+            if (height > MAX_HEIGHT) {
+              width *= MAX_HEIGHT / height;
+              height = MAX_HEIGHT;
+            }
+          }
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            resolve(canvas.toDataURL('image/jpeg', 0.85));
+          } else {
+            resolve(String(e.target?.result || ''));
+          }
+        };
+        img.onerror = () => resolve(String(e.target?.result || ''));
+        img.src = String(e.target?.result || '');
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
   // File Upload Helper (supports both drag-and-drop & click)
-  const processUploadedFile = (file: File, type: 'cac' | 'director_id') => {
-    if (file.size > 5 * 1024 * 1024) {
-      setErrorMsg('Document size exceeds 5MB limit. Please upload a smaller file.');
+  const processUploadedFile = async (file: File, type: 'cac' | 'director_id') => {
+    if (file.size > 10 * 1024 * 1024) {
+      setErrorMsg('Document size exceeds 10MB limit. Please upload a smaller file.');
       return;
     }
     const isDoc = file.type === 'application/pdf' || file.type.startsWith('image/') || file.name.match(/\.(pdf|jpg|jpeg|png)$/i);
@@ -178,19 +228,18 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
     }
     setErrorMsg(null);
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (reader.result) {
-        if (type === 'cac') {
-          setCacDocName(file.name);
-          setCacDocData(String(reader.result));
-        } else {
-          setDirectorIdDocName(file.name);
-          setDirectorIdDocData(String(reader.result));
-        }
+    try {
+      const dataUrl = await compressImageFile(file);
+      if (type === 'cac') {
+        setCacDocName(file.name);
+        setCacDocData(dataUrl);
+      } else {
+        setDirectorIdDocName(file.name);
+        setDirectorIdDocData(dataUrl);
       }
-    };
-    reader.readAsDataURL(file);
+    } catch {
+      setErrorMsg('Could not process image file. Please try another image.');
+    }
   };
 
   const handleDrag = (e: React.DragEvent, type: 'cac' | 'director_id', isOver: boolean) => {
@@ -471,6 +520,37 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
       </div>
 
       {/* Notifications */}
+      {(isActionRequired || complianceData?.status === 'action_required' || complianceData?.rejection_reason || devUser.rejection_reason) && (
+        <div className="p-6 bg-rose-50 border-2 border-rose-300 rounded-3xl text-xs text-rose-950 space-y-3 animate-fadeIn shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-rose-200/80 border border-rose-300 flex items-center justify-center text-rose-700 shrink-0">
+              <AlertCircle className="w-6 h-6" />
+            </div>
+            <div>
+              <span className="text-[10px] font-black uppercase tracking-wider text-rose-700 bg-rose-100 px-2.5 py-0.5 rounded-full border border-rose-200">
+                Action Required &bull; Verification Rejected
+              </span>
+              <h3 className="text-base font-black text-rose-900 mt-0.5">
+                Superadmin Requested Document Re-submission
+              </h3>
+            </div>
+          </div>
+
+          <div className="bg-white p-4 rounded-2xl border border-rose-200 space-y-1">
+            <span className="font-extrabold text-rose-800 text-[11px] uppercase block">
+              Reason for Rejection from Superadmin:
+            </span>
+            <p className="text-sm font-bold text-slate-800 italic bg-rose-50/50 p-2.5 rounded-xl border border-rose-100">
+              "{complianceData?.rejection_reason || devUser.rejection_reason || 'Document image unreadable or ID details did not match. Please re-upload a clear document photo.'}"
+            </p>
+          </div>
+
+          <p className="text-xs text-rose-800 font-semibold">
+            👇 Please correct your information or re-upload your document below and click <strong>"Submit Business Verification"</strong> to resubmit to Superadmin.
+          </p>
+        </div>
+      )}
+
       {errorMsg && (
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-xs text-rose-800 flex items-start gap-2.5 animate-fadeIn">
           <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
@@ -730,10 +810,20 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
               </div>
 
               {/* CAC Document Drag & Drop + Click Picker */}
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-xs font-bold text-slate-700">
-                  Certificate of Incorporation / Registration Upload (PDF / PNG / JPG)
-                </label>
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">
+                    Certificate of Incorporation / Registration Upload (PDF / PNG / JPG / Screenshot)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCameraModalType('cac')}
+                    className="text-[11px] font-extrabold text-blue-700 hover:text-blue-900 flex items-center gap-1 cursor-pointer bg-blue-50 px-2.5 py-1 rounded-lg border border-blue-200"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Snap Live with Camera</span>
+                  </button>
+                </div>
                 <div
                   onDragOver={(e) => handleDrag(e, 'cac', true)}
                   onDragLeave={(e) => handleDrag(e, 'cac', false)}
@@ -778,9 +868,9 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
                     <div className="space-y-1 pointer-events-none">
                       <UploadCloud className="w-7 h-7 text-slate-400 mx-auto" />
                       <p className="text-xs font-bold text-slate-700">
-                        Drag &amp; drop CAC Certificate or <span className="text-blue-600 underline">browse</span>
+                        Drag &amp; drop CAC Certificate or <span className="text-blue-600 underline">browse screenshots/files</span>
                       </p>
-                      <p className="text-[10px] text-slate-400">PDF, JPG, or PNG up to 5MB</p>
+                      <p className="text-[10px] text-slate-400">PDF, JPG, PNG, or Live Camera Snap</p>
                     </div>
                   )}
                 </div>
@@ -866,10 +956,20 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
               </div>
 
               {/* Director ID Upload */}
-              <div className="space-y-1.5 md:col-span-2">
-                <label className="text-xs font-bold text-slate-700">
-                  Director ID Scan / Photo (PDF / JPG / PNG)
-                </label>
+              <div className="space-y-2 md:col-span-2">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-700">
+                    Director ID Scan / Photo (PDF / JPG / PNG / Screenshot)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => setCameraModalType('director_id')}
+                    className="text-[11px] font-extrabold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 cursor-pointer bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-300"
+                  >
+                    <Camera className="w-3.5 h-3.5" />
+                    <span>Snap Live with Camera</span>
+                  </button>
+                </div>
                 <div
                   onDragOver={(e) => handleDrag(e, 'director_id', true)}
                   onDragLeave={(e) => handleDrag(e, 'director_id', false)}
@@ -914,9 +1014,9 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
                     <div className="space-y-1 pointer-events-none">
                       <UploadCloud className="w-7 h-7 text-slate-400 mx-auto" />
                       <p className="text-xs font-bold text-slate-700">
-                        Drag &amp; drop Director ID or <span className="text-blue-600 underline">browse</span>
+                        Drag &amp; drop Director ID or <span className="text-blue-600 underline">browse screenshots/files</span>
                       </p>
-                      <p className="text-[10px] text-slate-400">Clear color scan of NIN slip, Driver's License or Passport data page</p>
+                      <p className="text-[10px] text-slate-400">Clear color photo of NIN slip, Driver's License or Passport data page</p>
                     </div>
                   )}
                 </div>
@@ -1084,6 +1184,24 @@ export const DeveloperComplianceTab: React.FC<DeveloperComplianceTabProps> = ({
           </div>
         </form>
       )}
+
+      {/* Live Camera Scanner & Snapper Modal */}
+      <LiveCameraCaptureModal
+        isOpen={cameraModalType !== null}
+        onClose={() => setCameraModalType(null)}
+        title={cameraModalType === 'director_id' ? 'Live Director ID Card Snapper' : 'Live CAC Certificate Snapper'}
+        documentType={cameraModalType === 'director_id' ? 'id' : 'cac'}
+        onCapture={(dataUrl, fileName) => {
+          if (cameraModalType === 'director_id') {
+            setDirectorIdDocName(fileName);
+            setDirectorIdDocData(dataUrl);
+          } else {
+            setCacDocName(fileName);
+            setCacDocData(dataUrl);
+          }
+          setCameraModalType(null);
+        }}
+      />
     </div>
   );
 };

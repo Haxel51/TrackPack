@@ -1,6 +1,27 @@
 import * as htmlToImage from 'html-to-image';
 
 /**
+ * Converts a base64 Data URL to a Blob safely without network calls or fetch limitations.
+ */
+export function dataUrlToBlob(dataUrl: string): Blob {
+  try {
+    const parts = dataUrl.split(',');
+    const mimeMatch = parts[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+    const bstr = atob(parts[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) {
+      u8arr[n] = bstr.charCodeAt(n);
+    }
+    return new Blob([u8arr], { type: mime });
+  } catch (err) {
+    console.warn('dataUrlToBlob binary conversion error, creating standard blob:', err);
+    return new Blob([], { type: 'image/png' });
+  }
+}
+
+/**
  * Checks if the user is running in a mobile app / TWA / WebView / standalone PWA environment.
  */
 export function isMobileAppEnvironment(): boolean {
@@ -19,26 +40,11 @@ export function isMobileAppEnvironment(): boolean {
 
 /**
  * Renders an HTML element into a crisp PNG Data URL.
- * Combines html-to-image with an automatic html2canvas fallback to ensure 100% reliability
+ * Combines html2canvas and html-to-image to ensure 100% reliability
  * across all mobile browsers, TWAs, and Android Custom Tabs.
  */
 export async function generateReceiptDataUrl(element: HTMLElement): Promise<string | null> {
-  // 1. Primary: html-to-image
-  try {
-    const dataUrl = await htmlToImage.toPng(element, {
-      backgroundColor: '#ffffff',
-      pixelRatio: 2, // Retina resolution
-      cacheBust: true,
-      skipFonts: false,
-    });
-    if (dataUrl && dataUrl.length > 100) {
-      return dataUrl;
-    }
-  } catch (err) {
-    console.warn('html-to-image failed, falling back to html2canvas:', err);
-  }
-
-  // 2. Fallback: html2canvas
+  // 1. Primary: html2canvas (Zero cross-origin stylesheet errors)
   try {
     const html2canvas = (await import('html2canvas')).default;
     const canvas = await html2canvas(element, {
@@ -53,7 +59,29 @@ export async function generateReceiptDataUrl(element: HTMLElement): Promise<stri
       return canvasDataUrl;
     }
   } catch (canvasErr) {
-    console.error('html2canvas fallback failed as well:', canvasErr);
+    console.warn('html2canvas primary render failed, trying html-to-image fallback:', canvasErr);
+  }
+
+  // 2. Fallback: html-to-image with safe font/filter options
+  try {
+    const dataUrl = await htmlToImage.toPng(element, {
+      backgroundColor: '#ffffff',
+      pixelRatio: 2,
+      cacheBust: false,
+      skipFonts: true,
+      filter: (node) => {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const el = node as HTMLElement;
+          if (el.tagName === 'LINK' || el.tagName === 'STYLE') return false;
+        }
+        return true;
+      }
+    });
+    if (dataUrl && dataUrl.length > 100) {
+      return dataUrl;
+    }
+  } catch (err) {
+    console.warn('html-to-image fallback notice:', err);
   }
 
   return null;
@@ -328,9 +356,8 @@ export async function downloadReceiptImage(elementId: string, trackingCode: stri
       return null;
     }
 
-    // Convert data URL to Blob
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
+    // Convert data URL to Blob synchronously (Zero network dependency / never fails fetch)
+    const blob = dataUrlToBlob(dataUrl);
 
     const safeCode = (trackingCode || 'receipt').replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileName = `waybilla_receipt_${safeCode}.png`;
@@ -436,8 +463,8 @@ export async function shareReceiptImage(
       return { success: false, method: 'failed' };
     }
 
-    const res = await fetch(dataUrl);
-    const blob = await res.blob();
+    // Convert data URL to Blob synchronously (Zero network dependency / never fails fetch)
+    const blob = dataUrlToBlob(dataUrl);
     const safeCode = (trackingCode || 'receipt').replace(/[^a-zA-Z0-9_-]/g, '_');
     const fileName = `waybilla_receipt_${safeCode}.png`;
     const file = new File([blob], fileName, { type: 'image/png' });

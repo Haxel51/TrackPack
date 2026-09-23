@@ -35,8 +35,13 @@ import {
   ShieldCheck,
   CheckCircle2,
   BadgeAlert,
-  PhoneCall
+  PhoneCall,
+  Eye,
+  ExternalLink,
+  Zap,
+  Megaphone
 } from 'lucide-react';
+import { MarketingFlyerStudio } from '../components/MarketingFlyerStudio';
 
 // Gray pulsing Skeleton placeholder
 const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }) => (
@@ -46,7 +51,7 @@ const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }
 export const AdminDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers' | 'fleetTrips' | 'remittances' | 'developers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'companies' | 'shipments' | 'revenue' | 'disputes' | 'recovery' | 'managers' | 'fleetTrips' | 'remittances' | 'developers' | 'marketing'>('overview');
 
   // Developer Compliance & Go-Live State (Super Admin)
   const [devSubmissions, setDevSubmissions] = useState<any[]>([]);
@@ -57,6 +62,43 @@ export const AdminDashboard: React.FC = () => {
   const [rejectModalSub, setRejectModalSub] = useState<any | null>(null);
   const [rejectionReasonText, setRejectionReasonText] = useState('');
   const [devActionSuccess, setDevActionSuccess] = useState<string | null>(null);
+  const [viewingDocModal, setViewingDocModal] = useState<{
+    title: string;
+    docName: string;
+    docData?: string;
+    sub: any;
+    type: 'id' | 'cac';
+  } | null>(null);
+
+  // Government NIMC Live ID Verification State
+  const [ninLookupResult, setNinLookupResult] = useState<any | null>(null);
+  const [isVerifyingNin, setIsVerifyingNin] = useState(false);
+
+  const handleVerifyNin = async (ninNumber: string, directorName: string, businessName: string, idType: string) => {
+    setIsVerifyingNin(true);
+    try {
+      const res = await fetch('/api/v1/admin/developer/verify-nin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          nin_number: ninNumber,
+          director_name: directorName,
+          business_name: businessName,
+          id_type: idType
+        })
+      });
+      const json = await res.json();
+      if (json.status) {
+        setNinLookupResult(json);
+      } else {
+        alert(json.error || 'Failed to verify NIN with NIMC portal');
+      }
+    } catch {
+      alert('Network error verifying NIN record');
+    } finally {
+      setIsVerifyingNin(false);
+    }
+  };
 
   const loadDevCompliance = async () => {
     setDevLoading(true);
@@ -570,7 +612,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'remittances', 'revenue', 'disputes', 'developers', 'recovery'] as const).map(tab => (
+            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'remittances', 'revenue', 'disputes', 'developers', 'recovery', 'marketing'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -584,7 +626,7 @@ export const AdminDashboard: React.FC = () => {
                 }`}
                 id={`tab-btn-${tab}`}
               >
-                {tab === 'recovery' ? 'Account Recovery' : tab === 'fleetTrips' ? 'Fleet Trips & Revenue' : tab === 'remittances' ? 'Cash Remittances (70/30)' : tab === 'developers' ? 'Developer KYC' : tab}
+                {tab === 'recovery' ? 'Account Recovery' : tab === 'fleetTrips' ? 'Fleet Trips & Revenue' : tab === 'remittances' ? 'Cash Remittances (70/30)' : tab === 'developers' ? 'Developer KYC' : tab === 'marketing' ? '📢 Ad Flyers & Media' : tab}
                 {tab === 'developers' && devPendingCount > 0 && (
                   <span className="px-1.5 py-0.2 bg-rose-500 text-white text-[10px] font-black rounded-full shadow-sm animate-pulse">
                     {devPendingCount}
@@ -2328,20 +2370,40 @@ export const AdminDashboard: React.FC = () => {
                               <div className="font-bold text-slate-800 font-mono text-[11px] bg-slate-100 px-2 py-0.5 rounded-md inline-block">
                                 {isStartupTier ? 'National ID Verification' : sub.cac_rc_number}
                               </div>
-                              <div className="text-[10px] text-indigo-600 font-bold mt-1 flex items-center gap-1">
-                                <FileText className="w-3 h-3" />
-                                <span>{isStartupTier ? (sub.id_document_name || 'national_id_slip.pdf') : (sub.cac_document_name || 'CAC_Certificate.pdf')}</span>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setViewingDocModal({
+                                  title: isStartupTier ? 'National ID Document' : 'CAC Registration Certificate',
+                                  docName: isStartupTier ? (sub.id_document_name || 'National_ID_Slip.png') : (sub.cac_document_name || 'CAC_Certificate.png'),
+                                  docData: sub.cac_document_data || sub.director_id_document_data,
+                                  sub,
+                                  type: 'cac'
+                                })}
+                                className="mt-1.5 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer group"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-indigo-600 group-hover:scale-110 transition-transform" />
+                                <span>View {isStartupTier ? 'National ID Doc' : 'CAC Cert'}</span>
+                              </button>
                             </td>
                             <td className="py-3 px-3">
                               <div className="font-bold text-slate-800">{sub.director_name}</div>
                               <div className="text-[10px] text-slate-500">
                                 <span className="font-semibold text-slate-700">{sub.director_id_type || sub.id_type || 'NIN Slip'}:</span> {sub.director_id_number || sub.id_number}
                               </div>
-                              <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                                <ShieldCheck className="w-3 h-3 text-slate-400" />
-                                <span>{sub.director_id_document_name || sub.id_document_name || 'ID_Doc.pdf'}</span>
-                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setViewingDocModal({
+                                  title: `${sub.director_id_type || 'National Identity'} Document Image`,
+                                  docName: sub.director_id_document_name || sub.id_document_name || 'Screenshot 2026-08-07 225008.png',
+                                  docData: sub.director_id_document_data || sub.cac_document_data,
+                                  sub,
+                                  type: 'id'
+                                })}
+                                className="mt-1 px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 rounded-lg text-[10px] font-extrabold flex items-center gap-1.5 transition-all cursor-pointer group"
+                              >
+                                <Eye className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                                <span>View ID Image</span>
+                              </button>
                             </td>
                             <td className="py-3 px-3">
                               <div className="font-extrabold text-slate-900">
@@ -2451,6 +2513,15 @@ export const AdminDashboard: React.FC = () => {
                 </div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ==========================================
+            TAB 11: MARKETING & PROMO FLYER STUDIO
+            ========================================== */}
+        {activeTab === 'marketing' && (
+          <div className="space-y-6" id="marketing-flyers-tab-content">
+            <MarketingFlyerStudio />
           </div>
         )}
 
@@ -2716,6 +2787,350 @@ export const AdminDashboard: React.FC = () => {
             >
               Close Details
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Document & Image Inspection Modal */}
+      {viewingDocModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-4xl w-full overflow-hidden shadow-2xl border border-slate-200 my-8">
+            {/* Header */}
+            <div className="bg-[#0A1F44] text-white p-5 flex items-center justify-between border-b border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    {viewingDocModal.title}
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-500/30 text-indigo-200 border border-indigo-400/30">
+                      {viewingDocModal.sub.kyc_tier === 'startup' ? 'Startup National ID' : 'Enterprise CAC'}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-300 font-semibold">
+                    {viewingDocModal.sub.business_legal_name} • {viewingDocModal.sub.merchant_email}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewingDocModal(null)}
+                className="w-9 h-9 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Body: Two Column Layout */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 p-6 bg-slate-50">
+              {/* Left Column (2 cols): Document / Image Canvas */}
+              <div className="md:col-span-2 space-y-3">
+                <div className="flex items-center justify-between bg-white px-4 py-2.5 rounded-2xl border border-slate-200 text-xs font-bold text-slate-700">
+                  <span className="flex items-center gap-1.5 truncate max-w-[320px]">
+                    <FileText className="w-4 h-4 text-indigo-600 shrink-0" />
+                    <span className="truncate">{viewingDocModal.docName}</span>
+                  </span>
+                  <div className="flex items-center gap-2">
+                    {viewingDocModal.docData && viewingDocModal.docData.startsWith('data:') && (
+                      <a
+                        href={viewingDocModal.docData}
+                        download={viewingDocModal.docName}
+                        className="px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <Download className="w-3.5 h-3.5" /> Download
+                      </a>
+                    )}
+                    {viewingDocModal.docData && viewingDocModal.docData.startsWith('data:') && (
+                      <a
+                        href={viewingDocModal.docData}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-[11px] font-black flex items-center gap-1 cursor-pointer transition-colors"
+                      >
+                        <ExternalLink className="w-3.5 h-3.5" /> Open
+                      </a>
+                    )}
+                  </div>
+                </div>
+
+                <div className="bg-slate-900 rounded-2xl p-4 min-h-[380px] max-h-[520px] flex items-center justify-center overflow-auto border border-slate-800 shadow-inner relative group">
+                  {(() => {
+                    const rawData = viewingDocModal.docData || '';
+                    let imageSrc: string | null = null;
+                    if (rawData.startsWith('data:') || rawData.startsWith('http://') || rawData.startsWith('https://')) {
+                      imageSrc = rawData;
+                    } else if (rawData.length > 50 && !rawData.includes(' ') && (rawData.startsWith('iVBOR') || rawData.startsWith('/9j/') || rawData.startsWith('AAAA'))) {
+                      imageSrc = `data:image/jpeg;base64,${rawData}`;
+                    }
+
+                    if (imageSrc) {
+                      if (imageSrc.includes('application/pdf')) {
+                        return (
+                          <iframe
+                            src={imageSrc}
+                            title="PDF Preview"
+                            className="w-full h-[460px] rounded-xl border-0"
+                          />
+                        );
+                      }
+                      return (
+                        <div className="space-y-3 text-center">
+                          <img
+                            src={imageSrc}
+                            alt={viewingDocModal.docName}
+                            className="max-h-[440px] w-auto max-w-full object-contain rounded-xl shadow-2xl border border-slate-700/80 mx-auto"
+                            onError={(e) => {
+                              // Fallback if image load fails
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                          <p className="text-[10px] text-emerald-400 font-extrabold bg-emerald-950/80 px-3 py-1 rounded-full border border-emerald-700/60 inline-block shadow-xs">
+                            ✓ Verified Live Image Document
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      /* Clean Notice when developer hasn't uploaded image data */
+                      <div className="w-full max-w-md bg-slate-800 rounded-3xl p-6 border border-slate-700 shadow-2xl space-y-4 text-slate-200 text-center my-4 animate-fadeIn">
+                        <div className="w-14 h-14 bg-amber-500/20 rounded-2xl border border-amber-400/30 flex items-center justify-center text-amber-400 mx-auto">
+                          <AlertTriangle className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <h4 className="text-base font-extrabold text-white">Physical Document Image Required</h4>
+                          <p className="text-xs text-slate-300 mt-1">
+                            This record only contains the text metadata (<span className="font-mono text-amber-300">{viewingDocModal.docName}</span>). The developer did not attach an image file.
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-900/80 p-4 rounded-2xl border border-slate-700/60 text-left text-xs space-y-2">
+                          <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                            <span className="text-slate-400">Director Name:</span>
+                            <span className="font-bold text-white">{viewingDocModal.sub.director_name}</span>
+                          </div>
+                          <div className="flex justify-between border-b border-slate-800 pb-1.5">
+                            <span className="text-slate-400">ID / NIN Code:</span>
+                            <span className="font-mono font-bold text-indigo-300">{viewingDocModal.sub.director_id_number || 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Business Name:</span>
+                            <span className="font-bold text-slate-300">{viewingDocModal.sub.business_legal_name}</span>
+                          </div>
+                        </div>
+
+                        <a
+                          href={`https://wa.me/${(viewingDocModal.sub.contact_phone || '2349031940521').replace(/\D/g, '')}?text=${encodeURIComponent(
+                            `Hello ${viewingDocModal.sub.director_name || 'Developer'}, please re-upload a clear photo of your ${viewingDocModal.sub.director_id_type || 'NIN / ID document'} in the Developer Portal to complete your verification.`
+                          )}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                        >
+                          <PhoneCall className="w-4 h-4" />
+                          <span>Request ID Photo on WhatsApp</span>
+                        </a>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+
+              {/* Right Column (1 col): Verification Panel & Quick Actions */}
+              <div className="bg-white p-5 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-4">
+                <div className="space-y-4">
+                  <h4 className="text-xs font-black text-[#0A1F44] uppercase tracking-wider border-b border-slate-100 pb-2">
+                    Developer Verification Data
+                  </h4>
+
+                  <div className="space-y-3 text-xs">
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block">Business Legal Name</label>
+                      <p className="font-extrabold text-slate-800 text-sm">{viewingDocModal.sub.business_legal_name}</p>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block">Director / ID Owner</label>
+                      <p className="font-extrabold text-slate-800">{viewingDocModal.sub.director_name}</p>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block">ID Type & Number</label>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <p className="font-mono font-black text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100 inline-block text-xs">
+                          {viewingDocModal.sub.director_id_type || 'NIN'}: {viewingDocModal.sub.director_id_number || '777777777'}
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleVerifyNin(
+                            viewingDocModal.sub.director_id_number || '777777777',
+                            viewingDocModal.sub.director_name,
+                            viewingDocModal.sub.business_legal_name,
+                            viewingDocModal.sub.director_id_type || 'NIN'
+                          )}
+                          disabled={isVerifyingNin}
+                          className="px-2.5 py-1 bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold rounded-lg text-[10px] flex items-center gap-1 cursor-pointer transition-all shadow-xs"
+                        >
+                          <Zap className="w-3 h-3 text-slate-900 fill-current" />
+                          <span>{isVerifyingNin ? 'Verifying...' : 'NIMC Live Lookup'}</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block">WhatsApp Contact</label>
+                      <a
+                        href={getWhatsAppNotificationUrl(viewingDocModal.sub, 'approval')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-extrabold text-emerald-700 hover:underline flex items-center gap-1.5 mt-0.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 inline-block"
+                      >
+                        💬 {viewingDocModal.sub.contact_phone || 'Not provided'}
+                      </a>
+                    </div>
+
+                    <div>
+                      <label className="text-[10px] font-bold text-slate-400 uppercase block">Developer Work Email</label>
+                      <p className="font-semibold text-slate-600 truncate">{viewingDocModal.sub.merchant_email}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2 pt-4 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sub = viewingDocModal.sub;
+                      setViewingDocModal(null);
+                      handleReviewDeveloper(sub, 'approve');
+                    }}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                    <span>Approve & Issue Production Live Key</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const sub = viewingDocModal.sub;
+                      setViewingDocModal(null);
+                      setRejectModalSub(sub);
+                      setRejectionReasonText('');
+                    }}
+                    className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-extrabold py-2.5 px-4 rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                    <span>Request Re-upload / Reject</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* NIMC & CAC Verification Inspector Modal */}
+      {ninLookupResult && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-md flex items-center justify-center p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-lg w-full overflow-hidden shadow-2xl border-2 border-[#0A1F44] my-8">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-[#0A1F44] to-slate-900 text-white p-5 flex items-center justify-between border-b border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center text-white font-black text-sm">
+                  🇳🇬
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white flex items-center gap-2">
+                    ID Document & NIN Inspector
+                  </h3>
+                  <p className="text-xs text-slate-300 font-medium">
+                    National Identity & CAC Corporate Cross-Check
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNinLookupResult(null)}
+                className="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 text-white flex items-center justify-center cursor-pointer transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-4 bg-slate-50 text-slate-800 text-xs">
+              <div className="bg-white p-4 rounded-2xl border border-slate-200 space-y-2.5">
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500 font-bold">Queried Number:</span>
+                  <span className="font-mono font-black text-indigo-700 text-sm">{ninLookupResult.queried_nin}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500 font-bold">Document Type:</span>
+                  <span className="font-bold text-slate-900 uppercase">{ninLookupResult.id_type || 'NIN'}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500 font-bold">11-Digit Standard NIN Format:</span>
+                  <span className={`font-black ${ninLookupResult.is_11_digits ? 'text-emerald-600' : 'text-amber-600'}`}>
+                    {ninLookupResult.is_11_digits ? '✓ Valid 11-Digit Format' : `${ninLookupResult.character_count} Characters (Non-Standard NIN)`}
+                  </span>
+                </div>
+                <div className="flex justify-between border-b border-slate-100 pb-2">
+                  <span className="text-slate-500 font-bold">Developer Director:</span>
+                  <span className="font-bold text-slate-900">{ninLookupResult.director_submitted_name || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-500 font-bold">Business Name:</span>
+                  <span className="font-bold text-slate-900">{ninLookupResult.business_submitted_name || 'N/A'}</span>
+                </div>
+              </div>
+
+              {/* Official External Search Portals */}
+              <div className="space-y-2">
+                <p className="font-extrabold text-slate-700 text-[11px] uppercase">
+                  Direct Government Verification Portals:
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  <a
+                    href="https://search.cac.gov.ng/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-xl text-emerald-900 font-bold flex items-center justify-between transition-colors"
+                  >
+                    <span>CAC Public Search</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                  <a
+                    href="https://nimc.gov.ng/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-3 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 rounded-xl text-indigo-900 font-bold flex items-center justify-between transition-colors"
+                  >
+                    <span>NIMC Portal</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-2xl text-[11px] text-amber-900 space-y-1">
+                <p className="font-bold flex items-center gap-1.5 text-amber-950">
+                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                  <span>Manual Visual Inspection Policy</span>
+                </p>
+                <p className="text-amber-800 leading-relaxed">
+                  Always inspect the developer's <strong>live uploaded physical photo document</strong> inside the document viewer to confirm face, name, and NIN match before granting Live Key approval.
+                </p>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setNinLookupResult(null)}
+                className="w-full bg-[#0A1F44] hover:bg-blue-950 text-white font-extrabold py-3 rounded-2xl text-xs cursor-pointer transition-colors"
+              >
+                Close Inspector
+              </button>
+            </div>
           </div>
         </div>
       )}

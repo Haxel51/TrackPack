@@ -617,13 +617,6 @@ export const ManagerDashboard: React.FC = () => {
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-2 border-t border-slate-100">
                         <button
-                          onClick={() => handleResetPin(staff.id, staff.name)}
-                          className="flex-1 bg-orange-50 hover:bg-orange-100 text-orange-800 border border-orange-200 py-2 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                          title="Reset PIN"
-                        >
-                          <Key className="w-3.5 h-3.5" /> Reset PIN
-                        </button>
-                        <button
                           onClick={() => handleToggleStaff(staff.id, staff.name, staff.active !== false)}
                           className={`flex-1 py-2 rounded-xl text-[11px] font-extrabold flex items-center justify-center gap-1.5 transition-all cursor-pointer border ${
                             staff.active !== false

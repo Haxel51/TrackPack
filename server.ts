@@ -7,6 +7,7 @@ import { initializeFirestore, collection, doc, getDoc, getDocs, setDoc, addDoc, 
 import bcrypt from "bcryptjs";
 import crypto from "crypto";
 import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { initializeApp as initAdminApp, getApps as getAdminApps } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
 import { ICON_192_BASE64, ICON_512_BASE64, SCREENSHOT_DESKTOP_BASE64, SCREENSHOT_MOBILE_BASE64 } from "./src/assets/images/icons-base64";
@@ -1544,6 +1545,15 @@ app.post("/api/auth/staff/set-pin", async (req, res) => {
       return res.status(403).json({ error: "Your account has been deactivated. Please contact your company manager." });
     }
 
+    // Security check: If staff PIN is already set, block re-setting PIN without manager reset code
+    if (staffData.pin_hash && (staffData.pin_set_by_user || staffData.pin_hash.length > 0)) {
+      const providedCode = req.body.reset_code || req.body.code;
+      const validCode = staffData.temporary_reset_code && staffData.temporary_reset_code === providedCode && new Date(staffData.temporary_reset_code_expires_at || 0) > new Date();
+      if (!validCode) {
+        return res.status(400).json({ error: "PIN has already been set for this staff account. Please sign in with your PIN or contact your Park Manager / CEO to reset it." });
+      }
+    }
+
     const companyRef = doc(db, "companies", staffData.company_id);
     const companySnap = await getDoc(companyRef);
     if (!companySnap.exists()) {
@@ -2022,6 +2032,15 @@ app.post("/api/auth/manager/set-pin", async (req, res) => {
 
     if (managerData.active === false) {
       return res.status(403).json({ error: "Your account has been deactivated. Please contact your company manager." });
+    }
+
+    // Security check: If manager PIN is already set, block re-setting PIN without valid reset code
+    if (managerData.pin_hash && managerData.pin_hash.length > 0) {
+      const providedCode = req.body.reset_code || req.body.code;
+      const validCode = managerData.temporary_reset_code && managerData.temporary_reset_code === providedCode && new Date(managerData.temporary_reset_code_expires_at || 0) > new Date();
+      if (!validCode) {
+        return res.status(400).json({ error: "PIN has already been created for this manager account. Please sign in with your PIN or click 'Forgot PIN' to request a reset." });
+      }
     }
 
     const companyRef = doc(db, "companies", managerData.company_id);
@@ -2596,6 +2615,20 @@ app.post("/api/auth/company/forgot-password/request", async (req, res) => {
     const smsMessage = `[Waybilla] Your owner account password reset verification code is: ${otpCode}. It expires in 15 minutes.`;
     const smsResult = await sendRealWorldSMS(cleanPhone, smsMessage);
 
+    // Send superadmin alert for password recovery request
+    sendSuperadminNotificationEmail({
+      subject: `🔑 Company Password Reset Requested: ${cleanPhone}`,
+      category: 'RECOVERY',
+      title: 'Company Owner Requested Password Reset',
+      details: [
+        { label: 'Company Name', value: companyDoc.data().company_name || 'Transport Partner' },
+        { label: 'Owner Phone', value: cleanPhone },
+        { label: 'OTP Generated', value: otpCode },
+        { label: 'Request Time', value: new Date().toLocaleString() }
+      ],
+      actionNote: 'If the owner contacts you on WhatsApp for assistance, verify their phone and guide them to complete reset on the reset-password page.'
+    }).catch(err => console.error("Superadmin alert error:", err));
+
     res.json({
       success: true,
       sms_sent: smsResult.success,
@@ -2669,6 +2702,33 @@ app.post("/api/auth/company/forgot-password/reset", async (req, res) => {
   } catch (err) {
     console.error("Company reset password error:", err);
     res.status(500).json({ error: "Failed to reset password." });
+  }
+});
+
+// 3e. Route: Send instant Superadmin Email Alert when Staff / Manager / User requests PIN Assistance
+app.post("/api/auth/forgot-pin/notify-admin", async (req, res) => {
+  const { phone_number, role, user_name, company_name } = req.body || {};
+  const cleanPhone = (phone_number || "").replace(/\D/g, "");
+
+  try {
+    sendSuperadminNotificationEmail({
+      subject: `🔑 PIN Reset Assistance Requested: ${cleanPhone || 'Unknown Phone'}`,
+      category: 'RECOVERY',
+      title: `User Requested PIN Reset (${(role || 'Staff').toUpperCase()})`,
+      details: [
+        { label: 'Role / Account Type', value: (role || 'Staff').toUpperCase() },
+        { label: 'Phone Number', value: cleanPhone || 'Not provided' },
+        { label: 'User Name', value: user_name || 'N/A' },
+        { label: 'Company / Park', value: company_name || 'Waybilla Terminal' },
+        { label: 'Request Time', value: new Date().toLocaleString() }
+      ],
+      actionNote: `User is waiting for PIN recovery. Open Superadmin -> Account Recovery tab, search "${cleanPhone}", generate a 6-digit recovery code, and share it with them via WhatsApp.`
+    }).catch(err => console.error("Error sending notify-admin alert:", err));
+
+    return res.json({ success: true, message: "Superadmin alert dispatched successfully." });
+  } catch (err) {
+    console.error("Notify admin error:", err);
+    return res.status(500).json({ error: "Failed to dispatch alert." });
   }
 });
 
@@ -2779,67 +2839,149 @@ async function sendAdminOTPEmail(email: string, otpCode: string): Promise<{ succ
   return { success: true, sentTo: email };
 }
 
-// Helper function to send email notification to admin upon new company registration
-async function sendCompanyRegistrationNotificationEmail(companyName: string, ownerPhone: string, parkName: string, parkLocation: string, serviceMode: string = 'parcel'): Promise<boolean> {
+// Comprehensive Superadmin Real-Time Email Alert Helper
+interface SuperadminAlertOptions {
+  subject: string;
+  category: 'ONBOARDING' | 'UPDATE' | 'SUPPORT_INFO' | 'RECOVERY' | 'DEVELOPER' | 'REMITTANCE';
+  title: string;
+  details: { label: string; value: string }[];
+  actionNote?: string;
+}
+
+async function sendSuperadminNotificationEmail(payload: SuperadminAlertOptions): Promise<boolean> {
+  const recipientEmail = process.env.SUPERADMIN_ALERT_EMAIL || "ndubuisis430@gmail.com";
   const apiKey = process.env.RESEND_API_KEY;
-  const ownerEmail = "ndubuisis430@gmail.com";
-  if (!apiKey) {
-    console.log("[RESEND] API Key not set. Registration email notification logged to console.");
-    return false;
-  }
-  
-  const isFleetOnly = serviceMode === 'fleet';
-  const isBoth = serviceMode === 'both';
-  
-  const locationLabel = isFleetOnly ? 'Depot Location' : 'Park Location';
-  const hubLabel = isFleetOnly ? 'Fleet Yard / Main Depot' : isBoth ? 'Initial Motor Park / Fleet Depot' : 'Initial Motor Park';
-  const badgeText = isFleetOnly ? '🚛 Fleet Trip Tracking Only' : isBoth ? '⚡ Parcel & Fleet Tracking' : '📦 Motor Park & Parcel';
+
+  console.log(`[SUPERADMIN ALERT] (${payload.category}) ${payload.title} -> Email recipient: ${recipientEmail}`);
+
+  const categoryBadges: Record<string, { bg: string; text: string; icon: string }> = {
+    ONBOARDING: { bg: '#e0f2fe', text: '#0369a1', icon: '🚀 NEW ONBOARDING' },
+    UPDATE: { bg: '#fef3c7', text: '#b45309', icon: '🔄 SYSTEM UPDATE' },
+    SUPPORT_INFO: { bg: '#fee2e2', text: '#b91c1c', icon: '🚨 USER SUPPORT / INFO' },
+    RECOVERY: { bg: '#f3e8ff', text: '#6b21a8', icon: '🔑 ACCOUNT RECOVERY' },
+    DEVELOPER: { bg: '#dcfce7', text: '#15803d', icon: '💻 DEVELOPER PORTAL' },
+    REMITTANCE: { bg: '#ffedd5', text: '#c2410c', icon: '💸 REMITTANCE / PAYMENT' },
+  };
+
+  const badge = categoryBadges[payload.category] || { bg: '#f1f5f9', text: '#334155', icon: '📢 ALERT' };
+
+  const detailsRowsHtml = payload.details
+    .map(
+      d => `
+      <tr style="border-bottom: 1px solid #e2e8f0;">
+        <td style="padding: 10px 12px; font-weight: 700; color: #0A1F44; font-size: 13px; width: 38%; background-color: #f8fafc;">${d.label}</td>
+        <td style="padding: 10px 12px; color: #334155; font-size: 13px; font-weight: 500;">${d.value || 'N/A'}</td>
+      </tr>`
+    )
+    .join('');
 
   const htmlContent = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 520px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
-      <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 24px;">
-        <h1 style="color: #ffffff; margin: 0; font-size: 20px; font-weight: 800;">Waybilla</h1>
-        <p style="color: #F2A93B; margin: 4px 0 0; font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;">New Partner Application (${badgeText})</p>
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+      <div style="background-color: #0A1F44; padding: 20px; border-radius: 12px; text-align: center; margin-bottom: 20px;">
+        <h1 style="color: #ffffff; margin: 0; font-size: 22px; font-weight: 900; letter-spacing: 0.5px;">Waybilla Superadmin</h1>
+        <div style="display: inline-block; margin-top: 8px; padding: 4px 12px; background-color: ${badge.bg}; color: ${badge.text}; font-size: 11px; font-weight: 800; border-radius: 9999px; text-transform: uppercase;">
+          ${badge.icon}
+        </div>
       </div>
       
-      <h2 style="color: #0A1F44; font-size: 18px; font-weight: 700; margin-top: 0;">New Company Registration!</h2>
+      <h2 style="color: #0A1F44; font-size: 18px; font-weight: 800; margin-top: 0; margin-bottom: 12px;">${payload.title}</h2>
+      
       <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-        A new transport & logistics company owner has submitted an onboarding application:
+        A new event occurred on Waybilla that requires your attention in order to tend to the user:
       </p>
       
-      <div style="background-color: #f8fafc; padding: 20px; border-radius: 12px; margin: 24px 0; border: 1px solid #cbd5e1;">
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Company Name:</strong> ${companyName}</p>
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Owner Phone:</strong> ${ownerPhone}</p>
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>Service Mode:</strong> ${badgeText}</p>
-        <p style="margin: 0 0 10px 0; font-size: 14px; color: #1e293b;"><strong>${hubLabel}:</strong> ${parkName}</p>
-        <p style="margin: 0 0 0 0; font-size: 14px; color: #1e293b;"><strong>${locationLabel}:</strong> ${parkLocation}</p>
+      <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1; border-radius: 10px; overflow: hidden; margin-bottom: 20px;">
+        <tbody>
+          ${detailsRowsHtml}
+        </tbody>
+      </table>
+      
+      ${
+        payload.actionNote
+          ? `<div style="background-color: #f0f9ff; border-left: 4px solid #0284c7; padding: 14px 16px; border-radius: 8px; margin-bottom: 20px; font-size: 13px; color: #0369a1; line-height: 1.5;">
+              <strong>Recommended Action:</strong> ${payload.actionNote}
+             </div>`
+          : ''
+      }
+      
+      <div style="text-align: center; margin: 24px 0;">
+        <a href="https://waybilla.com.ng/admin/login" style="background-color: #0A1F44; color: #ffffff; text-decoration: none; padding: 12px 24px; border-radius: 10px; font-weight: 800; font-size: 13px; display: inline-block;">
+          Open Superadmin Dashboard →
+        </a>
       </div>
-      
-      <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-        Please log into the Admin Dashboard to review and approve or reject their application.
-      </p>
       
       <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 24px 0;" />
       <p style="color: #94a3b8; font-size: 11px; text-align: center; margin: 0;">
-        &copy; ${new Date().getFullYear()} Waybilla. Unified Waybill & Fleet Tracking.
+        &copy; ${new Date().getFullYear()} Waybilla Logistics System. Real-time Superadmin Alerts.
       </p>
     </div>
   `;
 
-  try {
-    const resend = new Resend(apiKey);
-    await resend.emails.send({
-      from: "onboarding@resend.dev",
-      to: ownerEmail,
-      subject: `🚨 New Company Registration: ${companyName}`,
-      html: htmlContent
-    });
-    console.log(`[RESEND SUCCESS] Sent registration notification for ${companyName} to admin ${ownerEmail}`);
-    return true;
-  } catch (err) {
-    console.error("[RESEND ERROR] Failed to send registration notification:", err);
-    return false;
+  // Try Resend API first
+  if (apiKey) {
+    try {
+      const resend = new Resend(apiKey);
+      await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: recipientEmail,
+        subject: payload.subject,
+        html: htmlContent,
+      });
+      console.log(`[RESEND SUCCESS] Delivered Superadmin alert (${payload.category}) to ${recipientEmail}`);
+      return true;
+    } catch (err: any) {
+      console.error("[RESEND ERROR] Superadmin alert error:", err?.message || err);
+    }
   }
+
+  // Fallback to Nodemailer if SMTP vars exist
+  if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
+    try {
+      const transporter = nodemailer.createTransport({
+        host: process.env.SMTP_HOST,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS,
+        },
+      });
+
+      await transporter.sendMail({
+        from: `Waybilla System <${process.env.SMTP_USER}>`,
+        to: recipientEmail,
+        subject: payload.subject,
+        html: htmlContent,
+      });
+      console.log(`[NODEMAILER SUCCESS] Delivered Superadmin alert (${payload.category}) to ${recipientEmail}`);
+      return true;
+    } catch (err: any) {
+      console.error("[NODEMAILER ERROR] Superadmin alert error:", err?.message || err);
+    }
+  }
+
+  return false;
+}
+
+// Helper function to send email notification to admin upon new company registration
+async function sendCompanyRegistrationNotificationEmail(companyName: string, ownerPhone: string, parkName: string, parkLocation: string, serviceMode: string = 'parcel'): Promise<boolean> {
+  const isFleetOnly = serviceMode === 'fleet';
+  const isBoth = serviceMode === 'both';
+  const badgeText = isFleetOnly ? '🚛 Fleet Trip Tracking Only' : isBoth ? '⚡ Parcel & Fleet Tracking' : '📦 Motor Park & Parcel';
+
+  return sendSuperadminNotificationEmail({
+    subject: `🚨 New Company Registration: ${companyName}`,
+    category: 'ONBOARDING',
+    title: 'New Transport Company Onboarding Registered!',
+    details: [
+      { label: 'Company Name', value: companyName },
+      { label: 'Owner Phone', value: ownerPhone },
+      { label: 'Service Mode', value: badgeText },
+      { label: 'Park/Depot Name', value: parkName },
+      { label: 'Park Location', value: parkLocation }
+    ],
+    actionNote: 'Log into the Admin Dashboard -> Companies tab to review and approve or reject their application.'
+  });
 }
 
 // 4. Super Admin Login Step 1: Password Verification & 2FA OTP Generation
@@ -8951,6 +9093,22 @@ app.post("/api/company/remittance/submit-transfer-proof", async (req, res) => {
       created_at: new Date().toISOString()
     });
 
+    // Send Superadmin Real-Time Alert
+    sendSuperadminNotificationEmail({
+      subject: `💸 70/30 Cash Remittance Submitted: ₦${parsedAmount.toLocaleString()} (${compData.company_name})`,
+      category: 'REMITTANCE',
+      title: 'Manual 70/30 Bank Transfer Remittance Proof Submitted',
+      details: [
+        { label: 'Transport Company', value: compData.company_name || 'Transport Company' },
+        { label: 'Amount Remitted', value: `₦${parsedAmount.toLocaleString()}` },
+        { label: 'Bank Name', value: bank_name || 'Commercial Bank' },
+        { label: 'Sender Account', value: sender_account_name || 'N/A' },
+        { label: 'Transfer Ref', value: transfer_reference || 'N/A' },
+        { label: 'Submission Time', value: new Date().toLocaleString() }
+      ],
+      actionNote: 'Check your bank account to verify credit, then approve or reject this remittance under Superadmin -> Cash Remittances (70/30).'
+    }).catch(err => console.error("Remittance alert error:", err));
+
     res.json({
       success: true,
       submission_id: submissionRef.id,
@@ -13435,6 +13593,21 @@ app.post("/api/v1/developer/register", async (req, res) => {
 
     const docRef = await addDoc(collection(db, "developer_accounts"), newDevDoc);
 
+    // Send real-time alert to Superadmin
+    sendSuperadminNotificationEmail({
+      subject: `💻 New Developer Portal Account: ${businessName}`,
+      category: 'DEVELOPER',
+      title: 'New Developer Workspace Registered',
+      details: [
+        { label: 'Merchant / App Name', value: businessName },
+        { label: 'Contact Email', value: email },
+        { label: 'Contact Phone', value: phone || 'N/A' },
+        { label: 'Initial Sandbox Balance', value: '₦50,000' },
+        { label: 'Registration Date', value: new Date().toLocaleString() }
+      ],
+      actionNote: 'Review developer account in Superadmin -> Developer KYC tab.'
+    }).catch(err => console.error("Developer alert error:", err));
+
     // Create session token
     const sessionToken = `wb_dev_token_${crypto.randomBytes(24).toString("hex")}`;
     await addDoc(collection(db, "developer_sessions"), {
@@ -13737,14 +13910,14 @@ app.post("/api/v1/developer/compliance/submit", async (req, res) => {
       cac_rc_number: cleanCac,
       cac_registration_type,
       cac_document_name: cac_document_name || (kyc_tier === "startup" ? "startup_exemption" : "cac_cert.pdf"),
-      cac_document_data: cac_document_data ? String(cac_document_data).slice(0, 100000) : "",
+      cac_document_data: cac_document_data ? String(cac_document_data) : "",
       tin: (tin || "").trim(),
       director_name: cleanDirector,
       director_role: (director_role || "Lead Developer / Director").trim(),
       director_id_type: cleanIdType,
       director_id_number: cleanIdNum,
       director_id_document_name: id_document_name || director_id_document_name || "id_slip.pdf",
-      director_id_document_data: director_id_document_data ? String(director_id_document_data).slice(0, 100000) : "",
+      director_id_document_data: director_id_document_data ? String(director_id_document_data) : "",
       street_address: cleanAddress,
       city: (city || "").trim(),
       state: cleanState,
@@ -13780,6 +13953,23 @@ app.post("/api/v1/developer/compliance/submit", async (req, res) => {
       compliance_submitted_at: now,
       updated_at: now
     });
+
+    // Send real-time Superadmin Alert
+    sendSuperadminNotificationEmail({
+      subject: `💻 Developer Go-Live KYC Submitted: ${cleanBizName}`,
+      category: 'DEVELOPER',
+      title: 'Developer Submitted Compliance & KYC for Production API Keys',
+      details: [
+        { label: 'Business Legal Name', value: cleanBizName },
+        { label: 'KYC Tier', value: kyc_tier === 'startup' ? 'Startup / Sole Proprietorship' : 'Enterprise CAC Registered' },
+        { label: 'RC / CAC / ID Number', value: cleanCac },
+        { label: 'Director / Owner', value: cleanDirector },
+        { label: 'Contact Email', value: devData.contact_email || 'N/A' },
+        { label: 'Contact Phone', value: cleanPhone || devData.contact_phone || 'N/A' },
+        { label: 'Submission Time', value: new Date(now).toLocaleString() }
+      ],
+      actionNote: 'Log into Superadmin Dashboard -> Developer KYC tab to verify documents and approve/issue Live API Key.'
+    }).catch(err => console.error("Compliance alert error:", err));
 
     res.json({
       status: true,
@@ -14054,10 +14244,12 @@ app.get("/api/v1/admin/developer/compliance", async (req, res) => {
         business_legal_name: data.business_legal_name || data.business_name || devAccount?.merchant_name || "N/A",
         cac_rc_number: data.cac_rc_number || data.rc_number || "N/A",
         cac_document_name: data.cac_document_name || "CAC_Certificate.pdf",
+        cac_document_data: data.cac_document_data || "",
         director_name: data.director_name || "N/A",
         director_id_type: data.director_id_type || data.id_type || "NIN",
         director_id_number: data.director_id_number || data.id_number || "N/A",
         director_id_document_name: data.director_id_document_name || data.id_document_name || "Director_ID.pdf",
+        director_id_document_data: data.director_id_document_data || data.id_document_data || data.cac_document_data || "",
         id_document_name: data.director_id_document_name || data.id_document_name || "ID_Document.pdf",
         street_address: data.street_address || data.address || "N/A",
         state: data.state || "N/A",
@@ -14096,6 +14288,7 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
     }
 
     const {
+      kyc_tier = "startup",
       business_name,
       business_legal_name,
       rc_number,
@@ -14107,6 +14300,12 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
       director_id_number,
       id_document_name,
       director_id_document_name,
+      id_document_data,
+      director_id_document_data,
+      cac_document_name,
+      cac_document_data,
+      developer_phone,
+      contact_phone,
       street_address = "Operational Office",
       state = "Lagos"
     } = req.body || {};
@@ -14116,6 +14315,9 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
     const cleanDirector = (director_name || "").trim();
     const cleanIdNum = (director_id_number || id_number || "").trim();
     const cleanIdType = (director_id_type || id_type || "NIN").trim();
+    const cleanPhone = (developer_phone || contact_phone || "").trim();
+    const rawIdDocData = director_id_document_data || id_document_data || "";
+    const rawCacDocData = cac_document_data || "";
 
     if (!cleanBizName || cleanBizName.length < 2) {
       return res.status(400).json({ status: false, error: "Business / Company Name is required." });
@@ -14143,12 +14345,17 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
     const payload = {
       developer_id: devId,
       merchant_email: devSnap.data().contact_email,
+      contact_phone: cleanPhone || devSnap.data().contact_phone || "",
+      kyc_tier,
       business_legal_name: cleanBizName,
       cac_rc_number: cleanCac,
+      cac_document_name: cac_document_name || (kyc_tier === "startup" ? "startup_exemption" : "cac_cert.pdf"),
+      cac_document_data: rawCacDocData ? String(rawCacDocData) : "",
       director_name: cleanDirector,
       director_id_type: cleanIdType,
       director_id_number: cleanIdNum,
-      director_id_document_name: id_document_name || director_id_document_name || "ID_Document.pdf",
+      director_id_document_name: id_document_name || director_id_document_name || "id_document.pdf",
+      director_id_document_data: rawIdDocData ? String(rawIdDocData) : "",
       street_address,
       state,
       status: "under_review",
@@ -14178,6 +14385,25 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
       updated_at: now
     });
 
+    // Send email alert to Superadmin
+    try {
+      await sendSuperadminNotificationEmail({
+        category: "DEVELOPER",
+        subject: `🚨 New Developer KYC Verification: ${cleanBizName}`,
+        title: "Developer Business Verification Submitted",
+        details: [
+          { label: "Business Name", value: cleanBizName },
+          { label: "CAC / RC Number", value: cleanCac },
+          { label: "Director Name", value: cleanDirector },
+          { label: "ID Number", value: `${cleanIdType}: ${cleanIdNum}` },
+          { label: "Developer Email", value: devSnap.data().contact_email }
+        ],
+        actionNote: "Log in to Superadmin Dashboard -> Developer Verification tab to review."
+      });
+    } catch (e) {
+      console.error("Failed to send superadmin email alert:", e);
+    }
+
     res.json({
       status: true,
       message: "KYC documents submitted to Super Admin for verification!",
@@ -14191,9 +14417,77 @@ app.post("/api/v1/developer/compliance", async (req, res) => {
         submitted_at: now
       }
     });
-  } catch (err) {
+  } catch (err: any) {
     console.error("Error in developer compliance alias:", err);
-    res.status(500).json({ status: false, error: "Failed to submit compliance documents." });
+    res.status(500).json({ status: false, error: err.message || "Failed to submit compliance documents." });
+  }
+});
+
+// Official Real-Time NIN / CAC Verification Inspector
+app.post("/api/v1/admin/developer/verify-nin", async (req, res) => {
+  try {
+    const { nin_number, id_type = "NIN", director_name = "", business_name = "" } = req.body || {};
+    const cleanNin = String(nin_number || "").trim().replace(/[^a-zA-Z0-9]/g, "");
+
+    if (!cleanNin || cleanNin.length < 5) {
+      return res.status(400).json({ status: false, error: "Please provide a valid NIN or ID document number to verify." });
+    }
+
+    // Check if live IdentityPass / Prembly / Dojah API key is available in environment
+    const identityApiKey = process.env.IDENTITYPASS_API_KEY || process.env.PREMBLY_API_KEY || process.env.DOJAH_API_KEY;
+
+    if (identityApiKey) {
+      // Call Live External Identity Verification API (Prembly / Identitypass)
+      try {
+        const liveRes = await fetch("https://api.identitypass.com/api/v2/biometrics/merchant/data/verification/nin", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": identityApiKey,
+            "app-id": process.env.IDENTITYPASS_APP_ID || ""
+          },
+          body: JSON.stringify({ number: cleanNin })
+        });
+        const liveData = await liveRes.json();
+        return res.json({
+          status: true,
+          mode: "live_gateway",
+          verified: liveData.status || false,
+          queried_nin: cleanNin,
+          id_type: id_type.toUpperCase(),
+          data: liveData.data || liveData
+        });
+      } catch (liveErr: any) {
+        console.error("Live identity provider error:", liveErr);
+      }
+    }
+
+    // Real Format & Structural Validation (No fake identities generated)
+    const is11Digits = /^\d{11}$/.test(cleanNin);
+    const isLikelyValidFormat = is11Digits || cleanNin.length >= 8;
+
+    res.json({
+      status: true,
+      mode: "official_format_inspection",
+      queried_nin: cleanNin,
+      id_type: id_type.toUpperCase(),
+      format_valid: isLikelyValidFormat,
+      is_11_digits: is11Digits,
+      character_count: cleanNin.length,
+      director_submitted_name: director_name,
+      business_submitted_name: business_name,
+      api_gateway_status: "Manual Superadmin Verification & Visual Document Inspection (No external paid provider key in .env)",
+      official_verification_portals: {
+        cac_public_search: "https://search.cac.gov.ng/",
+        nimc_portal: "https://nimc.gov.ng/",
+        frsc_license_verification: "https://frsc.gov.ng/"
+      },
+      message: is11Digits
+        ? `NIN ${cleanNin} matches standard 11-digit Nigerian National Identity Number structure.`
+        : `ID Number ${cleanNin} contains ${cleanNin.length} characters.`
+    });
+  } catch (err: any) {
+    res.status(500).json({ status: false, error: err.message || "Failed to inspect ID record." });
   }
 });
 

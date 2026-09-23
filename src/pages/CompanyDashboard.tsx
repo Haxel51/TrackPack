@@ -1612,21 +1612,6 @@ export const CompanyDashboard: React.FC = () => {
                                     </button>
 
                                     <button
-                                      onClick={() => setResetPinConfirmModal({
-                                        open: true,
-                                        staffId: st.id,
-                                        staffName: st.name,
-                                        submitting: false,
-                                        error: null
-                                      })}
-                                      className="p-1.5 rounded-lg border-0 cursor-pointer transition-all bg-blue-50 hover:bg-blue-100 text-blue-600"
-                                      title="Reset PIN"
-                                      id={`reset-staff-pin-btn-${st.id}`}
-                                    >
-                                      <Key className="w-3.5 h-3.5" />
-                                    </button>
-
-                                    <button
                                       onClick={() => handleDeleteStaffByCompany(st.id, st.name)}
                                       className="p-1.5 rounded-lg border-0 cursor-pointer transition-all bg-red-50 hover:bg-red-100 text-red-600"
                                       title="Permanently Delete Staff Member"
@@ -2840,14 +2825,6 @@ export const CompanyDashboard: React.FC = () => {
                 Administrative Controls
               </p>
 
-              {/* Reset PIN Button */}
-              <button
-                onClick={() => handleInitiateManagerResetPin(selectedManagerProfile.id, selectedManagerProfile.name, selectedManagerProfile.phone)}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-extrabold py-3 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer border-0 shadow-sm"
-                id="panel-reset-manager-pin-btn"
-              >
-                <KeyRound className="w-4 h-4" /> Reset 6-Digit Manager PIN
-              </button>
 
               {/* Active Toggle Switch */}
               <div className="flex items-center justify-between bg-white border border-slate-100 rounded-xl p-3">

@@ -705,17 +705,29 @@ export const ManagerLogin: React.FC<ManagerLoginProps> = ({ roleOverride }) => {
                   <Phone className="w-5 h-5" />
                 </div>
                 <h3 className="text-sm font-black text-[#0A1F44]">
-                  Assisted Password Reset
+                  Assisted PIN Reset
                 </h3>
               </div>
               <p className="text-xs text-slate-500 font-semibold leading-relaxed">
-                Forgot your password? Message us on WhatsApp with your registered phone number and we'll help you reset it.
+                Forgot your PIN? Message us on WhatsApp with your registered phone number and we'll help you reset it.
               </p>
 
               <a
                 href="https://wa.me/2349031940521?text=Hello%20Waybilla%20Support,%20I%20am%20a%20Park%20Manager%20and%20forgot%20my%20PIN.%20I%20need%20assistance%20with%20a%20reset%20code."
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  fetch('/api/auth/forgot-pin/notify-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      phone_number: phoneNumber,
+                      role: 'manager',
+                      user_name: managerInfo?.name || 'Park Manager',
+                      company_name: managerInfo?.company_name || 'Terminal Manager'
+                    })
+                  }).catch(() => {});
+                }}
                 className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"
               >
                 <span>Message on WhatsApp</span>

@@ -21,8 +21,8 @@ export const StaffLogin: React.FC = () => {
   const isExpiredParam = searchParams.get('expired') === 'true' || (location.state as { sessionExpired?: boolean })?.sessionExpired === true;
   const [showExpiredBanner, setShowExpiredBanner] = useState(isExpiredParam);
 
-  // Steps: 'phone' | 'pin'
-  const [step, setStep] = useState<'phone' | 'pin'>('phone');
+  // Steps: 'phone' | 'pin' | 'forgot_pin'
+  const [step, setStep] = useState<'phone' | 'pin' | 'forgot_pin'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [staffInfo, setStaffInfo] = useState<StaffProfileInfo | null>(null);
 
@@ -168,18 +168,86 @@ export const StaffLogin: React.FC = () => {
               <Lock className="text-[#F7941D] w-7 h-7" />
             )}
           </div>
-          <h1 className="text-2xl font-extrabold text-[#0A1F44]">Staff Terminal Sign In</h1>
+          <h1 className="text-2xl font-extrabold text-[#0A1F44]">
+            {step === 'forgot_pin' ? 'Reset Forgotten PIN' : 'Staff Terminal Sign In'}
+          </h1>
           <p className="text-sm text-slate-500 max-w-xs">
-            {step === 'phone'
-              ? 'Enter your registered phone number to sign in to your station terminal.'
-              : !staffInfo?.has_pin
-                ? 'Create your secret 4-digit PIN for quick and secure daily logins.'
-                : 'Enter your 4-digit PIN to access your station terminal.'}
+            {step === 'forgot_pin'
+              ? 'Recover access to your account by verifying your phone number.'
+              : step === 'phone'
+                ? 'Enter your registered phone number to sign in to your station terminal.'
+                : !staffInfo?.has_pin
+                  ? 'Create your secret 4-digit PIN for quick and secure daily logins.'
+                  : 'Enter your 4-digit PIN to access your station terminal.'}
           </p>
         </div>
 
-        {/* STEP 1: Phone Number */}
-        {step === 'phone' ? (
+        {/* STEP: Forgot PIN (Assisted PIN Reset View) */}
+        {step === 'forgot_pin' ? (
+          <div className="space-y-6">
+            <div className="bg-slate-50 border border-slate-100 p-6 rounded-3xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-[#25D366]/10 rounded-2xl flex items-center justify-center text-[#25D366]">
+                  <Phone className="w-5 h-5" />
+                </div>
+                <h3 className="text-sm font-black text-[#0A1F44]">
+                  Assisted PIN Reset
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 font-semibold leading-relaxed">
+                Forgot your PIN? Message us on WhatsApp with your registered phone number and we'll help you reset it.
+              </p>
+
+              <a
+                href={`https://wa.me/2349031940521?text=${encodeURIComponent(
+                  `Hello Waybilla Support, I am a Park Staff member (${phoneNumber || 'Phone Number'}) and I forgot my PIN. Please verify my account and issue a reset code.`
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => {
+                  fetch('/api/auth/forgot-pin/notify-admin', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      phone_number: phoneNumber,
+                      role: 'staff',
+                      user_name: staffInfo?.name || 'Park Staff',
+                      company_name: staffInfo?.company_name || 'Terminal Staff'
+                    })
+                  }).catch(() => {});
+                }}
+                className="w-full bg-[#25D366] hover:bg-[#20ba59] text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-sm text-center"
+              >
+                <span>Message on WhatsApp</span>
+              </a>
+            </div>
+
+            <div className="space-y-3 pt-2 text-center">
+              <div className="text-xs text-slate-400 font-bold">
+                Have a reset code?{' '}
+                <button
+                  type="button"
+                  onClick={() => navigate('/reset-password')}
+                  className="text-[#F7941D] hover:underline cursor-pointer font-black border-0 bg-transparent"
+                >
+                  Tap here
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setStep('phone');
+                  setStaffInfo(null);
+                  setError(null);
+                }}
+                className="text-xs font-bold text-slate-500 hover:text-[#0A1F44] transition-colors cursor-pointer border-0 bg-transparent"
+              >
+                Back to Sign In
+              </button>
+            </div>
+          </div>
+        ) : step === 'phone' ? (
           <form onSubmit={handlePhoneSubmit} className="space-y-5">
             <div className="space-y-1.5">
               <label htmlFor="staff-phone" className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
@@ -346,14 +414,12 @@ export const StaffLogin: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => {
-                      setStaffInfo(prev => prev ? ({ ...prev, has_pin: false }) : null);
-                      setPin('');
-                      setConfirmPin('');
+                      setStep('forgot_pin');
                       setError(null);
                     }}
-                    className="text-xs font-bold text-orange-600 hover:text-orange-700 underline cursor-pointer"
+                    className="text-xs font-extrabold text-orange-600 hover:text-orange-700 underline cursor-pointer border-0 bg-transparent"
                   >
-                    Set / Reset PIN
+                    Forgot PIN?
                   </button>
                 </div>
                 <div className="relative">
@@ -381,21 +447,6 @@ export const StaffLogin: React.FC = () => {
                     {showPin ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                   </button>
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  Haven't created a PIN yet or forgot it?{' '}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setStaffInfo(prev => prev ? ({ ...prev, has_pin: false }) : null);
-                      setPin('');
-                      setConfirmPin('');
-                      setError(null);
-                    }}
-                    className="text-orange-600 font-bold hover:underline cursor-pointer"
-                  >
-                    Tap here to choose your PIN
-                  </button>
-                </p>
               </div>
             )}
 
@@ -409,18 +460,17 @@ export const StaffLogin: React.FC = () => {
                   </div>
                 )}
                 {staffInfo?.has_pin && (
-                  <div className="pt-1 border-t border-red-200/60">
+                  <div className="pt-2 border-t border-red-200/60 flex items-center justify-between">
+                    <span className="text-slate-600 text-[11px]">Forgot your 4-digit PIN?</span>
                     <button
                       type="button"
                       onClick={() => {
-                        setStaffInfo(prev => prev ? ({ ...prev, has_pin: false }) : null);
-                        setPin('');
-                        setConfirmPin('');
+                        setStep('forgot_pin');
                         setError(null);
                       }}
-                      className="inline-flex items-center gap-1.5 text-xs text-orange-700 hover:text-orange-800 font-extrabold underline cursor-pointer"
+                      className="inline-flex items-center gap-1 text-xs text-orange-700 hover:text-orange-800 font-extrabold underline cursor-pointer border-0 bg-transparent"
                     >
-                      <KeyRound className="w-3.5 h-3.5" /> Haven't set your own PIN yet? Click here to choose your 4-digit PIN now
+                      <KeyRound className="w-3.5 h-3.5" /> Request PIN Reset
                     </button>
                   </div>
                 )}

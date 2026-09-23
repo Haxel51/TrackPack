@@ -204,17 +204,38 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   const marginHours = route?.margin_hours || Math.max(0.3, Math.round(duration * 0.12 * 10) / 10);
 
-  // Status mapping to progress bar percentages
-  const percentMap = {
-    pre_booked: 5,
-    booked: 15,
-    departed: 40,
-    in_transit: 65,
-    arrived: 90,
+  // Distinguish whether waybill was booked online (6 stages) or booked directly at the park counter by staff (5 stages)
+  const isOnlineBooking = Boolean(
+    status === 'pre_booked' ||
+    (waybill as any).source === 'self_service_prebook' ||
+    (waybill as any).source === 'online' ||
+    (waybill as any).source === 'developer_api' ||
+    (waybill as any).is_online_booking ||
+    (waybill as any).booking_source === 'online' ||
+    (waybill as any).created_by_role === 'customer' ||
+    (waybill as any).source === 'customer_app'
+  );
+
+  // Status mapping to progress bar percentages (adaptive to 6 stages for online or 5 stages for counter)
+  const percentMapOnline = {
+    pre_booked: 12,
+    booked: 30,
+    departed: 50,
+    in_transit: 70,
+    arrived: 88,
     collected: 100
   };
 
-  const progressPercent = percentMap[status] || 15;
+  const percentMapCounter = {
+    pre_booked: 20,
+    booked: 20,
+    departed: 45,
+    in_transit: 70,
+    arrived: 88,
+    collected: 100
+  };
+
+  const progressPercent = (isOnlineBooking ? percentMapOnline[status] : percentMapCounter[status]) || 20;
 
   // Format datetime helper
   const formatDateTime = (isoString: string | null | undefined) => {
@@ -266,23 +287,27 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   const expectedTimeRange = getExpectedTimeRange();
 
-  // Feature 2: Warm Status Language
+  const activePickupPin = waybill.pickup_pin || (waybill as any).pickup_code || (waybill as any).pickupPin;
+
+  // Feature 2: Warm Relatable Human Status Language
   const getWarmStatusText = () => {
     switch (status) {
       case 'pre_booked':
-        return `Waybill pre-booked online via API. Awaiting parcel handover at ${origin_park}.`;
+        return `You’ve booked from comfort! Take your package to ${origin_park} whenever you're ready — show your QR code for express 2-second drop-off. Secret Pickup PIN for receiver: ${activePickupPin || 'Generated'} 📱📦`;
       case 'booked':
-        return `We've got your waybill! ${origin_park} is taking care of it.`;
+        return isOnlineBooking
+          ? `Your package has landed safely at ${origin_park}! Staff have checked it in, tagged it, and placed it in the secure departure loading bay. 👍`
+          : `Package received and booked at ${origin_park} counter! Staff has weighed, tagged, and queued it for vehicle loading. 👍`;
       case 'departed':
-        return `Your waybill just left ${origin_park}, riding on Vehicle ${bus_number}.`;
+        return `Vroom! Neatly loaded into Vehicle ${bus_number} and departed ${origin_park}. Receiver alert sent with Pickup PIN (${activePickupPin || 'PIN'})! Safe journey to our driver! 🚚💨`;
       case 'in_transit':
-        return `On the way! Expected between ${expectedTimeRange}.`;
+        return `On the road! Cruising steadily towards destination. Expected arrival: ${expectedTimeRange}. No shaking, your goods are moving safe and sound! 🛣️`;
       case 'arrived':
-        return `Good news — your waybill just reached ${destination_park}!`;
+        return `Touchdown! Package safely reached ${destination_park} and is sorted in the arrival bay. Ready for pickup with secret Pickup PIN (${activePickupPin || 'PIN'})! 📍`;
       case 'collected':
-        return `Delivered! Your waybill made it safely. ✓`;
+        return `Mission accomplished! Handed over safely to ${waybill.receiver_name || 'receiver'} with verified PIN. Case closed, everybody happy! 🎉`;
       default:
-        return `Processing waybill at ${origin_park}.`;
+        return `Processing waybill with utmost care at ${origin_park}.`;
     }
   };
 
@@ -290,7 +315,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   // Status color helpers
   const getStatusColorClass = (itemStatus: typeof status) => {
-    if (itemStatus === 'pre_booked') return 'indigo';
+    if (itemStatus === 'pre_booked') return 'amber';
     if (itemStatus === 'booked') return 'amber';
     if (itemStatus === 'departed' || itemStatus === 'in_transit') return 'blue';
     return 'emerald';
@@ -298,14 +323,12 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
 
   const currentColor = getStatusColorClass(status);
 
-  // Horizontal Timeline Points definition
-  const points = [
-    { label: 'Booked', status: 'booked' as const },
-    { label: 'Departed', status: 'departed' as const },
-    { label: 'In Transit', status: 'in_transit' as const },
-    { label: 'Arrived', status: 'arrived' as const },
-    { label: 'Collected', status: 'collected' as const }
-  ];
+  // 6 Horizontal / Step Milestone Definition
+  const isReceivedAtPark = status !== 'pre_booked';
+  const isDeparted = Boolean(departed_at) || status === 'departed' || status === 'in_transit' || status === 'arrived' || status === 'collected';
+  const isInTransit = status === 'in_transit' || status === 'arrived' || status === 'collected';
+  const isArrived = Boolean(arrived_at) || status === 'arrived' || status === 'collected';
+  const isCollected = Boolean(collected_at) || status === 'collected';
 
   return (
     <div className="bg-white border border-slate-100 rounded-3xl p-6 shadow-md space-y-7 text-slate-800">
@@ -366,7 +389,7 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
       </div>
 
       {/* Pickup PIN Verification Banner */}
-      {waybill.pickup_pin && (
+      {activePickupPin && (
         <div className="bg-purple-50/90 border border-purple-200 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs shadow-2xs">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 font-extrabold shadow-2xs">
@@ -374,10 +397,10 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             </div>
             <div>
               <p className="font-extrabold text-purple-950 text-sm flex items-center gap-1.5 flex-wrap">
-                Secret Pickup PIN: <span className="font-black text-purple-700 tracking-wider text-base bg-white px-2.5 py-0.5 rounded-lg border border-purple-200 shadow-2xs">{waybill.pickup_pin}</span>
+                Secret Receiver Pickup PIN: <span className="font-black text-purple-700 tracking-wider text-base bg-white px-2.5 py-0.5 rounded-lg border border-purple-200 shadow-2xs">{activePickupPin}</span>
               </p>
               <p className="text-purple-800 text-[11px] mt-1 font-medium leading-relaxed">
-                To collect at destination park, receiver can state their <strong>Phone Number ({waybill.receiver_phone})</strong> OR show this <strong>6-digit Pickup PIN ({waybill.pickup_pin})</strong>.
+                Send this secret PIN to receiver <strong>{waybill.receiver_name} ({waybill.receiver_phone})</strong>! They will show this <strong>6-digit Pickup PIN ({activePickupPin})</strong> or their phone number to collect at {destination_park}.
               </p>
             </div>
           </div>
@@ -476,50 +499,109 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
         </div>
       </div>
 
-      {/* Vertical Timeline */}
+      {/* Vertical Timeline - 6 Stages for Online Pre-Bookings / 5 Stages for Staff Counter Bookings */}
       <div className="border-t border-slate-100 pt-6 space-y-6">
-        <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest mb-4">
-          Shipment Timeline
-        </h4>
+        <div className="flex items-center justify-between">
+          <h4 className="text-xs font-extrabold text-slate-400 uppercase tracking-widest">
+            {isOnlineBooking ? '6-Stage Online Journey Tracker' : '5-Stage Motor Park Counter Journey'}
+          </h4>
+          <span className="text-[10px] font-extrabold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-100">
+            {isOnlineBooking ? (
+              status === 'collected' ? '6/6 Stages Complete' :
+              status === 'arrived' ? '5/6 Stages Complete' :
+              status === 'in_transit' ? '4/6 Stages Complete' :
+              status === 'departed' ? '3/6 Stages Complete' :
+              status === 'booked' ? '2/6 Stages Complete' : '1/6 Stage (Booked Online)'
+            ) : (
+              status === 'collected' ? '5/5 Stages Complete' :
+              status === 'arrived' ? '4/5 Stages Complete' :
+              status === 'in_transit' ? '3/5 Stages Complete' :
+              status === 'departed' ? '2/5 Stages Complete' : '1/5 Stage (Received at Counter)'
+            )}
+          </span>
+        </div>
 
         <div className="relative border-l-2 border-slate-100 ml-4 pl-6 space-y-6">
           
-          {/* 1. Booked Stage */}
+          {/* STAGE 1 (ONLINE ONLY): Booked Online (At Home) */}
+          {isOnlineBooking && (
+            <div className="relative">
+              <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
+                ${(booked_at || waybill.created_at) ? 'border-orange-500 text-orange-500 shadow-xs' : 'border-slate-200 text-slate-300'}
+              `}>
+                <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              </span>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h5 className="text-sm font-extrabold text-slate-900">
+                    1. Booked Online (At Home)
+                  </h5>
+                  {(booked_at || waybill.created_at) && (
+                    <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
+                      {formatDateTime(booked_at || waybill.created_at)}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs text-slate-500 leading-relaxed">
+                  Waybill digital pass & QR code generated! All parcel details are safely locked in. Secret Receiver Pickup PIN: <strong className="text-purple-700 font-extrabold">{activePickupPin || 'Generated'}</strong>. 📱✨
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* STAGE: Received at Park Counter (Stage 2 if Online, Stage 1 if Walk-in Counter) */}
           <div className="relative">
-            {/* Timeline node */}
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${booked_at ? 'border-orange-500 text-orange-500' : 'border-slate-200 text-slate-300'}
+              ${isReceivedAtPark ? 'border-orange-500 text-orange-500 shadow-xs' : 'border-slate-200 text-slate-300'}
             `}>
-              <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              {isReceivedAtPark ? (
+                <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              ) : (
+                <Circle className="w-3 h-3 text-slate-300" />
+              )}
             </span>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h5 className={`text-sm font-extrabold ${booked_at ? 'text-slate-900' : 'text-slate-400'}`}>
-                  Booked & Received
+                <h5 className={`text-sm font-extrabold ${isReceivedAtPark ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {isOnlineBooking ? '2. Received at Park Counter' : '1. Received & Booked at Park Counter'}
                 </h5>
-                {booked_at && (
+                {isReceivedAtPark && (
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded">
+                    Verified at Origin
+                  </span>
+                )}
+                {!isOnlineBooking && (booked_at || waybill.created_at) && (
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-                    {formatDateTime(booked_at)}
+                    {formatDateTime(booked_at || waybill.created_at)}
                   </span>
                 )}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                We've got your waybill! {origin_park} is taking care of it.
+                {isReceivedAtPark 
+                  ? (isOnlineBooking 
+                      ? `Your package has landed safely at ${origin_park}! Staff have checked it in, tagged it, and placed it in the secure departure loading bay. 👍`
+                      : `Safe and sound in our hands! Staff have weighed, tagged, and registered your waybill directly at ${origin_park} counter. 👍`)
+                  : `Awaiting package drop-off at ${origin_park}. Bring your package to the counter — staff will scan your pass in seconds!`
+                }
               </p>
             </div>
           </div>
 
-          {/* 2. Departed Stage */}
+          {/* STAGE: Loaded into Vehicle & Departed (Stage 3 if Online, Stage 2 if Walk-in Counter) */}
           <div className="relative">
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${departed_at ? 'border-blue-500 text-blue-500' : 'border-slate-200 text-slate-300'}
+              ${isDeparted ? 'border-blue-500 text-blue-500 shadow-xs' : 'border-slate-200 text-slate-300'}
             `}>
-              <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              {isDeparted ? (
+                <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              ) : (
+                <Circle className="w-3 h-3 text-slate-300" />
+              )}
             </span>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h5 className={`text-sm font-extrabold ${departed_at ? 'text-slate-900' : 'text-slate-400'}`}>
-                  Departed Park
+                <h5 className={`text-sm font-extrabold ${isDeparted ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {isOnlineBooking ? '3. Loaded into Vehicle & Departed' : '2. Loaded into Vehicle & Departed'}
                 </h5>
                 {departed_at && (
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -528,31 +610,39 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                {departed_at 
-                  ? `Your waybill just left ${origin_park} on Vehicle ${bus_number}.`
-                  : `Awaiting dispatch from ${origin_park}.`
+                {isDeparted 
+                  ? `Neatly packed into Vehicle ${bus_number}! Driver has signed the manifest and departed ${origin_park}. Instant notification with secret Pickup PIN (${activePickupPin || 'PIN'}) has been dispatched to receiver ${waybill.receiver_name || 'receiver'}. Safe journey! 🚚💨`
+                  : `Awaiting vehicle loading and departure dispatch from ${origin_park}.`
                 }
               </p>
             </div>
           </div>
 
-          {/* 3. In Transit Stage (Always shows expected window) */}
+          {/* STAGE: In Transit (On Highway) (Stage 4 if Online, Stage 3 if Walk-in Counter) */}
           <div className="relative">
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${(status === 'in_transit' || status === 'arrived' || status === 'collected') ? 'border-blue-500 text-blue-500' : 'border-slate-200 text-slate-300'}
+              ${isInTransit ? 'border-blue-500 text-blue-500 shadow-xs' : 'border-slate-200 text-slate-300'}
             `}>
-              <Clock className="w-3.5 h-3.5 bg-white rounded-full" />
+              {isInTransit ? (
+                <Clock className="w-3.5 h-3.5 bg-white rounded-full" />
+              ) : (
+                <Circle className="w-3 h-3 text-slate-300" />
+              )}
             </span>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h5 className={`text-sm font-extrabold ${(status === 'in_transit' || status === 'arrived' || status === 'collected') ? 'text-slate-900' : 'text-slate-400'}`}>
-                  In Transit
+                <h5 className={`text-sm font-extrabold ${isInTransit ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {isOnlineBooking ? '4. In Transit (On Highway)' : '3. In Transit (On Highway)'}
                 </h5>
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                On the way! Expected between <strong className="text-blue-600 font-bold">{expectedTimeRange}</strong>.
+                {isInTransit ? (
+                  <>Cruising smoothly down the highway! Steady speed towards destination. Expected arrival window: <strong className="text-blue-600 font-bold">{expectedTimeRange}</strong>. No shaking, your goods are moving safe and sound! 🛣️✨</>
+                ) : (
+                  <>Will be tracked live once vehicle is on the expressway between {origin_park} and {destination_park}.</>
+                )}
               </p>
-              {route && (
+              {route && isInTransit && (
                 <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1">
                   <span>Based on {route.completed_trips >= 5 ? 'route history actuals' : 'estimated route duration'} ({duration}h)</span>
                 </p>
@@ -560,17 +650,21 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
             </div>
           </div>
 
-          {/* 4. Arrived Stage */}
+          {/* STAGE: Arrived at Destination Park (Stage 5 if Online, Stage 4 if Walk-in Counter) */}
           <div className="relative">
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${arrived_at ? 'border-emerald-500 text-emerald-500' : 'border-slate-200 text-slate-300'}
+              ${isArrived ? 'border-emerald-500 text-emerald-500 shadow-xs' : 'border-slate-200 text-slate-300'}
             `}>
-              <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              {isArrived ? (
+                <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              ) : (
+                <Circle className="w-3 h-3 text-slate-300" />
+              )}
             </span>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h5 className={`text-sm font-extrabold ${arrived_at ? 'text-slate-900' : 'text-slate-400'}`}>
-                  Arrived at Destination
+                <h5 className={`text-sm font-extrabold ${isArrived ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {isOnlineBooking ? '5. Arrived at Destination Park' : '4. Arrived at Destination Park'}
                 </h5>
                 {arrived_at && (
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -579,25 +673,29 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                {arrived_at
-                  ? `Good news — your waybill has reached ${destination_park}!`
-                  : `Will be sorted on arrival at ${destination_park}.`
+                {isArrived
+                  ? `Touchdown! Package safely reached ${destination_park} and is sorted in the arrival bay. Ready for receiver pickup with their secret 4-digit PIN! 📍`
+                  : `Will be offloaded and sorted once vehicle pulls into ${destination_park}.`
                 }
               </p>
             </div>
           </div>
 
-          {/* 5. Collected Stage */}
+          {/* STAGE: Collected & Delivered (Stage 6 if Online, Stage 5 if Walk-in Counter) */}
           <div className="relative">
             <span className={`absolute -left-[31px] top-0 rounded-full w-5 h-5 flex items-center justify-center border-2 bg-white
-              ${collected_at ? 'border-emerald-500 text-emerald-500' : 'border-slate-200 text-slate-300'}
+              ${isCollected ? 'border-emerald-500 text-emerald-500 shadow-xs' : 'border-slate-200 text-slate-300'}
             `}>
-              <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              {isCollected ? (
+                <CheckCircle2 className="w-3.5 h-3.5 fill-current bg-white rounded-full" />
+              ) : (
+                <Circle className="w-3 h-3 text-slate-300" />
+              )}
             </span>
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h5 className={`text-sm font-extrabold ${collected_at ? 'text-slate-900' : 'text-slate-400'}`}>
-                  Collected & Delivered
+                <h5 className={`text-sm font-extrabold ${isCollected ? 'text-slate-900' : 'text-slate-400'}`}>
+                  {isOnlineBooking ? '6. Collected & Delivered' : '5. Collected & Delivered'}
                 </h5>
                 {collected_at && (
                   <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
@@ -606,9 +704,9 @@ export const ShipmentTimeline: React.FC<ShipmentTimelineProps> = ({
                 )}
               </div>
               <p className="text-xs text-slate-500 leading-relaxed">
-                {collected_at
-                  ? `Delivered! Your waybill made it safely. ✓ (${collected_by === 'receiver' ? 'confirmed by receiver' : 'confirmed by staff'})`
-                  : `Awaiting collection by receiver at ${destination_park}.`
+                {isCollected
+                  ? `Mission accomplished! Handed over safely to ${waybill.receiver_name || 'receiver'} with verified PIN. Case closed, everybody happy! 🎉 (${collected_by === 'receiver' ? 'confirmed by receiver' : 'confirmed by staff'})`
+                  : `Awaiting collection by receiver at ${destination_park}. Remember to bring your secret Pickup PIN!`
                 }
               </p>
             </div>
