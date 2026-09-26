@@ -7,6 +7,7 @@ export interface GarageLocation {
   location_confirmed: boolean;
   confirmed_by: string | null;
   confirmed_at: string | null;
+  geofence_radius?: number; // in meters (default: 150m)
   updated_at?: string;
 }
 
@@ -15,6 +16,8 @@ export interface SupplierLocation {
   company_id: string;
   name: string;
   address_text: string;
+  category?: 'petroleum' | 'port' | 'factory' | 'warehouse' | 'agriculture' | 'transit' | 'general' | string;
+  geofence_radius?: number; // in meters (default: 150m)
   lat: number | null;
   lng: number | null;
   location_confirmed: boolean;
@@ -30,10 +33,36 @@ export interface ConfirmLocationPayload {
   confirmed_by?: string;
 }
 
+export type AssetCategory =
+  | 'heavy_truck'
+  | 'fuel_tanker'
+  | 'commercial_bus'
+  | 'delivery_van'
+  | 'construction_equipment'
+  | 'utility_vehicle'
+  | 'other';
+
+export type TrackerModelType =
+  | 'tk905'
+  | 'sinotrack_st905'
+  | 'micodus'
+  | 'gf07'
+  | 'teltonika'
+  | 'satellite_globalstar'
+  | 'custom';
+
 export interface TruckProfile {
   id: string;
   company_id: string;
   plate_number: string;
+  asset_type?: AssetCategory;
+  asset_name?: string;
+  tracker_id?: string; // IMEI, ESN, or Serial ID
+  tracker_model?: TrackerModelType | string;
+  tracker_battery_level?: number; // 0 - 100%
+  tracker_last_ping?: string;
+  tracker_tamper_alarm?: boolean;
+  tracker_status?: 'online' | 'standby' | 'offline' | 'tampered';
   driver_name: string;
   driver_phone: string;
   payment_plan: 'per_trip' | 'monthly';
@@ -59,6 +88,10 @@ export interface TruckProfile {
 
 export interface CreateTruckPayload {
   plate_number: string;
+  asset_type?: AssetCategory;
+  asset_name?: string;
+  tracker_id?: string;
+  tracker_model?: TrackerModelType | string;
   driver_name: string;
   driver_phone: string;
   payment_plan?: 'per_trip' | 'monthly';
@@ -77,6 +110,25 @@ export interface TripStatusHistoryEntry {
   triggered_by: string;
   triggered_at: string;
   note?: string;
+}
+
+export interface ProofOfDeliveryRecord {
+  pod_reference: string;
+  delivered_at: string;
+  signed_by_name: string;
+  signed_by_phone?: string;
+  discharged_quantity?: string;
+  seal_intact: boolean;
+  seal_notes?: string;
+  delivery_remarks?: string;
+  verified_by: string;
+}
+
+export interface DepartureChecklist {
+  waybill_handed: boolean;
+  seal_verified: boolean;
+  driver_data_online: boolean;
+  officer_name?: string;
 }
 
 export interface TripRecord {
@@ -99,6 +151,18 @@ export interface TripRecord {
   payment_date?: string | null;
   paid_by?: string | null;
   tracking_active?: boolean;
+  cargo_type?: string;
+  cargo_description?: string;
+  waybill_number?: string;
+  cargo_quantity?: string;
+  seal_number?: string;
+  customer_contact_name?: string;
+  customer_contact_phone?: string;
+  gate_pass_code?: string | null;
+  departure_checklist?: DepartureChecklist | null;
+  pod_record?: ProofOfDeliveryRecord | null;
+  departed_at?: string | null;
+  completed_at?: string | null;
   trip_status:
     | 'created'
     | 'payment_confirmed'

@@ -1038,7 +1038,7 @@ export const CompanyDashboard: React.FC = () => {
   }
 
   if (selectedModule === 'fleet') {
-    return <FleetDashboard onSwitchModule={handleSwitchModule} />;
+    return <FleetDashboard onSwitchModule={handleSwitchModule} showSwitchModule={true} />;
   }
 
   return (

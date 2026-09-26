@@ -9493,7 +9493,7 @@ app.post("/api/fleet-tracking/garage", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    const { address_text, lat, lng } = req.body;
+    const { address_text, lat, lng, geofence_radius } = req.body;
     if (!address_text || typeof address_text !== "string") {
       return res.status(400).json({ error: "Address text is required." });
     }
@@ -9508,6 +9508,10 @@ app.post("/api/fleet-tracking/garage", async (req, res) => {
       updated_at: now
     };
 
+    if (geofence_radius !== undefined && !isNaN(Number(geofence_radius))) {
+      updatedData.geofence_radius = Number(geofence_radius);
+    }
+
     if (existingSnap.exists()) {
       const existing = existingSnap.data();
       updatedData = {
@@ -9520,6 +9524,7 @@ app.post("/api/fleet-tracking/garage", async (req, res) => {
       updatedData.location_confirmed = false;
       updatedData.confirmed_by = null;
       updatedData.confirmed_at = null;
+      if (!updatedData.geofence_radius) updatedData.geofence_radius = 200;
     }
 
     if (lat !== undefined && lng !== undefined && lat !== null && lng !== null) {
@@ -9543,7 +9548,7 @@ app.post("/api/fleet-tracking/garage/confirm", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    const { lat, lng, confirmed_by } = req.body;
+    const { lat, lng, confirmed_by, geofence_radius } = req.body;
     const numLat = Number(lat);
     const numLng = Number(lng);
 
@@ -9566,9 +9571,14 @@ app.post("/api/fleet-tracking/garage/confirm", async (req, res) => {
       updated_at: now
     };
 
+    if (geofence_radius !== undefined && !isNaN(Number(geofence_radius))) {
+      updatePayload.geofence_radius = Number(geofence_radius);
+    }
+
     if (!snap.exists()) {
       updatePayload.company_id = authInfo.companyId;
       updatePayload.address_text = "Company Garage";
+      if (!updatePayload.geofence_radius) updatePayload.geofence_radius = 200;
     }
 
     await setDoc(garageRef, updatePayload, { merge: true });
@@ -9613,7 +9623,7 @@ app.post("/api/fleet-tracking/suppliers", async (req, res) => {
       return res.status(401).json({ error: "Unauthorized or missing company association." });
     }
 
-    const { name, address_text, lat, lng } = req.body;
+    const { name, address_text, lat, lng, category, geofence_radius } = req.body;
     if (!name || !address_text) {
       return res.status(400).json({ error: "Supplier name and address are required." });
     }
@@ -9625,6 +9635,8 @@ app.post("/api/fleet-tracking/suppliers", async (req, res) => {
       company_id: authInfo.companyId,
       name: name.trim(),
       address_text: address_text.trim(),
+      category: (category || "general").trim(),
+      geofence_radius: Number(geofence_radius) > 0 ? Number(geofence_radius) : 150,
       lat: hasCoords ? Number(lat) : null,
       lng: hasCoords ? Number(lng) : null,
       location_confirmed: hasCoords,
@@ -9638,6 +9650,50 @@ app.post("/api/fleet-tracking/suppliers", async (req, res) => {
     res.json({ success: true, supplier: { id: docRef.id, ...newSupplier } });
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/suppliers:", err);
+    res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 5b. POST /api/fleet-tracking/suppliers/batch-preset - Quick add multiple presets
+app.post("/api/fleet-tracking/suppliers/batch-preset", async (req, res) => {
+  try {
+    const authInfo = await getCompanyIdFromToken(req);
+    if (!authInfo) {
+      return res.status(401).json({ error: "Unauthorized or missing company association." });
+    }
+
+    const { presets } = req.body;
+    if (!Array.isArray(presets) || presets.length === 0) {
+      return res.status(400).json({ error: "Presets array is required." });
+    }
+
+    const now = new Date().toISOString();
+    const added: any[] = [];
+    const confirmedBy = authInfo.session?.userData?.name || authInfo.session?.userRole || "Manager";
+
+    for (const p of presets) {
+      if (!p.name || !p.address) continue;
+      const item = {
+        company_id: authInfo.companyId,
+        name: p.name.trim(),
+        address_text: p.address.trim(),
+        category: (p.category || "general").trim(),
+        geofence_radius: Number(p.geofenceRadius || p.geofence_radius || 250),
+        lat: Number(p.lat) || null,
+        lng: Number(p.lng) || null,
+        location_confirmed: Boolean(Number(p.lat) && Number(p.lng)),
+        confirmed_by: Boolean(Number(p.lat) && Number(p.lng)) ? confirmedBy : null,
+        confirmed_at: Boolean(Number(p.lat) && Number(p.lng)) ? now : null,
+        created_at: now,
+        updated_at: now
+      };
+      const docRef = await addDoc(collection(db, "fleetTracking_suppliers"), item);
+      added.push({ id: docRef.id, ...item });
+    }
+
+    res.json({ success: true, count: added.length, suppliers: added });
+  } catch (err: any) {
+    console.error("Error in batch-preset suppliers:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
   }
 });
@@ -9663,12 +9719,14 @@ app.put("/api/fleet-tracking/suppliers/:id", async (req, res) => {
       return res.status(403).json({ error: "Permission denied." });
     }
 
-    const { name, address_text, lat, lng } = req.body;
+    const { name, address_text, lat, lng, category, geofence_radius } = req.body;
     const now = new Date().toISOString();
     const updates: any = { updated_at: now };
 
     if (name) updates.name = name.trim();
     if (address_text) updates.address_text = address_text.trim();
+    if (category) updates.category = category.trim();
+    if (geofence_radius !== undefined) updates.geofence_radius = Number(geofence_radius);
     if (lat !== undefined && lng !== undefined) {
       if (lat === null || lng === null) {
         updates.lat = null;
@@ -9710,7 +9768,7 @@ app.post("/api/fleet-tracking/suppliers/:id/confirm", async (req, res) => {
       return res.status(403).json({ error: "Permission denied." });
     }
 
-    const { lat, lng, confirmed_by } = req.body;
+    const { lat, lng, confirmed_by, geofence_radius } = req.body;
     const numLat = Number(lat);
     const numLng = Number(lng);
 
@@ -9721,7 +9779,7 @@ app.post("/api/fleet-tracking/suppliers/:id/confirm", async (req, res) => {
     const now = new Date().toISOString();
     const confirmedBy = confirmed_by || authInfo.session?.userData?.name || authInfo.session?.userRole || "Manager";
 
-    const updates = {
+    const updates: any = {
       lat: numLat,
       lng: numLng,
       location_confirmed: true,
@@ -9729,6 +9787,9 @@ app.post("/api/fleet-tracking/suppliers/:id/confirm", async (req, res) => {
       confirmed_at: now,
       updated_at: now
     };
+    if (geofence_radius) {
+      updates.geofence_radius = Number(geofence_radius);
+    }
 
     await updateDoc(supRef, updates);
     const updatedSnap = await getDoc(supRef);
@@ -10449,17 +10510,17 @@ app.post("/api/fleet-tracking/trucks", async (req, res) => {
       return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can add truck profiles." });
     }
 
-    const { plate_number, driver_name, driver_phone, payment_plan } = req.body;
+    const { plate_number, asset_type, asset_name, tracker_id, tracker_model, driver_name, driver_phone, payment_plan } = req.body;
 
     // Required fields check
     if (!plate_number || !plate_number.trim()) {
-      return res.status(400).json({ error: "Plate number is required." });
+      return res.status(400).json({ error: "Plate number or Asset ID is required." });
     }
     if (!driver_name || !driver_name.trim()) {
-      return res.status(400).json({ error: "Driver name is required." });
+      return res.status(400).json({ error: "Driver or Operator name is required." });
     }
     if (!driver_phone || !driver_phone.trim()) {
-      return res.status(400).json({ error: "Driver phone number is required." });
+      return res.status(400).json({ error: "Driver or Operator phone number is required." });
     }
 
     // Phone validation
@@ -10481,16 +10542,22 @@ app.post("/api/fleet-tracking/trucks", async (req, res) => {
     });
 
     if (existing) {
-      return res.status(400).json({ error: "A truck with this plate number already exists" });
+      return res.status(400).json({ error: "A fleet asset with this plate number or ID already exists" });
     }
 
     const now = new Date().toISOString();
     const plan = payment_plan === "monthly" ? "monthly" : "per_trip";
     const createdBy = authInfo.session?.userData?.name || authInfo.session?.userData?.email || authInfo.session?.userRole || "Manager";
 
-    const newTruck = {
+    const newTruck: any = {
       company_id: authInfo.companyId,
       plate_number: formattedPlate,
+      asset_type: asset_type || "heavy_truck",
+      asset_name: asset_name ? asset_name.trim() : "",
+      tracker_id: tracker_id ? tracker_id.trim() : "",
+      tracker_model: tracker_model || "tk905",
+      tracker_battery_level: 100,
+      tracker_status: tracker_id ? "online" : "standby",
       driver_name: driver_name.trim(),
       driver_phone: driver_phone.trim(),
       payment_plan: plan,
@@ -10537,16 +10604,16 @@ app.put("/api/fleet-tracking/trucks/:id", async (req, res) => {
       return res.status(403).json({ error: "Permission denied." });
     }
 
-    const { plate_number, driver_name, driver_phone, payment_plan } = req.body;
+    const { plate_number, asset_type, asset_name, tracker_id, tracker_model, driver_name, driver_phone, payment_plan } = req.body;
 
     if (!plate_number || !plate_number.trim()) {
-      return res.status(400).json({ error: "Plate number is required." });
+      return res.status(400).json({ error: "Plate number or Asset ID is required." });
     }
     if (!driver_name || !driver_name.trim()) {
-      return res.status(400).json({ error: "Driver name is required." });
+      return res.status(400).json({ error: "Driver or Operator name is required." });
     }
     if (!driver_phone || !driver_phone.trim()) {
-      return res.status(400).json({ error: "Driver phone number is required." });
+      return res.status(400).json({ error: "Driver or Operator phone number is required." });
     }
 
     if (!isValidNigerianPhone(driver_phone.trim())) {
@@ -10568,16 +10635,25 @@ app.put("/api/fleet-tracking/trucks/:id", async (req, res) => {
     });
 
     if (duplicate) {
-      return res.status(400).json({ error: "A truck with this plate number already exists" });
+      return res.status(400).json({ error: "A fleet asset with this plate number or ID already exists" });
     }
 
     const now = new Date().toISOString();
     const updatePayload: any = {
       plate_number: formattedPlate,
+      asset_type: asset_type || currentData.asset_type || "heavy_truck",
+      asset_name: asset_name !== undefined ? asset_name.trim() : (currentData.asset_name || ""),
+      tracker_id: tracker_id !== undefined ? tracker_id.trim() : (currentData.tracker_id || ""),
+      tracker_model: tracker_model || currentData.tracker_model || "tk905",
       driver_name: driver_name.trim(),
       driver_phone: driver_phone.trim(),
       updated_at: now
     };
+
+    if (tracker_id && !currentData.tracker_id) {
+      updatePayload.tracker_status = "online";
+      updatePayload.tracker_battery_level = 100;
+    }
 
     if (payment_plan) {
       updatePayload.payment_plan = payment_plan === "monthly" ? "monthly" : "per_trip";
@@ -11216,7 +11292,21 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
       return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can create trips." });
     }
 
-    const { truck_id, supplier_id, payment_type, reference } = req.body;
+    const {
+      truck_id,
+      supplier_id,
+      payment_type,
+      reference,
+      driver_name: customDriverName,
+      driver_phone: customDriverPhone,
+      cargo_type = 'General Freight',
+      cargo_description = '',
+      waybill_number = '',
+      cargo_quantity = '',
+      seal_number = '',
+      customer_contact_name = '',
+      customer_contact_phone = ''
+    } = req.body;
     if (!truck_id || !supplier_id || !reference) {
       return res.status(400).json({ error: "Missing required trip or payment reference data." });
     }
@@ -11265,6 +11355,7 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
 
     let garageLat: number | null = null;
     let garageLng: number | null = null;
+    let garageGeofenceRadius = 200;
     const qGarage = query(
       collection(db, "fleetTracking_garages"),
       where("company_id", "==", authInfo.companyId)
@@ -11275,6 +11366,7 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
       if (gData.location_confirmed) {
         garageLat = gData.lat || null;
         garageLng = gData.lng || null;
+        garageGeofenceRadius = Number(gData.geofence_radius) || 200;
       }
     }
 
@@ -11289,23 +11381,28 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
     const auditNote = plan === "monthly" ? `Trip created — Monthly plan renewed. Valid until ${subExpiryFormatted}` : "Trip created — Payment of ₦1,000 confirmed";
 
     const initialAudit = {
-      status: "created",
+      status: "in_transit",
       triggered_by: createdBy,
       triggered_at: now,
-      note: auditNote
+      note: auditNote || "Trip created and live GPS telemetry activated."
     };
+
+    const effectiveDriverName = customDriverName?.trim() || truckData.driver_name || 'Driver';
+    const effectiveDriverPhone = customDriverPhone?.trim() || truckData.driver_phone || '';
 
     const newTrip = {
       company_id: authInfo.companyId,
       truck_id,
       plate_number: truckData.plate_number,
-      driver_name: truckData.driver_name,
-      driver_phone: truckData.driver_phone,
+      driver_name: effectiveDriverName,
+      driver_phone: effectiveDriverPhone,
       primary_destination_type: "supplier",
       primary_destination_id: supplier_id,
       primary_destination_name: supplierData.name,
       primary_destination_lat: supplierData.lat || 0,
       primary_destination_lng: supplierData.lng || 0,
+      primary_destination_geofence_radius: Number(supplierData.geofence_radius) || 200,
+      primary_destination_category: supplierData.category || 'general',
       redirect_destination: null,
       payment_plan: plan,
       payment_status: "confirmed",
@@ -11314,7 +11411,14 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
       payment_date: now,
       paid_by: createdBy,
       tracking_active: true,
-      trip_status: "created",
+      cargo_type: String(cargo_type || 'General Freight').trim(),
+      cargo_description: String(cargo_description || '').trim(),
+      waybill_number: String(waybill_number || '').trim(),
+      cargo_quantity: String(cargo_quantity || '').trim(),
+      seal_number: String(seal_number || '').trim(),
+      customer_contact_name: String(customer_contact_name || '').trim(),
+      customer_contact_phone: String(customer_contact_phone || '').trim(),
+      trip_status: "in_transit",
       status_history: [initialAudit],
       last_known_lat: garageLat || supplierData.lat || 0,
       last_known_lng: garageLng || supplierData.lng || 0,
@@ -11325,6 +11429,7 @@ app.post("/api/fleet-tracking/trips/verify-and-create", async (req, res) => {
       created_at: now,
       garage_lat: garageLat,
       garage_lng: garageLng,
+      garage_geofence_radius: garageGeofenceRadius,
     };
 
     const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
@@ -11393,7 +11498,19 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
       return res.status(403).json({ error: "Access denied. Only Manager and CEO roles can create trips." });
     }
 
-    const { truck_id, supplier_id } = req.body;
+    const {
+      truck_id,
+      supplier_id,
+      driver_name: customDriverName,
+      driver_phone: customDriverPhone,
+      cargo_type = 'General Freight',
+      cargo_description = '',
+      waybill_number = '',
+      cargo_quantity = '',
+      seal_number = '',
+      customer_contact_name = '',
+      customer_contact_phone = ''
+    } = req.body;
     if (!truck_id || !supplier_id) {
       return res.status(400).json({ error: "Truck ID and Supplier ID are required." });
     }
@@ -11425,6 +11542,7 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
 
     let garageLat: number | null = null;
     let garageLng: number | null = null;
+    let garageGeofenceRadius = 200;
     const qGarage = query(
       collection(db, "fleetTracking_garages"),
       where("company_id", "==", authInfo.companyId)
@@ -11435,6 +11553,7 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
       if (gData.location_confirmed) {
         garageLat = gData.lat || null;
         garageLng = gData.lng || null;
+        garageGeofenceRadius = Number(gData.geofence_radius) || 200;
       }
     }
 
@@ -11443,23 +11562,28 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
     const subUntilDate = new Date(truckData.subscription_active_until).toLocaleDateString();
 
     const initialAudit = {
-      status: "created",
+      status: "in_transit",
       triggered_by: createdBy,
       triggered_at: now,
-      note: `Trip created — Covered by active monthly plan (valid until ${subUntilDate})`
+      note: `Trip created — Covered by active monthly plan (valid until ${subUntilDate}). Live GPS active.`
     };
+
+    const effectiveDriverName = customDriverName?.trim() || truckData.driver_name || 'Driver';
+    const effectiveDriverPhone = customDriverPhone?.trim() || truckData.driver_phone || '';
 
     const newTrip = {
       company_id: authInfo.companyId,
       truck_id,
       plate_number: truckData.plate_number,
-      driver_name: truckData.driver_name,
-      driver_phone: truckData.driver_phone,
+      driver_name: effectiveDriverName,
+      driver_phone: effectiveDriverPhone,
       primary_destination_type: "supplier",
       primary_destination_id: supplier_id,
       primary_destination_name: supplierData.name,
       primary_destination_lat: supplierData.lat || 0,
       primary_destination_lng: supplierData.lng || 0,
+      primary_destination_geofence_radius: Number(supplierData.geofence_radius) || 200,
+      primary_destination_category: supplierData.category || 'general',
       redirect_destination: null,
       payment_plan: "monthly",
       payment_status: "confirmed",
@@ -11468,7 +11592,14 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
       payment_date: now,
       paid_by: "Monthly Plan",
       tracking_active: true,
-      trip_status: "created",
+      cargo_type: String(cargo_type || 'General Freight').trim(),
+      cargo_description: String(cargo_description || '').trim(),
+      waybill_number: String(waybill_number || '').trim(),
+      cargo_quantity: String(cargo_quantity || '').trim(),
+      seal_number: String(seal_number || '').trim(),
+      customer_contact_name: String(customer_contact_name || '').trim(),
+      customer_contact_phone: String(customer_contact_phone || '').trim(),
+      trip_status: "in_transit",
       status_history: [initialAudit],
       last_known_lat: garageLat || supplierData.lat || 0,
       last_known_lng: garageLng || supplierData.lng || 0,
@@ -11479,6 +11610,7 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
       created_at: now,
       garage_lat: garageLat,
       garage_lng: garageLng,
+      garage_geofence_radius: garageGeofenceRadius,
     };
 
     const docRef = await addDoc(collection(db, "fleetTracking_trips"), newTrip);
@@ -11497,6 +11629,75 @@ app.post("/api/fleet-tracking/trips/create-direct", async (req, res) => {
   } catch (err: any) {
     console.error("Error POST /api/fleet-tracking/trips/create-direct:", err);
     res.status(500).json({ error: err?.message || "Internal server error." });
+  }
+});
+
+// 17f2. GET /api/fleet-tracking/public/trips/:id - Public Live Trip Tracking for Customers & Receivers
+app.get(["/api/fleet-tracking/public/trips/:id", "/api/fleet/public/trips/:id"], async (req, res) => {
+  try {
+    const tripId = req.params.id;
+    if (!tripId) {
+      return res.status(400).json({ success: false, error: "Trip ID is required." });
+    }
+
+    const tripRef = doc(db, "fleetTracking_trips", tripId);
+    const snap = await getDoc(tripRef);
+    if (!snap.exists()) {
+      return res.status(404).json({ success: false, error: "Trip not found or expired." });
+    }
+
+    const data = snap.data();
+    
+    // Resolve Company Name if available
+    let companyName = "Waybilla Fleet Logistics";
+    if (data.company_id) {
+      try {
+        const cSnap = await getDoc(doc(db, "companies", data.company_id));
+        if (cSnap.exists()) {
+          companyName = cSnap.data().company_name || companyName;
+        }
+      } catch {}
+    }
+
+    res.json({
+      success: true,
+      trip: {
+        id: snap.id,
+        company_name: companyName,
+        plate_number: data.plate_number,
+        driver_name: data.driver_name,
+        driver_phone: data.driver_phone,
+        primary_destination_name: data.primary_destination_name,
+        primary_destination_lat: data.primary_destination_lat,
+        primary_destination_lng: data.primary_destination_lng,
+        redirect_destination: data.redirect_destination || null,
+        trip_status: data.trip_status,
+        last_known_lat: data.last_known_lat,
+        last_known_lng: data.last_known_lng,
+        last_movement_at: data.last_movement_at,
+        cargo_type: data.cargo_type || "General Freight",
+        cargo_description: data.cargo_description || "",
+        waybill_number: data.waybill_number || "",
+        cargo_quantity: data.cargo_quantity || "",
+        seal_number: data.seal_number || "",
+        customer_contact_name: data.customer_contact_name || "",
+        customer_contact_phone: data.customer_contact_phone || "",
+        status_history: data.status_history || [],
+        gate_pass_code: data.gate_pass_code || null,
+        pod_record: data.pod_record || null,
+        departed_at: data.departed_at || null,
+        completed_at: data.completed_at || null,
+        garage_lat: data.garage_lat,
+        garage_lng: data.garage_lng,
+        created_at: data.created_at,
+        estimated_arrival_time: data.estimated_arrival_time || null,
+        estimated_duration_text: data.estimated_duration_text || null,
+        remaining_distance_km: data.remaining_distance_km || null,
+      }
+    });
+  } catch (err: any) {
+    console.error("Error GET /api/fleet-tracking/public/trips/:id:", err);
+    res.status(500).json({ success: false, error: "Internal server error fetching trip tracking." });
   }
 });
 
@@ -12243,13 +12444,31 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
       return res.status(400).json({ error: "Cannot redirect a trip that is already completed or cancelled" });
     }
 
-    const { type, customer_id, name, address, lat, lng, save_as_new_customer } = req.body;
+    const { type, customer_id, supplier_id, name, address, lat, lng, save_as_new_customer, geofence_radius, reason } = req.body;
 
     let redirectObj: any = null;
     const createdBy = authInfo.session?.userData?.name || authInfo.session?.userData?.email || authInfo.session?.userRole || "Staff";
     const now = new Date().toISOString();
 
-    if (type === "saved_customer" && customer_id) {
+    if (type === "hub" && supplier_id) {
+      const supRef = doc(db, "fleetTracking_suppliers", supplier_id);
+      const supSnap = await getDoc(supRef);
+      if (!supSnap.exists()) {
+        return res.status(400).json({ error: "Selected terminal hub not found." });
+      }
+      const sData = supSnap.data();
+      redirectObj = {
+        type: "hub",
+        supplier_id,
+        name: sData.name,
+        address: sData.address_text,
+        lat: sData.lat || null,
+        lng: sData.lng || null,
+        category: sData.category || 'general',
+        geofence_radius: Number(sData.geofence_radius) || 200,
+        reason: (reason || "").trim() || "Rerouted to Universal Loading Hub"
+      };
+    } else if (type === "saved_customer" && customer_id) {
       const custRef = doc(db, "fleetTracking_customers", customer_id);
       const custSnap = await getDoc(custRef);
       if (!custSnap.exists()) {
@@ -12261,7 +12480,9 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
         name: cData.name,
         address: cData.address_text,
         lat: cData.lat || null,
-        lng: cData.lng || null
+        lng: cData.lng || null,
+        geofence_radius: Number(cData.geofence_radius) || 200,
+        reason: (reason || "").trim() || "Rerouted to Saved Destination"
       };
     } else {
       if (!name || !name.trim()) {
@@ -12276,12 +12497,13 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
         name: name.trim(),
         address: address.trim(),
         lat: typeof lat === "number" ? lat : null,
-        lng: typeof lng === "number" ? lng : null
+        lng: typeof lng === "number" ? lng : null,
+        geofence_radius: Number(geofence_radius) > 0 ? Number(geofence_radius) : 200,
+        reason: (reason || "").trim() || "Rerouted to Custom Delivery Point"
       };
 
       // Save to saved customer list if requested or by default for manual
       if (save_as_new_customer !== false) {
-        // Check if customer with same name already saved for this company
         const qCust = query(
           collection(db, "fleetTracking_customers"),
           where("company_id", "==", authInfo.companyId)
@@ -12295,6 +12517,7 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
             address_text: address.trim(),
             lat: typeof lat === "number" ? lat : null,
             lng: typeof lng === "number" ? lng : null,
+            geofence_radius: redirectObj.geofence_radius,
             created_at: now,
             created_by: createdBy
           });
@@ -12303,11 +12526,12 @@ app.post("/api/fleet-tracking/trips/:id/redirect", async (req, res) => {
     }
 
     let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
+    const reasonText = redirectObj.reason ? ` — Reason: ${redirectObj.reason}` : "";
     status_history.unshift({
       status: tripData.trip_status || "in_progress",
       triggered_by: createdBy,
       triggered_at: now,
-      note: `Trip redirected to ${redirectObj.name} (${redirectObj.address})`
+      note: `↪️ Trip redirected to ${redirectObj.name} (${redirectObj.address})${reasonText}`
     });
 
     const updatePayload = {
@@ -12460,8 +12684,23 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
     stopped_acknowledged = false;
   }
 
+  const supplierRadius = Number(tripData.primary_destination_geofence_radius) || 200;
+  const redirectRadius = (redirectDest && Number(redirectDest.geofence_radius)) || supplierRadius;
+  const garageRadius = Number(tripData.garage_geofence_radius) || 200;
+
+  // 0. Auto-detect departure from Garage if truck leaves garage boundary
+  if ((currentStatus === "created" || currentStatus === "payment_confirmed") && garageLat && garageLng && distToGarage > (garageRadius + 50)) {
+    newStatus = "in_progress";
+    statusChanged = true;
+    auditEntry = {
+      status: "in_progress",
+      triggered_by: "System",
+      triggered_at: now,
+      note: `Gate Departure auto-detected: Asset departed garage perimeter (> ${Math.round(garageRadius)}m). Telemetry active.`
+    };
+  }
   // 1. Departed -> In Progress (Movement > 50m)
-  if (currentStatus === "departed" && distMoved >= 50) {
+  else if (currentStatus === "departed" && distMoved >= 50) {
     newStatus = "in_progress";
     statusChanged = true;
     auditEntry = {
@@ -12482,19 +12721,19 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
       note: "Truck movement resumed (>50m). Trip status set back to in_progress."
     };
   }
-  // 3. Arrived at Supplier (within 200m of primary supplier)
-  else if ((currentStatus === "departed" || currentStatus === "in_progress") && distToSupplier <= 200) {
+  // 3. Arrived at Supplier (within geofence perimeter of primary supplier)
+  else if ((currentStatus === "departed" || currentStatus === "in_progress") && distToSupplier <= supplierRadius) {
     newStatus = "arrived_at_supplier";
     statusChanged = true;
     auditEntry = {
       status: "arrived_at_supplier",
       triggered_by: "System",
       triggered_at: now,
-      note: `Arrived within 200m of supplier location (${tripData.primary_destination_name}).`
+      note: `Arrived within hub geofence perimeter (${Math.round(distToSupplier)}m / ${supplierRadius}m) of ${tripData.primary_destination_name}.`
     };
   }
-  // 4. Loaded -> In Progress (Moving away from supplier > 100m)
-  else if (currentStatus === "loaded" && (distToSupplier > 100 || distMoved >= 50)) {
+  // 4. Loaded -> In Progress (Moving away from supplier past geofence boundary)
+  else if (currentStatus === "loaded" && (distToSupplier > (supplierRadius + 50) || distMoved >= 50)) {
     newStatus = "in_progress";
     statusChanged = true;
     auditEntry = {
@@ -12504,19 +12743,19 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
       note: "Truck departed supplier location after loading. En route to destination."
     };
   }
-  // 5. In Progress -> Arrived at Destination (within 200m of redirect or supplier destination)
-  else if (currentStatus === "in_progress" && distToDestination <= 200) {
+  // 5. In Progress -> Arrived at Destination (within geofence perimeter of destination or redirect)
+  else if (currentStatus === "in_progress" && distToDestination <= redirectRadius) {
     newStatus = "arrived_at_destination";
     statusChanged = true;
     auditEntry = {
       status: "arrived_at_destination",
       triggered_by: "System",
       triggered_at: now,
-      note: `Arrived within 200m of destination (${redirectDest ? redirectDest.name : tripData.primary_destination_name}).`
+      note: `Arrived within destination geofence perimeter (${Math.round(distToDestination)}m / ${redirectRadius}m) of ${redirectDest ? redirectDest.name : tripData.primary_destination_name}.`
     };
   }
   // 6. Arrived at Destination / In Progress -> Returning (moving >300m away from destination)
-  else if ((currentStatus === "arrived_at_destination" || currentStatus === "in_progress") && distToDestination > 300 && garageLat && garageLng) {
+  else if ((currentStatus === "arrived_at_destination" || currentStatus === "in_progress") && distToDestination > (redirectRadius + 150) && garageLat && garageLng) {
     newStatus = "returning";
     statusChanged = true;
     auditEntry = {
@@ -12526,8 +12765,8 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
       note: "Truck departed destination and is returning to garage base."
     };
   }
-  // 7. Returning -> Completed (within 200m of garage) — Hybrid Auto Completion
-  else if (currentStatus === "returning" && garageLat && garageLng && distToGarage <= 200) {
+  // 7. Returning -> Completed (within garage geofence perimeter) — Hybrid Auto Completion
+  else if (currentStatus === "returning" && garageLat && garageLng && distToGarage <= garageRadius) {
     newStatus = "completed";
     trackingActive = false;
     statusChanged = true;
@@ -12535,7 +12774,7 @@ function evaluateTripGpsState(tripData: any, newLat: number, newLng: number, tri
       status: "completed",
       triggered_by: "System",
       triggered_at: now,
-      note: "Trip completed — Truck returned to garage (within 200m)."
+      note: `Trip completed — Truck returned inside garage geofence perimeter (${Math.round(distToGarage)}m / ${garageRadius}m).`
     };
   }
 
@@ -12612,7 +12851,7 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
     }
 
     const tripId = req.params.id;
-    const { status, note } = req.body;
+    const { status, note, gate_pass_code, departure_checklist, pod_record } = req.body;
 
     if (!status) {
       return res.status(400).json({ error: "Target status is required." });
@@ -12648,18 +12887,19 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
       if (!isFleetManagerOrCEO(authInfo.session)) {
         return res.status(403).json({ error: "Access denied. Only Manager and CEO can mark trips as completed." });
       }
-    } else if (status === "loaded") {
+    } else if (status === "loaded" || status === "offloading") {
       if (!isFleetTripMonitorOrManagerOrCEO(authInfo.session)) {
-        return res.status(403).json({ error: "Access denied. Only Manager, CEO, or Trip Monitor can mark trips as loaded." });
+        return res.status(403).json({ error: "Access denied. Only Manager, CEO, or Trip Monitor can update loading or offloading status." });
       }
     }
 
     let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
     let customNote = note || "";
     if (!customNote) {
-      if (status === "departed") customNote = "Truck departure confirmed by manager.";
+      if (status === "departed") customNote = gate_pass_code ? `Truck departure authorized at gate (${gate_pass_code}) by manager.` : "Truck departure confirmed by manager.";
       else if (status === "loaded") customNote = "Goods confirmed loaded onto truck.";
-      else if (status === "completed") customNote = "Trip manually marked as completed by manager.";
+      else if (status === "offloading") customNote = "Cargo offloading / discharge initiated at destination terminal.";
+      else if (status === "completed") customNote = pod_record ? `Cargo delivered & POD verified (${pod_record.pod_reference || 'e-POD'}) by ${userName}.` : "Trip manually marked as completed by manager.";
       else if (status === "stopped") customNote = "Vehicle marked as stopped.";
       else customNote = `Status manually updated to ${status}.`;
     }
@@ -12677,15 +12917,27 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
       updated_at: now
     };
 
+    if (gate_pass_code) {
+      updatePayload.gate_pass_code = String(gate_pass_code).trim();
+    }
+    if (departure_checklist) {
+      updatePayload.departure_checklist = departure_checklist;
+    }
+    if (pod_record) {
+      updatePayload.pod_record = pod_record;
+    }
+
     if (status === "departed") {
       updatePayload.last_movement_at = now;
       updatePayload.stopped_warning_sent = false;
       updatePayload.stopped_alert_sent = false;
+      updatePayload.departed_at = now;
     } else if (status === "stopped") {
       updatePayload.stopped_warning_sent = false;
       updatePayload.stopped_alert_sent = false;
     } else if (status === "completed") {
       updatePayload.tracking_active = false;
+      updatePayload.completed_at = now;
     }
 
     await updateDoc(tripRef, updatePayload);
@@ -12723,6 +12975,23 @@ app.patch("/api/fleet-tracking/trips/:id/status", async (req, res) => {
         '🎯 Arrived at Destination',
         `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has arrived at the final destination.`,
         { tripId, eventType: 'arrived_at_destination' }
+      );
+    } else if (status === "offloading") {
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '⚡ Offloading Initiated',
+        `${tripData.driver_name || 'Driver'} (${tripData.plate_number}) has commenced offloading at destination.`,
+        { tripId, eventType: 'offloading' }
+      );
+    } else if (status === "completed") {
+      const recipientStr = pod_record?.recipient_name ? ` Received by ${pod_record.recipient_name}.` : "";
+      await sendFleetNotification(
+        tripData.company_id,
+        ['owner', 'manager', 'trip_monitor'],
+        '✅ Trip Completed & POD Discharged',
+        `Trip for ${tripData.driver_name || 'Driver'} (${tripData.plate_number}) successfully completed.${recipientStr}`,
+        { tripId, eventType: 'completed' }
       );
     }
 
@@ -12914,7 +13183,7 @@ app.post("/api/fleet-tracking/trips/:id/end-manually", async (req, res) => {
     }
 
     const tripId = req.params.id;
-    const { reason } = req.body;
+    const { reason, pod_record } = req.body;
     const tripRef = doc(db, "fleetTracking_trips", tripId);
     const snap = await getDoc(tripRef);
     if (!snap.exists()) {
@@ -12933,7 +13202,11 @@ app.post("/api/fleet-tracking/trips/:id/end-manually", async (req, res) => {
     const userName = authInfo.session?.userData?.name || authInfo.session?.userData?.email || "Manager";
     const now = new Date().toISOString();
 
-    const auditNote = reason ? `Trip manually ended — ${reason}` : `Trip manually completed by ${userName}`;
+    const auditNote = pod_record
+      ? `Cargo discharged & Proof of Delivery (POD) confirmed (${pod_record.pod_reference}) by ${userName}`
+      : reason
+      ? `Trip manually ended — ${reason}`
+      : `Trip manually completed by ${userName}`;
 
     let status_history = Array.isArray(tripData.status_history) ? [...tripData.status_history] : [];
     status_history.unshift({
@@ -12943,12 +13216,17 @@ app.post("/api/fleet-tracking/trips/:id/end-manually", async (req, res) => {
       note: auditNote
     });
 
-    const updatePayload = {
+    const updatePayload: any = {
       trip_status: "completed",
       tracking_active: false,
+      completed_at: now,
       status_history,
       updated_at: now
     };
+
+    if (pod_record) {
+      updatePayload.pod_record = pod_record;
+    }
 
     await updateDoc(tripRef, updatePayload);
     const updatedSnap = await getDoc(tripRef);

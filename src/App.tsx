@@ -26,6 +26,8 @@ import { ManagerDashboard } from './pages/ManagerDashboard';
 import { CompanyDashboard } from './pages/CompanyDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { DeveloperPortal } from './pages/DeveloperPortal';
+import { PartnershipFlyerPage } from './pages/PartnershipFlyerPage';
+import { CustomerFleetTrackingPage } from './pages/CustomerFleetTrackingPage';
 
 export default function App() {
   const [splashFinished, setSplashFinished] = useState(false);
@@ -60,6 +62,13 @@ export default function App() {
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/developer" element={<DeveloperPortal />} />
             <Route path="/developers" element={<DeveloperPortal />} />
+            <Route path="/partner-flyer" element={<PartnershipFlyerPage />} />
+            <Route path="/partnership-flyer" element={<PartnershipFlyerPage />} />
+            <Route path="/partner" element={<PartnershipFlyerPage />} />
+            <Route path="/partnership" element={<PartnershipFlyerPage />} />
+            <Route path="/track/fleet/:tripId" element={<CustomerFleetTrackingPage />} />
+            <Route path="/track/:tripId" element={<CustomerFleetTrackingPage />} />
+            <Route path="/fleet-track/:tripId" element={<CustomerFleetTrackingPage />} />
 
             {/* Protected Routes */}
             <Route

@@ -13,7 +13,8 @@ import {
   Edit3,
   ExternalLink,
   ShieldCheck,
-  Calendar
+  Calendar,
+  Radio,
 } from 'lucide-react';
 
 interface GarageSettingsProps {
@@ -77,15 +78,19 @@ export const GarageSettings: React.FC<GarageSettingsProps> = ({ token, userName 
     }
   };
 
-  const handleConfirmLocation = async (lat: number, lng: number) => {
+  const handleConfirmLocation = async (lat: number, lng: number, geofenceRadius?: number) => {
     const res = await confirmGarageLocation(token, {
       lat,
       lng,
       confirmed_by: userName || 'Manager',
+      geofence_radius: geofenceRadius || garage?.geofence_radius || 200,
     });
     if (res.success && res.garage) {
       setGarage(res.garage);
-      setMessage({ type: 'success', text: 'Garage coordinates confirmed and verified!' });
+      setMessage({
+        type: 'success',
+        text: `Garage coordinates and ${res.garage.geofence_radius || 200}m geofence perimeter confirmed!`,
+      });
     } else {
       throw new Error(res.error || 'Failed to confirm garage coordinates.');
     }
@@ -197,12 +202,16 @@ export const GarageSettings: React.FC<GarageSettingsProps> = ({ token, userName 
                 GPS Latitude & Longitude
               </span>
               {isConfirmed ? (
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2.5 mt-1 flex-wrap">
                   <span className="text-sm font-black text-slate-800">
                     {garage?.lat?.toFixed(6)}, {garage?.lng?.toFixed(6)}
                   </span>
                   <span className="text-xs text-emerald-600 font-bold bg-emerald-100/60 px-2 py-0.5 rounded-md">
                     Verified
+                  </span>
+                  <span className="text-xs text-[#0A1F44] font-black bg-white border border-slate-200 px-2 py-0.5 rounded-md flex items-center gap-1 font-mono">
+                    <Radio className="w-3 h-3 text-[#F7941D]" />
+                    Geofence: {garage?.geofence_radius || 200}m
                   </span>
                 </div>
               ) : (
@@ -224,7 +233,7 @@ export const GarageSettings: React.FC<GarageSettingsProps> = ({ token, userName 
               {isConfirmed ? (
                 <>
                   <Edit3 className="w-3.5 h-3.5" />
-                  <span>Update Location on Map</span>
+                  <span>Update Location & Perimeter</span>
                 </>
               ) : (
                 <>
@@ -281,6 +290,7 @@ export const GarageSettings: React.FC<GarageSettingsProps> = ({ token, userName 
         addressText={addressInput || garage?.address_text || ''}
         initialLat={garage?.lat}
         initialLng={garage?.lng}
+        initialGeofenceRadius={garage?.geofence_radius || 200}
         onConfirm={handleConfirmLocation}
       />
     </div>

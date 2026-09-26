@@ -54,7 +54,7 @@ export async function getGarageLocation(token: string): Promise<{ success: boole
 // 2. Save / Update Garage Location Address
 export async function saveGarageLocation(
   token: string,
-  payload: { address_text: string; lat?: number | null; lng?: number | null }
+  payload: { address_text: string; lat?: number | null; lng?: number | null; geofence_radius?: number }
 ): Promise<{ success: boolean; garage?: GarageLocation; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/garage`, {
@@ -75,7 +75,7 @@ export async function saveGarageLocation(
 // 3. Confirm Garage Location Coordinates
 export async function confirmGarageLocation(
   token: string,
-  payload: ConfirmLocationPayload
+  payload: ConfirmLocationPayload & { geofence_radius?: number }
 ): Promise<{ success: boolean; garage?: GarageLocation; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/garage/confirm`, {
@@ -112,7 +112,14 @@ export async function getSupplierLocations(token: string): Promise<{ success: bo
 // 5. Create Supplier Location
 export async function createSupplierLocation(
   token: string,
-  payload: { name: string; address_text: string; lat?: number | null; lng?: number | null }
+  payload: {
+    name: string;
+    address_text: string;
+    lat?: number | null;
+    lng?: number | null;
+    category?: string;
+    geofence_radius?: number;
+  }
 ): Promise<{ success: boolean; supplier?: SupplierLocation; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/suppliers`, {
@@ -130,11 +137,39 @@ export async function createSupplierLocation(
   }
 }
 
+// 5b. Batch Add Nigerian Hub Presets
+export async function batchAddSupplierPresets(
+  token: string,
+  presets: any[]
+): Promise<{ success: boolean; count?: number; suppliers?: SupplierLocation[]; error?: string }> {
+  try {
+    const res = await fetch(`${API_BASE}/suppliers/batch-preset`, {
+      method: 'POST',
+      headers: getHeaders(token),
+      body: JSON.stringify({ presets }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.error) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to batch add presets` };
+    }
+    return data;
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error adding presets' };
+  }
+}
+
 // 6. Update Supplier Location
 export async function updateSupplierLocation(
   token: string,
   supplierId: string,
-  payload: { name?: string; address_text?: string; lat?: number | null; lng?: number | null }
+  payload: {
+    name?: string;
+    address_text?: string;
+    lat?: number | null;
+    lng?: number | null;
+    category?: string;
+    geofence_radius?: number;
+  }
 ): Promise<{ success: boolean; supplier?: SupplierLocation; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/suppliers/${supplierId}`, {
@@ -156,7 +191,7 @@ export async function updateSupplierLocation(
 export async function confirmSupplierLocation(
   token: string,
   supplierId: string,
-  payload: ConfirmLocationPayload
+  payload: ConfirmLocationPayload & { geofence_radius?: number }
 ): Promise<{ success: boolean; supplier?: SupplierLocation; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/suppliers/${supplierId}/confirm`, {
@@ -258,7 +293,16 @@ export async function getTruckProfiles(token: string): Promise<{ success: boolea
 // 12. Create Truck Profile
 export async function createTruckProfile(
   token: string,
-  payload: { plate_number: string; driver_name: string; driver_phone: string; payment_plan?: 'per_trip' | 'monthly' }
+  payload: {
+    plate_number: string;
+    asset_type?: string;
+    asset_name?: string;
+    tracker_id?: string;
+    tracker_model?: string;
+    driver_name: string;
+    driver_phone: string;
+    payment_plan?: 'per_trip' | 'monthly';
+  }
 ): Promise<{ success: boolean; truck?: any; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trucks`, {
@@ -280,7 +324,16 @@ export async function createTruckProfile(
 export async function updateTruckProfile(
   token: string,
   truckId: string,
-  payload: { plate_number?: string; driver_name?: string; driver_phone?: string; payment_plan?: 'per_trip' | 'monthly' }
+  payload: {
+    plate_number?: string;
+    asset_type?: string;
+    asset_name?: string;
+    tracker_id?: string;
+    tracker_model?: string;
+    driver_name?: string;
+    driver_phone?: string;
+    payment_plan?: 'per_trip' | 'monthly';
+  }
 ): Promise<{ success: boolean; truck?: any; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trucks/${truckId}`, {
@@ -382,12 +435,15 @@ export async function redirectTrip(
   token: string,
   tripId: string,
   payload: {
-    type: 'saved_customer' | 'manual';
+    type: 'hub' | 'saved_customer' | 'manual';
+    supplier_id?: string;
     customer_id?: string;
     name: string;
     address: string;
     lat?: number | null;
     lng?: number | null;
+    geofence_radius?: number;
+    reason?: string;
     save_as_new_customer?: boolean;
   }
 ): Promise<{ success: boolean; trip?: any; message?: string; error?: string }> {
@@ -444,18 +500,23 @@ export async function createSavedCustomer(
   }
 }
 
-// 21. Manual Trip Status Update (Departed, Loaded, Completed, etc.)
+// 21. Manual Trip Status Update (Departed, Loaded, Offloading, Completed, etc.)
 export async function updateTripStatus(
   token: string,
   tripId: string,
   status: string,
-  note?: string
+  note?: string,
+  extraPayload?: {
+    gate_pass_code?: string;
+    departure_checklist?: any;
+    pod_record?: any;
+  }
 ): Promise<{ success: boolean; trip?: any; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trips/${tripId}/status`, {
       method: 'PATCH',
       headers: getHeaders(token),
-      body: JSON.stringify({ status, note }),
+      body: JSON.stringify({ status, note, ...(extraPayload || {}) }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
@@ -568,13 +629,24 @@ export async function initializeTripCreationPayment(
   token: string,
   truck_id: string,
   supplier_id: string,
-  payment_type: 'per_trip' | 'monthly'
+  payment_type: 'per_trip' | 'monthly',
+  cargoData?: {
+    driver_name?: string;
+    driver_phone?: string;
+    cargo_type?: string;
+    cargo_description?: string;
+    waybill_number?: string;
+    cargo_quantity?: string;
+    seal_number?: string;
+    customer_contact_name?: string;
+    customer_contact_phone?: string;
+  }
 ): Promise<{ success: boolean; requires_payment?: boolean; reference?: string; checkout_url?: string; amount?: number; payment_plan?: string; message?: string; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trips/initialize-payment`, {
       method: 'POST',
       headers: getHeaders(token),
-      body: JSON.stringify({ truck_id, supplier_id, payment_type }),
+      body: JSON.stringify({ truck_id, supplier_id, payment_type, ...(cargoData || {}) }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
@@ -592,13 +664,24 @@ export async function verifyTripPaymentAndCreate(
   truck_id: string,
   supplier_id: string,
   payment_type: 'per_trip' | 'monthly',
-  reference: string
+  reference: string,
+  cargoData?: {
+    driver_name?: string;
+    driver_phone?: string;
+    cargo_type?: string;
+    cargo_description?: string;
+    waybill_number?: string;
+    cargo_quantity?: string;
+    seal_number?: string;
+    customer_contact_name?: string;
+    customer_contact_phone?: string;
+  }
 ): Promise<{ success: boolean; trip?: any; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trips/verify-and-create`, {
       method: 'POST',
       headers: getHeaders(token),
-      body: JSON.stringify({ truck_id, supplier_id, payment_type, reference }),
+      body: JSON.stringify({ truck_id, supplier_id, payment_type, reference, ...(cargoData || {}) }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
@@ -614,13 +697,24 @@ export async function verifyTripPaymentAndCreate(
 export async function createTripDirectly(
   token: string,
   truck_id: string,
-  supplier_id: string
+  supplier_id: string,
+  cargoData?: {
+    driver_name?: string;
+    driver_phone?: string;
+    cargo_type?: string;
+    cargo_description?: string;
+    waybill_number?: string;
+    cargo_quantity?: string;
+    seal_number?: string;
+    customer_contact_name?: string;
+    customer_contact_phone?: string;
+  }
 ): Promise<{ success: boolean; trip?: any; error?: string }> {
   try {
     const res = await fetch(`${API_BASE}/trips/create-direct`, {
       method: 'POST',
       headers: getHeaders(token),
-      body: JSON.stringify({ truck_id, supplier_id }),
+      body: JSON.stringify({ truck_id, supplier_id, ...(cargoData || {}) }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || data.error) {
@@ -874,30 +968,20 @@ export async function sendDriverDataReminderSms(
   }
 }
 
-// 41. Ping Driver Online Status & Location
-export async function pingDriverOnlineStatus(
-  payload: {
-    lat?: number;
-    lng?: number;
-    speed?: number;
-    heading?: number;
-    driver_phone?: string;
-    plate_number?: string;
-  },
-  token?: string
-): Promise<{ success: boolean; error?: string }> {
+// 42. Get Public Live Trip Tracking for Customers/Receivers
+export async function getPublicTripDetails(tripId: string): Promise<{ success: boolean; trip?: any; error?: string }> {
   try {
-    const res = await fetch('/api/fleet/trucks/update-location', {
-      method: 'POST',
-      headers: getHeaders(token),
-      body: JSON.stringify(payload),
-    });
+    const res = await fetch(`${API_BASE}/public/trips/${tripId}`);
     const data = await res.json().catch(() => ({}));
-    return { success: res.ok && data.success !== false, error: data.error };
+    if (!res.ok || data.error || !data.success) {
+      return { success: false, error: data.error || `HTTP ${res.status}: Failed to fetch trip tracking` };
+    }
+    return data;
   } catch (err: any) {
-    return { success: false, error: err?.message };
+    return { success: false, error: err?.message || 'Network error fetching trip tracking' };
   }
 }
+
 
 
 

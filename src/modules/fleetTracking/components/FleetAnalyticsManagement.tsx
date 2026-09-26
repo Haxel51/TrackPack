@@ -184,17 +184,29 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
       if (startDate && tripDate < startDate) return false;
       if (endDate && tripDate > endDate) return false;
 
-      if (selectedTruckFilter !== 'all' && trip.truck_plate !== selectedTruckFilter) return false;
+      const plate = (trip.plate_number || trip.truck_plate || '').trim();
+      const status = (trip.trip_status || trip.status || '').trim();
+      const plan = (trip.payment_plan || trip.payment_type || 'per_trip').trim();
+
+      if (selectedTruckFilter !== 'all' && plate !== selectedTruckFilter) return false;
       if (selectedDriverFilter !== 'all' && trip.driver_name !== selectedDriverFilter) return false;
-      if (selectedStatusFilter !== 'all' && trip.status !== selectedStatusFilter) return false;
-      if (selectedPaymentFilter !== 'all' && (trip.payment_type || 'per_trip') !== selectedPaymentFilter) return false;
+      if (selectedStatusFilter !== 'all') {
+        if (selectedStatusFilter === 'active') {
+          if (status === 'completed' || status === 'cancelled') return false;
+        } else if (status !== selectedStatusFilter) {
+          return false;
+        }
+      }
+      if (selectedPaymentFilter !== 'all' && plan !== selectedPaymentFilter) return false;
 
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchPlate = (trip.truck_plate || '').toLowerCase().includes(q);
+        const matchPlate = plate.toLowerCase().includes(q);
         const matchDriver = (trip.driver_name || '').toLowerCase().includes(q);
+        const matchWaybill = (trip.waybill_number || '').toLowerCase().includes(q);
+        const matchDest = (trip.redirect_destination?.name || trip.primary_destination_name || '').toLowerCase().includes(q);
         const matchId = (trip.id || '').toLowerCase().includes(q);
-        if (!matchPlate && !matchDriver && !matchId) return false;
+        if (!matchPlate && !matchDriver && !matchWaybill && !matchDest && !matchId) return false;
       }
 
       return true;
@@ -204,9 +216,12 @@ export const FleetAnalyticsManagement: React.FC<FleetAnalyticsManagementProps> =
   // --- Calculated Statistics ---
   const stats = useMemo(() => {
     const totalTrips = trips.length;
-    const activeTrips = trips.filter(t => t.status === 'active' || t.status === 'loaded' || t.status === 'at_supplier').length;
-    const completedTrips = trips.filter(t => t.status === 'completed').length;
-    const cancelledTrips = trips.filter(t => t.status === 'cancelled' || t.status === 'stopped').length;
+    const activeTrips = trips.filter(t => {
+      const s = t.trip_status || t.status;
+      return s !== 'completed' && s !== 'cancelled';
+    }).length;
+    const completedTrips = trips.filter(t => (t.trip_status === 'completed' || t.status === 'completed')).length;
+    const cancelledTrips = trips.filter(t => (t.trip_status === 'cancelled' || t.status === 'cancelled' || t.trip_status === 'stopped' || t.status === 'stopped')).length;
 
     const totalRevenue = payments.reduce((acc, p) => acc + (Number(p.amount) || Number(p.payment_amount) || 0), 0);
     const avgRevenuePerTrip = completedTrips > 0 ? totalRevenue / completedTrips : 0;

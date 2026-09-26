@@ -28,6 +28,8 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { Logo } from '../components/Logo';
+import { TransporterPartnershipModal } from '../components/TransporterPartnershipModal';
+import { Handshake } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -61,6 +63,7 @@ export const HomePage: React.FC = () => {
   const [trackedDriver, setTrackedDriver] = useState<any>(null);
   const [showHowItWorksModal, setShowHowItWorksModal] = useState(false);
   const [showStaffPortalsModal, setShowStaffPortalsModal] = useState(false);
+  const [showPartnershipModal, setShowPartnershipModal] = useState(false);
 
   const [secretTaps, setSecretTaps] = useState(0);
   const [lastTapTime, setLastTapTime] = useState(0);
@@ -719,6 +722,12 @@ export const HomePage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Official Transporter & Fleet Partnership Flyer Modal */}
+      <TransporterPartnershipModal
+        isOpen={showPartnershipModal}
+        onClose={() => setShowPartnershipModal(false)}
+      />
     </div>
   );
 };

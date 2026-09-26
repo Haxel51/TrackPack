@@ -166,14 +166,14 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
     <div className="space-y-6">
       
       {/* Top Banner & Control Bar */}
-      <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200 rounded-3xl p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
             <span className="text-xl">🚛</span>
-            <h2 className="text-lg font-black text-white tracking-wide">Truck Trips & Dispatches</h2>
+            <h2 className="text-lg font-black text-[#0A1F44] tracking-wide">Fleet Trips & Dispatches</h2>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Dispatch trucks from confirmed suppliers, manage redirects, and view live GPS tracking
+          <p className="text-xs text-slate-500 mt-1 font-medium">
+            Dispatch fleet assets, manage cargo destinations, redirects, and monitor live GPS tracker routes.
           </p>
         </div>
 
@@ -181,7 +181,7 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
           <button
             type="button"
             onClick={() => setIsCreateModalOpen(true)}
-            className="bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-3 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-orange-500/20 cursor-pointer shrink-0"
+            className="bg-[#0A1F44] hover:bg-[#15346A] text-[#F7941D] font-black px-6 py-3.5 rounded-2xl text-xs transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#0A1F44]/20 hover:scale-[1.02] active:scale-98 cursor-pointer shrink-0 border border-[#15346A]"
             id="create-trip-btn"
           >
             <Plus className="w-4 h-4 stroke-[3]" />
@@ -198,21 +198,21 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               key={idx}
               className={`p-4 rounded-2xl border flex items-center justify-between gap-3 text-xs ${
                 alert.tier === 'critical' || alert.tier === 'urgent'
-                  ? 'bg-rose-950/80 border-rose-500/50 text-rose-200 animate-pulse'
-                  : 'bg-orange-950/80 border-orange-500/50 text-orange-200'
+                  ? 'bg-rose-50 border-rose-200 text-rose-800'
+                  : 'bg-amber-50 border-amber-200 text-amber-900'
               }`}
             >
               <div className="flex items-center gap-3">
-                <AlertCircle className={`w-5 h-5 shrink-0 ${alert.tier === 'critical' || alert.tier === 'urgent' ? 'text-rose-400' : 'text-orange-400'}`} />
+                <AlertCircle className={`w-5 h-5 shrink-0 ${alert.tier === 'critical' || alert.tier === 'urgent' ? 'text-rose-600' : 'text-[#F7941D]'}`} />
                 <div>
-                  <div className="font-extrabold text-white text-xs">{alert.title}</div>
-                  <div className="text-[11px] opacity-90">{alert.message}</div>
+                  <div className="font-extrabold text-slate-900 text-xs">{alert.title}</div>
+                  <div className="text-[11px] opacity-90 font-medium">{alert.message}</div>
                 </div>
               </div>
               <button
                 type="button"
                 onClick={() => setSubscriptionAlerts((prev) => prev.filter((_, i) => i !== idx))}
-                className="text-xs font-bold text-slate-400 hover:text-white px-2 py-1 rounded cursor-pointer shrink-0"
+                className="text-xs font-bold text-slate-500 hover:text-slate-800 px-2 py-1 rounded cursor-pointer shrink-0"
               >
                 Dismiss
               </button>
@@ -223,14 +223,14 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
 
       {/* Success Banner */}
       {successMessage && (
-        <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-between gap-3 text-emerald-300 text-xs font-bold animate-fadeIn">
+        <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between gap-3 text-emerald-800 text-xs font-bold animate-fadeIn">
           <div className="flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
             <span>{successMessage}</span>
           </div>
           <button
             onClick={() => setSuccessMessage(null)}
-            className="text-emerald-400 hover:text-white text-xs cursor-pointer"
+            className="text-emerald-700 hover:text-emerald-900 text-xs font-bold cursor-pointer"
           >
             Dismiss
           </button>
@@ -238,15 +238,15 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
       )}
 
       {/* Search & Filter Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-[#0b1329]/60 p-4 border border-blue-950/60 rounded-2xl">
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 bg-white p-4 border border-slate-200 rounded-2xl shadow-xs">
         <div className="relative w-full sm:w-80">
-          <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search plate number, driver, destination..."
-            className="w-full bg-[#070b19] border border-blue-950/60 focus:border-orange-500 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder-slate-500 focus:outline-none"
+            placeholder="Search plate number, driver, destination, waybill..."
+            className="w-full bg-slate-50 border border-slate-200 focus:border-[#F7941D] focus:bg-white rounded-xl pl-10 pr-4 py-2 text-xs text-slate-900 placeholder-slate-400 focus:outline-none transition-colors"
             id="trips-search-input"
           />
         </div>
@@ -264,8 +264,8 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
               onClick={() => setStatusFilter(f.id)}
               className={`px-3 py-1.5 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all cursor-pointer ${
                 statusFilter === f.id
-                  ? 'bg-orange-500/20 text-orange-400 border border-orange-500/40'
-                  : 'text-slate-400 hover:text-white bg-[#070b19]/60 border border-transparent'
+                  ? 'bg-[#0A1F44] text-[#F7941D] shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 bg-slate-100 border border-slate-200 hover:border-slate-300'
               }`}
             >
               {f.label}
@@ -276,34 +276,34 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
 
       {/* Trips Content Grid / List */}
       {isLoading ? (
-        <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-orange-400" />
-          <p className="text-xs font-bold">Loading fleet haulage trips...</p>
+        <div className="py-16 text-center text-slate-400 flex flex-col items-center justify-center gap-3 bg-white border border-slate-200 rounded-3xl shadow-xs">
+          <Loader2 className="w-8 h-8 animate-spin text-[#F7941D]" />
+          <p className="text-xs font-bold text-slate-500">Loading fleet haulage trips...</p>
         </div>
       ) : error ? (
-        <div className="p-8 bg-rose-500/10 border border-rose-500/30 rounded-3xl text-center text-rose-300 text-xs font-bold space-y-2">
-          <AlertCircle className="w-6 h-6 text-rose-400 mx-auto" />
+        <div className="p-8 bg-rose-50 border border-rose-200 rounded-3xl text-center text-rose-800 text-xs font-bold space-y-2">
+          <AlertCircle className="w-6 h-6 text-rose-600 mx-auto" />
           <p>{error}</p>
           <button
             onClick={loadTrips}
-            className="mt-2 text-orange-400 underline cursor-pointer text-xs"
+            className="mt-2 text-[#0A1F44] underline cursor-pointer text-xs font-bold"
           >
             Retry Loading Trips
           </button>
         </div>
       ) : filteredTrips.length === 0 ? (
-        <div className="bg-[#0b1329] border border-blue-950/60 rounded-3xl p-12 text-center space-y-3">
-          <Navigation className="w-10 h-10 text-slate-600 mx-auto" />
-          <h3 className="text-base font-extrabold text-white">No Trips Found</h3>
-          <p className="text-xs text-slate-400 max-w-md mx-auto">
+        <div className="bg-white border border-slate-200 rounded-3xl p-12 text-center space-y-3 shadow-xs">
+          <Navigation className="w-10 h-10 text-slate-300 mx-auto" />
+          <h3 className="text-base font-extrabold text-slate-900">No Trips Found</h3>
+          <p className="text-xs text-slate-500 max-w-md mx-auto">
             {trips.length === 0
-              ? 'No haulage trips have been created yet. Managers can dispatch a new trip from confirmed supplier locations.'
+              ? 'No haulage trips have been created yet. Managers can dispatch a new trip from confirmed locations.'
               : 'No trips match your search or filter criteria.'}
           </p>
           {canCreateTrip && trips.length === 0 && (
             <button
               onClick={() => setIsCreateModalOpen(true)}
-              className="mt-2 bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs cursor-pointer inline-flex items-center gap-2"
+              className="mt-2 bg-[#0A1F44] hover:bg-[#15346A] text-[#F7941D] font-black px-5 py-2.5 rounded-xl text-xs cursor-pointer inline-flex items-center gap-2 shadow-md"
             >
               <Plus className="w-4 h-4 stroke-[3]" />
               <span>Dispatch First Trip</span>
@@ -316,34 +316,42 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
             const hasRedirect = !!trip.redirect_destination;
             const statusBadge = getTripStatusBadge(trip.trip_status, hasRedirect);
             const isCompletedOrCancelled = trip.trip_status === 'completed' || trip.trip_status === 'cancelled';
+            const publicTrackUrl = `${window.location.origin}/track/fleet/${trip.id}`;
 
             return (
               <div
                 key={trip.id}
                 onClick={() => setSelectedTrip(trip)}
-                className="bg-[#0b1329] border border-blue-950/60 hover:border-orange-500/50 rounded-3xl p-5 shadow-lg flex flex-col justify-between gap-4 transition-all cursor-pointer group"
+                className="bg-white border border-slate-200 hover:border-[#F7941D] rounded-3xl p-5 shadow-xs hover:shadow-md flex flex-col justify-between gap-4 transition-all cursor-pointer group"
                 id={`trip-card-${trip.id}`}
               >
                 
                 {/* Card Top Header */}
-                <div className="flex items-start justify-between gap-3 pb-3 border-b border-blue-950/60">
+                <div className="flex items-start justify-between gap-3 pb-3 border-b border-slate-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 font-black shrink-0 group-hover:bg-orange-500/20 group-hover:scale-105 transition-all">
+                    <div className="w-10 h-10 rounded-2xl bg-[#0A1F44] text-[#F7941D] flex items-center justify-center font-black shrink-0 group-hover:scale-105 transition-all shadow-xs">
                       <Truck className="w-5 h-5" />
                     </div>
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-black text-base text-white tracking-wide group-hover:text-orange-400 transition-colors">{trip.plate_number}</span>
+                        <span className="font-mono font-black text-base text-[#0A1F44] tracking-wide group-hover:text-[#F7941D] transition-colors">
+                          {trip.plate_number}
+                        </span>
+                        {trip.waybill_number && (
+                          <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+                            {trip.waybill_number}
+                          </span>
+                        )}
                       </div>
-                      <div className="text-xs text-slate-300 font-medium flex items-center gap-1 mt-0.5">
+                      <div className="text-xs text-slate-600 font-medium flex items-center gap-1 mt-0.5">
                         <span>Driver: {trip.driver_name}</span>
                         <a
                           href={`tel:${trip.driver_phone}`}
                           onClick={(e) => e.stopPropagation()}
-                          className="text-orange-400 hover:underline flex items-center gap-0.5 ml-1 text-[11px]"
+                          className="text-[#0A1F44] hover:underline flex items-center gap-0.5 ml-1 text-[11px] font-bold"
                           title="Call Driver"
                         >
-                          <Phone className="w-3 h-3" />
+                          <Phone className="w-3 h-3 text-[#F7941D]" />
                           <span>{trip.driver_phone}</span>
                         </a>
                       </div>
@@ -356,43 +364,60 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                       {statusBadge.label}
                     </span>
                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                      trip.payment_status === 'confirmed' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-yellow-500/10 text-yellow-300'
+                      trip.payment_status === 'confirmed' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-800 border border-amber-200'
                     }`}>
                       {getHumanPaymentStatus(trip.payment_status)} (₦{trip.payment_amount.toLocaleString()})
                     </span>
                   </div>
                 </div>
 
+                {/* Cargo Manifest Summary */}
+                {(trip.cargo_type || trip.cargo_quantity || trip.seal_number) && (
+                  <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-amber-50/50 border border-amber-200/60 text-xs">
+                    <div className="flex items-center gap-1.5 truncate">
+                      <span className="text-[10px] font-black uppercase text-[#0A1F44]">Cargo:</span>
+                      <span className="font-bold text-slate-900 truncate">
+                        {trip.cargo_type || 'Freight'}{trip.cargo_quantity ? ` (${trip.cargo_quantity})` : ''}
+                      </span>
+                    </div>
+                    {trip.seal_number && (
+                      <span className="text-[9px] font-mono font-black px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 shrink-0">
+                        🔒 {trip.seal_number}
+                      </span>
+                    )}
+                  </div>
+                )}
+
                 {/* Destinations Section */}
-                <div className="space-y-2.5 bg-[#070b19]/60 p-3.5 rounded-2xl border border-blue-950/60/80">
+                <div className="space-y-2.5 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
                   
                   {/* Primary Supplier */}
                   <div className="flex items-start gap-2.5 text-xs">
-                    <Building2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                    <Building2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                     <div className="flex-1">
-                      <span className="text-[10px] font-extrabold text-emerald-400 uppercase tracking-wider">
-                        Primary Supplier Destination
+                      <span className="text-[10px] font-extrabold text-emerald-700 uppercase tracking-wider">
+                        Primary Loading / Delivery Hub
                       </span>
-                      <div className="font-extrabold text-white text-xs">{trip.primary_destination_name}</div>
+                      <div className="font-extrabold text-slate-900 text-xs">{trip.primary_destination_name}</div>
                     </div>
                   </div>
 
                   {/* Redirect Destination if present */}
                   {hasRedirect && trip.redirect_destination && (
-                    <div className="pt-2 border-t border-blue-950/60/80 flex items-start gap-2.5 text-xs">
-                      <Navigation className="w-4 h-4 text-purple-400 shrink-0 mt-0.5" />
+                    <div className="pt-2 border-t border-slate-200 flex items-start gap-2.5 text-xs">
+                      <Navigation className="w-4 h-4 text-purple-600 shrink-0 mt-0.5" />
                       <div className="flex-1">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] font-extrabold text-purple-400 uppercase tracking-wider">
-                            Redirect Customer Destination 🔀
+                          <span className="text-[10px] font-extrabold text-purple-700 uppercase tracking-wider">
+                            Redirect Destination 🔀
                           </span>
-                          <span className="text-[9px] bg-purple-500/20 text-purple-300 px-1.5 py-0.2 rounded font-black">
+                          <span className="text-[9px] bg-purple-100 text-purple-800 px-1.5 py-0.2 rounded font-black">
                             {trip.redirect_destination.type === 'saved_customer' ? 'SAVED' : 'NEW'}
                           </span>
                         </div>
-                        <div className="font-extrabold text-white text-xs">{trip.redirect_destination.name}</div>
-                        <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <MapPin className="w-3 h-3 text-slate-500 shrink-0" />
+                        <div className="font-extrabold text-slate-900 text-xs">{trip.redirect_destination.name}</div>
+                        <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5 font-medium">
+                          <MapPin className="w-3 h-3 text-slate-400 shrink-0" />
                           <span>{trip.redirect_destination.address}</span>
                         </p>
                       </div>
@@ -402,13 +427,30 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                 </div>
 
                 {/* Card Footer Info & Actions */}
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-blue-950/60/80">
-                  <div className="text-slate-400 font-medium flex items-center gap-1.5">
-                    <Eye className="w-3.5 h-3.5 text-orange-400" />
-                    <span className="text-orange-400 font-bold group-hover:underline">Tap to view map & live tracking</span>
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 text-[11px] border-t border-slate-100">
+                  <div className="text-slate-500 font-medium flex items-center gap-1.5">
+                    <Eye className="w-3.5 h-3.5 text-[#F7941D]" />
+                    <span className="text-[#0A1F44] font-bold group-hover:text-[#F7941D] transition-colors">
+                      Tap for live map & telemetry
+                    </span>
                   </div>
 
                   <div className="flex items-center gap-2">
+                    {/* Share Customer Link Button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigator.clipboard.writeText(publicTrackUrl);
+                        showSuccessNotice(`📋 Customer Tracking Link for ${trip.plate_number} copied to clipboard!`);
+                      }}
+                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-2.5 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1 text-[10px]"
+                      title="Copy Customer Share Link"
+                    >
+                      <Share2 className="w-3 h-3 text-[#0A1F44]" />
+                      <span>Share</span>
+                    </button>
+
                     {/* Departure Button on Trip Card (for Manager/CEO) */}
                     {(trip.trip_status === 'created' || trip.trip_status === 'payment_confirmed') && canConfirmDeparture && (
                       <button
@@ -417,12 +459,12 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                           e.stopPropagation();
                           setDepartingTrip(trip);
                         }}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white border border-emerald-500/30 px-3 py-1.5 rounded-xl font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-md shadow-emerald-950/40 hover:scale-105 active:scale-95"
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-xl font-black transition-all cursor-pointer flex items-center gap-1.5 shadow-xs hover:scale-105 active:scale-95 text-[10px]"
                         id={`departure-btn-card-${trip.id}`}
-                        title="Has the truck departed? Click to confirm departure."
+                        title="Has the vehicle departed? Click to confirm departure."
                       >
                         <Play className="w-3 h-3 fill-current" />
-                        <span>Has the truck departed? 🚛</span>
+                        <span>Departed? 🚛</span>
                       </button>
                     )}
 
@@ -434,11 +476,11 @@ export const TripsManagement: React.FC<TripsManagementProps> = ({
                           e.stopPropagation();
                           setRedirectingTrip(trip);
                         }}
-                        className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95"
+                        className="bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer flex items-center gap-1.5 hover:scale-105 active:scale-95 text-[10px]"
                         id={`redirect-trip-btn-${trip.id}`}
                       >
-                        <Navigation className="w-3.5 h-3.5 text-purple-400" />
-                        <span>{hasRedirect ? 'Update Redirect 🔀' : 'Redirect Trip 🔀'}</span>
+                        <Navigation className="w-3 h-3 text-purple-600" />
+                        <span>{hasRedirect ? 'Update 🔀' : 'Redirect 🔀'}</span>
                       </button>
                     )}
                   </div>

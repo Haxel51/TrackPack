@@ -44,10 +44,11 @@ import {
   verifyTripPayment,
   keepTripOpen,
   endTripManually,
-  sendDriverDataReminderSms,
 } from '../api';
 import { RedirectTripModal } from './RedirectTripModal';
 import { ConfirmDepartureModal } from './ConfirmDepartureModal';
+import { ElectronicPodModal } from './ElectronicPodModal';
+import { WaybillCertificateModal } from './WaybillCertificateModal';
 import mapsConfig from '../../../config/maps.config';
 import {
   ArrowLeft,
@@ -72,6 +73,16 @@ import {
   CheckCircle2,
   WifiOff,
   Send,
+  Share2,
+  Copy,
+  Check,
+  Package,
+  Fuel,
+  Bus,
+  ShieldCheck,
+  FileText,
+  Award,
+  Sparkles,
 } from 'lucide-react';
 
 // Off-route detection constants
@@ -142,6 +153,9 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const redirectMarkerRef = useRef<google.maps.Marker | null>(null);
   const truckMarkerRef = useRef<google.maps.Marker | null>(null);
   const infoWindowRef = useRef<google.maps.InfoWindow | null>(null);
+  const garageCircleRef = useRef<google.maps.Circle | null>(null);
+  const destCircleRef = useRef<google.maps.Circle | null>(null);
+  const redirectCircleRef = useRef<google.maps.Circle | null>(null);
 
   // Route & Off-Route Detection Refs
   const currentRoutePathRef = useRef<google.maps.LatLng[]>([]);
@@ -159,6 +173,9 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
   const [isProcessingPayment, setIsProcessingPayment] = useState<boolean>(false);
   const [showDepartureConfirmModal, setShowDepartureConfirmModal] = useState<boolean>(false);
+  const [showPodModal, setShowPodModal] = useState<boolean>(false);
+  const [showWaybillModal, setShowWaybillModal] = useState<boolean>(false);
+  const [isOffloadingSubmitting, setIsOffloadingSubmitting] = useState<boolean>(false);
   const [showEndTripModal, setShowEndTripModal] = useState<boolean>(false);
   const [endTripReason, setEndTripReason] = useState<string>('');
   const [isSubmittingEndTrip, setIsSubmittingEndTrip] = useState<boolean>(false);
@@ -170,33 +187,19 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
     payment_plan: string;
   } | null>(null);
 
-  // Driver data disconnection SMS alert state
-  const [isSendingDataSms, setIsSendingDataSms] = useState<boolean>(false);
-  const [dataSmsFeedback, setDataSmsFeedback] = useState<string | null>(null);
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
 
-  const handleSendDataReminder = async () => {
-    if (!trip.driver_phone) return;
-    setIsSendingDataSms(true);
-    setDataSmsFeedback(null);
-    try {
-      const res = await sendDriverDataReminderSms({
-        driver_phone: trip.driver_phone,
-        driver_name: trip.driver_name,
-        plate_number: trip.plate_number,
-        reason: 'en_route_disconnected',
-        trip_id: trip.id
-      }, token);
+  const getPublicTrackingUrl = () => `${window.location.origin}/track/fleet/${trip.id}`;
 
-      if (res.success) {
-        setDataSmsFeedback(`📲 SMS reminder sent to driver at ${trip.driver_phone}!`);
-      } else {
-        setDataSmsFeedback(`⚠️ Failed to deliver SMS: ${res.error || 'Network error'}`);
-      }
-    } catch (err: any) {
-      setDataSmsFeedback(`⚠️ Error: ${err?.message || 'Failed'}`);
-    } finally {
-      setIsSendingDataSms(false);
-    }
+  const handleCopyCustomerLink = () => {
+    navigator.clipboard.writeText(getPublicTrackingUrl());
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 3000);
+  };
+
+  const handleShareWhatsApp = () => {
+    const text = `🚛 Track your Waybilla cargo dispatch in real-time!\n\nWaybill: ${trip.waybill_number || trip.plate_number}\nVehicle: ${trip.plate_number}\nCargo: ${trip.cargo_type || 'Freight'}\nDestination: ${trip.redirect_destination?.name || trip.primary_destination_name}\n\nLive GPS Map: ${getPublicTrackingUrl()}`;
+    window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
   };
 
   const handleActivateTracking = async () => {
@@ -320,6 +323,24 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
       isRedirect: false,
     };
   }, [trip]);
+
+  // Step 4: Operational Offloading Transition
+  const handleCommenceOffloading = async () => {
+    try {
+      setIsOffloadingSubmitting(true);
+      const res = await updateTripStatus(token, trip.id, 'offloading', 'Cargo offloading / discharge initiated at terminal.');
+      if (res.success && res.trip) {
+        setTrip(res.trip);
+      } else {
+        setTrip((prev) => ({ ...prev, trip_status: 'offloading' }));
+      }
+      if (onTripUpdated) onTripUpdated();
+    } catch (err: any) {
+      alert(err?.message || 'Error updating status to offloading');
+    } finally {
+      setIsOffloadingSubmitting(false);
+    }
+  };
 
   // Helper function to update routeInfo state & sync to Firestore
   const updateRouteInfoData = useCallback((data: any, tripId?: string) => {
@@ -884,6 +905,56 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
         redirectMarkerRef.current = null;
       }
 
+      // 🌐 Step 4: Render Interactive Geofence Perimeters
+      const garageRadius = trip.garage_geofence_radius || 200;
+      if (garageCircleRef.current) garageCircleRef.current.setMap(null);
+      garageCircleRef.current = new googleMaps.Circle({
+        strokeColor: '#2563EB',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#3B82F6',
+        fillOpacity: 0.12,
+        map,
+        center: garageCoords,
+        radius: garageRadius,
+        clickable: false,
+      });
+
+      const supplierRadius = trip.primary_destination_geofence_radius || 200;
+      if (destCircleRef.current) destCircleRef.current.setMap(null);
+      destCircleRef.current = new googleMaps.Circle({
+        strokeColor: '#10B981',
+        strokeOpacity: 0.8,
+        strokeWeight: 2,
+        fillColor: '#10B981',
+        fillOpacity: hasRedirect ? 0.05 : 0.15,
+        map,
+        center: primaryPos,
+        radius: supplierRadius,
+        clickable: false,
+      });
+
+      if (hasRedirect && trip.redirect_destination) {
+        const redirectLat = trip.redirect_destination.lat || 6.5244;
+        const redirectLng = trip.redirect_destination.lng || 3.3792;
+        const redirectRadius = trip.redirect_destination.geofence_radius || supplierRadius;
+        if (redirectCircleRef.current) redirectCircleRef.current.setMap(null);
+        redirectCircleRef.current = new googleMaps.Circle({
+          strokeColor: '#F59E0B',
+          strokeOpacity: 0.9,
+          strokeWeight: 2,
+          fillColor: '#F59E0B',
+          fillOpacity: 0.2,
+          map,
+          center: { lat: redirectLat, lng: redirectLng },
+          radius: redirectRadius,
+          clickable: false,
+        });
+      } else {
+        if (redirectCircleRef.current) redirectCircleRef.current.setMap(null);
+        redirectCircleRef.current = null;
+      }
+
       // 🚛 Pin 3: Truck Pin
       const tMarker = new googleMaps.Marker({
         position: initialTruckPos,
@@ -1130,6 +1201,14 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
   const statusBadge = getStatusBadge(trip.trip_status, !!trip.redirect_destination);
   const statusHistory = trip.status_history || [];
 
+  // Step 4: Geofence Radar Proximity & Boundary Detection
+  const activeGeofenceRadius = (trip.redirect_destination && trip.redirect_destination.geofence_radius) || trip.primary_destination_geofence_radius || 200;
+  const currentCoords = truckLocation || (typeof trip.last_known_lat === 'number' && typeof trip.last_known_lng === 'number' && trip.last_known_lat !== 0 ? { lat: trip.last_known_lat, lng: trip.last_known_lng } : null);
+  const distanceToDestMeters = currentCoords && activeDest.lat && activeDest.lng
+    ? Math.round(getDistanceInKm(currentCoords.lat, currentCoords.lng, activeDest.lat, activeDest.lng) * 1000)
+    : null;
+  const isInsideDestGeofence = distanceToDestMeters !== null && distanceToDestMeters <= activeGeofenceRadius;
+
   // Recentering Handlers on Google Maps
   const handleRecenterTruck = useCallback(() => {
     const pos = truckLocation || garageCoords;
@@ -1247,6 +1326,26 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           )}
         </div>
 
+        {/* Step 4: Geofence Radar Proximity Indicator */}
+        {distanceToDestMeters !== null && !isCompletedOrCancelled && (
+          <div className={`pointer-events-auto backdrop-blur-md px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2 text-xs font-extrabold border ${
+            isInsideDestGeofence
+              ? 'bg-emerald-950/95 text-emerald-300 border-emerald-500/80 animate-pulse'
+              : distanceToDestMeters <= activeGeofenceRadius + 2000
+              ? 'bg-amber-950/95 text-amber-300 border-amber-500/80'
+              : 'bg-[#0b1329]/95 text-slate-200 border-blue-900/70'
+          }`}>
+            <Radio className={`w-3.5 h-3.5 ${isInsideDestGeofence ? 'text-emerald-400 animate-spin' : 'text-[#F7941D]'}`} />
+            <span>
+              {isInsideDestGeofence
+                ? `🎯 Inside Destination Geofence (±${activeGeofenceRadius}m) — Arrived!`
+                : distanceToDestMeters <= activeGeofenceRadius + 2000
+                ? `📡 Approaching Terminal (${(distanceToDestMeters / 1000).toFixed(1)} km to boundary)`
+                : `📍 ${(distanceToDestMeters / 1000).toFixed(1)} km to Terminal`}
+            </span>
+          </div>
+        )}
+
         {/* Real-Time Traffic-Aware ETA Pill */}
         {routeInfo && (
           <div className="pointer-events-auto bg-[#0b1329]/95 backdrop-blur-md text-white border border-blue-900/65/90 px-3.5 py-2 rounded-2xl shadow-xl flex items-center gap-2.5 max-w-[90vw] animate-in fade-in">
@@ -1320,7 +1419,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           >
             {/* Left: Plate, Status, Driver */}
             <div className="flex items-center gap-3 overflow-hidden">
-              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-orange-500/10 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-[#0A1F44] border border-[#15346A] flex items-center justify-center text-[#F7941D] shrink-0">
                 <Truck className="w-5 h-5" />
               </div>
               <div className="truncate">
@@ -1336,11 +1435,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   <a
                     href={`tel:${trip.driver_phone}`}
                     onClick={(e) => e.stopPropagation()}
-                    className="text-orange-400 hover:text-orange-300 font-black flex items-center gap-1 text-xs underline cursor-pointer"
+                    className="text-[#F7941D] hover:text-amber-300 font-black flex items-center gap-1 text-xs underline cursor-pointer"
                     title="Tap to call driver"
                     id="trip-detail-driver-phone-link"
                   >
-                    <Phone className="w-3 h-3 text-orange-400" />
+                    <Phone className="w-3 h-3 text-[#F7941D]" />
                     <span>{trip.driver_phone}</span>
                   </a>
                 </div>
@@ -1350,7 +1449,7 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
             {/* Right: Action Buttons & Expand Toggle */}
             <div className="flex items-center gap-2 shrink-0">
               
-              {/* Contextual Action Button based on Trip Status */}
+              {/* 1. Contextual Gate Departure Button */}
               {(trip.trip_status === 'created' || trip.trip_status === 'payment_confirmed') && canConfirmDeparture && (
                 <button
                   type="button"
@@ -1368,10 +1467,11 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   title={!isPaymentConfirmed ? 'Payment required before departure' : 'Has the truck departed? Confirm departure.'}
                 >
                   <Play className="w-3.5 h-3.5 fill-current" />
-                  <span>{!isPaymentConfirmed ? '⚠️ Pay to Depart' : 'Has the truck departed? 🚛'}</span>
+                  <span>{!isPaymentConfirmed ? '⚠️ Pay to Depart' : 'Depart Gate 🚛'}</span>
                 </button>
               )}
 
+              {/* 2. Loading Confirmation Button */}
               {(trip.trip_status === 'arrived_at_supplier' || trip.trip_status === 'departed' || trip.trip_status === 'in_transit') && canMarkLoaded && (
                 <button
                   type="button"
@@ -1384,9 +1484,74 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                   id="mark-loaded-btn"
                 >
                   <PackageCheck className="w-3.5 h-3.5" />
-                  <span>Mark as Loaded</span>
+                  <span>Mark Loaded</span>
                 </button>
               )}
+
+              {/* 3. Commence Offloading Button */}
+              {(trip.trip_status === 'arrived_at_destination' || trip.trip_status === 'arrived') && isManagerOrCEO && (
+                <button
+                  type="button"
+                  disabled={isOffloadingSubmitting}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCommenceOffloading();
+                  }}
+                  className="bg-amber-600 hover:bg-amber-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                  id="commence-offloading-btn"
+                >
+                  {isOffloadingSubmitting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-200" />}
+                  <span>Start Offload</span>
+                </button>
+              )}
+
+              {/* 4. Electronic Proof of Delivery (e-POD) Button */}
+              {(trip.trip_status === 'offloading' || trip.trip_status === 'arrived_at_destination' || trip.trip_status === 'arrived') && isManagerOrCEO && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowPodModal(true);
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95 animate-pulse"
+                  id="open-epod-btn"
+                >
+                  <Award className="w-3.5 h-3.5" />
+                  <span>e-POD Clearance</span>
+                </button>
+              )}
+
+              {/* 5. Mid-Transit Redirection Trigger */}
+              {canRedirect && !isCompletedOrCancelled && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsRedirectModalOpen(true);
+                  }}
+                  className="bg-[#15346A] hover:bg-[#1E448A] text-[#F7941D] border border-[#F7941D]/40 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                  id="trigger-redirect-btn"
+                  title="Reroute trip mid-transit"
+                >
+                  <Navigation className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Reroute</span>
+                </button>
+              )}
+
+              {/* 6. Waybill Manifest & POD Certificate Button */}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowWaybillModal(true);
+                }}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600 px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-md cursor-pointer hover:scale-105 active:scale-95"
+                id="view-waybill-cert-btn"
+                title="View Waybill & Delivery Certificate"
+              >
+                <FileText className="w-3.5 h-3.5 text-[#F7941D]" />
+                <span className="hidden sm:inline">Waybill</span>
+              </button>
 
               {/* Manual End Trip Button for Manager/CEO on any active trip */}
               {!isCompletedOrCancelled && isManagerOrCEO && (
@@ -1397,11 +1562,12 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
                     e.stopPropagation();
                     setShowEndTripModal(true);
                   }}
-                  className="bg-rose-600 hover:bg-rose-500 text-white px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-lg cursor-pointer hover:scale-105 active:scale-95"
+                  className="bg-rose-600/90 hover:bg-rose-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-black flex items-center gap-1 shadow-md cursor-pointer hover:scale-105 active:scale-95"
                   id="manual-end-trip-btn"
+                  title="Manually end trip"
                 >
                   <Flag className="w-3.5 h-3.5" />
-                  <span>End Trip</span>
+                  <span className="hidden sm:inline">End</span>
                 </button>
               )}
 
@@ -1415,44 +1581,6 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
             </div>
           </div>
-
-          {/* DRIVER MOBILE DATA DISCONNECTED ALERT BANNER */}
-          {!isCompletedOrCancelled && (trip.data_disconnected || trip.gps_signal_status === 'data_disconnected') && (
-            <div className="p-3.5 bg-gradient-to-r from-orange-950/95 via-rose-950/90 to-orange-950/95 border-t border-b border-orange-500/60 flex items-center justify-between flex-wrap gap-3 shadow-inner">
-              <div className="flex items-center gap-2.5 text-orange-200 text-xs">
-                <div className="w-8 h-8 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
-                  <WifiOff className="w-4 h-4 animate-pulse" />
-                </div>
-                <div>
-                  <div className="font-black text-white flex items-center gap-1.5">
-                    <span>⚠️ DRIVER MOBILE DATA DISCONNECTED:</span>
-                    <span className="text-[10px] px-2 py-0.2 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40">5+ Mins Offline</span>
-                  </div>
-                  <div className="text-[11px] text-slate-300 mt-0.5">
-                    Driver {trip.driver_name} ({trip.plate_number}) is not sending internet GPS coordinates. Coordinates are buffering locally on his phone (black box buffer).
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 ml-auto">
-                {dataSmsFeedback && (
-                  <span className="text-[11px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
-                    {dataSmsFeedback}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  onClick={handleSendDataReminder}
-                  disabled={isSendingDataSms}
-                  className="bg-orange-500 hover:bg-orange-400 text-slate-950 text-xs font-black px-3.5 py-1.5 rounded-xl shadow-lg flex items-center gap-1.5 cursor-pointer transition-transform active:scale-95"
-                  id="en-route-send-sms-btn"
-                >
-                  {isSendingDataSms ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
-                  <span>{isSendingDataSms ? 'Sending SMS...' : 'Send "Turn ON Data" SMS'}</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* GPS LOSS ALERT BANNERS */}
           {!isCompletedOrCancelled && trip.gps_signal_status === 'lost_60min' && !trip.gps_loss_dismissed && (
@@ -1709,6 +1837,112 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
 
               </div>
 
+              {/* UNIVERSAL CARGO & WAYBILL MANIFEST SECTION */}
+              <div className="bg-[#070b19]/90 p-4 sm:p-5 rounded-2xl border border-[#F7941D]/30 space-y-4">
+                <div className="flex items-center justify-between flex-wrap gap-2 pb-3 border-b border-blue-950/60">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#0A1F44] border border-[#15346A] flex items-center justify-center text-[#F7941D]">
+                      <Package className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white uppercase tracking-wider">Cargo & Waybill Manifest</h4>
+                      <p className="text-[10px] text-slate-400 font-medium">Multi-product freight & security compliance</p>
+                    </div>
+                  </div>
+
+                  {trip.waybill_number && (
+                    <span className="text-xs font-mono font-black px-2.5 py-1 rounded-lg bg-[#0A1F44] text-[#F7941D] border border-[#15346A]">
+                      {trip.waybill_number}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  <div className="p-3 bg-[#0b1329] rounded-xl border border-blue-950/60">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Cargo Category</span>
+                    <span className="font-extrabold text-white mt-0.5 block">{trip.cargo_type || 'General Haulage / Freight'}</span>
+                  </div>
+                  <div className="p-3 bg-[#0b1329] rounded-xl border border-blue-950/60">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Quantity / Volume</span>
+                    <span className="font-extrabold text-[#F7941D] mt-0.5 block">{trip.cargo_quantity || 'Standard Full Load'}</span>
+                  </div>
+                </div>
+
+                {(trip.cargo_description || trip.seal_number) && (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    {trip.cargo_description && (
+                      <div className="p-3 bg-[#0b1329] rounded-xl border border-blue-950/60">
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Goods Description</span>
+                        <span className="font-medium text-slate-200 mt-0.5 block">{trip.cargo_description}</span>
+                      </div>
+                    )}
+                    {trip.seal_number && (
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/40 rounded-xl flex items-center justify-between">
+                        <div>
+                          <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">Security Seal #</span>
+                          <span className="font-mono font-black text-white">{trip.seal_number}</span>
+                        </div>
+                        <span className="text-[9px] font-extrabold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          VERIFIED LOCK
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Receiver Contact */}
+                {trip.customer_contact_name && (
+                  <div className="p-3 bg-[#0b1329] rounded-xl border border-blue-950/60 flex items-center justify-between flex-wrap gap-2 text-xs">
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-wider block">Designated Customer Receiver</span>
+                      <span className="font-extrabold text-white">{trip.customer_contact_name}</span>
+                    </div>
+                    {trip.customer_contact_phone && (
+                      <a
+                        href={`tel:${trip.customer_contact_phone}`}
+                        className="text-[#F7941D] hover:underline flex items-center gap-1 font-bold"
+                      >
+                        <Phone className="w-3 h-3" />
+                        <span>{trip.customer_contact_phone}</span>
+                      </a>
+                    )}
+                  </div>
+                )}
+
+                {/* Customer Live Tracking Link Sharing Bar */}
+                <div className="p-3.5 bg-gradient-to-r from-[#0A1F44] to-[#15346A] rounded-xl border border-[#1E3E7B] flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+                  <div>
+                    <div className="font-black text-white flex items-center gap-1.5">
+                      <span>🔗 Customer Live Tracking Portal</span>
+                    </div>
+                    <p className="text-[11px] text-slate-300 mt-0.5">
+                      Share this live satellite tracking link with your customer / receiver.
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={handleShareWhatsApp}
+                      className="bg-emerald-600 hover:bg-emerald-500 text-white font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-transform hover:scale-105"
+                      title="Share tracking link on WhatsApp"
+                    >
+                      <Share2 className="w-3.5 h-3.5" />
+                      <span>WhatsApp</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCopyCustomerLink}
+                      className="bg-[#0A1F44] hover:bg-[#102B5E] text-[#F7941D] border border-[#F7941D]/40 font-black px-3 py-1.5 rounded-xl text-xs flex items-center gap-1.5 shadow-md cursor-pointer transition-transform hover:scale-105"
+                      title="Copy customer link"
+                    >
+                      {copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                      <span>{copiedLink ? 'Copied Link!' : 'Copy Link'}</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
               {/* AUDIT LOG TIMELINE */}
               <div className="bg-[#070b19]/80 p-4 rounded-2xl border border-blue-950/60 space-y-3">
                 <div className="flex items-center justify-between pb-2 border-b border-blue-950/60/80">
@@ -1891,6 +2125,27 @@ export const TripDetailView: React.FC<TripDetailViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Step 4: Electronic Proof of Delivery (e-POD) Modal */}
+      <ElectronicPodModal
+        isOpen={showPodModal}
+        onClose={() => setShowPodModal(false)}
+        trip={trip}
+        token={token}
+        onPodCompleted={(updatedTrip) => {
+          setTrip(updatedTrip);
+          setShowPodModal(false);
+          setShowWaybillModal(true); // Open official certificate immediately on POD completion
+          if (onTripUpdated) onTripUpdated();
+        }}
+      />
+
+      {/* Step 4: Printable Waybill Manifest & Delivery Certificate Modal */}
+      <WaybillCertificateModal
+        isOpen={showWaybillModal}
+        onClose={() => setShowWaybillModal(false)}
+        trip={trip}
+      />
 
     </div>
   );

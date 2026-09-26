@@ -18,6 +18,8 @@ export interface FleetNotification {
   timestamp?: string;
   read?: boolean;
   targetRoles?: string[];
+  plate_number?: string;
+  data?: any;
 }
 
 interface NotificationCenterModalProps {
@@ -60,7 +62,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
       const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
       await apiMarkRead(id, activeToken || undefined);
       onRefresh();
-    } catch (e) {
+    } catch {
       // Graceful fallback
     }
   };
@@ -74,7 +76,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
       const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('company_token') || localStorage.getItem('manager_token') : null);
       await apiMarkAllRead(activeToken || undefined, allIds);
       onRefresh();
-    } catch (e) {
+    } catch {
       // Graceful fallback
     }
   };
@@ -96,39 +98,39 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
   };
 
   const getNotifIcon = (type?: string) => {
-    if (!type) return <Bell className="w-4 h-4 text-orange-400" />;
+    if (!type) return <Bell className="w-4 h-4 text-orange-600" />;
     if (type.includes('stopped') || type.includes('warning') || type.includes('alert')) {
-      return <AlertTriangle className="w-4 h-4 text-rose-400" />;
+      return <AlertTriangle className="w-4 h-4 text-rose-600" />;
     }
     if (type.includes('subscription') || type.includes('payment')) {
-      return <CreditCard className="w-4 h-4 text-emerald-400" />;
+      return <CreditCard className="w-4 h-4 text-emerald-600" />;
     }
     if (type.includes('departed') || type.includes('arrived') || type.includes('loaded')) {
-      return <Navigation className="w-4 h-4 text-blue-400" />;
+      return <Navigation className="w-4 h-4 text-blue-600" />;
     }
-    return <Truck className="w-4 h-4 text-orange-400" />;
+    return <Truck className="w-4 h-4 text-orange-600" />;
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#070b19]/80 backdrop-blur-xs flex justify-end animate-in fade-in">
-      <div className="w-full max-w-md bg-[#0b1329] border-l border-blue-950/60 text-slate-100 h-full flex flex-col shadow-2xl">
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex justify-end animate-in fade-in">
+      <div className="w-full max-w-md bg-white border-l border-slate-200 text-slate-900 h-full flex flex-col shadow-2xl">
         
         {/* Header */}
-        <div className="p-4 bg-[#070b19] border-b border-blue-950/60 flex items-center justify-between">
+        <div className="p-4 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center text-orange-400">
+            <div className="w-8 h-8 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center text-orange-600">
               <Bell className="w-4 h-4" />
             </div>
             <div>
-              <h2 className="font-extrabold text-sm text-slate-100">Fleet Activity Alerts</h2>
-              <p className="text-[11px] text-slate-400 font-medium">Real-time push & system notifications</p>
+              <h2 className="font-extrabold text-sm text-slate-900">Fleet Activity Alerts</h2>
+              <p className="text-[11px] text-slate-500 font-medium">Real-time push & telemetry alerts</p>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={markAllAsRead}
-              className="text-[11px] font-bold text-slate-400 hover:text-orange-400 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-[#131e3d] cursor-pointer"
+              className="text-[11px] font-bold text-slate-500 hover:text-orange-600 flex items-center gap-1 transition-colors px-2 py-1 rounded-lg hover:bg-slate-100 cursor-pointer"
               title="Mark all as read"
             >
               <CheckCheck className="w-3.5 h-3.5" />
@@ -136,7 +138,7 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-[#131e3d] transition-colors cursor-pointer"
+              className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200 transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -144,13 +146,13 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* Filter Tabs */}
-        <div className="flex items-center gap-2 p-3 bg-[#070b19]/50 border-b border-blue-950/60/80 text-xs font-extrabold">
+        <div className="flex items-center gap-2 p-3 bg-slate-50/70 border-b border-slate-200 text-xs font-extrabold">
           <button
             onClick={() => setFilter('all')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'all'
-                ? 'bg-orange-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
+                ? 'bg-orange-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             All ({notifications.length})
@@ -159,8 +161,8 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
             onClick={() => setFilter('unread')}
             className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer ${
               filter === 'unread'
-                ? 'bg-orange-500 text-slate-950 shadow-xs'
-                : 'text-slate-400 hover:text-slate-200 hover:bg-[#131e3d]'
+                ? 'bg-orange-500 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
             }`}
           >
             Unread ({notifications.filter(n => !n.read).length})
@@ -168,11 +170,11 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* List Content */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 scrollbar-thin scrollbar-thumb-slate-700">
+        <div className="flex-1 overflow-y-auto p-3 space-y-2.5 custom-scrollbar">
           {displayNotifs.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-center p-6 text-slate-500">
-              <Bell className="w-10 h-10 mb-3 opacity-30 text-slate-400" />
-              <p className="font-bold text-sm text-slate-400">No Notifications</p>
+            <div className="h-64 flex flex-col items-center justify-center text-center p-6 text-slate-400">
+              <Bell className="w-10 h-10 mb-3 opacity-30 text-slate-300" />
+              <p className="font-bold text-sm text-slate-700">No Notifications</p>
               <p className="text-xs text-slate-500 mt-1">You're all caught up! Fleet notifications will appear here in real time.</p>
             </div>
           ) : (
@@ -191,35 +193,35 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
                   onClick={() => handleNotificationClick(notif)}
                   className={`p-3.5 rounded-2xl border transition-all cursor-pointer relative group ${
                     notif.read
-                      ? 'bg-[#0b1329]/60 border-blue-950/60/80 hover:border-blue-900/65 text-slate-300'
-                      : 'bg-[#131e3d]/80 border-orange-500/40 hover:border-orange-500 text-slate-100 shadow-sm'
+                      ? 'bg-white border-slate-200 hover:border-slate-300 text-slate-700'
+                      : 'bg-orange-50/70 border-orange-300 hover:border-orange-400 text-slate-900 shadow-xs'
                   }`}
                 >
                   <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-xl bg-[#070b19] border border-blue-950/60 shrink-0 mt-0.5">
+                    <div className="p-2 rounded-xl bg-slate-100 border border-slate-200 shrink-0 mt-0.5">
                       {getNotifIcon(notif.type)}
                     </div>
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2 mb-1">
-                        <h4 className="font-bold text-xs text-slate-100 truncate flex items-center gap-1.5">
+                        <h4 className="font-bold text-xs text-slate-900 truncate flex items-center gap-1.5">
                           {!notif.read && (
-                            <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0 animate-pulse" />
+                            <span className="w-2 h-2 rounded-full bg-orange-500 shrink-0 animate-pulse" />
                           )}
                           <span>{notif.title}</span>
                         </h4>
                         <span className="text-[10px] text-slate-400 font-medium shrink-0 flex items-center gap-1">
-                          <Clock className="w-3 h-3 text-slate-500" />
+                          <Clock className="w-3 h-3 text-slate-400" />
                           {timeStr}
                         </span>
                       </div>
 
-                      <p className="text-xs text-slate-300 leading-relaxed font-normal">
+                      <p className="text-xs text-slate-600 leading-relaxed font-normal">
                         {textMsg}
                       </p>
 
                       {(notif.tripId || notif.trip_id || notif.truckId || notif.truck_id) && (
-                        <div className="mt-2 flex items-center text-[10px] font-extrabold text-orange-400 group-hover:underline">
+                        <div className="mt-2 flex items-center text-[10px] font-extrabold text-orange-600 group-hover:underline">
                           Tap to view details &rarr;
                         </div>
                       )}
@@ -232,9 +234,9 @@ export const NotificationCenterModal: React.FC<NotificationCenterModalProps> = (
         </div>
 
         {/* Footer */}
-        <div className="p-3 bg-[#070b19] border-t border-blue-950/60 text-center">
-          <p className="text-[11px] text-slate-500">
-            Automated alerts dispatched via FCM & In-App Fleet Dispatcher
+        <div className="p-3 bg-slate-50 border-t border-slate-200 text-center">
+          <p className="text-[11px] text-slate-500 font-medium">
+            Automated alerts dispatched via Push & GPS Telemetry Engine
           </p>
         </div>
 

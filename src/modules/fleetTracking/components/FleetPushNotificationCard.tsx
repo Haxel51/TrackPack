@@ -77,16 +77,16 @@ export const FleetPushNotificationCard: React.FC = () => {
   const isGranted = permission === 'granted';
 
   return (
-    <div className={`rounded-3xl p-5 border transition-all shadow-lg ${
+    <div className={`rounded-3xl p-5 border transition-all shadow-xs ${
       isGranted
-        ? 'bg-[#0A1F44] border-emerald-500/40 text-white'
-        : 'bg-[#0F172A] border-orange-500/50 text-white'
+        ? 'bg-white border-emerald-200 text-slate-900'
+        : 'bg-white border-orange-200 text-slate-900'
     }`} id="fleet-push-notification-card">
       
       {/* Toast Banner */}
       {toastMessage && (
-        <div className="mb-3 bg-emerald-900/90 border border-emerald-400 text-emerald-100 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-md">
-          <CheckCircle className="w-4 h-4 text-emerald-300 shrink-0" />
+        <div className="mb-3 bg-emerald-50 border border-emerald-200 text-emerald-800 px-4 py-2.5 rounded-2xl text-xs font-bold flex items-center gap-2 animate-fade-in shadow-xs">
+          <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -96,33 +96,33 @@ export const FleetPushNotificationCard: React.FC = () => {
         {/* Left Side: Status & Explanation */}
         <div className="flex items-start gap-3.5 min-w-0">
           <div className={`p-3 rounded-2xl shrink-0 ${
-            isGranted ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' : 'bg-orange-500/20 text-orange-300 border border-orange-500/30'
+            isGranted ? 'bg-emerald-50 text-emerald-600 border border-emerald-200' : 'bg-orange-50 text-orange-600 border border-orange-200'
           }`}>
             {isGranted ? (
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
+              <CheckCircle className="w-5 h-5 text-emerald-600" />
             ) : (
-              <Bell className="w-5 h-5 text-orange-400 animate-bounce" />
+              <Bell className="w-5 h-5 text-orange-600" />
             )}
           </div>
 
           <div className="space-y-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className="text-sm sm:text-base font-black tracking-tight text-white">
+              <h3 className="text-sm sm:text-base font-black tracking-tight text-slate-900">
                 Fleet Tracking Push Alerts
               </h3>
               <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
                 isGranted
-                  ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-300'
-                  : 'bg-orange-500/20 border-orange-400/50 text-orange-300'
+                  ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                  : 'bg-orange-50 border-orange-200 text-orange-700'
               }`}>
                 {isGranted ? '✓ Push Alerts: Active' : '🔔 Alerts: Off'}
               </span>
             </div>
             
-            <p className="text-xs text-slate-200 leading-relaxed font-medium max-w-2xl">
+            <p className="text-xs text-slate-600 leading-relaxed font-medium max-w-2xl">
               {isGranted
-                ? 'Real-time phone notifications are active for truck dispatches, trip delays, speed warnings, and geofence arrivals.'
-                : 'Turn on notifications to receive instant phone alerts whenever trucks depart, arrive, enter geofences, or encounter delays.'}
+                ? 'Real-time phone notifications are active for dispatches, trip delays, speed warnings, tamper sensor alarms, and geofence arrivals.'
+                : 'Turn on notifications to receive instant phone alerts whenever assets depart, arrive, enter geofences, or trigger tamper sensors.'}
             </p>
           </div>
         </div>
@@ -133,19 +133,18 @@ export const FleetPushNotificationCard: React.FC = () => {
             <button
               onClick={handleEnableNotifications}
               disabled={loading}
-              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-400 text-slate-950 font-black px-5 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-md active:scale-95 flex items-center justify-center gap-2 shrink-0"
+              className="w-full sm:w-auto bg-orange-500 hover:bg-orange-600 text-white font-black px-5 py-2.5 rounded-xl text-xs transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-2 shrink-0"
               id="enable-fleet-push-card-btn"
             >
-              <Bell className="w-4 h-4 fill-slate-950 shrink-0" />
+              <Bell className="w-4 h-4 text-white shrink-0" />
               <span>{loading ? 'Requesting...' : 'Turn On Alerts'}</span>
             </button>
           ) : (
             <button
               onClick={handleDisableNotifications}
-              className="w-full sm:w-auto bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 font-bold px-4 py-2 rounded-xl text-xs transition-all cursor-pointer shadow-xs active:scale-95 flex items-center justify-center gap-1.5 shrink-0"
-              id="disable-fleet-push-card-btn"
+              className="w-full sm:w-auto bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer border border-slate-200"
             >
-              <span>Turn Off Alerts</span>
+              Manage
             </button>
           )}
         </div>
