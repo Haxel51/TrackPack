@@ -39,7 +39,6 @@ import {
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { resetCompanyManagerPin, getCompanyRemittanceStatus } from '../lib/api';
 import { DailyRemittanceModal } from '../components/company/DailyRemittanceModal';
-import { FleetLocationsView } from '../modules/fleetTracking/pages/FleetLocationsView';
 import { ModuleSelectionScreen } from '../components/ModuleSelectionScreen';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { getSavedModulePreference, saveModulePreference, clearModulePreference, ModuleType } from '../lib/userPreferences';
@@ -2164,13 +2163,6 @@ export const CompanyDashboard: React.FC = () => {
                 </div>
               )}
 
-            </div>
-          )}
-
-          {/* TAB 5: FLEET LOCATIONS */}
-          {activeTab === 'fleet_locations' && (
-            <div className="space-y-6" id="fleet-locations-tab">
-              <FleetLocationsView token={token || ''} userName={user?.company_name || user?.name} />
             </div>
           )}
 
