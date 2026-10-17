@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Logo } from './Logo';
 import waybillaTransportSplashImage from '../assets/images/waybilla_splash_transport_hub_1790189080381.jpg';
-import { Radio, Sparkles, ChevronRight } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 interface SplashScreenProps {
   onComplete: () => void;
@@ -10,7 +10,7 @@ interface SplashScreenProps {
 
 export const SplashScreen: React.FC<SplashScreenProps> = ({
   onComplete,
-  duration = 7000
+  duration = 3800
 }) => {
   const [show, setShow] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
@@ -18,42 +18,34 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
   const [progressWidth, setProgressWidth] = useState('w-1/12');
   const [statusText, setStatusText] = useState('Connecting to National Transport Network...');
 
-  const handleSkip = () => {
-    setFadingOut(true);
-    setTimeout(() => {
-      setShow(false);
-      onComplete();
-    }, 400);
-  };
-
   useEffect(() => {
     // 1. Smoothly fade in artwork & branding
     const graphicTimer = setTimeout(() => {
       setGraphicVisible(true);
-    }, 80);
+    }, 60);
 
-    // 2. Animate progress bar smoothly over the 7 seconds
+    // 2. Animate progress bar smoothly over the duration
     const progressTimer = setTimeout(() => {
       setProgressWidth('w-full');
-    }, 200);
+    }, 120);
 
-    // 3. Dynamic stage status changes (well-spaced across 7 seconds)
+    // 3. Dynamic stage status changes (well-spaced across 3.8 seconds)
     const status1Timer = setTimeout(() => {
       setStatusText('Syncing Interstate Buses, Trucks & Hubs...');
-    }, 2200);
+    }, 1100);
 
     const status2Timer = setTimeout(() => {
       setStatusText('Connecting Live Stage-by-Stage Tracking...');
-    }, 4400);
+    }, 2200);
 
     const status3Timer = setTimeout(() => {
       setStatusText('Nigeria\'s Stage-by-Stage Waybill Network Ready 🇳🇬');
-    }, 5800);
+    }, 3000);
 
     // 4. Trigger smooth fade out
     const fadeOutTimer = setTimeout(() => {
       setFadingOut(true);
-    }, duration - 600);
+    }, duration - 500);
 
     // 5. Complete and notify parent
     const completeTimer = setTimeout(() => {
@@ -97,23 +89,14 @@ export const SplashScreen: React.FC<SplashScreenProps> = ({
         <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-[#061229]/90 via-[#061229]/30 to-[#061229]/95 z-10" />
         <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_center,transparent_45%,#061229_92%)] z-10" />
 
-        {/* Top Bar: Floating Badges & Optional Skip */}
-        <div className="relative z-20 w-full flex justify-between items-center pt-2">
-          <div className="flex items-center gap-1.5 bg-[#0A1F44]/90 backdrop-blur-md px-3 py-1 rounded-full border border-[#F7941D]/40 shadow-lg">
+        {/* Top Bar: Floating Badges (Centered, clean) */}
+        <div className="relative z-20 w-full flex justify-center items-center pt-2">
+          <div className="flex items-center gap-1.5 bg-[#0A1F44]/90 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-[#F7941D]/40 shadow-lg">
             <span className="w-2 h-2 rounded-full bg-[#F7941D] animate-pulse" />
             <span className="text-[10px] font-black text-[#F7941D] tracking-wider uppercase">
               Nationwide Tracking
             </span>
           </div>
-
-          <button
-            type="button"
-            onClick={handleSkip}
-            className="flex items-center gap-1 bg-white/10 hover:bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full border border-white/20 text-slate-200 hover:text-white text-[10px] font-bold transition-all cursor-pointer"
-          >
-            <span>Skip</span>
-            <ChevronRight className="w-3 h-3" />
-          </button>
         </div>
 
         {/* Center Brand Identity */}

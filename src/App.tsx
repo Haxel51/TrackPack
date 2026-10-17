@@ -36,7 +36,7 @@ export default function App() {
     <LanguageProvider>
       <AuthProvider>
         {!splashFinished && (
-          <SplashScreen onComplete={() => setSplashFinished(true)} duration={7000} />
+          <SplashScreen onComplete={() => setSplashFinished(true)} duration={3800} />
         )}
         <IosInstallBanner />
         <WhatsAppButton />

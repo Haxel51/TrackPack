@@ -19,8 +19,7 @@ import {
   ChevronRight,
   Lock,
   Sparkles,
-  Code2,
-  QrCode
+  Code2
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { triggerOSNotification } from '../utils/notifications';
@@ -270,38 +269,6 @@ export const HomePage: React.FC = () => {
           )}
         </div>
 
-        {/* Compact Pre-Book Banner */}
-        {!trackedWaybill && (
-          <div className="max-w-2xl mx-auto bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3.5 hover:border-orange-300 transition-all">
-            <div className="flex items-start sm:items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-orange-50 border border-orange-200 text-[#F7941D] flex items-center justify-center shrink-0 mt-0.5 sm:mt-0">
-                <QrCode className="w-5 h-5" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-black text-[#0A1F44]">
-                    Send a Parcel? Pre-Book Online
-                  </h3>
-                  <span className="bg-orange-100 text-orange-800 text-[10px] font-black uppercase px-2 py-0.5 rounded-md">
-                    New
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 font-medium leading-snug mt-0.5">
-                  Fill parcel details at home, get a QR pass, and drop off in 2 seconds at the park counter.
-                </p>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => navigate('/book')}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-1.5 bg-[#0A1F44] hover:bg-[#143265] active:scale-95 text-white text-xs font-black px-4 py-2.5 rounded-xl shadow-xs transition-all cursor-pointer shrink-0 whitespace-nowrap"
-            >
-              <span>Book Online</span>
-              <ArrowRight className="w-3.5 h-3.5 text-[#F7941D]" />
-            </button>
-          </div>
-        )}
 
         {/* Tracked Shipment Result Card */}
         {trackedWaybill && (

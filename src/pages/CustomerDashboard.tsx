@@ -20,8 +20,7 @@ import {
   BellOff,
   Loader2,
   Info,
-  QrCode,
-  Plus
+  QrCode
 } from 'lucide-react';
 import { ShipmentTimeline } from '../components/ShipmentTimeline';
 import { NotificationModal } from '../components/NotificationModal';
@@ -355,14 +354,6 @@ export const CustomerDashboard: React.FC = () => {
           </div>
           
           <div className="flex items-center gap-2.5 flex-wrap">
-            {/* Pre-Book Waybill Button */}
-            <button
-              onClick={() => navigate('/book')}
-              className="flex items-center gap-1.5 text-xs font-black px-4 py-2 rounded-xl bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] shadow-xs transition-all cursor-pointer"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>Send Parcel (Pre-Book)</span>
-            </button>
 
             {/* Push Notifications Toggle */}
             <button

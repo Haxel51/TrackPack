@@ -47,6 +47,7 @@ export type TrackerModelType =
   | 'sinotrack_st905'
   | 'micodus'
   | 'gf07'
+  | 'qxgps'
   | 'teltonika'
   | 'satellite_globalstar'
   | 'custom';

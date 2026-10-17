@@ -119,8 +119,15 @@ const TRACKER_MODELS: Array<{
     battery: '6,000 mAh',
   },
   {
+    id: 'qxgps',
+    label: 'QXGPS / GF-09 / GF-21 / GF-22 (Mini Magnetic Tracker)',
+    smsImeiCmd: 'STATUS# or check barcode on device back',
+    smsApnCmd: 'APN#web.gprs.mtnnigeria.net# (MTN) or APN#internet.ng.airtel.com#',
+    battery: '500 - 1,000 mAh Rechargeable',
+  },
+  {
     id: 'gf07',
-    label: 'GF-07 / GF-21 Mini Locator (Mini Magnet)',
+    label: 'GF-07 Mini Locator (Audio / LBS Magnet)',
     smsImeiCmd: 'imei',
     smsApnCmd: '777',
     battery: '400 - 800 mAh',

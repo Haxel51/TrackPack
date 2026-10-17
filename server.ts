@@ -3224,6 +3224,48 @@ app.get("/api/auth/me", async (req, res) => {
   }
 });
 
+// User module preference GET endpoint
+app.get("/api/user/preferences", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.json({ lastUsedModule: null });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const session = await validateSession(token);
+    if (!session || !session.userId) {
+      return res.json({ lastUsedModule: null });
+    }
+    const prefSnap = await getDoc(doc(db, "users", session.userId, "preferences", "module"));
+    if (prefSnap.exists() && prefSnap.data()?.lastUsedModule) {
+      return res.json({ lastUsedModule: prefSnap.data().lastUsedModule });
+    }
+    return res.json({ lastUsedModule: null });
+  } catch (err) {
+    return res.json({ lastUsedModule: null });
+  }
+});
+
+// User module preference POST endpoint
+app.post("/api/user/preferences", async (req, res) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.json({ success: true });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const session = await validateSession(token);
+    if (session && session.userId && req.body) {
+      const { lastUsedModule } = req.body;
+      const prefRef = doc(db, "users", session.userId, "preferences", "module");
+      await setDoc(prefRef, { lastUsedModule: lastUsedModule || null, updatedAt: new Date().toISOString() }, { merge: true });
+    }
+    return res.json({ success: true });
+  } catch (err) {
+    return res.json({ success: true });
+  }
+});
+
 // Complete onboarding endpoint
 app.post("/api/auth/complete-onboarding", async (req, res) => {
   const authHeader = req.headers.authorization;
