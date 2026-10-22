@@ -159,13 +159,13 @@ export const StaffLogin: React.FC = () => {
           <Link to="/" className="self-start text-[#0A1F44] hover:text-[#F7941D] flex items-center gap-1 text-sm font-bold transition-colors mb-2">
             <ChevronLeft className="w-4 h-4" /> Back to Home
           </Link>
-          <div className="w-14 h-14 bg-[#08152B] rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
+          <div className="w-14 h-14 bg-orange-600 rounded-2xl flex items-center justify-center border border-orange-400/30 shadow-md">
             {step === 'phone' ? (
-              <UserCheck className="text-[#F7941D] w-7 h-7" />
+              <UserCheck className="text-white w-7 h-7" />
             ) : !staffInfo?.has_pin ? (
-              <KeyRound className="text-[#F7941D] w-7 h-7" />
+              <KeyRound className="text-white w-7 h-7" />
             ) : (
-              <Lock className="text-[#F7941D] w-7 h-7" />
+              <Lock className="text-white w-7 h-7" />
             )}
           </div>
           <h1 className="text-2xl font-extrabold text-[#0A1F44]">

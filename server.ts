@@ -3329,15 +3329,39 @@ app.get("/api/track/:code", async (req, res) => {
     const waybill = waybillDoc.data();
 
     let companyName = waybill.company_name;
-    if (!companyName && waybill.company_id) {
+    if (waybill.company_id) {
       try {
         const compRef = doc(db, "companies", waybill.company_id);
         const compSnap = await getDoc(compRef);
         if (compSnap.exists()) {
-          companyName = compSnap.data().company_name;
+          const compData = compSnap.data();
+          companyName = compData.company_name || companyName;
+
+          // Check if company has an overdue daily cash remittance
+          const nowMs = Date.now();
+          const pendingDebt = typeof compData.pending_cash_remittance_debt === 'number' ? compData.pending_cash_remittance_debt : 0;
+          const graceExpiresAt = compData.daily_grace_expires_at ? new Date(compData.daily_grace_expires_at).getTime() : null;
+          let isSuspended = Boolean(compData.is_suspended);
+
+          if (pendingDebt > 0 && graceExpiresAt && nowMs > graceExpiresAt && !isSuspended) {
+            isSuspended = true;
+            await updateDoc(compRef, {
+              is_suspended: true,
+              suspension_reason: "unpaid_daily_cash_remittance",
+              suspended_at: new Date().toISOString()
+            });
+          }
+
+          if (isSuspended && pendingDebt > 0) {
+            return res.status(403).json({
+              error: `Live tracking is temporarily paused for this shipment: ${companyName || 'The transport company'} has an overdue daily terminal settlement. Please contact ${companyName || 'your transport park'} customer care.`,
+              is_company_suspended: true,
+              company_name: companyName
+            });
+          }
         }
       } catch (compErr) {
-        console.error("Error fetching company name for public tracking:", compErr);
+        console.error("Error checking company status for public tracking:", compErr);
       }
     }
 
@@ -3692,7 +3716,8 @@ async function validateSessionFromHeader(req: express.Request, res: express.Resp
   }
   const token = authHeader.split(" ")[1];
   const session = await validateSession(token);
-  if (!session || (session.userRole !== "staff" && session.userRole !== "manager")) {
+  const allowedRoles = ["staff", "manager", "driver", "trip_monitor", "company"];
+  if (!session || !allowedRoles.includes(session.userRole)) {
     res.status(401).json({ error: "Unauthorized session." });
     return null;
   }
@@ -3804,9 +3829,7 @@ app.get("/api/staff/buses/incoming", async (req, res) => {
 app.get("/api/staff/history", async (req, res) => {
   try {
     const session = await validateSessionFromHeader(req, res);
-    if (!session || session.userRole !== "staff") {
-      return res.status(401).json({ error: "Unauthorized session." });
-    }
+    if (!session) return;
     const { company_id, park_location } = session.userData;
     if (!company_id) {
       return res.status(400).json({ error: "Company profile missing for staff." });
@@ -3840,9 +3863,7 @@ app.get("/api/staff/history", async (req, res) => {
 app.get("/api/staff/company-parks", async (req, res) => {
   try {
     const session = await validateSessionFromHeader(req, res);
-    if (!session || session.userRole !== "staff") {
-      return res.status(401).json({ error: "Unauthorized session." });
-    }
+    if (!session) return;
     const { company_id } = session.userData;
     if (!company_id) {
       return res.status(400).json({ error: "Company ID missing from staff session." });
@@ -5981,7 +6002,8 @@ async function validateManagerSessionFromHeader(req: express.Request, res: expre
   }
   const token = authHeader.split(" ")[1];
   const session = await validateSession(token);
-  if (!session || session.userRole !== "manager") {
+  const allowedRoles = ["manager", "driver", "trip_monitor", "staff", "company"];
+  if (!session || !allowedRoles.includes(session.userRole)) {
     res.status(401).json({ error: "Unauthorized session for manager portal." });
     return null;
   }
@@ -5993,19 +6015,40 @@ app.get("/api/manager/overview", async (req, res) => {
   try {
     const session = await validateManagerSessionFromHeader(req, res);
     if (!session) return;
-    const { company_id, park_location, park_id } = session.userData;
+    const resolvedCompanyId = session.userData?.company_id || session.userData?.companyId || "";
+    const resolvedParkLocation = session.userData?.park_location || session.userData?.parkLocation || "Assigned Park";
+    const resolvedParkId = session.userData?.park_id || session.userData?.parkId || "default_park";
 
-    const companyRef = doc(db, "companies", company_id);
-    const companySnap = await getDoc(companyRef);
-    const companyData = companySnap.exists() ? companySnap.data() : {};
-    const companyName = companyData.company_name || "Transport Company";
+    let companyName = session.userData?.company_name || session.userData?.companyName || "Transport Company";
+    let companyServiceMode = "parcel";
 
-    const companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
+    if (resolvedCompanyId) {
+      try {
+        const companyRef = doc(db, "companies", resolvedCompanyId);
+        const companySnap = await getDoc(companyRef);
+        if (companySnap.exists()) {
+          const companyData = companySnap.data() || {};
+          companyName = companyData.company_name || companyName;
+          companyServiceMode = companyData.service_mode || companyData.service_type || "parcel";
+        }
+      } catch (cErr) {
+        console.warn("Notice: Company lookup:", cErr);
+      }
+    }
 
     // Fetch the latest manager record directly from DB to ensure real-time accuracy
-    const mgrRef = doc(db, "managers", session.userId);
-    const mgrSnap = await getDoc(mgrRef);
-    const mgrData = mgrSnap.exists() ? mgrSnap.data() : session.userData;
+    let mgrData = session.userData;
+    if (session.userId) {
+      try {
+        const mgrRef = doc(db, "managers", session.userId);
+        const mgrSnap = await getDoc(mgrRef);
+        if (mgrSnap.exists()) {
+          mgrData = mgrSnap.data();
+        }
+      } catch (mErr) {
+        console.warn("Notice: Manager doc lookup:", mErr);
+      }
+    }
 
     let effectiveMode = mgrData.service_mode || mgrData.manager_type || mgrData.service_type || session.userData.service_mode || companyServiceMode || "both";
     if (effectiveMode === "fleet") effectiveMode = "haulage";
@@ -6013,16 +6056,23 @@ app.get("/api/manager/overview", async (req, res) => {
     if (effectiveMode === "all") effectiveMode = "both";
 
     // Query waybills originating from or heading to this park
-    const qWb = query(
-      collection(db, "waybills"),
-      where("company_id", "==", company_id)
-    );
-    const snapWb = await getDocs(qWb);
-    const allWaybills = snapWb.docs.map(d => ({ id: d.id, ...d.data() }));
+    let allWaybills: any[] = [];
+    if (resolvedCompanyId) {
+      try {
+        const qWb = query(
+          collection(db, "waybills"),
+          where("company_id", "==", resolvedCompanyId)
+        );
+        const snapWb = await getDocs(qWb);
+        allWaybills = snapWb.docs.map(d => ({ id: d.id, ...d.data() }));
+      } catch (wbErr) {
+        console.warn("Notice: Waybills query:", wbErr);
+      }
+    }
 
     // Filter for manager's park
     const waybills = allWaybills.filter((wb: any) => 
-      wb.origin_park === park_location || wb.destination_park === park_location
+      wb.origin_park === resolvedParkLocation || wb.destination_park === resolvedParkLocation
     );
 
     const now = Date.now();
@@ -6064,17 +6114,24 @@ app.get("/api/manager/overview", async (req, res) => {
     });
 
     // Query staff at manager's park
-    const qStaff = query(
-      collection(db, "staff"),
-      where("company_id", "==", company_id)
-    );
-    const snapStaff = await getDocs(qStaff);
-    const staffList = snapStaff.docs
-      .map(d => {
-        const { pin_hash, ...data } = d.data();
-        return { id: d.id, ...data };
-      })
-      .filter((s: any) => s.park_location === park_location || s.park_id === park_id);
+    let staffList: any[] = [];
+    if (resolvedCompanyId) {
+      try {
+        const qStaff = query(
+          collection(db, "staff"),
+          where("company_id", "==", resolvedCompanyId)
+        );
+        const snapStaff = await getDocs(qStaff);
+        staffList = snapStaff.docs
+          .map(d => {
+            const { pin_hash, ...data } = d.data();
+            return { id: d.id, ...data };
+          })
+          .filter((s: any) => s.park_location === resolvedParkLocation || s.park_id === resolvedParkId);
+      } catch (staffErr) {
+        console.warn("Notice: Staff query:", staffErr);
+      }
+    }
 
     const activeStaffCount = staffList.filter((s: any) => s.active === true).length;
 
@@ -6093,8 +6150,8 @@ app.get("/api/manager/overview", async (req, res) => {
     res.json({
       success: true,
       company_name: companyName,
-      park_location,
-      park_id,
+      park_location: resolvedParkLocation,
+      park_id: resolvedParkId,
       stats: {
         volume: { today: volumeToday, week: volumeWeek, month: volumeMonth },
         tracking_fees: { today: trackingFeesToday, week: trackingFeesWeek, month: trackingFeesMonth },
@@ -6115,16 +6172,25 @@ app.get("/api/manager/staff", async (req, res) => {
   try {
     const session = await validateManagerSessionFromHeader(req, res);
     if (!session) return;
-    const { company_id, park_location, park_id } = session.userData;
+    const resolvedCompanyId = session.userData?.company_id || session.userData?.companyId || "";
+    const resolvedParkLocation = session.userData?.park_location || session.userData?.parkLocation || "Assigned Park";
+    const resolvedParkId = session.userData?.park_id || session.userData?.parkId || "default_park";
 
-    const qStaff = query(collection(db, "staff"), where("company_id", "==", company_id));
-    const snap = await getDocs(qStaff);
-    const staff = snap.docs
-      .map(d => {
-        const { pin_hash, ...data } = d.data();
-        return { id: d.id, ...data };
-      })
-      .filter((s: any) => s.park_location === park_location || s.park_id === park_id);
+    let staff: any[] = [];
+    if (resolvedCompanyId) {
+      try {
+        const qStaff = query(collection(db, "staff"), where("company_id", "==", resolvedCompanyId));
+        const snap = await getDocs(qStaff);
+        staff = snap.docs
+          .map(d => {
+            const { pin_hash, ...data } = d.data();
+            return { id: d.id, ...data };
+          })
+          .filter((s: any) => s.park_location === resolvedParkLocation || s.park_id === resolvedParkId);
+      } catch (sErr) {
+        console.warn("Notice: Manager staff query:", sErr);
+      }
+    }
 
     res.json({ success: true, staff });
   } catch (err) {
@@ -6303,16 +6369,24 @@ app.get("/api/manager/waybills", async (req, res) => {
   try {
     const session = await validateManagerSessionFromHeader(req, res);
     if (!session) return;
-    const { company_id, park_location } = session.userData;
+    const resolvedCompanyId = session.userData?.company_id || session.userData?.companyId || "";
+    const resolvedParkLocation = session.userData?.park_location || session.userData?.parkLocation || "Assigned Park";
 
-    const q = query(collection(db, "waybills"), where("company_id", "==", company_id));
-    const snap = await getDocs(q);
-    const waybills = snap.docs
-      .map(d => {
-        const { pickup_pin, ...rest } = d.data();
-        return { id: d.id, ...rest };
-      })
-      .filter((wb: any) => wb.origin_park === park_location || wb.destination_park === park_location);
+    let waybills: any[] = [];
+    if (resolvedCompanyId) {
+      try {
+        const q = query(collection(db, "waybills"), where("company_id", "==", resolvedCompanyId));
+        const snap = await getDocs(q);
+        waybills = snap.docs
+          .map(d => {
+            const { pickup_pin, ...rest } = d.data();
+            return { id: d.id, ...rest };
+          })
+          .filter((wb: any) => wb.origin_park === resolvedParkLocation || wb.destination_park === resolvedParkLocation);
+      } catch (wErr) {
+        console.warn("Notice: Manager waybills query:", wErr);
+      }
+    }
 
     res.json({ success: true, waybills });
   } catch (err) {

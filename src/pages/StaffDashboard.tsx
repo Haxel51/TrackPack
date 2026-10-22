@@ -25,14 +25,20 @@ export const StaffDashboard: React.FC = () => {
   const [incomingInTransitCount, setIncomingInTransitCount] = useState<number>(0);
   const [pendingPickupCount, setPendingPickupCount] = useState<number>(0);
 
-  const originPark = user?.park_location || 'Nnewi';
+  const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('staff_token') || localStorage.getItem('manager_token') || localStorage.getItem('company_token') : null) || 'fallback_staff_token';
+  const originPark = user?.park_location || (typeof localStorage !== 'undefined' ? (() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('auth_user') || '{}');
+      return u.park_location;
+    } catch { return null; }
+  })() : null) || 'Main Fleet Garage';
 
   const fetchCounts = async () => {
-    if (!token) return;
+    if (!activeToken || activeToken === 'fallback_staff_token') return;
     try {
       const [outRes, incRes] = await Promise.allSettled([
-        getOutgoingBuses(token),
-        getIncomingBuses(token)
+        getOutgoingBuses(activeToken),
+        getIncomingBuses(activeToken)
       ]);
 
       if (outRes.status === 'fulfilled' && outRes.value?.success && Array.isArray(outRes.value.buses)) {
@@ -65,7 +71,7 @@ export const StaffDashboard: React.FC = () => {
     fetchCounts();
     const interval = setInterval(fetchCounts, 15000);
     return () => clearInterval(interval);
-  }, [token]);
+  }, [activeToken]);
 
   useEffect(() => {
     if (screen === 'menu') {
@@ -77,13 +83,13 @@ export const StaffDashboard: React.FC = () => {
   const totalTasksCount = outgoingCount + incomingInTransitCount + pendingPickupCount;
 
   const renderScreen = () => {
-    if (!token) return null;
+    const currentToken = activeToken;
 
     switch (screen) {
       case 'create_waybill':
         return (
           <WaybillForm
-            token={token}
+            token={currentToken}
             originPark={originPark}
             onBackToMenu={() => setScreen('menu')}
             onCreateNewBus={() => setScreen('create_bus')}
@@ -92,7 +98,7 @@ export const StaffDashboard: React.FC = () => {
       case 'create_bus':
         return (
           <BusForm
-            token={token}
+            token={currentToken}
             originPark={originPark}
             onSuccess={() => setScreen('create_waybill')}
             onCancel={() => setScreen('create_waybill')}
@@ -101,21 +107,21 @@ export const StaffDashboard: React.FC = () => {
       case 'outgoing':
         return (
           <OutgoingBuses
-            token={token}
+            token={currentToken}
             onBackToMenu={() => setScreen('menu')}
           />
         );
       case 'incoming':
         return (
           <IncomingBuses
-            token={token}
+            token={currentToken}
             onBackToMenu={() => setScreen('menu')}
           />
         );
       case 'history':
         return (
           <WaybillHistory
-            token={token}
+            token={currentToken}
             originPark={originPark}
             onBackToMenu={() => setScreen('menu')}
           />
@@ -123,7 +129,7 @@ export const StaffDashboard: React.FC = () => {
       case 'prebooked_intake':
         return (
           <PreBookedIntake
-            token={token}
+            token={currentToken}
             originPark={originPark}
             onBackToMenu={() => setScreen('menu')}
           />

@@ -6,8 +6,6 @@ import {
   Clock,
   ArrowRight,
   ShieldCheck,
-  Building2,
-  Copy,
   Check,
   ExternalLink,
   Loader2,
@@ -15,14 +13,12 @@ import {
   Wallet,
   Zap,
   HelpCircle,
-  FileText,
-  AlertCircle
+  FileText
 } from 'lucide-react';
 import {
   getCompanyRemittanceStatus,
   initPaystackRemittance,
-  verifyPaystackRemittance,
-  submitTransferProof
+  verifyPaystackRemittance
 } from '../../lib/api';
 
 interface DailyRemittanceModalProps {
@@ -41,24 +37,14 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<any>(null);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'paystack' | 'manual_transfer' | 'ledger' | 'history'>('paystack');
+  const [activeTab, setActiveTab] = useState<'paystack' | 'ledger' | 'history'>('paystack');
 
-  // Part A state
+  // Paystack checkout state
   const [paystackLoading, setPaystackLoading] = useState(false);
   const [paystackRef, setPaystackRef] = useState<string | null>(null);
   const [verifyingPayment, setVerifyingPayment] = useState(false);
   const [verifySuccessMessage, setVerifySuccessMessage] = useState<string | null>(null);
-
-  // Part B state
-  const [bankName, setBankName] = useState('');
-  const [senderName, setSenderName] = useState('');
-  const [transferRef, setTransferRef] = useState('');
-  const [notes, setNotes] = useState('');
-  const [submittingProof, setSubmittingProof] = useState(false);
   const [proofSubmittedMessage, setProofSubmittedMessage] = useState<string | null>(null);
-
-  // Copy feedback
-  const [copiedAcc, setCopiedAcc] = useState(false);
 
   const fetchStatus = async () => {
     setLoading(true);
@@ -81,19 +67,11 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
     if (isOpen) {
       fetchStatus();
       setVerifySuccessMessage(null);
-      setProofSubmittedMessage(null);
       setPaystackRef(null);
     }
   }, [isOpen]);
 
   if (!isOpen) return null;
-
-  const handleCopyAccount = () => {
-    const acc = data?.bank_details?.account_number || '1018899221';
-    navigator.clipboard.writeText(acc);
-    setCopiedAcc(true);
-    setTimeout(() => setCopiedAcc(false), 2000);
-  };
 
   // 1. Initialize Paystack Instant Checkout
   const handleStartPaystackCheckout = async () => {
@@ -138,39 +116,6 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
     }
   };
 
-  // 3. Submit Manual Bank Transfer Proof
-  const handleSubmitManualProof = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!transferRef && !senderName) {
-      setError('Please enter your sender account name or bank transfer reference.');
-      return;
-    }
-    setSubmittingProof(true);
-    setError(null);
-    try {
-      const res = await submitTransferProof(token, {
-        amount: data?.pending_debt || 0,
-        bank_name: bankName || 'Bank Transfer',
-        sender_account_name: senderName,
-        transfer_reference: transferRef,
-        notes
-      });
-      if (res.success) {
-        setProofSubmittedMessage(res.message || 'Proof submitted successfully! Super Admin has been notified.');
-        setBankName('');
-        setSenderName('');
-        setTransferRef('');
-        setNotes('');
-        await fetchStatus();
-      } else {
-        setError(res.error || 'Failed to submit proof.');
-      }
-    } catch (err: any) {
-      setError(err.message || 'Submission error.');
-    } finally {
-      setSubmittingProof(false);
-    }
-  };
 
   const pendingDebt = data?.pending_debt || 0;
   const isSuspended = Boolean(data?.is_suspended);
@@ -344,22 +289,10 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
               }`}
             >
               <Zap className="w-4 h-4 text-emerald-500" />
-              <span>Part A: Instant Online Remit</span>
+              <span>Instant Online Remit (Paystack)</span>
               <span className="bg-emerald-100 text-emerald-800 text-[9px] font-black px-1.5 py-0.5 rounded uppercase">
-                Recommended
+                Card &bull; Bank Transfer &bull; USSD
               </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('manual_transfer')}
-              className={`pb-3 px-4 border-b-2 transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap ${
-                activeTab === 'manual_transfer'
-                  ? 'border-[#0A1F44] text-[#0A1F44] font-extrabold'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
-            >
-              <Building2 className="w-4 h-4 text-blue-600" />
-              <span>Part B: Bank Transfer Proof</span>
             </button>
 
             <button
@@ -524,147 +457,6 @@ export const DailyRemittanceModal: React.FC<DailyRemittanceModalProps> = ({
             </div>
           )}
 
-          {/* TAB 2: PART B - MANUAL BANK TRANSFER (FALLBACK) */}
-          {activeTab === 'manual_transfer' && (
-            <div className="space-y-5 animate-in fade-in">
-              <div className="bg-orange-50 border border-orange-200 text-orange-800 p-4 rounded-2xl flex items-start gap-3 text-xs">
-                <AlertCircle className="w-5 h-5 text-orange-600 shrink-0 mt-0.5" />
-                <div className="leading-relaxed">
-                  <span className="font-extrabold block text-orange-900">Important Note on Manual Transfers</span>
-                  Part B requires manual verification by Waybilla Super Admin before your terminal is unlocked. If you need immediate 10-second unlocking, please use <strong>Part A (Online Remit)</strong> above.
-                </div>
-              </div>
-
-              {/* Waybilla Corporate Account Details */}
-              <div className="border border-slate-200 bg-slate-50/70 rounded-2xl p-5 space-y-3">
-                <h4 className="text-xs font-black text-[#0A1F44] uppercase tracking-wider">
-                  Waybilla Official Corporate Bank Account
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <span className="text-slate-500 block">Bank Name</span>
-                    <span className="font-black text-slate-800 text-sm">
-                      {data?.bank_details?.bank_name || 'Zenith Bank PLC / Moniepoint MFB'}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-slate-500 block">Account Name</span>
-                    <span className="font-black text-slate-800 text-sm">
-                      {data?.bank_details?.account_name || 'Waybilla Logistics Technology Ltd'}
-                    </span>
-                  </div>
-                  <div className="sm:col-span-2 flex items-center justify-between bg-white border border-slate-200 p-3 rounded-xl">
-                    <div>
-                      <span className="text-[11px] text-slate-500 block">Account Number</span>
-                      <span className="font-black text-xl text-[#0A1F44] tracking-widest">
-                        {data?.bank_details?.account_number || '1018899221'}
-                      </span>
-                    </div>
-                    <button
-                      onClick={handleCopyAccount}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs px-3.5 py-2 rounded-lg flex items-center gap-1.5 transition-colors cursor-pointer"
-                    >
-                      {copiedAcc ? (
-                        <>
-                          <Check className="w-4 h-4 text-emerald-600" />
-                          <span>Copied!</span>
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-4 h-4" />
-                          <span>Copy Account</span>
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Proof Submission Form */}
-              <form onSubmit={handleSubmitManualProof} className="space-y-4 border border-slate-200 rounded-2xl p-5">
-                <h4 className="text-xs font-black text-slate-800 uppercase tracking-wider">
-                  Submit Transfer Proof for Super Admin Review
-                </h4>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Your Bank Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Access Bank / OPay / FirstBank"
-                      value={bankName}
-                      onChange={(e) => setBankName(e.target.value)}
-                      required
-                      className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 focus:border-[#0A1F44] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Sender Account Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Emeka Transport Nig Ltd"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      required
-                      className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 focus:border-[#0A1F44] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Transfer Reference / Session ID <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 09012398492040921"
-                      value={transferRef}
-                      onChange={(e) => setTransferRef(e.target.value)}
-                      required
-                      className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 focus:border-[#0A1F44] focus:outline-none font-mono"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-slate-700 mb-1">
-                      Additional Notes (Optional)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Nnewi Park daily remittance"
-                      value={notes}
-                      onChange={(e) => setNotes(e.target.value)}
-                      className="w-full border border-slate-300 rounded-xl px-3.5 py-2.5 focus:border-[#0A1F44] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <button
-                    type="submit"
-                    disabled={submittingProof}
-                    className="w-full bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold py-3 px-6 rounded-xl text-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-                  >
-                    {submittingProof ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        <span>Submitting Proof...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4" />
-                        <span>Submit Transfer Proof (₦{pendingDebt.toLocaleString()})</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
-          )}
 
           {/* TAB 3: CASH LEDGER AUDIT */}
           {activeTab === 'ledger' && (

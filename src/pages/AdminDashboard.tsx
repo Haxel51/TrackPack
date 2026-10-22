@@ -39,9 +39,13 @@ import {
   Eye,
   ExternalLink,
   Zap,
-  Megaphone
+  Megaphone,
+  Copy,
+  CheckCheck,
+  MessageSquare
 } from 'lucide-react';
 import { MarketingFlyerStudio } from '../components/MarketingFlyerStudio';
+import { ENABLE_DEVELOPER_API } from '../config/features';
 
 // Gray pulsing Skeleton placeholder
 const Skeleton: React.FC<{ className?: string }> = ({ className = 'h-4 w-full' }) => (
@@ -272,6 +276,9 @@ export const AdminDashboard: React.FC = () => {
   } | null>(null);
 
   const [rejectionReason, setRejectionReason] = useState('');
+  const [onboardingEmailCompany, setOnboardingEmailCompany] = useState<any | null>(null);
+  const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedSubject, setCopiedSubject] = useState(false);
 
   // Standard fetch-with-timeout wrapper (10s limit)
   const fetchWithTimeout = async (url: string, options: RequestInit = {}): Promise<Response> => {
@@ -612,7 +619,7 @@ export const AdminDashboard: React.FC = () => {
 
           {/* Core Navigation Tabs */}
           <nav className="flex flex-wrap justify-center items-center gap-1.5" id="nav-tabs-wrapper">
-            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'remittances', 'revenue', 'disputes', 'developers', 'recovery', 'marketing'] as const).map(tab => (
+            {(['overview', 'companies', 'managers', 'shipments', 'fleetTrips', 'remittances', 'revenue', 'disputes', ...(ENABLE_DEVELOPER_API ? ['developers'] : []), 'recovery', 'marketing'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => {
@@ -1030,6 +1037,18 @@ export const AdminDashboard: React.FC = () => {
                               </div>
                             </div>
                             <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOnboardingEmailCompany(comp);
+                                  setCopiedEmail(false);
+                                  setCopiedSubject(false);
+                                }}
+                                className="bg-blue-50 hover:bg-blue-100 text-blue-700 font-extrabold text-xs px-3.5 py-2 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 border border-blue-200"
+                                title="View & Copy Welcome Onboarding Email"
+                              >
+                                <Mail className="w-3.5 h-3.5" /> Welcome Email
+                              </button>
                               <button
                                 onClick={() => handleApproveCompany(comp.id)}
                                 className="bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs px-4 py-2 rounded-xl transition-all cursor-pointer shadow-sm flex items-center gap-1"
@@ -2592,6 +2611,166 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* Onboarding Email Modal */}
+      {onboardingEmailCompany && (() => {
+        const compName = onboardingEmailCompany.company_name || 'Your Company';
+        const ownerName = onboardingEmailCompany.owner_name || onboardingEmailCompany.name || 'Partner';
+        const ownerPhone = onboardingEmailCompany.owner_phone || onboardingEmailCompany.phone || '';
+        const ownerEmail = onboardingEmailCompany.owner_email || onboardingEmailCompany.email || '';
+        
+        const subjectText = `Welcome to Waybilla — Setting Up ${compName}’s Partner Terminal`;
+        const emailBodyText = `Dear ${ownerName},
+
+Thank you for registering ${compName} on the Waybilla Transport & Logistics Network! We are thrilled to welcome you to our partner community.
+
+As part of our standard onboarding process, we love to personally connect with every transport and logistics partner to ensure your stations, routes, and terminal staff are configured for a seamless experience.
+
+Because you have a background in ICT, we are particularly excited to work with you — you understand firsthand how digital automation can transform transport operations, eliminate lost parcels, and boost customer trust.
+
+Could you please let us know:
+1. Which cities or motor park routes your fleet currently operates (or plans to launch)?
+2. What would be the most convenient time for a brief 5-minute introductory chat or WhatsApp call to finalize your station activation?
+
+You can reply directly to this email, or connect with me directly on WhatsApp.
+
+Once again, welcome to Waybilla. We look forward to powering your logistics operations!
+
+Warm regards,
+Ndubuisi
+Founder & Head of Operations, Waybilla
+🌐 waybilla.com`;
+
+        const cleanPhone = ownerPhone.replace(/\D/g, '');
+        const intlPhone = cleanPhone.startsWith('0') ? '234' + cleanPhone.slice(1) : cleanPhone;
+        const waText = encodeURIComponent(`Hi ${ownerName}, Ndubuisi from Waybilla here! Thanks for connecting. I saw ${compName}'s registration on Waybilla. Excited to partner with you. Let me know when you're free for a quick 3-minute chat or call so we can activate your terminal!`);
+        const mailtoUrl = `mailto:${ownerEmail}?subject=${encodeURIComponent(subjectText)}&body=${encodeURIComponent(emailBodyText)}`;
+
+        return (
+          <div className="fixed inset-0 z-50 bg-[#0A1F44]/50 backdrop-blur-sm flex justify-center items-center p-4 overflow-y-auto">
+            <div className="bg-white rounded-3xl border border-slate-100 max-w-xl w-full shadow-2xl p-6 relative space-y-5 my-8">
+              <button
+                type="button"
+                onClick={() => setOnboardingEmailCompany(null)}
+                className="absolute top-5 right-5 text-slate-400 hover:text-slate-600 cursor-pointer p-1 rounded-full hover:bg-slate-100 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 bg-blue-50 text-blue-700 rounded-2xl flex items-center justify-center font-bold">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-[#0A1F44]">Welcome Onboarding Email</h3>
+                  <p className="text-xs text-slate-500 font-medium">Ready-to-send welcome message for <strong className="text-blue-900">{compName}</strong></p>
+                </div>
+              </div>
+
+              {/* Subject box with Copy button */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-3.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Subject Line</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(subjectText);
+                      setCopiedSubject(true);
+                      setTimeout(() => setCopiedSubject(false), 2000);
+                    }}
+                    className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {copiedSubject ? (
+                      <>
+                        <CheckCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        <span className="text-emerald-600 font-black">Copied!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Subject</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+                <div className="text-xs font-extrabold text-[#0A1F44] select-all">{subjectText}</div>
+              </div>
+
+              {/* Email Body box with Copy button */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Email Body</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(emailBodyText);
+                      setCopiedEmail(true);
+                      setTimeout(() => setCopiedEmail(false), 2000);
+                    }}
+                    className="text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-xl flex items-center gap-1.5 cursor-pointer shadow-xs transition-colors"
+                  >
+                    {copiedEmail ? (
+                      <>
+                        <CheckCheck className="w-3.5 h-3.5 text-white" />
+                        <span className="font-black">Copied Full Email!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-white" />
+                        <span>Copy Full Email</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <textarea
+                    readOnly
+                    value={emailBodyText}
+                    rows={12}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs font-mono text-slate-700 select-all focus:outline-none leading-relaxed"
+                  />
+                </div>
+              </div>
+
+              {/* Action buttons */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
+                <div className="flex items-center gap-2">
+                  {ownerEmail && (
+                    <a
+                      href={mailtoUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#0A1F44] hover:bg-blue-900 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <Mail className="w-4 h-4 text-[#F7941D]" /> Open in Mail App
+                    </a>
+                  )}
+
+                  {intlPhone && (
+                    <a
+                      href={`https://wa.me/${intlPhone}?text=${waText}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="bg-[#25D366] hover:bg-[#20bd5a] text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm"
+                    >
+                      <MessageSquare className="w-4 h-4" /> Message on WhatsApp
+                    </a>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setOnboardingEmailCompany(null)}
+                  className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs px-4 py-2.5 rounded-xl transition-colors cursor-pointer"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Confirmation Overlay Modal */}
       {confirmAction && (

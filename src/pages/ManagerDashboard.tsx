@@ -20,12 +20,24 @@ import {
 import { DailyRemittanceModal } from '../components/company/DailyRemittanceModal';
 import { FleetDashboard } from '../modules/fleetTracking/pages/FleetDashboard';
 import { initializeFCM } from '../modules/fleetTracking/fcm';
+import { ENABLE_FLEET_TRACKING } from '../config/features';
 
 export const ManagerDashboard: React.FC = () => {
   const { user, token, logout } = useAuth();
   const { t } = useLanguage();
 
-  const [overview, setOverview] = useState<any>(null);
+  const [overview, setOverview] = useState<any>(() => ({
+    company_name: user?.company_name || 'Transport Company',
+    park_location: user?.park_location || 'Assigned Park',
+    stats: {
+      volume: { today: 0, week: 0, month: 0 },
+      tracking_fees: { today: 0, week: 0, month: 0 },
+      shipping_fees: { today: 0, week: 0, month: 0 },
+      active_staff_count: 0
+    },
+    staff: [],
+    recent_waybills: []
+  }));
   const [staffList, setStaffList] = useState<any[]>([]);
   const [waybills, setWaybills] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,20 +121,65 @@ export const ManagerDashboard: React.FC = () => {
   };
 
   const fetchData = async () => {
-    const activeToken = token || localStorage.getItem('auth_token');
-    if (!activeToken) return;
+    const activeToken = token || (typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') || localStorage.getItem('token') || localStorage.getItem('manager_token') || localStorage.getItem('staff_token') || localStorage.getItem('company_token') : null);
+    
+    const cachedUser = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_user') : null;
+    let parsedUser = user;
+    if (cachedUser && !parsedUser) {
+      try { parsedUser = JSON.parse(cachedUser); } catch {}
+    }
+
+    if (!activeToken) {
+      setLoading(false);
+      setRefreshing(false);
+      setOverview((prev: any) => ({
+        ...prev,
+        company_name: parsedUser?.company_name || 'Transport Company',
+        park_location: parsedUser?.park_location || 'Assigned Park'
+      }));
+      return;
+    }
 
     try {
       setError(null);
       const [overviewRes, staffRes, waybillsRes] = await Promise.all([
-        getManagerOverview(activeToken),
-        getManagerStaff(activeToken),
-        getManagerWaybills(activeToken)
+        getManagerOverview(activeToken).catch(() => null),
+        getManagerStaff(activeToken).catch(() => null),
+        getManagerWaybills(activeToken).catch(() => null)
       ]);
 
-      if (overviewRes.success) setOverview(overviewRes);
-      if (staffRes.success) setStaffList(staffRes.staff || []);
-      if (waybillsRes.success) setWaybills(waybillsRes.waybills || []);
+      if (overviewRes && (overviewRes.success || overviewRes.stats)) {
+        setOverview({
+          ...overviewRes,
+          company_name: overviewRes.company_name || parsedUser?.company_name || 'Transport Company',
+          park_location: overviewRes.park_location || parsedUser?.park_location || 'Assigned Park',
+          stats: {
+            volume: overviewRes.stats?.volume || { today: 0, week: 0, month: 0 },
+            tracking_fees: overviewRes.stats?.tracking_fees || { today: 0, week: 0, month: 0 },
+            shipping_fees: overviewRes.stats?.shipping_fees || { today: 0, week: 0, month: 0 },
+            active_staff_count: overviewRes.stats?.active_staff_count || (staffRes?.staff?.length || 0)
+          },
+          recent_waybills: overviewRes.recent_waybills || []
+        });
+      } else {
+        setOverview((prev: any) => ({
+          ...prev,
+          company_name: parsedUser?.company_name || 'Transport Company',
+          park_location: parsedUser?.park_location || 'Assigned Park',
+          stats: prev.stats || {
+            volume: { today: 0, week: 0, month: 0 },
+            tracking_fees: { today: 0, week: 0, month: 0 },
+            shipping_fees: { today: 0, week: 0, month: 0 },
+            active_staff_count: 0
+          }
+        }));
+      }
+      if (staffRes && (staffRes.success || Array.isArray(staffRes.staff))) {
+        setStaffList(staffRes.staff || []);
+      }
+      if (waybillsRes && (waybillsRes.success || Array.isArray(waybillsRes.waybills))) {
+        setWaybills(waybillsRes.waybills || []);
+      }
     } catch (err: any) {
       console.error('Failed to fetch manager data:', err);
       setError(err?.message || 'Failed to load manager dashboard.');
@@ -291,7 +348,7 @@ export const ManagerDashboard: React.FC = () => {
     user?.service_type === 'haulage' ||
     user?.manager_type === 'Fleet Manager';
 
-  if (isTripMonitor || isFleetManager) {
+  if (ENABLE_FLEET_TRACKING && (isTripMonitor || isFleetManager)) {
     return <FleetDashboard showSwitchModule={false} />;
   }
 
@@ -391,7 +448,7 @@ export const ManagerDashboard: React.FC = () => {
         ) : (
           <>
             {/* TAB: OVERVIEW */}
-            {activeTab === 'overview' && overview && (
+            {activeTab === 'overview' && (
               <div className="space-y-6">
                 {/* Metrics Cards Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
@@ -473,7 +530,7 @@ export const ManagerDashboard: React.FC = () => {
                   <div className="space-y-1">
                     <h2 className="text-base sm:text-lg font-extrabold flex items-center gap-2">
                       <MapPin className="text-[#F7941D] w-5 h-5" />
-                      Park Location: {overview.park_location}
+                      Park Location: {overview?.park_location || user?.park_location || 'Assigned Park'}
                     </h2>
                     <p className="text-xs text-slate-300">
                       As Manager, you have full supervisory control over staff operations, PIN resets, and waybill volume tracking at this park.
@@ -483,7 +540,7 @@ export const ManagerDashboard: React.FC = () => {
                     <Users className="w-5 h-5 text-indigo-300" />
                     <div>
                       <p className="text-xs text-slate-300 font-semibold">Active Staff On Duty</p>
-                      <p className="text-base sm:text-lg font-black text-white">{overview.stats?.active_staff_count || 0} Staff Members</p>
+                      <p className="text-base sm:text-lg font-black text-white">{overview?.stats?.active_staff_count ?? staffList.length ?? 0} Staff Members</p>
                     </div>
                   </div>
                 </div>
@@ -513,7 +570,7 @@ export const ManagerDashboard: React.FC = () => {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                        {(overview.recent_waybills || []).slice(0, 8).map((wb: any) => (
+                        {((overview?.recent_waybills && overview.recent_waybills.length > 0) ? overview.recent_waybills : waybills).slice(0, 8).map((wb: any) => (
                           <tr key={wb.id} className="hover:bg-slate-50/80">
                             <td className="py-3 px-3 font-mono font-bold text-[#0A1F44]">{wb.tracking_code}</td>
                             <td className="py-3 px-3">{wb.sender_name}</td>
@@ -525,7 +582,7 @@ export const ManagerDashboard: React.FC = () => {
                                 wb.status === 'in_transit' ? 'bg-orange-100 text-orange-800' :
                                 'bg-slate-100 text-slate-700'
                               }`}>
-                                {wb.status.replace('_', ' ')}
+                                {wb.status?.replace('_', ' ') || 'Registered'}
                               </span>
                             </td>
                             <td className="py-3 px-3">
@@ -540,7 +597,7 @@ export const ManagerDashboard: React.FC = () => {
                             </td>
                           </tr>
                         ))}
-                        {(!overview.recent_waybills || overview.recent_waybills.length === 0) && (
+                        {(!overview?.recent_waybills || overview.recent_waybills.length === 0) && waybills.length === 0 && (
                           <tr>
                             <td colSpan={6} className="text-center py-8 text-slate-400 font-semibold">
                               No waybills recorded yet at this park.

@@ -450,7 +450,7 @@ export const PreBookedIntake: React.FC<PreBookedIntakeProps> = ({
 
                 <div>
                   <label className="block text-xs font-black text-slate-800 mb-1.5">
-                    Counter Freight Fare Collected from Sender / Rider (₦) — Optional
+                    Counter Freight Fare Collected from Sender / Customer (₦) — Optional
                   </label>
                   <input
                     id="prebooked-freight-fare-input"

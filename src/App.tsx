@@ -28,6 +28,7 @@ import { AdminDashboard } from './pages/AdminDashboard';
 import { DeveloperPortal } from './pages/DeveloperPortal';
 import { PartnershipFlyerPage } from './pages/PartnershipFlyerPage';
 import { CustomerFleetTrackingPage } from './pages/CustomerFleetTrackingPage';
+import { ENABLE_FLEET_TRACKING, ENABLE_DEVELOPER_API } from './config/features';
 
 export default function App() {
   const [splashFinished, setSplashFinished] = useState(false);
@@ -46,9 +47,9 @@ export default function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<HomePage />} />
-            <Route path="/book" element={<PreBookWaybillPage />} />
-            <Route path="/pre-book" element={<PreBookWaybillPage />} />
-            <Route path="/send-parcel" element={<PreBookWaybillPage />} />
+            <Route path="/book" element={<Navigate to="/" replace />} />
+            <Route path="/pre-book" element={<Navigate to="/" replace />} />
+            <Route path="/send-parcel" element={<Navigate to="/" replace />} />
             <Route path="/login/customer" element={<CustomerLogin />} />
             <Route path="/customer/login" element={<CustomerLogin />} />
             <Route path="/login/staff" element={<StaffLogin />} />
@@ -60,15 +61,33 @@ export default function App() {
             <Route path="/login/admin" element={<AdminLogin />} />
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="/developer" element={<DeveloperPortal />} />
-            <Route path="/developers" element={<DeveloperPortal />} />
+            {ENABLE_DEVELOPER_API ? (
+              <>
+                <Route path="/developer" element={<DeveloperPortal />} />
+                <Route path="/developers" element={<DeveloperPortal />} />
+              </>
+            ) : (
+              <>
+                <Route path="/developer" element={<Navigate to="/" replace />} />
+                <Route path="/developers" element={<Navigate to="/" replace />} />
+              </>
+            )}
             <Route path="/partner-flyer" element={<PartnershipFlyerPage />} />
             <Route path="/partnership-flyer" element={<PartnershipFlyerPage />} />
             <Route path="/partner" element={<PartnershipFlyerPage />} />
             <Route path="/partnership" element={<PartnershipFlyerPage />} />
-            <Route path="/track/fleet/:tripId" element={<CustomerFleetTrackingPage />} />
-            <Route path="/track/:tripId" element={<CustomerFleetTrackingPage />} />
-            <Route path="/fleet-track/:tripId" element={<CustomerFleetTrackingPage />} />
+            {ENABLE_FLEET_TRACKING ? (
+              <>
+                <Route path="/track/fleet/:tripId" element={<CustomerFleetTrackingPage />} />
+                <Route path="/track/:tripId" element={<CustomerFleetTrackingPage />} />
+                <Route path="/fleet-track/:tripId" element={<CustomerFleetTrackingPage />} />
+              </>
+            ) : (
+              <>
+                <Route path="/track/fleet/:tripId" element={<Navigate to="/" replace />} />
+                <Route path="/fleet-track/:tripId" element={<Navigate to="/" replace />} />
+              </>
+            )}
 
             {/* Protected Routes */}
             <Route

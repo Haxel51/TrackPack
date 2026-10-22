@@ -741,7 +741,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             <div>
               <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">
-                Departure Park (Your Park)
+                Departure Station / Park
               </label>
               <input
                 type="text"

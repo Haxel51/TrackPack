@@ -1,6 +1,7 @@
 import React from 'react';
 import { Truck, Package, LogOut, ArrowRight, ShieldCheck, MapPin, Building2, CheckCircle2 } from 'lucide-react';
 import { Logo } from './Logo';
+import { ENABLE_FLEET_TRACKING } from '../config/features';
 
 interface ModuleSelectionScreenProps {
   userName?: string;
@@ -17,6 +18,15 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
   onSelectModule,
   onLogout,
 }) => {
+  React.useEffect(() => {
+    if (!ENABLE_FLEET_TRACKING) {
+      onSelectModule('waybill');
+    }
+  }, [onSelectModule]);
+
+  if (!ENABLE_FLEET_TRACKING) {
+    return null;
+  }
   return (
     <div className="min-h-screen bg-[#050914] text-slate-100 flex flex-col justify-between selection:bg-orange-500 selection:text-slate-950 font-sans">
       

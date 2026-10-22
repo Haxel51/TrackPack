@@ -5,6 +5,7 @@ import { loginCompany, registerCompany, requestCompanyPasswordReset, resetCompan
 import { Building2, Phone, Lock, Eye, EyeOff, ChevronLeft, MapPin, CheckCircle2, ArrowRight, KeyRound } from 'lucide-react';
 import { requestNotificationPermission } from '../modules/fleetTracking/fcm';
 import { SessionExpiredBanner } from '../components/SessionExpiredBanner';
+import { ENABLE_FLEET_TRACKING } from '../config/features';
 
 export const CompanyLogin: React.FC = () => {
   const { token, role, login } = useAuth();
@@ -555,66 +556,68 @@ export const CompanyLogin: React.FC = () => {
             </div>
 
             {/* Service & Operation Mode Selection */}
-            <div className="border-t border-slate-100 pt-3 space-y-2">
-              <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
-                Select Service & Operation Mode
-              </label>
-              <div className="grid grid-cols-1 gap-2 text-xs font-bold">
-                <button
-                  type="button"
-                  onClick={() => setServiceMode('parcel')}
-                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    serviceMode === 'parcel'
-                      ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <div>
-                    <div className="font-extrabold">📦 Motor Park & Parcel Waybills</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'parcel' ? 'text-slate-300' : 'text-slate-500'}`}>
-                      For passenger transport & parcel tracking
+            {ENABLE_FLEET_TRACKING && (
+              <div className="border-t border-slate-100 pt-3 space-y-2">
+                <label className="text-xs font-extrabold text-[#0A1F44] uppercase tracking-wider block">
+                  Select Service & Operation Mode
+                </label>
+                <div className="grid grid-cols-1 gap-2 text-xs font-bold">
+                  <button
+                    type="button"
+                    onClick={() => setServiceMode('parcel')}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      serviceMode === 'parcel'
+                        ? 'bg-[#0A1F44] text-white border-[#0A1F44] shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-extrabold">📦 Motor Park & Parcel Waybills</div>
+                      <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'parcel' ? 'text-slate-300' : 'text-slate-500'}`}>
+                        For passenger transport & parcel tracking
+                      </div>
                     </div>
-                  </div>
-                  {serviceMode === 'parcel' && <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />}
-                </button>
+                    {serviceMode === 'parcel' && <CheckCircle2 className="w-4 h-4 text-orange-400 shrink-0" />}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setServiceMode('fleet')}
-                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    serviceMode === 'fleet'
-                      ? 'bg-orange-600 text-slate-950 border-orange-600 shadow-sm font-black'
-                      : 'bg-orange-50 text-orange-950 border-orange-200 hover:bg-orange-100'
-                  }`}
-                >
-                  <div>
-                    <div className="font-extrabold">🚛 Fleet Trip Tracking Only</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'fleet' ? 'text-slate-900' : 'text-orange-800'}`}>
-                      For heavy trucks, round-trips & 3-checkpoint verification
+                  <button
+                    type="button"
+                    onClick={() => setServiceMode('fleet')}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      serviceMode === 'fleet'
+                        ? 'bg-orange-600 text-slate-950 border-orange-600 shadow-sm font-black'
+                        : 'bg-orange-50 text-orange-950 border-orange-200 hover:bg-orange-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-extrabold">🚛 Fleet Trip Tracking Only</div>
+                      <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'fleet' ? 'text-slate-900' : 'text-orange-800'}`}>
+                        For heavy trucks, round-trips & 3-checkpoint verification
+                      </div>
                     </div>
-                  </div>
-                  {serviceMode === 'fleet' && <CheckCircle2 className="w-4 h-4 text-slate-950 shrink-0" />}
-                </button>
+                    {serviceMode === 'fleet' && <CheckCircle2 className="w-4 h-4 text-slate-950 shrink-0" />}
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => setServiceMode('both')}
-                  className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
-                    serviceMode === 'both'
-                      ? 'bg-[#0A1F44] text-orange-300 border-[#0A1F44] shadow-sm'
-                      : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  <div>
-                    <div className="font-extrabold">⚡ Both (Parcel & Fleet Tracking)</div>
-                    <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'both' ? 'text-orange-200/80' : 'text-slate-500'}`}>
-                      Full access to both passenger waybills & truck fleet trips
+                  <button
+                    type="button"
+                    onClick={() => setServiceMode('both')}
+                    className={`p-3 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
+                      serviceMode === 'both'
+                        ? 'bg-[#0A1F44] text-orange-300 border-[#0A1F44] shadow-sm'
+                        : 'bg-slate-50 text-slate-700 border-slate-200 hover:bg-slate-100'
+                    }`}
+                  >
+                    <div>
+                      <div className="font-extrabold">⚡ Both (Parcel & Fleet Tracking)</div>
+                      <div className={`text-[10px] font-medium mt-0.5 ${serviceMode === 'both' ? 'text-orange-200/80' : 'text-slate-500'}`}>
+                        Full access to both passenger waybills & truck fleet trips
+                      </div>
                     </div>
-                  </div>
-                  {serviceMode === 'both' && <CheckCircle2 className="w-4 h-4 text-orange-300 shrink-0" />}
-                </button>
+                    {serviceMode === 'both' && <CheckCircle2 className="w-4 h-4 text-orange-300 shrink-0" />}
+                  </button>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Initial Park / Depot Section */}
             <div className="border-t border-slate-100 pt-3 space-y-3">
