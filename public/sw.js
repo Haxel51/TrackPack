@@ -2,7 +2,7 @@
 // Enables 100% offline access when opened from Google Chrome / Safari / Home Screen
 // Caches app shell, scripts, styles, images, and coordinates offline data sync
 
-const CACHE_NAME = 'waybilla-offline-cache-v40';
+const CACHE_NAME = 'waybilla-offline-cache-v50';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
