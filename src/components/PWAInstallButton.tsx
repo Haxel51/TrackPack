@@ -18,7 +18,12 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
   const [showInstalledToast, setShowInstalledToast] = useState(false);
 
   const handleInstallClick = async () => {
-    // 1. If native install prompt is captured, trigger it immediately (1-tap native sheet)
+    if (isInstalled) {
+      setShowInstalledToast(true);
+      setTimeout(() => setShowInstalledToast(false), 3000);
+      return;
+    }
+
     if (isInstallable) {
       const result = await install();
       if (result) {
@@ -28,21 +33,23 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({
       }
     }
 
-    // 2. If running inside an iframe (like AI Studio preview), opening in top tab enables native PWA installation
     if (isIframe) {
       setShowIframeGuide(true);
       return;
     }
 
-    // 3. iOS Safari requires Add to Home Screen via Share sheet
     if (isIOS) {
       setShowIOSGuide(true);
       return;
     }
 
-    // 4. Fallback guide for Android / Chrome if prompt was already consumed or unavailable
     setShowFallbackGuide(true);
   };
+
+  // If already installed as standalone PWA, hide the banner & buttons completely!
+  if (isInstalled) {
+    return null;
+  }
 
   if (variant === 'banner') {
     return (
