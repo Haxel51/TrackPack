@@ -10,6 +10,7 @@ import { WaybillHistory } from '../components/staff/WaybillHistory';
 import { PreBookedIntake } from '../components/staff/PreBookedIntake';
 import { getOutgoingBuses, getIncomingBuses } from '../lib/api';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+
 import { Logo } from '../components/Logo';
 
 type StaffScreen = 'menu' | 'create_waybill' | 'create_bus' | 'outgoing' | 'incoming' | 'history' | 'prebooked_intake';
@@ -158,7 +159,7 @@ export const StaffDashboard: React.FC = () => {
               <div className="flex flex-col sm:flex-row items-center gap-3 border-t md:border-t-0 md:border-l border-slate-100 pt-4 md:pt-0 md:pl-6">
                 <button
                   onClick={() => setShowStaffGuideModal(true)}
-                  className="bg-orange-100 hover:bg-orange-200 text-[#0A1F44] border border-orange-300 font-extrabold px-4 py-2.5 rounded-2xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
+                  className="bg-orange-100 hover:bg-orange-200 text-[#0A1F44] border border-orange-300 font-extrabold px-4 py-2 rounded-xl text-xs flex items-center gap-2 transition-all cursor-pointer shadow-xs"
                 >
                   <HelpCircle className="w-4 h-4 text-[#F7941D]" />
                   <span>📖 Staff Operating Guide</span>

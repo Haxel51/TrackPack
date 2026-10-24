@@ -7,6 +7,7 @@ import { SplashScreen } from './components/SplashScreen';
 import { IosInstallBanner } from './components/IosInstallBanner';
 import { WhatsAppButton } from './components/WhatsAppButton';
 import { OfflineIndicator } from './components/OfflineIndicator';
+import { OfflineOutboxManager } from './components/OfflineOutboxManager';
 import { GlobalNotificationPrompt } from './components/GlobalNotificationPrompt';
 
 // Pages
@@ -42,6 +43,7 @@ export default function App() {
         <IosInstallBanner />
         <WhatsAppButton />
         <OfflineIndicator />
+        <OfflineOutboxManager />
         <GlobalNotificationPrompt />
         <BrowserRouter>
           <Routes>

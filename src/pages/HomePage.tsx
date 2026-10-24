@@ -26,6 +26,7 @@ import { triggerOSNotification } from '../utils/notifications';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { LanguageSwitcher } from '../components/LanguageSwitcher';
+import { PWAInstallButton } from '../components/PWAInstallButton';
 import { Logo } from '../components/Logo';
 import { TransporterPartnershipModal } from '../components/TransporterPartnershipModal';
 import { Handshake } from 'lucide-react';
@@ -177,36 +178,40 @@ export const HomePage: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <LanguageSwitcher />
           </div>
         </div>
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-4xl w-full mx-auto flex-grow px-4 sm:px-6 py-8 sm:py-12 space-y-10">
+      <main className="max-w-4xl w-full mx-auto flex-grow px-4 sm:px-6 py-8 sm:py-12 space-y-8">
         {/* Title & Subtitle */}
         <div className="text-center space-y-3.5 max-w-2xl mx-auto">
           <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-orange-50 border border-orange-200/80 text-[#0A1F44] text-xs font-black shadow-xs">
             <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-            <span>Nigeria’s Waybill Tracking Network</span>
+            <span>{t('builtForNigeria')}</span>
           </div>
 
           <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-[#0A1F44] tracking-tight leading-tight">
-            Track Your Waybill <br className="hidden sm:inline" />
-            <span className="text-[#0A1F44]">Step-by-Step</span>
+            {t('heroTitle')}
           </h1>
 
           <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed max-w-lg mx-auto">
-            Follow your goods from park to park across Nigeria. Instant milestone updates, verified digital receipts, and secure pickup PIN.
+            {t('heroDesc')}
           </p>
+        </div>
+
+        {/* PWA Install Banner */}
+        <div className="max-w-2xl mx-auto">
+          <PWAInstallButton variant="banner" />
         </div>
 
         {/* The Tracking Command Bar */}
         <div className="bg-white border border-slate-200/80 rounded-3xl p-4 sm:p-6 shadow-xl shadow-slate-200/50 space-y-4 max-w-2xl mx-auto">
           <form onSubmit={handleTrackSubmit} className="flex flex-col sm:flex-row gap-2.5">
             <div className="relative flex-grow">
-              <label htmlFor="tracking-code-input" className="sr-only">Waybill Tracking Code or Phone Number</label>
+              <label htmlFor="tracking-code-input" className="sr-only">{t('trackWaybill')}</label>
               <span className="absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
                 <Search className="w-5 h-5" />
               </span>
@@ -214,7 +219,7 @@ export const HomePage: React.FC = () => {
                 id="tracking-code-input"
                 name="trackingCode"
                 type="text"
-                placeholder="Enter Waybill Code (e.g. NNW-8392) or Phone..."
+                placeholder={t('enterTrackingNum')}
                 value={trackingCode}
                 onChange={(e) => setTrackingCode(e.target.value)}
                 className="w-full bg-slate-50 border border-slate-200 focus:bg-white focus:border-[#0A1F44] focus:ring-2 focus:ring-[#0A1F44]/10 rounded-2xl py-3.5 sm:py-4 pl-12 pr-4 text-sm sm:text-base font-bold placeholder-slate-400 outline-none uppercase transition-all"
@@ -234,7 +239,7 @@ export const HomePage: React.FC = () => {
                 </>
               ) : (
                 <>
-                  <span>Track Package</span>
+                  <span>{t('trackBtn')}</span>
                   <ArrowRight className="w-4 h-4" />
                 </>
               )}
@@ -245,7 +250,7 @@ export const HomePage: React.FC = () => {
           <div className="flex items-center justify-between text-[11px] sm:text-xs text-slate-500 pt-1 px-1">
             <span className="flex items-center gap-1.5 font-medium">
               <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Official waybill code from your paper or digital receipt</span>
+              <span>{t('noForeignCodes')}</span>
             </span>
             {trackingCode && (
               <button
@@ -253,7 +258,7 @@ export const HomePage: React.FC = () => {
                 onClick={handleClearTrack}
                 className="text-red-500 hover:text-red-700 font-bold cursor-pointer"
               >
-                Clear
+                {t('clearResult')}
               </button>
             )}
           </div>
@@ -369,14 +374,14 @@ export const HomePage: React.FC = () => {
                   📱
                 </div>
                 <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-white/10 text-orange-300 border border-white/10">
-                  Senders &amp; Receivers
+                  {t('sender')} &amp; {t('receiver')}
                 </span>
               </div>
 
               <div className="space-y-1">
-                <h2 className="text-lg font-black tracking-tight">Customer Portal</h2>
+                <h2 className="text-lg font-black tracking-tight">{t('customerPortalTitle')}</h2>
                 <p className="text-xs text-slate-200 leading-relaxed">
-                  Log in with your phone number to see all parcels sent or received, download official receipts, and reveal your pickup PIN.
+                  {t('customerDesc')}
                 </p>
               </div>
             </div>
@@ -386,7 +391,7 @@ export const HomePage: React.FC = () => {
               onClick={() => navigate('/login/customer')}
               className="w-full bg-[#F7941D] hover:bg-[#e07d0f] text-[#0A1F44] font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
-              <span>Open Customer Portal</span>
+              <span>{t('loginSignUpCustomer')}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -399,14 +404,14 @@ export const HomePage: React.FC = () => {
                   🏢
                 </div>
                 <span className="text-[10px] font-extrabold px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                  Transport Operators
+                  {t('companyPortalTitle')}
                 </span>
               </div>
 
               <div className="space-y-1">
-                <h2 className="text-lg font-black text-[#0A1F44] tracking-tight">Transport Company Portal</h2>
+                <h2 className="text-lg font-black text-[#0A1F44] tracking-tight">{t('companyPortal')}</h2>
                 <p className="text-xs text-slate-500 leading-relaxed">
-                  Issue waybills in 20 seconds, print digital receipts, verify receiver PINs, and manage park manifests.
+                  {t('forStaffTitle')}
                 </p>
               </div>
             </div>
@@ -417,7 +422,7 @@ export const HomePage: React.FC = () => {
               className="w-full bg-[#0A1F44] hover:bg-blue-950 text-white font-black py-3.5 px-4 rounded-2xl text-xs sm:text-sm transition-all shadow-md active:scale-95 cursor-pointer flex items-center justify-center gap-2"
             >
               <Building2 className="w-4 h-4 text-[#F7941D]" />
-              <span>Staff &amp; Company Login</span>
+              <span>{t('parkStaffOperators')}</span>
             </button>
           </div>
         </div>
@@ -472,8 +477,8 @@ export const HomePage: React.FC = () => {
                   <ShieldCheck className="w-5 h-5 text-[#0A1F44]" />
                 </div>
                 <div>
-                  <h3 className="text-base font-black text-[#0A1F44]">Transport &amp; Park Portals</h3>
-                  <p className="text-xs text-slate-500 font-medium">Select your role to sign in</p>
+                  <h3 className="text-base font-black text-[#0A1F44]">{t('portals')}</h3>
+                  <p className="text-xs text-slate-500 font-medium">{t('quickNoticeTitle')}</p>
                 </div>
               </div>
               <button
@@ -505,8 +510,8 @@ export const HomePage: React.FC = () => {
                     <Receipt className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Park Counter Staff</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Issue waybills, print receipts &amp; verify pickup PINs</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('staffPortalTitle')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">{t('staffStep1')}</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
@@ -530,8 +535,8 @@ export const HomePage: React.FC = () => {
                     <ShieldCheck className="w-5 h-5" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Park Manager / Auditor</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Cashier audits, vehicle departures &amp; park control</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('managerPortalTitle')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">{t('staffStep3')}</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />
@@ -555,8 +560,8 @@ export const HomePage: React.FC = () => {
                     <Building2 className="w-5 h-5 text-[#F7941D]" />
                   </div>
                   <div>
-                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">Transport Company Executive / CEO</div>
-                    <div className="text-[11px] text-slate-500 font-medium">Multi-park waybill revenue, station reports &amp; accounting</div>
+                    <div className="text-xs font-black text-[#0A1F44] group-hover:text-blue-900">{t('companyPortalTitle')}</div>
+                    <div className="text-[11px] text-slate-500 font-medium">{t('overview')} &amp; {t('revenueLogs')}</div>
                   </div>
                 </div>
                 <ArrowRight className="w-4 h-4 text-slate-300 group-hover:text-blue-600 group-hover:translate-x-0.5 transition-all shrink-0 ml-2" />

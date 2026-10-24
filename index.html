@@ -6,6 +6,15 @@
     <meta http-equiv="Content-Security-Policy" content="default-src * 'self' 'unsafe-inline' 'unsafe-eval' data: blob:; script-src * 'self' 'unsafe-inline' 'unsafe-eval' blob:; style-src * 'self' 'unsafe-inline'; img-src * 'self' data: blob: https:; connect-src * 'self' ws: wss: https: http: blob: https://trackpack.onrender.com https://*.firebaseio.com https://*.googleapis.com https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://maps.googleapis.com wss://*.firebaseio.com; media-src * 'self' blob:; font-src * 'self' data: https:; frame-src * 'self' https:;" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Waybilla — Official Real-Time Waybill & Motor Park Tracking Platform</title>
+
+    <script>
+      // Early capture of native PWA installation prompt
+      window.addEventListener('beforeinstallprompt', function(e) {
+        e.preventDefault();
+        window.__deferredPWAInstallPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-ready'));
+      });
+    </script>
     
     <!-- SEO Meta Tags -->
     <meta name="description" content="Waybilla (waybilla.com.ng) is Nigeria's unified digital waybill tracking and commercial motor park logistics platform for senders, drivers, transport companies, and receivers." />

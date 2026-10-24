@@ -3936,7 +3936,10 @@ app.post("/api/staff/waybills", async (req, res) => {
       destination_park, 
       waybill_fee, 
       shipping_fee,
-      payment_method 
+      payment_method,
+      offline_id,
+      offline_tracking_code,
+      offline_created_at
     } = req.body;
 
     if (!sender_name || !sender_phone || !receiver_name || !receiver_phone || !item_description || !destination_park) {
@@ -3949,6 +3952,23 @@ app.post("/api/staff/waybills", async (req, res) => {
 
     if (!isValid11DigitPhone(receiver_phone)) {
       return res.status(400).json({ error: "Receiver phone number must be exactly 11 digits (e.g. 08012345678)." });
+    }
+
+    // Idempotent sync check for offline waybills (prevents duplicate creation on retry)
+    if (offline_id) {
+      const qOffline = query(collection(db, "waybills"), where("offline_id", "==", offline_id), limit(1));
+      const snapOffline = await getDocs(qOffline);
+      if (!snapOffline.empty) {
+        const existingDoc = snapOffline.docs[0];
+        const existingData = existingDoc.data();
+        return res.json({
+          success: true,
+          waybill: { id: existingDoc.id, ...existingData },
+          tracking_code: existingData.tracking_code,
+          payment_method: existingData.payment_method || 'cash',
+          already_synced: true
+        });
+      }
     }
 
     // Verify company status and check daily cash remittance auto-suspension
@@ -4002,8 +4022,18 @@ app.post("/api/staff/waybills", async (req, res) => {
 
     if (isCashPayment) {
       // ---------------- CASH AT COUNTER FLOW (INSTANT 1-SECOND WAYBILL) ----------------
-      // 1. Generate unique human-readable tracking code immediately
-      const tracking_code = await generateUniqueTrackingCode(park_location || "Nnewi");
+      // 1. Generate unique human-readable tracking code immediately (or preserve offline issued code)
+      let tracking_code = offline_tracking_code ? String(offline_tracking_code).trim() : "";
+      if (tracking_code) {
+        // Verify uniqueness in case of rare collision
+        const qCheck = query(collection(db, "waybills"), where("tracking_code", "==", tracking_code), limit(1));
+        const snapCheck = await getDocs(qCheck);
+        if (!snapCheck.empty) {
+          tracking_code = await generateUniqueTrackingCode(park_location || "Nnewi");
+        }
+      } else {
+        tracking_code = await generateUniqueTrackingCode(park_location || "Nnewi");
+      }
 
       // 2. Fee split: ₦200 Tracking fee = ₦140 (70% Waybilla Platform) + ₦60 (30% Transport Company Retained)
       const trackingFee = 200;
@@ -4013,6 +4043,9 @@ app.post("/api/staff/waybills", async (req, res) => {
 
       const newWaybill = {
         tracking_code,
+        offline_id: offline_id || null,
+        offline_synced: Boolean(offline_id),
+        offline_created_at: offline_created_at || null,
         sender_name,
         sender_phone,
         receiver_name,
@@ -4029,7 +4062,7 @@ app.post("/api/staff/waybills", async (req, res) => {
         pickup_pin: Math.floor(100000 + Math.random() * 900000).toString(),
         status: "booked",
         tracking_active: true,
-        booked_at: new Date().toISOString(),
+        booked_at: offline_created_at || new Date().toISOString(),
         created_by_staff_id: session.userId,
         creator_staff_name: session.userData.name || "Terminal Staff",
         creator_staff_phone: session.userData.phone || session.userData.staff_phone || "",
@@ -4037,7 +4070,7 @@ app.post("/api/staff/waybills", async (req, res) => {
         arrived_at: null,
         collected_at: null,
         collected_by: null,
-        created_at: new Date().toISOString(),
+        created_at: offline_created_at || new Date().toISOString(),
         paid: true,
         payment_method: "cash",
         tracking_fee: 200,

@@ -2,8 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { getAvailableBuses, createWaybill, getStaffCompanyParks } from '../../lib/api';
 import { Bus } from '../../types';
 import { useLanguage } from '../../context/LanguageContext';
-import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check, User, Phone, Truck, X, Package } from 'lucide-react';
+import { FileText, ArrowLeft, Loader2, Plus, Sparkles, AlertCircle, CheckCircle, ExternalLink, Share2, Check, User, Phone, Truck, X, Package, WifiOff } from 'lucide-react';
 import { BusForm } from './BusForm';
+import { 
+  saveWaybillOffline, 
+  cacheParkMetadata, 
+  getCachedParkMetadata, 
+  cacheBusMetadata, 
+  getCachedBusMetadata 
+} from '../../lib/offlineWaybillSync';
 
 interface WaybillFormProps {
   token: string;
@@ -73,6 +80,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   
   // Success tracking state
   const [createdTrackingCode, setCreatedTrackingCode] = useState<string | null>(null);
+  const [isOfflineSaved, setIsOfflineSaved] = useState(false);
 
   // Stage 6: Paystack Active Payment state
   const [activePayment, setActivePayment] = useState<{
@@ -215,28 +223,39 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
   const fetchMetadata = async () => {
     setLoadingData(true);
     try {
-      const [busesRes, parksRes] = await Promise.all([
-        getAvailableBuses(token),
-        getStaffCompanyParks(token)
-      ]);
-
       let available: Bus[] = [];
-      if (busesRes.success && Array.isArray(busesRes.buses)) {
-        available = busesRes.buses;
-        setAvailableBuses(available);
-      }
-
       let parkList: { id: string; park_name: string; park_location: string }[] = [];
-      if (parksRes.success && Array.isArray(parksRes.parks)) {
-        const normOrigin = (originPark || '').toLowerCase().trim();
-        // Exclude parks that match the current origin terminal
-        parkList = parksRes.parks.filter((p: any) => {
-          const loc = (p.park_location || '').toLowerCase().trim();
-          const name = (p.park_name || '').toLowerCase().trim();
-          if (!normOrigin) return true;
-          return !isSamePark(loc, normOrigin) && !isSamePark(name, normOrigin);
-        });
+
+      if (!navigator.onLine) {
+        // Load pre-cached buses and parks immediately
+        available = getCachedBusMetadata();
+        parkList = getCachedParkMetadata();
+        setAvailableBuses(available);
         setParks(parkList);
+      } else {
+        const [busesRes, parksRes] = await Promise.all([
+          getAvailableBuses(token),
+          getStaffCompanyParks(token)
+        ]);
+
+        if (busesRes.success && Array.isArray(busesRes.buses)) {
+          available = busesRes.buses;
+          setAvailableBuses(available);
+          cacheBusMetadata(available);
+        }
+
+        if (parksRes.success && Array.isArray(parksRes.parks)) {
+          const normOrigin = (originPark || '').toLowerCase().trim();
+          // Exclude parks that match the current origin terminal
+          parkList = parksRes.parks.filter((p: any) => {
+            const loc = (p.park_location || '').toLowerCase().trim();
+            const name = (p.park_name || '').toLowerCase().trim();
+            if (!normOrigin) return true;
+            return !isSamePark(loc, normOrigin) && !isSamePark(name, normOrigin);
+          });
+          setParks(parkList);
+          cacheParkMetadata(parkList);
+        }
       }
 
       // Respect saved draft destinationPark if present, or existing state
@@ -259,8 +278,11 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         setBusId('');
       }
     } catch (err) {
-      console.error('Error fetching waybill metadata:', err);
-      setError('Failed to load park locations and active buses.');
+      console.warn('Network issue fetching waybill metadata, falling back to cache:', err);
+      const cachedBuses = getCachedBusMetadata();
+      const cachedParks = getCachedParkMetadata();
+      if (cachedBuses.length > 0) setAvailableBuses(cachedBuses);
+      if (cachedParks.length > 0) setParks(cachedParks);
     } finally {
       setLoadingData(false);
     }
@@ -306,6 +328,48 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
     setSubmitLoading(true);
     setError(null);
 
+    const isOffline = !navigator.onLine;
+
+    const handleOfflineFallback = () => {
+      const offlineRecord = saveWaybillOffline({
+        sender_name: senderName.trim(),
+        sender_phone: senderPhone.trim(),
+        receiver_name: receiverName.trim(),
+        receiver_phone: receiverPhone.trim(),
+        item_description: itemDescription.trim(),
+        bus_id: busId || "unassigned",
+        destination_park: destinationPark.trim(),
+        waybill_fee: waybillFee ? parseFloat(waybillFee) : 0,
+        shipping_fee: waybillFee ? parseFloat(waybillFee) : 0,
+        payment_method: 'cash',
+        origin_park: originPark
+      });
+
+      setIsOfflineSaved(true);
+      setActivePayment({
+        paymentId: offlineRecord.offline_id,
+        waybillId: offlineRecord.offline_id,
+        accountNumber: '',
+        bankName: 'Cash (Offline Mode ⚡)',
+        expiresAt: '',
+        amount: 200,
+        checkoutUrl: null,
+        verifying: false,
+        success: true,
+        trackingCode: offlineRecord.offline_tracking_code
+      });
+      setCreatedTrackingCode(offlineRecord.offline_tracking_code);
+      try {
+        sessionStorage.removeItem(WAYBILL_DRAFT_KEY);
+      } catch (e) {}
+    };
+
+    if (isOffline) {
+      handleOfflineFallback();
+      setSubmitLoading(false);
+      return;
+    }
+
     try {
       const res = await createWaybill(token, {
         sender_name: senderName.trim(),
@@ -322,6 +386,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
 
       if (res.success && res.payment_method === 'cash') {
         // Direct instant receipt for Cash at Counter!
+        setIsOfflineSaved(false);
         setActivePayment({
           paymentId: res.waybill?.id || 'cash-wb',
           waybillId: res.waybill?.id || 'cash-wb',
@@ -340,6 +405,7 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
         } catch (e) {}
       } else if (res.success && res.waybill && res.payment) {
         // Switch to the Paystack transfer details screen
+        setIsOfflineSaved(false);
         setActivePayment({
           paymentId: res.payment.id,
           waybillId: res.waybill.id,
@@ -352,12 +418,14 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           success: false,
           trackingCode: null
         });
+      } else if (res.error && (res.error.toLowerCase().includes('network') || res.error.toLowerCase().includes('failed to fetch') || res.error.toLowerCase().includes('connection'))) {
+        handleOfflineFallback();
       } else {
         setError(res.error || 'Failed to create waybill. Please try again.');
       }
-    } catch (err) {
-      console.error(err);
-      setError('An error occurred. Please check connection and try again.');
+    } catch (err: any) {
+      console.warn('Network error while registering waybill, switching to offline fallback:', err);
+      handleOfflineFallback();
     } finally {
       setSubmitLoading(false);
     }
@@ -508,11 +576,22 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
           </div>
 
           <div className="space-y-2">
-            <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
-              Payment Confirmed & Approved
-            </span>
+            {isOfflineSaved ? (
+              <span className="bg-amber-100 text-amber-900 border border-amber-300 text-xs font-black px-3.5 py-1.5 rounded-full uppercase tracking-wider inline-flex items-center gap-1.5 shadow-xs">
+                <WifiOff className="w-3.5 h-3.5 text-amber-700 animate-pulse" />
+                ⚡ Saved in Offline Outbox (Auto-Syncs on Connect)
+              </span>
+            ) : (
+              <span className="bg-emerald-100 text-emerald-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                Payment Confirmed & Approved
+              </span>
+            )}
             <h2 className="text-xl font-extrabold text-[#0A1F44] pt-2">Waybill Registered Successfully</h2>
-            <p className="text-sm text-slate-500">Share or copy this tracking code with the customer</p>
+            <p className="text-sm text-slate-500">
+              {isOfflineSaved 
+                ? 'Waybill pass generated and saved locally on phone. Will sync automatically when connection restores.' 
+                : 'Share or copy this tracking code with the customer'}
+            </p>
           </div>
 
           <div className="bg-slate-50 rounded-2xl p-6 border border-slate-100 select-all cursor-pointer hover:bg-slate-100 transition-colors">
@@ -520,7 +599,14 @@ export const WaybillForm: React.FC<WaybillFormProps> = ({ token, originPark, onB
             <div className="text-3xl font-black text-[#0A1F44] tracking-wider mt-1">
               {activePayment.trackingCode}
             </div>
-            {activePayment.bankName === 'Cash at Counter' ? (
+            {isOfflineSaved || activePayment.bankName?.includes('Offline') ? (
+              <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-amber-800 font-semibold bg-amber-50 border border-amber-200/60 p-2 rounded-xl">
+                <span>⚡ Offline Cash at Counter</span>
+                <span className="font-extrabold text-amber-900 bg-amber-200/70 border border-amber-300 px-2 py-0.5 rounded">
+                  Pending Auto-Sync
+                </span>
+              </div>
+            ) : activePayment.bankName === 'Cash at Counter' ? (
               <div className="mt-3 pt-3 border-t border-slate-200/80 flex items-center justify-between text-xs text-slate-600 font-medium">
                 <span>💵 ₦200 Cash Collected</span>
                 <span className="font-extrabold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded">

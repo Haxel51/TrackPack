@@ -72,13 +72,58 @@ if (typeof window !== 'undefined') {
   }
 }
 
-// Register Firebase Messaging ServiceWorker for push notifications
+// Register Universal Service Worker for offline caching, background sync, and push notifications
 if ('serviceWorker' in navigator) {
+  // Purge any stale client caches if version changed
+  if (typeof caches !== 'undefined' && localStorage.getItem('wb_sw_v') !== 'v35') {
+    caches.keys().then((names) => {
+      names.forEach((name) => {
+        if (name !== 'waybilla-offline-cache-v35') {
+          caches.delete(name);
+        }
+      });
+    });
+    localStorage.setItem('wb_sw_v', 'v35');
+  }
+
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/firebase-messaging-sw.js').then((reg) => {
-      console.log('Firebase Messaging ServiceWorker registered:', reg.scope);
+    navigator.serviceWorker.register('/sw.js').then((reg) => {
+      console.log('Waybilla Universal ServiceWorker registered successfully:', reg.scope);
+      // Immediately check for SW update on each page load
+      reg.update().catch(() => {});
+
+      if (reg.waiting) {
+        reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+      }
+
+      reg.addEventListener('updatefound', () => {
+        const newWorker = reg.installing;
+        if (newWorker) {
+          newWorker.addEventListener('statechange', () => {
+            if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+              newWorker.postMessage({ type: 'SKIP_WAITING' });
+            }
+          });
+        }
+      });
+
+      // Attempt background sync registration if supported by browser
+      if ('sync' in reg) {
+        (reg as any).sync.register('waybilla-sync').catch(() => {});
+      }
     }).catch((err) => {
-      console.warn('Firebase Messaging ServiceWorker registration notice:', err);
+      console.warn('ServiceWorker registration notice:', err);
+    });
+
+    navigator.serviceWorker.addEventListener('message', (event) => {
+      if (event.data?.type === 'WAYBILLA_TRIGGER_OFFLINE_SYNC') {
+        const token = localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+        if (token) {
+          import('./lib/offlineWaybillSync').then(({ syncOfflineWaybills }) => {
+            syncOfflineWaybills(token);
+          });
+        }
+      }
     });
   });
 }
