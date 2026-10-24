@@ -2,15 +2,18 @@
 // Enables 100% offline access when opened from Google Chrome / Safari / Home Screen
 // Caches app shell, scripts, styles, images, and coordinates offline data sync
 
-const CACHE_NAME = 'waybilla-offline-cache-v35';
+const CACHE_NAME = 'waybilla-offline-cache-v40';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/manifest.json',
   '/logo.png',
-  '/waybilla_box_logo.png',
   '/icon-192.png',
-  '/icon-512.png'
+  '/icon-512.png',
+  '/icon-192-maskable.png',
+  '/icon-512-maskable.png',
+  '/apple-touch-icon.png',
+  '/favicon-32x32.png'
 ];
 
 // Optional Firebase Messaging Compat scripts for native Web Push

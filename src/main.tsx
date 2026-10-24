@@ -75,15 +75,15 @@ if (typeof window !== 'undefined') {
 // Register Universal Service Worker for offline caching, background sync, and push notifications
 if ('serviceWorker' in navigator) {
   // Purge any stale client caches if version changed
-  if (typeof caches !== 'undefined' && localStorage.getItem('wb_sw_v') !== 'v35') {
+  if (typeof caches !== 'undefined' && localStorage.getItem('wb_sw_v') !== 'v40') {
     caches.keys().then((names) => {
       names.forEach((name) => {
-        if (name !== 'waybilla-offline-cache-v35') {
+        if (name !== 'waybilla-offline-cache-v40') {
           caches.delete(name);
         }
       });
     });
-    localStorage.setItem('wb_sw_v', 'v35');
+    localStorage.setItem('wb_sw_v', 'v40');
   }
 
   window.addEventListener('load', () => {
