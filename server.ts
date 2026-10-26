@@ -4772,7 +4772,7 @@ app.post("/api/staff/buses/:id/arrive", async (req, res) => {
   }
 });
 
-// 7b. Verify Secret Pickup PIN or Receiver Phone before displaying details to Staff
+// 7b. Verify Secret Pickup PIN before displaying details to Staff
 app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
   try {
     const session = await validateSessionFromHeader(req, res);
@@ -4783,7 +4783,7 @@ app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
     const inputVal = String(code || "").trim();
 
     if (!inputVal) {
-      return res.status(400).json({ error: "Receiver phone number or secret 6-digit Pickup PIN is required for verification." });
+      return res.status(400).json({ error: "Secret 6-digit Pickup PIN is required for verification." });
     }
 
     const waybillRef = doc(db, "waybills", waybillId);
@@ -4793,14 +4793,12 @@ app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
     }
 
     const waybillData = waybillSnap.data();
-    const expectedPhone = (waybillData.receiver_phone || "").trim();
     const expectedPin = (waybillData.pickup_pin || "").trim();
 
-    const isPhoneMatch = inputVal === expectedPhone;
     const isPinMatch = expectedPin && inputVal === expectedPin;
 
-    if (!isPhoneMatch && !isPinMatch) {
-      return res.status(400).json({ error: "Verification Failed. The secret Pickup PIN or Receiver Phone provided does not match this waybill." });
+    if (!isPinMatch) {
+      return res.status(400).json({ error: "Verification Failed. The secret Pickup PIN provided does not match this waybill. Phone numbers are not accepted for pickup verification." });
     }
 
     // Do NOT expose pickup_pin in response object to staff
@@ -4808,7 +4806,7 @@ app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
 
     res.json({
       success: true,
-      verified_by: isPinMatch ? "Secret 6-Digit Pickup PIN" : "Receiver Phone Number",
+      verified_by: "Secret 6-Digit Pickup PIN",
       waybill: { id: waybillSnap.id, ...safeWaybill }
     });
   } catch (err) {
@@ -4817,19 +4815,19 @@ app.post("/api/staff/waybills/:id/verify-code", async (req, res) => {
   }
 });
 
-// 8. Mark Waybill as Collected (by Staff with Flexible Phone or Secret Pickup PIN Verification)
+// 8. Mark Waybill as Collected (Strictly requiring Secret Pickup PIN Verification)
 app.post("/api/staff/waybills/:id/collect", async (req, res) => {
   try {
     const session = await validateSessionFromHeader(req, res);
     if (!session) return;
 
     const waybillId = req.params.id;
-    const { receiver_phone, pickup_pin } = req.body;
+    const { pickup_pin, receiver_phone } = req.body;
 
-    const inputVal = String(receiver_phone || pickup_pin || "").trim();
+    const inputVal = String(pickup_pin || receiver_phone || "").trim();
 
     if (!inputVal) {
-      return res.status(400).json({ error: "Receiver phone number or 6-digit Pickup PIN is required for verification." });
+      return res.status(400).json({ error: "Secret 6-digit Pickup PIN is required to collect this waybill." });
     }
 
     const waybillRef = doc(db, "waybills", waybillId);
@@ -4840,16 +4838,13 @@ app.post("/api/staff/waybills/:id/collect", async (req, res) => {
 
     const waybillData = waybillSnap.data();
 
-    const expectedPhone = (waybillData.receiver_phone || "").trim();
     const expectedPin = (waybillData.pickup_pin || "").trim();
 
-    // Check if input matches receiver phone OR pickup pin
-    const isPhoneMatch = inputVal === expectedPhone;
     const isPinMatch = expectedPin && inputVal === expectedPin;
 
-    if (!isPhoneMatch && !isPinMatch) {
+    if (!isPinMatch) {
       return res.status(400).json({ 
-        error: "Verification failed! The entered value does not match the Receiver Phone Number or 6-digit Pickup PIN on record for this waybill. Ask the receiver to state their correct phone number or Pickup PIN." 
+        error: "Verification failed! The entered PIN does not match the secret Pickup PIN on record for this waybill. Phone numbers are not accepted for final pickup." 
       });
     }
 

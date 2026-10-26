@@ -671,9 +671,6 @@ export const HomePage: React.FC = () => {
             <p className="text-xs font-bold text-slate-700">
               &copy; {new Date().getFullYear()} Waybilla. Nigeria’s Waybill Tracking Network.
             </p>
-            <p className="text-[11px] font-medium text-slate-500">
-              A product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span>
-            </p>
           </div>
 
           <div className="flex items-center gap-5">

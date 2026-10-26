@@ -404,9 +404,8 @@ export const StaffDashboard: React.FC = () => {
       </main>
 
       {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 bg-white space-y-0.5">
-        <div>Waybilla is a product of <span className="text-slate-800 font-bold">Haxel Tech-Solutions</span></div>
-        <div className="text-[11px] text-slate-400">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
+      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-100 bg-white">
+        <div>&copy; {new Date().getFullYear()} Waybilla. All rights reserved.</div>
       </footer>
 
       {/* Staff Operations Guide Modal */}

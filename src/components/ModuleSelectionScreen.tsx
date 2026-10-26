@@ -224,9 +224,8 @@ export const ModuleSelectionScreen: React.FC<ModuleSelectionScreenProps> = ({
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-blue-950/80/60 py-6 text-center text-xs text-slate-500 space-y-1">
-        <div>Waybilla is a product of <span className="text-slate-300 font-bold">Haxel Tech-Solutions</span></div>
-        <div className="text-[11px] text-slate-600">&copy; {new Date().getFullYear()} Haxel Tech-Solutions. All rights reserved.</div>
+      <footer className="py-6 text-center text-xs text-slate-500 border-t border-blue-950/80/60">
+        <div>&copy; {new Date().getFullYear()} Waybilla. All rights reserved.</div>
       </footer>
 
     </div>
