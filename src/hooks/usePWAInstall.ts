@@ -16,9 +16,10 @@ export function usePWAInstall() {
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
   const [isIframe, setIsIframe] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(false);
 
   useEffect(() => {
-    // Detect if running inside an iframe (AI Studio preview container)
+    // Detect if running inside an iframe (e.g. AI Studio preview container)
     try {
       const inIframe = window.self !== window.top;
       setIsIframe(inIframe);
@@ -33,10 +34,13 @@ export function usePWAInstall() {
 
     setIsInstalled(isStandalone);
 
-    // Detect iOS devices (iPhone, iPad, iPod)
+    // Detect User Agent
     const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent) && !(window as any).MSStream;
     setIsIOS(isIOSDevice);
+
+    const isMobileDevice = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/i.test(userAgent);
+    setIsDesktop(!isMobileDevice);
 
     const updatePrompt = () => {
       if ((window as any).__deferredPWAInstallPrompt) {
@@ -92,6 +96,7 @@ export function usePWAInstall() {
     isInstalled,
     isIOS,
     isIframe,
+    isDesktop,
     install,
   };
 }

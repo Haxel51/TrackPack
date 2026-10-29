@@ -28,6 +28,7 @@ import { CompanyDashboard } from './pages/CompanyDashboard';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { DeveloperPortal } from './pages/DeveloperPortal';
 import { PartnershipFlyerPage } from './pages/PartnershipFlyerPage';
+import { PresentationPage } from './pages/PresentationPage';
 import { CustomerFleetTrackingPage } from './pages/CustomerFleetTrackingPage';
 import { ENABLE_FLEET_TRACKING, ENABLE_DEVELOPER_API } from './config/features';
 
@@ -78,6 +79,8 @@ export default function App() {
             <Route path="/partnership-flyer" element={<PartnershipFlyerPage />} />
             <Route path="/partner" element={<PartnershipFlyerPage />} />
             <Route path="/partnership" element={<PartnershipFlyerPage />} />
+            <Route path="/pitch" element={<PresentationPage />} />
+            <Route path="/presentation" element={<PresentationPage />} />
             {ENABLE_FLEET_TRACKING ? (
               <>
                 <Route path="/track/fleet/:tripId" element={<CustomerFleetTrackingPage />} />

@@ -2,7 +2,11 @@
 // Enables 100% offline access when opened from Google Chrome / Safari / Home Screen
 // Caches app shell, scripts, styles, images, and coordinates offline data sync
 
+// Workbox manifest placeholder for VitePWA injection
+const wbManifest = self.__WB_MANIFEST || [];
+
 const CACHE_NAME = 'waybilla-offline-cache-v50';
+
 const STATIC_ASSETS = [
   '/',
   '/index.html',

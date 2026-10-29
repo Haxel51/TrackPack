@@ -1560,8 +1560,8 @@ app.post("/api/auth/staff/set-pin", async (req, res) => {
       return res.status(403).json({ error: "Your account has been deactivated. Please contact your company manager." });
     }
 
-    // Security check: If staff PIN is already set, block re-setting PIN without manager reset code
-    if (staffData.pin_hash && (staffData.pin_set_by_user || staffData.pin_hash.length > 0)) {
+    // Security check: Only block if staff PIN was already explicitly set by user
+    if (staffData.pin_set_by_user === true && staffData.pin_hash) {
       const providedCode = req.body.reset_code || req.body.code;
       const validCode = staffData.temporary_reset_code && staffData.temporary_reset_code === providedCode && new Date(staffData.temporary_reset_code_expires_at || 0) > new Date();
       if (!validCode) {
@@ -6868,6 +6868,7 @@ app.post("/api/auth/reset-password/submit", async (req, res) => {
           const hash = await bcrypt.hash(new_password.trim(), 10);
           await updateDoc(doc(db, "staff", d.id), {
             pin_hash: hash,
+            pin_set_by_user: true,
             temporary_reset_code: null,
             temporary_reset_code_expires_at: null,
             failed_attempts: 0,
